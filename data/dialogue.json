@@ -3926,11 +3926,11 @@
      "quest": "q_white_pelts",
      "state": "active",
      "stage": 0,
-     "has_item": "greatwolf_pelt",
+     "has_item": "fell_wolf_pelt",
      "qty": 3
     },
     "action": {
-     "take": "greatwolf_pelt",
+     "take": "fell_wolf_pelt",
      "take_qty": 3
     }
    },
@@ -4913,7 +4913,7 @@
  },
  "sorrel_pelts_offer": {
   "speaker": "Sorrel",
-  "text": "\"Something killed, first. Ivo wants white pelts -- greatwolf, off the high ground in the Westwold where the grass goes pale. Big as a pony and they hunt in threes. I take the grey ones; I do not go up there.\"\n\n\"Three pelts. I will pay what Ivo pays me, and a little over, for the part where you are bitten.\"",
+  "text": "\"Something killed, first. Ivo wants white pelts -- fell wolf, off the high ground in the Westwold where the grass goes pale. A head taller than the grey ones and they hunt in threes. I take the grey ones; I do not go up there.\"\n\n\"Three pelts. I will pay what Ivo pays me, and a little over, for the part where you are bitten.\"",
   "options": [
    {
     "text": "Three white pelts. Done.",

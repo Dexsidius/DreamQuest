@@ -865,6 +865,25 @@ void SetAmbience(const string& kind, bool interior) {
         p.wind = 0.12f; p.wind_cut = 0.55f;
         p.drone = 0.03f;
         p.fire = 0.03f; p.crackle_lo = 0.15f; p.crackle_hi = 1.2f;
+    } else if (kind == "deep") {
+        // Under a sea: the wind muffled to a pressure, a low drone, drops.
+        p.wind = 0.06f; p.wind_cut = 0.35f;
+        p.drone = 0.05f;
+        p.drip_lo = 1.2f; p.drip_hi = 4.0f;
+    } else if (kind == "gale") {
+        // Nothing but the wind, and a great deal of it.
+        p.wind = 0.30f; p.wind_cut = 2.0f;
+    } else if (kind == "storm") {
+        // Wind and a rumble under it, and the crackle of what is charged.
+        p.wind = 0.22f; p.wind_cut = 1.0f;
+        p.drone = 0.035f;
+        p.fire = 0.02f; p.crackle_lo = 0.4f; p.crackle_hi = 2.0f;
+    } else if (kind == "conflux") {
+        // All of it at once, a long way off: a hum, a chime, a breath of wind.
+        p.wind = 0.05f; p.wind_cut = 0.7f;
+        p.drone = 0.03f;
+        p.pad = 0.06f;
+        p.chime_lo = 1.5f; p.chime_hi = 5.0f;
     } else if (kind == "menu") {
         p.wind = 0.10f; p.wind_cut = 0.8f; p.bird_lo = 6.0f; p.bird_hi = 14.0f;
     } else if (!kind.empty()) {

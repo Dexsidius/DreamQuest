@@ -16,13 +16,13 @@ was a game with no pictures in it. Everything has since been replaced.
 | What | Made by |
 | --- | --- |
 | The three playable characters, their armour layers in three cuts, and the town NPCs -- the `magister`, and the college's `apprentice` and `adept`, who also have the cast clip (`make_character.ps1 -Look apprentice,adept,magister -Only idle,walk,attack -Style plate`) | `tools/blender_character.py` (`make_character.ps1`) |
-| Every monster -- orcs, animals, undead, dragons and all | `tools/blender_creatures.py` (`make_creatures.ps1`); the twenty-five that fill the level ladder -- the Bayou's, Hollowrest Crypt's and the three past them -- are in `tools/blender_bestiary.py`, registered into the same table and rendered the same way |
-| Every prop -- furniture, herbs, gravestones, the forge, the well | `tools/blender_props.py` (`make_props.ps1`); the Brimstone Palace's -- its front, towers, torches, drawbridge and all its furniture -- are in `tools/blender_palace.py`, and Farmer Aldous's apiary -- the hives, the skep, the bee shed and the lavender -- in `tools/blender_farm_props.py`, each registered into the same table |
+| Every monster -- orcs, animals, undead, dragons and all | `tools/blender_creatures.py` (`make_creatures.ps1`); the twenty-five that fill the level ladder -- the Bayou's, Hollowrest Crypt's and the three past them -- are in `tools/blender_bestiary.py`, and the Primordium's eleven -- the ten Conjures and the Quintessence -- in `tools/blender_primordium.py`, each registered into the same table and rendered the same way |
+| Every prop -- furniture, herbs, gravestones, the forge, the well | `tools/blender_props.py` (`make_props.ps1`); the Brimstone Palace's -- its front, towers, torches, drawbridge and all its furniture -- are in `tools/blender_palace.py`, Farmer Aldous's apiary -- the hives, the skep, the bee shed and the lavender -- in `tools/blender_farm_props.py`, and the Primordium's twenty-three -- the rift, the five wellsprings, the dais and the rest -- in `tools/blender_primordium_props.py`, each registered into the same table |
 | The scenery and buildings -- trees, rocks, bushes, mushrooms, houses, the guild hall, chests, doors, the campfire | `tools/blender_props.py` (`make_props.ps1 -Objects`) |
 | Every ore, bar, weapon and armour icon -- gloves and boots included -- and the weapon in the hero's hand | `tools/blender_tiers.py` (`make_tiers.ps1`) |
 | The herb, bug, potion and recipe icons, and the larder's (honey among them) | `tools/blender_tiers.py` (`make_tiers.ps1 -What brewing` / `-What food`, `-Names` for only some) |
 | The bugs in the air and the bees round a hive | nothing: drawn in code, a world pixel at a time, in `World::DrawBug` and `World::DrawBees` (`src/world/world_render.cpp`) |
-| All 120 ground and interior tiles, the college's own set and then the Brimstone Palace's last | `tools/make_ground.ps1` |
+| The ground and interior tiles -- the college's own set, then the Brimstone Palace's, and last the Primordium's sixty, each family on a seed of its own so nothing before it changes | `tools/make_ground.ps1` |
 | Ground decals -- tufts, flowers, pebbles, cracks | `tools/make_decals.ps1` |
 | The hand-drawn item icons | `tools/make_icons.ps1` from `tools/icons.txt` |
 | The minimap bezel and the HUD fittings | `tools/make_ui.ps1` |
@@ -128,7 +128,7 @@ The woodland zones added a set of their own:
   and a crystal on the finial.
 - **`spell_circle`** (96) -- the circle cut into the college's floor, its
   runes lit, laid as an overlay like a rug.
-- **`totem_circle`** (24) and seventeen **`totem_<boss>`** (32) -- the ring in
+- **`totem_circle`** (24) and eighteen **`totem_<boss>`** (32) -- the ring in
   the floor of the house at Mossvale, and what a boss leaves the fifteenth
   time. One builder, `_totem(post, band, cap)`: a squat carved post of three
   blocks with a band between and lit eyes in the top one, and what is on its
@@ -147,6 +147,28 @@ The woodland zones added a set of their own:
   try had a round head on a neck and read as a lamp post; the eye had to be
   *in* the stone, and the emission under 1.2, or it blew out white.
 - **`house_rug`** and **`house_rug_trim`** (160), **`tapestry_house`** and **`tapestry_house_trim`** (64) -- the dress the house at Mossvale wears for a totem in its ring: white cloth and its trim as two pictures, laid one on the other and tinted by the game with the totem's palette (`$LAYERED` in `make_props.ps1` keeps the trim sitting on its cloth). Built in `tools/blender_props.py`, "the house at Mossvale". The pale boards and plaster they lie on, `plank_floor_pale*` and `plaster_wall_pale`, are the last tiles `tools/make_ground.ps1` makes, on their own seed so nothing before them changes.
+
+- **The Primordium** -- `tools/blender_primordium_props.py`, twenty-three of
+  them at 32 pixels to a unit: the **`primordial_rift`** (192, seen from the
+  buildings' 46 degrees), five standing stones round a tear in the air on a
+  floor of its own, open at the front so it is walked into; the five
+  wellsprings, **`magma_well`**, **`stone_well`**, **`tide_well`**, **`gale_well`**
+  and **`storm_well`** (160, from 52 degrees, flat enough to read as a disc);
+  the **`conflux_dais`** (256, from 62) with its five-pointed star; and for each
+  element's ground `kiln_vent`, `obsidian_spire`, `cinder_heap`;
+  `crystal_cluster`, `monolith`, `geode`; `coral_spire`, `kelp_stand`,
+  `giant_shell`; `wind_arch`, `cloud_pillar`, `sky_rock`; `fulgurite_spire`,
+  `storm_rod`, `thunder_stone`; and `totem_quintessence`. Earth is a pale green
+  on the star and the totem's gems because amber sat too close to fire's orange
+  and lightning's yellow; the Tempest's lightning is a stronger yellow than
+  first drawn, because the night pass only lights what is bright and
+  saturated, and a pale yellow passed over almost nothing. The dais renders
+  without the denoiser: at 2048 pixels it ran out of memory and saved a black
+  square. Their footprints were measured off the art, and `genmaps` places them
+  by those (`prim::Well`, `plat::Rift`) -- a wellspring solid all over and sorted
+  from its middle, the rift solid only at its stones, the tear and the floor
+  behind it, and sorted from the tear's foot so whoever walks up to it is drawn
+  on its floor.
 
 Two icons are built the same way as the potions in `tools/blender_tiers.py`:
 `hide_boots`, and `enchant_scroll`, a recipe scroll with a rune and a blue

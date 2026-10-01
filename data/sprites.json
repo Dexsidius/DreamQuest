@@ -1017,6 +1017,44 @@
                                               }
                                  }
                    },
+    "cyclone_conjure":  {
+                            "dir":  "assets/characters/cyclone_conjure/",
+                            "rows":  4,
+                            "anchor_y":  122,
+                            "scale":  1,
+                            "clips":  {
+                                          "attack":  {
+                                                         "sheet":  "attack.png",
+                                                         "frames":  6,
+                                                         "fps":  16,
+                                                         "loop":  false
+                                                     },
+                                          "death":  {
+                                                        "sheet":  "death.png",
+                                                        "frames":  6,
+                                                        "fps":  9,
+                                                        "loop":  false
+                                                    },
+                                          "hurt":  {
+                                                       "sheet":  "hurt.png",
+                                                       "frames":  3,
+                                                       "fps":  12,
+                                                       "loop":  false
+                                                   },
+                                          "idle":  {
+                                                       "sheet":  "idle.png",
+                                                       "frames":  4,
+                                                       "fps":  8,
+                                                       "loop":  true
+                                                   },
+                                          "walk":  {
+                                                       "sheet":  "walk.png",
+                                                       "frames":  6,
+                                                       "fps":  10,
+                                                       "loop":  true
+                                                   }
+                                      }
+                        },
     "deer":  {
                  "dir":  "assets/characters/deer/",
                  "rows":  4,
@@ -1677,6 +1715,44 @@
                                                }
                                   }
                     },
+    "ember_conjure":  {
+                          "dir":  "assets/characters/ember_conjure/",
+                          "rows":  4,
+                          "anchor_y":  95,
+                          "scale":  1,
+                          "clips":  {
+                                        "attack":  {
+                                                       "sheet":  "attack.png",
+                                                       "frames":  6,
+                                                       "fps":  16,
+                                                       "loop":  false
+                                                   },
+                                        "death":  {
+                                                      "sheet":  "death.png",
+                                                      "frames":  6,
+                                                      "fps":  9,
+                                                      "loop":  false
+                                                  },
+                                        "hurt":  {
+                                                     "sheet":  "hurt.png",
+                                                     "frames":  3,
+                                                     "fps":  12,
+                                                     "loop":  false
+                                                 },
+                                        "idle":  {
+                                                     "sheet":  "idle.png",
+                                                     "frames":  4,
+                                                     "fps":  8,
+                                                     "loop":  true
+                                                 },
+                                        "walk":  {
+                                                     "sheet":  "walk.png",
+                                                     "frames":  6,
+                                                     "fps":  10,
+                                                     "loop":  true
+                                                 }
+                                    }
+                      },
     "fen_gator":  {
                       "dir":  "assets/characters/fen_gator/",
                       "rows":  4,
@@ -1973,6 +2049,44 @@
                                                    }
                                       }
                         },
+    "gale_conjure":  {
+                         "dir":  "assets/characters/gale_conjure/",
+                         "rows":  4,
+                         "anchor_y":  95,
+                         "scale":  1,
+                         "clips":  {
+                                       "attack":  {
+                                                      "sheet":  "attack.png",
+                                                      "frames":  6,
+                                                      "fps":  16,
+                                                      "loop":  false
+                                                  },
+                                       "death":  {
+                                                     "sheet":  "death.png",
+                                                     "frames":  6,
+                                                     "fps":  9,
+                                                     "loop":  false
+                                                 },
+                                       "hurt":  {
+                                                    "sheet":  "hurt.png",
+                                                    "frames":  3,
+                                                    "fps":  12,
+                                                    "loop":  false
+                                                },
+                                       "idle":  {
+                                                    "sheet":  "idle.png",
+                                                    "frames":  4,
+                                                    "fps":  8,
+                                                    "loop":  true
+                                                },
+                                       "walk":  {
+                                                    "sheet":  "walk.png",
+                                                    "frames":  6,
+                                                    "fps":  10,
+                                                    "loop":  true
+                                                }
+                                   }
+                     },
     "goose":  {
                   "dir":  "assets/characters/goose/",
                   "rows":  4,
@@ -2569,6 +2683,44 @@
                                        }
                           }
             },
+    "inferno_conjure":  {
+                            "dir":  "assets/characters/inferno_conjure/",
+                            "rows":  4,
+                            "anchor_y":  122,
+                            "scale":  1,
+                            "clips":  {
+                                          "attack":  {
+                                                         "sheet":  "attack.png",
+                                                         "frames":  6,
+                                                         "fps":  16,
+                                                         "loop":  false
+                                                     },
+                                          "death":  {
+                                                        "sheet":  "death.png",
+                                                        "frames":  6,
+                                                        "fps":  9,
+                                                        "loop":  false
+                                                    },
+                                          "hurt":  {
+                                                       "sheet":  "hurt.png",
+                                                       "frames":  3,
+                                                       "fps":  12,
+                                                       "loop":  false
+                                                   },
+                                          "idle":  {
+                                                       "sheet":  "idle.png",
+                                                       "frames":  4,
+                                                       "fps":  8,
+                                                       "loop":  true
+                                                   },
+                                          "walk":  {
+                                                       "sheet":  "walk.png",
+                                                       "frames":  6,
+                                                       "fps":  10,
+                                                       "loop":  true
+                                                   }
+                                      }
+                        },
     "lizard_shaman":  {
                           "dir":  "assets/characters/lizard_shaman/",
                           "rows":  4,
@@ -2645,6 +2797,44 @@
                                              }
                                 }
                   },
+    "maelstrom_conjure":  {
+                              "dir":  "assets/characters/maelstrom_conjure/",
+                              "rows":  4,
+                              "anchor_y":  122,
+                              "scale":  1,
+                              "clips":  {
+                                            "attack":  {
+                                                           "sheet":  "attack.png",
+                                                           "frames":  6,
+                                                           "fps":  16,
+                                                           "loop":  false
+                                                       },
+                                            "death":  {
+                                                          "sheet":  "death.png",
+                                                          "frames":  6,
+                                                          "fps":  9,
+                                                          "loop":  false
+                                                      },
+                                            "hurt":  {
+                                                         "sheet":  "hurt.png",
+                                                         "frames":  3,
+                                                         "fps":  12,
+                                                         "loop":  false
+                                                     },
+                                            "idle":  {
+                                                         "sheet":  "idle.png",
+                                                         "frames":  4,
+                                                         "fps":  8,
+                                                         "loop":  true
+                                                     },
+                                            "walk":  {
+                                                         "sheet":  "walk.png",
+                                                         "frames":  6,
+                                                         "fps":  10,
+                                                         "loop":  true
+                                                     }
+                                        }
+                          },
     "magister":  {
                      "dir":  "assets/characters/magister/",
                      "rows":  4,
@@ -2763,6 +2953,44 @@
                                                 }
                                    }
                      },
+    "monolith_conjure":  {
+                             "dir":  "assets/characters/monolith_conjure/",
+                             "rows":  4,
+                             "anchor_y":  122,
+                             "scale":  1,
+                             "clips":  {
+                                           "attack":  {
+                                                          "sheet":  "attack.png",
+                                                          "frames":  6,
+                                                          "fps":  16,
+                                                          "loop":  false
+                                                      },
+                                           "death":  {
+                                                         "sheet":  "death.png",
+                                                         "frames":  6,
+                                                         "fps":  9,
+                                                         "loop":  false
+                                                     },
+                                           "hurt":  {
+                                                        "sheet":  "hurt.png",
+                                                        "frames":  3,
+                                                        "fps":  12,
+                                                        "loop":  false
+                                                    },
+                                           "idle":  {
+                                                        "sheet":  "idle.png",
+                                                        "frames":  4,
+                                                        "fps":  8,
+                                                        "loop":  true
+                                                    },
+                                           "walk":  {
+                                                        "sheet":  "walk.png",
+                                                        "frames":  6,
+                                                        "fps":  10,
+                                                        "loop":  true
+                                                    }
+                                       }
+                         },
     "nosferatu":  {
                       "dir":  "assets/characters/nosferatu/",
                       "rows":  4,
@@ -26451,6 +26679,44 @@
                                       },
                             "weapons_from":  "player_hero"
                         },
+    "quintessence":  {
+                         "dir":  "assets/characters/quintessence/",
+                         "rows":  4,
+                         "anchor_y":  162,
+                         "scale":  1,
+                         "clips":  {
+                                       "attack":  {
+                                                      "sheet":  "attack.png",
+                                                      "frames":  6,
+                                                      "fps":  16,
+                                                      "loop":  false
+                                                  },
+                                       "death":  {
+                                                     "sheet":  "death.png",
+                                                     "frames":  6,
+                                                     "fps":  9,
+                                                     "loop":  false
+                                                 },
+                                       "hurt":  {
+                                                    "sheet":  "hurt.png",
+                                                    "frames":  3,
+                                                    "fps":  12,
+                                                    "loop":  false
+                                                },
+                                       "idle":  {
+                                                    "sheet":  "idle.png",
+                                                    "frames":  4,
+                                                    "fps":  8,
+                                                    "loop":  true
+                                                },
+                                       "walk":  {
+                                                    "sheet":  "walk.png",
+                                                    "frames":  6,
+                                                    "fps":  10,
+                                                    "loop":  true
+                                                }
+                                   }
+                     },
     "rat":  {
                 "dir":  "assets/characters/rat/",
                 "rows":  4,
@@ -26869,6 +27135,82 @@
                                           }
                              }
                },
+    "stone_conjure":  {
+                          "dir":  "assets/characters/stone_conjure/",
+                          "rows":  4,
+                          "anchor_y":  95,
+                          "scale":  1,
+                          "clips":  {
+                                        "attack":  {
+                                                       "sheet":  "attack.png",
+                                                       "frames":  6,
+                                                       "fps":  16,
+                                                       "loop":  false
+                                                   },
+                                        "death":  {
+                                                      "sheet":  "death.png",
+                                                      "frames":  6,
+                                                      "fps":  9,
+                                                      "loop":  false
+                                                  },
+                                        "hurt":  {
+                                                     "sheet":  "hurt.png",
+                                                     "frames":  3,
+                                                     "fps":  12,
+                                                     "loop":  false
+                                                 },
+                                        "idle":  {
+                                                     "sheet":  "idle.png",
+                                                     "frames":  4,
+                                                     "fps":  8,
+                                                     "loop":  true
+                                                 },
+                                        "walk":  {
+                                                     "sheet":  "walk.png",
+                                                     "frames":  6,
+                                                     "fps":  10,
+                                                     "loop":  true
+                                                 }
+                                    }
+                      },
+    "storm_conjure":  {
+                          "dir":  "assets/characters/storm_conjure/",
+                          "rows":  4,
+                          "anchor_y":  95,
+                          "scale":  1,
+                          "clips":  {
+                                        "attack":  {
+                                                       "sheet":  "attack.png",
+                                                       "frames":  6,
+                                                       "fps":  16,
+                                                       "loop":  false
+                                                   },
+                                        "death":  {
+                                                      "sheet":  "death.png",
+                                                      "frames":  6,
+                                                      "fps":  9,
+                                                      "loop":  false
+                                                  },
+                                        "hurt":  {
+                                                     "sheet":  "hurt.png",
+                                                     "frames":  3,
+                                                     "fps":  12,
+                                                     "loop":  false
+                                                 },
+                                        "idle":  {
+                                                     "sheet":  "idle.png",
+                                                     "frames":  4,
+                                                     "fps":  8,
+                                                     "loop":  true
+                                                 },
+                                        "walk":  {
+                                                     "sheet":  "walk.png",
+                                                     "frames":  6,
+                                                     "fps":  10,
+                                                     "loop":  true
+                                                 }
+                                    }
+                      },
     "swamp_hag":  {
                       "dir":  "assets/characters/swamp_hag/",
                       "rows":  4,
@@ -26907,6 +27249,82 @@
                                              }
                                 }
                   },
+    "thunder_conjure":  {
+                            "dir":  "assets/characters/thunder_conjure/",
+                            "rows":  4,
+                            "anchor_y":  122,
+                            "scale":  1,
+                            "clips":  {
+                                          "attack":  {
+                                                         "sheet":  "attack.png",
+                                                         "frames":  6,
+                                                         "fps":  16,
+                                                         "loop":  false
+                                                     },
+                                          "death":  {
+                                                        "sheet":  "death.png",
+                                                        "frames":  6,
+                                                        "fps":  9,
+                                                        "loop":  false
+                                                    },
+                                          "hurt":  {
+                                                       "sheet":  "hurt.png",
+                                                       "frames":  3,
+                                                       "fps":  12,
+                                                       "loop":  false
+                                                   },
+                                          "idle":  {
+                                                       "sheet":  "idle.png",
+                                                       "frames":  4,
+                                                       "fps":  8,
+                                                       "loop":  true
+                                                   },
+                                          "walk":  {
+                                                       "sheet":  "walk.png",
+                                                       "frames":  6,
+                                                       "fps":  10,
+                                                       "loop":  true
+                                                   }
+                                      }
+                        },
+    "tide_conjure":  {
+                         "dir":  "assets/characters/tide_conjure/",
+                         "rows":  4,
+                         "anchor_y":  95,
+                         "scale":  1,
+                         "clips":  {
+                                       "attack":  {
+                                                      "sheet":  "attack.png",
+                                                      "frames":  6,
+                                                      "fps":  16,
+                                                      "loop":  false
+                                                  },
+                                       "death":  {
+                                                     "sheet":  "death.png",
+                                                     "frames":  6,
+                                                     "fps":  9,
+                                                     "loop":  false
+                                                 },
+                                       "hurt":  {
+                                                    "sheet":  "hurt.png",
+                                                    "frames":  3,
+                                                    "fps":  12,
+                                                    "loop":  false
+                                                },
+                                       "idle":  {
+                                                    "sheet":  "idle.png",
+                                                    "frames":  4,
+                                                    "fps":  8,
+                                                    "loop":  true
+                                                },
+                                       "walk":  {
+                                                    "sheet":  "walk.png",
+                                                    "frames":  6,
+                                                    "fps":  10,
+                                                    "loop":  true
+                                                }
+                                   }
+                     },
     "tomb_shade":  {
                        "dir":  "assets/characters/tomb_shade/",
                        "rows":  4,

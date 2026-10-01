@@ -3007,6 +3007,11 @@ import blender_frostreach  # noqa: E402
 
 blender_frostreach.register()
 
+# And the Primordium's: the Elemental Conjures, lesser and greater, and the Quintessence.
+import blender_primordium  # noqa: E402
+
+blender_primordium.register()
+
 
 if __name__ == "__main__":
     main()

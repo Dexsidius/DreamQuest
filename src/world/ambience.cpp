@@ -10,6 +10,10 @@ void Ambience::SetKind(const string& ambient, bool interior) {
     else if (ambient == "dream")  kind = Kind::Dream;
     else if (ambient == "snow")   kind = Kind::Snow;
     else if (ambient == "ash")    kind = Kind::Ash;
+    else if (ambient == "deep")   kind = Kind::Deep;
+    else if (ambient == "gale")   kind = Kind::Gale;
+    else if (ambient == "storm")  kind = Kind::Storm;
+    else if (ambient == "conflux") kind = Kind::Conflux;
     else if (interior)            kind = Kind::None;
     else if (ambient == "forest") kind = Kind::Forest;
     else if (ambient == "grove")  kind = Kind::Grove;
@@ -23,6 +27,9 @@ void Ambience::SetKind(const string& ambient, bool interior) {
     gust = 0.0f;
     gust_age = -1.0f;
     gust_wait = 7.0f;
+    flash = 0.0f;
+    flash_age = -1.0f;
+    flash_wait = 4.0f;
 }
 
 Ambience::Mote Ambience::Make(MoteKind k, const SDL_FRect& view) {
@@ -87,16 +94,43 @@ Ambience::Mote Ambience::Make(MoteKind k, const SDL_FRect& view) {
             break;
         case WISP: {
             // Motes of dream rising out of the void: violet, rose and a pale
-            // cyan, glowing and fading as they climb.
+            // cyan, glowing and fading as they climb. In the Conflux, one of
+            // each of the five: ember, amber, sea, cloud and storm.
             static const SDL_Color kWisps[] = {
                 {196, 150, 255, 255}, {255, 160, 220, 255}, {150, 230, 255, 255}};
-            m.color = kWisps[rng() % 3];
+            static const SDL_Color kPrimal[] = {
+                {255, 140, 50, 255}, {240, 180, 70, 255}, {90, 190, 240, 255}, {236, 242, 255, 255}, {255, 240, 130, 255}};
+            m.color = kind == Kind::Conflux ? kPrimal[rng() % 5] : kWisps[rng() % 3];
             m.vx    = Range(rng, -3.0f, 3.0f);
             m.vy    = Range(rng, -14.0f, -5.0f);
             m.speed = Range(rng, 0.7f, 1.5f);
             m.size  = Range(rng, 1.0f, 2.0f);
             break;
         }
+        case BUBBLE:
+            // Up out of the sea-floor, wobbling as they go: a pale ring.
+            m.color = {190, 236, 250, static_cast<Uint8>(Range(rng, 110.0f, 190.0f))};
+            m.vx    = Range(rng, -2.0f, 2.0f);
+            m.vy    = Range(rng, -26.0f, -12.0f);
+            m.speed = Range(rng, 1.2f, 2.4f);
+            m.size  = Range(rng, 1.0f, 2.5f);
+            break;
+        case WIND:
+            // A thread of moving air, long and faint, across the Firmament.
+            m.color = {240, 246, 255, static_cast<Uint8>(Range(rng, 50.0f, 110.0f))};
+            m.vx    = Range(rng, -150.0f, -90.0f);
+            m.vy    = Range(rng, -4.0f, 6.0f);
+            m.speed = Range(rng, 0.6f, 1.4f);
+            m.size  = Range(rng, 4.0f, 9.0f);
+            break;
+        case RAIN:
+            // Slanting down hard.
+            m.color = {176, 190, 222, static_cast<Uint8>(Range(rng, 90.0f, 160.0f))};
+            m.vx    = Range(rng, -70.0f, -50.0f);
+            m.vy    = Range(rng, 260.0f, 340.0f);
+            m.speed = 1.0f;
+            m.size  = Range(rng, 3.0f, 5.0f);
+            break;
     }
     return m;
 }
@@ -112,6 +146,10 @@ void Ambience::Populate(const SDL_FRect& view) {
         case Kind::Dream:   break;
         case Kind::Snow:    break;
         case Kind::Ash:     dust = 10; break;
+        case Kind::Deep:    dust = 12; break;
+        case Kind::Gale:    break;
+        case Kind::Storm:   break;
+        case Kind::Conflux: dust = 8; break;
         case Kind::None:    break;
     }
     motes.clear();
@@ -127,6 +165,14 @@ void Ambience::Populate(const SDL_FRect& view) {
     }
     if (kind == Kind::Ash)
         for (int i = 0; i < 46; ++i) motes.push_back(Make(EMBER, view));
+    if (kind == Kind::Deep)
+        for (int i = 0; i < 54; ++i) motes.push_back(Make(BUBBLE, view));
+    if (kind == Kind::Gale)
+        for (int i = 0; i < 70; ++i) motes.push_back(Make(WIND, view));
+    if (kind == Kind::Storm)
+        for (int i = 0; i < 150; ++i) motes.push_back(Make(RAIN, view));
+    if (kind == Kind::Conflux)
+        for (int i = 0; i < 64; ++i) motes.push_back(Make(WISP, view));
 }
 
 void Ambience::Update(float dt, const Camera& cam) {
@@ -137,8 +183,9 @@ void Ambience::Update(float dt, const Camera& cam) {
         seeded = true;
     }
 
-    // The wind, on the mountain: a gust every so often, rising and dying away.
-    if (kind == Kind::Snow) {
+    // The wind, on the mountain and over the Firmament: a gust every so often,
+    // rising and dying away.
+    if (kind == Kind::Snow || kind == Kind::Gale) {
         if (gust_age < 0.0f) {
             gust_wait -= dt;
             if (gust_wait <= 0.0f) {
@@ -151,6 +198,19 @@ void Ambience::Update(float dt, const Camera& cam) {
         }
         gust = gust_age < 0.0f ? 0.0f
                                : std::clamp(std::min(gust_age / GUST_RISE, (gust_len - gust_age) / GUST_FALL), 0.0f, 1.0f);
+    }
+
+    // The Tempest's lightning: one strike every few seconds, and now and then
+    // a second hard on its heels.
+    if (kind == Kind::Storm) {
+        if (flash_age < 0.0f) {
+            flash_wait -= dt;
+            if (flash_wait <= 0.0f) flash_age = 0.0f;
+        } else if ((flash_age += dt) >= FLASH_TIME) {
+            flash_age = -1.0f;
+            flash_wait = Rand01(rng) < 0.3f ? Range(rng, 0.15f, 0.35f) : Range(rng, 5.0f, 12.0f);
+        }
+        flash = flash_age < 0.0f ? 0.0f : 1.0f - flash_age / FLASH_TIME;
     }
 
     const float margin = 40.0f;
@@ -188,6 +248,18 @@ void Ambience::Update(float dt, const Camera& cam) {
                 break;
             case EMBER:
                 m.x += (m.vx + sinf(m.phase) * 7.0f) * dt;
+                m.y += m.vy * dt;
+                break;
+            case BUBBLE:
+                m.x += (m.vx + sinf(m.phase * 2.0f) * 5.0f) * dt;
+                m.y += m.vy * dt;
+                break;
+            case WIND:
+                m.x += m.vx * (0.6f + 0.9f * gust) * dt;
+                m.y += (m.vy + sinf(m.phase) * 5.0f) * dt;
+                break;
+            case RAIN:
+                m.x += m.vx * dt;
                 m.y += m.vy * dt;
                 break;
         }
@@ -273,6 +345,41 @@ void Ambience::Render(SDL_Renderer* r, const Camera& cam) const {
                 SDL_RenderFillRect(r, &q);
                 break;
             }
+            case BUBBLE: {
+                // A pale fleck; the bigger ones a ring, their middles left dark.
+                SDL_SetRenderDrawColor(r, m.color.r, m.color.g, m.color.b, m.color.a);
+                const float s = std::max(1.0f, roundf(m.size * z));
+                const SDL_FRect q = {roundf(p.x - s / 2.0f), roundf(p.y - s / 2.0f), s, s};
+                SDL_RenderFillRect(r, &q);
+                if (m.size >= 2.0f) {
+                    SDL_SetRenderDrawColor(r, 20, 60, 80, 90);
+                    const float c = std::max(1.0f, roundf(s / 3.0f));
+                    const SDL_FRect in = {roundf(p.x - c / 2.0f), roundf(p.y - c / 2.0f), c, c};
+                    SDL_RenderFillRect(r, &in);
+                }
+                break;
+            }
+            case WIND: {
+                // A streak along the wind, longer as it gusts.
+                SDL_SetRenderDrawColor(r, m.color.r, m.color.g, m.color.b,
+                                       static_cast<Uint8>(std::min(255.0f, m.color.a * (0.7f + 0.8f * gust))));
+                const float len = roundf(m.size * (1.0f + gust) * z);
+                const float h = std::max(1.0f, roundf(z * 0.5f));
+                const SDL_FRect q = {roundf(p.x - len / 2.0f), roundf(p.y), len, h};
+                SDL_RenderFillRect(r, &q);
+                break;
+            }
+            case RAIN: {
+                // A short slanted streak: three steps down its slope.
+                SDL_SetRenderDrawColor(r, m.color.r, m.color.g, m.color.b, m.color.a);
+                const float s = std::max(1.0f, roundf(z * 0.5f));
+                const float step = std::max(1.0f, roundf(m.size * z * 0.34f));
+                for (int k = 0; k < 3; ++k) {
+                    const SDL_FRect q = {roundf(p.x - k * s), roundf(p.y + k * step), s, step};
+                    SDL_RenderFillRect(r, &q);
+                }
+                break;
+            }
             case SNOW:
             case POLLEN:
             case DUST: {
@@ -294,6 +401,23 @@ void Ambience::Render(SDL_Renderer* r, const Camera& cam) const {
         SDL_RenderFillRect(r, &all);
     }
 
+    // Lightning: the whole view white for a moment, and gone.
+    if (kind == Kind::Storm && flash > 0.02f) {
+        int w = 0, h = 0;
+        SDL_GetCurrentRenderOutputSize(r, &w, &h);
+        SDL_SetRenderDrawColor(r, 236, 240, 255, static_cast<Uint8>(120.0f * flash * flash));
+        const SDL_FRect all = {0.0f, 0.0f, static_cast<float>(w), static_cast<float>(h)};
+        SDL_RenderFillRect(r, &all);
+    }
+    // A gust over the Firmament pales the view a little, as the snow does.
+    if (kind == Kind::Gale && gust > 0.02f) {
+        int w = 0, h = 0;
+        SDL_GetCurrentRenderOutputSize(r, &w, &h);
+        SDL_SetRenderDrawColor(r, 240, 246, 255, static_cast<Uint8>(28.0f * gust));
+        const SDL_FRect all = {0.0f, 0.0f, static_cast<float>(w), static_cast<float>(h)};
+        SDL_RenderFillRect(r, &all);
+    }
+
     // The vignette: the edges of the screen darken under a canopy or
     // underground, which does more for "you are in a forest" than any sprite.
     float strength = 0.0f;
@@ -304,6 +428,10 @@ void Ambience::Render(SDL_Renderer* r, const Camera& cam) const {
     else if (kind == Kind::Dream)   { strength = 1.1f;  tint = {26, 8, 46, 255}; }
     else if (kind == Kind::Snow)    { strength = 0.7f;  tint = {210, 226, 240, 255}; }
     else if (kind == Kind::Ash)     { strength = 0.9f;  tint = {60, 12, 6, 255}; }
+    else if (kind == Kind::Deep)    { strength = 1.0f;  tint = {4, 24, 40, 255}; }
+    else if (kind == Kind::Gale)    { strength = 0.5f;  tint = {200, 214, 236, 255}; }
+    else if (kind == Kind::Storm)   { strength = 1.1f;  tint = {12, 12, 26, 255}; }
+    else if (kind == Kind::Conflux) { strength = 1.0f;  tint = {30, 16, 46, 255}; }
     if (strength <= 0.0f) return;
 
     int w = 0, h = 0;

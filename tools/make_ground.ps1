@@ -1133,4 +1133,125 @@ $bmp.Save((Join-Path $tiles "plaster_wall_pale.png"), [System.Drawing.Imaging.Im
 $bmp.Dispose()
 $made++
 
+# --- the Primordium --------------------------------------------------------------------
+# Where the elements were before there was a world to put them in: five maps
+# past the rift at the Stronghold, a ground for each in the colours of the
+# country it grew out of -- the Kiln's black basalt and cinders cracked with
+# light (the Ashen Path's, gone further), the Bedrock's slabs and its seams of
+# crystal (the deep mines'), the Deeps' sea-floor sand, coral and tide pools
+# (the Bayou's, at the bottom of the sea), the Firmament's cloud and wind-worn
+# stone over open sky (the Spire's, gone higher), and the Tempest's wet slate
+# and lightning glass -- and the Conflux, where all five meet, floored in a
+# stone that has a little of each in it. On a seed of its own: nothing above
+# moves.
+$script:seed = 20261001
+$Size = 16
+
+# Sparks of light in a dark field: an ember in cinders, a crystal in rock, a
+# glint of lightning in fused glass. Each a pixel, now and then two.
+function Add-Glints($bmp, $rgb, $count) {
+    $c = [System.Drawing.Color]::FromArgb(255, $rgb[0], $rgb[1], $rgb[2])
+    for ($i = 0; $i -lt $count; $i++) {
+        $x = RandInt $Size; $y = RandInt $Size
+        Set-Wrapped $bmp $x $y $c
+        if ((RandInt 3) -eq 0) { Set-Wrapped $bmp ($x + 1) $y (Shade $c (-0.30)) }
+    }
+}
+# Cracks with light in them: the Kiln's basalt, and the Bedrock's seams.
+function Add-LitCracks($bmp, $base, $rgb, $count) {
+    $glow = [System.Drawing.Color]::FromArgb(255, $rgb[0], $rgb[1], $rgb[2])
+    for ($i = 0; $i -lt $count; $i++) {
+        $x = RandInt $Size; $y = RandInt $Size
+        $len = 4 + (RandInt 6)
+        $across = ($i % 2) -eq 0
+        for ($k = 0; $k -lt $len; $k++) {
+            $c = if (($k % 3) -eq 1) { $glow } else { Shade $base (-0.35) }
+            Set-Wrapped $bmp $x $y $c
+            $bend = if ((RandInt 3) -eq 0) { (RandInt 2) * 2 - 1 } else { 0 }
+            if ($across) { $x += 1; $y += $bend } else { $y += 1; $x += $bend }
+        }
+    }
+}
+# Cloud seen from above: soft rounded heaps a shade lighter, a faint shadow
+# under each.
+function Add-Puffs($bmp, $base, $count) {
+    for ($i = 0; $i -lt $count; $i++) {
+        $x = RandInt $Size; $y = RandInt $Size
+        $r = 1 + (RandInt 2)
+        for ($dy = -$r; $dy -le $r; $dy++) {
+            for ($dx = -$r - 1; $dx -le $r + 1; $dx++) {
+                if (($dx * $dx) / (($r + 1) * ($r + 1)) + ($dy * $dy) / ($r * $r) -le 1.0) {
+                    Set-Wrapped $bmp ($x + $dx) ($y + $dy) (Shade $base 0.40)
+                }
+            }
+        }
+        Set-Wrapped $bmp $x ($y + $r + 1) (Shade $base (-0.08))
+        Set-Wrapped $bmp ($x + 1) ($y + $r + 1) (Shade $base (-0.08))
+    }
+}
+
+$primordium = @(
+    # The Kiln
+    @{ name = "kiln_basalt";     rgb = @( 54,  46,  46); kind = "basalt";  variants = 3 },
+    @{ name = "kiln_cinders";    rgb = @( 74,  60,  54); kind = "cinders"; variants = 3 },
+    @{ name = "kiln_glass";      rgb = @( 36,  30,  40); kind = "obsidian"; variants = 2 },
+    @{ name = "kiln_road";       rgb = @(112,  98,  90); kind = "earth";   variants = 2 },
+    # The Bedrock
+    @{ name = "bedrock_slab";    rgb = @(106,  98,  88); kind = "slab";    variants = 3 },
+    @{ name = "bedrock_gravel";  rgb = @( 92,  86,  78); kind = "earth";   variants = 2 },
+    @{ name = "bedrock_crystal"; rgb = @( 96,  90,  84); kind = "crystal"; variants = 3 },
+    @{ name = "bedrock_road";    rgb = @(130, 120, 106); kind = "earth";   variants = 2 },
+    @{ name = "bedrock_chasm";   rgb = @( 24,  20,  18); kind = "chasm";   variants = 2 },
+    # The Deeps
+    @{ name = "deeps_sand";      rgb = @(178, 172, 152); kind = "seabed";  variants = 3 },
+    @{ name = "deeps_coral";     rgb = @(150, 112, 120); kind = "coral";   variants = 3 },
+    @{ name = "deeps_shelf";     rgb = @( 60,  74,  82); kind = "earth";   variants = 2 },
+    @{ name = "deeps_road";      rgb = @(198, 192, 178); kind = "sand";    variants = 2 },
+    @{ name = "tidewater";       rgb = @( 30,  78,  98); kind = "water";   variants = 3 },
+    # The Firmament
+    @{ name = "firm_cloud";      rgb = @(214, 222, 236); kind = "cloud";   variants = 3 },
+    @{ name = "firm_stone";      rgb = @(170, 172, 184); kind = "earth";   variants = 3 },
+    @{ name = "firm_road";       rgb = @(196, 196, 206); kind = "sand";    variants = 2 },
+    @{ name = "firm_sky";        rgb = @(132, 170, 214); kind = "sky";     variants = 3 },
+    # The Tempest
+    @{ name = "tempest_slate";   rgb = @( 62,  64,  78); kind = "slate";   variants = 3 },
+    @{ name = "tempest_glass";   rgb = @( 92,  88, 112); kind = "fulgurite"; variants = 2 },
+    @{ name = "tempest_road";    rgb = @( 88,  84,  82); kind = "earth";   variants = 2 },
+    @{ name = "stormwater";      rgb = @( 44,  54,  80); kind = "water";   variants = 2 },
+    # The Conflux
+    @{ name = "conflux_floor";   rgb = @(118, 110, 132); kind = "conflux"; variants = 3 },
+    @{ name = "conflux_road";    rgb = @(168, 162, 180); kind = "earth";   variants = 2 }
+)
+foreach ($f in $primordium) {
+    $base = [System.Drawing.Color]::FromArgb(255, $f.rgb[0], $f.rgb[1], $f.rgb[2])
+    for ($v = 0; $v -lt $f.variants; $v++) {
+        $bmp = New-Tile $base
+        switch ($f.kind) {
+            "earth"     { Add-Speckle $bmp $base 62 0.08 0.12; Add-Grit $bmp $base 8 2 }
+            "sand"      { Add-Speckle $bmp $base 78 0.07 0.08; Add-Grit $bmp $base 3 1 }
+            "water"     { Add-Speckle $bmp $base 30 0.05 0.10; Add-Ripples $bmp $base 6 }
+            "basalt"    { Add-Speckle $bmp $base 50 0.10 0.14; Add-LitCracks $bmp $base @(250, 130, 40) 2 }
+            "cinders"   { Add-Speckle $bmp $base 78 0.10 0.10; Add-Glints $bmp @(255, 150, 50) 4; Add-Glints $bmp @(200, 70, 30) 3 }
+            "obsidian"  { Add-Speckle $bmp $base 24 0.10 0.10; Add-Streaks $bmp $base 2; Add-Glints $bmp @(180, 150, 210) 2 }
+            "slab"      { Add-Speckle $bmp $base 58 0.07 0.09; Add-Grit $bmp $base 6 2; Add-LitCracks $bmp $base @(150, 120, 80) 1 }
+            "crystal"   { Add-Speckle $bmp $base 60 0.08 0.10; Add-Grit $bmp $base 5 1
+                          Add-Glints $bmp @(244, 180, 70) 3; Add-Glints $bmp @(150, 230, 170) 2 }
+            "chasm"     { Add-Speckle $bmp $base 20 0.06 0.04; Add-Glints $bmp @(150, 90, 30) 2 }
+            "seabed"    { Add-Speckle $bmp $base 70 0.06 0.08; Add-Shells $bmp $base 2 }
+            "coral"     { Add-Speckle $bmp $base 60 0.10 0.10; Add-Glints $bmp @(232, 140, 150) 4; Add-Glints $bmp @(90, 190, 180) 3 }
+            "cloud"     { Add-Speckle $bmp $base 30 0.05 0.04; Add-Puffs $bmp $base 4 }
+            "sky"       { Add-Speckle $bmp $base 20 0.04 0.04; Add-Streaks $bmp $base 3 }
+            "slate"     { Add-Speckle $bmp $base 50 0.08 0.10; Add-Streaks $bmp $base 2 }
+            "fulgurite" { Add-Speckle $bmp $base 40 0.10 0.10; Add-Streaks $bmp $base 2; Add-Glints $bmp @(255, 240, 150) 3 }
+            "conflux"   { Add-Speckle $bmp $base 50 0.07 0.08
+                          foreach ($g in @(@(250, 130, 40), @(234, 170, 60), @(80, 170, 220), @(236, 240, 250), @(255, 240, 140))) {
+                              Add-Glints $bmp $g 1 } }
+        }
+        $name = if ($v -eq 0) { $f.name } else { "$($f.name)_$v" }
+        $bmp.Save((Join-Path $tiles "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+        $bmp.Dispose()
+        $made++
+    }
+}
+
 Write-Host "$made ground tiles written to assets/tiles/" -ForegroundColor Green

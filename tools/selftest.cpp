@@ -82,6 +82,7 @@ static const char* kMaps[] = {
     "hex_drowns", "hex_strand", "hex_fens", "hex_temple", "hex_sanctum",
     "frost_barrows", "frost_mere", "frost_glacier", "frost_howe", "frost_howe_hall", "frost_cabin",
     "mossvale_cottage", "mayor_hall", "mossvale_mine",
+    "prim_kiln", "prim_bedrock", "prim_deeps", "prim_firmament", "prim_tempest", "prim_conflux",
 };
 
 // The databases, for the sections that live outside main(). GCC's memory for
@@ -2367,6 +2368,181 @@ static void TestOrderLevels(const Databases& db) {
     }
     Check(made >= 20 && exact, "Halda's and Nessa's orders ask exactly the level their goods are made at (" +
                                    std::to_string(made) + " orders)");
+}
+
+// The ladder filled in, and the Primordium on top of it. The level survey found
+// levels with nothing to fight that is met awake -- 23, 27 and 48 only in the
+// dream, 36 only at Oona's ritual, 77 and 79 to 99 nowhere at all -- eleven
+// more with one kind of thing and nothing else, bosses and pockets standing
+// far above the ground they are on, and Dracon and Enchanted gear with nothing
+// to wear it against. The fills are posts beside what already lives where each
+// level should be met; past 80 it is the Primordium, through a rift at the
+// Stronghold, and the Conjures in it -- the elements themselves, awake.
+static void TestPrimordium(const Databases& db) {
+    EnemyDatabase& enemy_db = db.enemy_db; ItemDatabase& items = db.items; LootSystem& loot = db.loot;
+    SpriteLibrary& sprites = db.sprites; SkillTrees& trees = db.trees; ProjectileDatabase& projectiles = db.projectiles;
+    Section("the ladder filled in to ninety-nine, and the Primordium at the top of it");
+
+    // --- the ladder ------------------------------------------------------------------------------------
+    // Every post on every waking map, by the level it shows -- each day's
+    // spread of it too -- leaving out bosses, what comes at night and what
+    // roams: those have checks of their own.
+    std::map<int, std::set<string>> awake;
+    std::map<string, std::pair<int, int>> spans;            // map -> lowest, highest
+    std::map<string, std::map<string, int>> kinds;          // map -> type -> posts
+    for (const char* id : kMaps) {
+        const string map = id;
+        if (map.rfind("dream", 0) == 0) continue;           // the Reverie is asleep
+        Map m;
+        if (!m.Load("maps/" + map + ".mx")) continue;
+        for (const EnemySpawnDef& e : m.Enemies()) {
+            ++kinds[map][e.type];
+            if (e.night || !e.route.empty()) continue;
+            for (const string& type : e.pool.empty() ? vector<string>{e.type} : e.pool) {
+                const EnemyDef* d = enemy_db.Get(type);
+                if (!d || d->is_boss) continue;
+                const int base = Enemy::PostLevel(*d, e);
+                for (int k = 0; k <= e.spread; ++k) {
+                    const int lv = Enemy::ShownLevelOf(*d, base + k);
+                    awake[lv].insert(type);
+                    auto& sp = spans[map];
+                    sp.first = sp.first ? std::min(sp.first, lv) : lv;
+                    sp.second = std::max(sp.second, lv);
+                }
+            }
+        }
+    }
+    string holes, thin;
+    for (int lv = 1; lv <= 99; ++lv) {
+        if (awake[lv].empty()) holes += " " + std::to_string(lv);
+        else if (lv >= 15 && awake[lv].size() < 2) thin += " " + std::to_string(lv);
+    }
+    Check(holes.empty(), "every level from 1 to 99 has an ordinary monster met awake (none at:" + holes + ")");
+    Check(thin.empty(), "and from 15 up, at least two kinds of thing at every one (one only at:" + thin + ")");
+
+    // --- what stood far above its ground, brought down to it -----------------------------------------------
+    const auto shown = [&](const char* id) { const EnemyDef* d = enemy_db.Get(id); return d ? Enemy::ShownLevelOf(*d, 1) : 0; };
+    Check(shown("frost_dragon") <= 55 && shown("frost_dragon") > spans["ice_spire_peak"].second,
+          "Hoarfang tops the Ice Spire, and no longer stands forty levels over it (" + std::to_string(shown("frost_dragon")) +
+              " over " + std::to_string(spans["ice_spire_peak"].second) + ")");
+    Check(shown("pit_lord") <= 58 && shown("pit_lord") > spans["dungeon_infernal"].second,
+          "the Pit Lord tops his pit, behind a door that advises 45 (" + std::to_string(shown("pit_lord")) + ")");
+    Check(spans["westwold"].second <= 22 && kinds["westwold"]["greatwolf"] == 0,
+          "nothing on the Westwold, advised at 5, shows past 22: the Fells' wolves are fell wolves (" +
+              std::to_string(spans["westwold"].second) + ")");
+    Check(spans["brackenwood"].second <= 33 && kinds["brackenwood"]["dire_bear"] == 0,
+          "nothing in the Brackenwood, advised at 20, past 33: the Old Growth's bears are mossbacks (" +
+              std::to_string(spans["brackenwood"].second) + ")");
+    // Their pelts and hides are wanted at Tanning 60 and 70, so they live where those levels are.
+    Check(kinds["frost_howe"]["dire_bear"] >= 2 && kinds["frost_barrows"]["greatwolf"] + kinds["frost_mere"]["greatwolf"] +
+                                                       kinds["frost_glacier"]["greatwolf"] >= 6,
+          "the dire bears and the greatwolves are the Frostreach's (" + std::to_string(kinds["frost_howe"]["dire_bear"]) + " bears)");
+    // A roaming boss is raised to its pool's level, never lowered: nothing in a
+    // pool may be stronger than the pool is aimed at.
+    string over;
+    for (const char* id : kMaps) {
+        Map m;
+        if (!m.Load(string("maps/") + id + ".mx")) continue;
+        for (const EnemySpawnDef& e : m.Enemies()) {
+            if (e.route.empty() || e.shown <= 0) continue;
+            for (const string& type : e.pool.empty() ? vector<string>{e.type} : e.pool) {
+                const EnemyDef* d = enemy_db.Get(type);
+                if (d && Enemy::ShownLevelOf(*d, 1) > e.shown + e.spread) over += " " + type + "@" + id;
+            }
+        }
+    }
+    Check(over.empty(), "no roaming pool holds a boss stronger than the level it walks at:" + over);
+
+    // --- the way in, and on ---------------------------------------------------------------------------------
+    Map stronghold;
+    bool rift = false;
+    if (stronghold.Load("maps/plateau_stronghold.mx"))
+        for (const Portal& p : stronghold.Portals())
+            rift |= p.target_map == "prim_kiln" && p.danger_level == 80 && p.min_combat == 72 && p.requires_interact;
+    Check(rift, "a rift at the Stronghold opens on the Kiln: closed short of Combat 72, and warned of at 80");
+    const char* kChain[] = {"prim_kiln", "prim_bedrock", "prim_deeps", "prim_firmament", "prim_tempest", "prim_conflux"};
+    const char* kAir[] = {"ash", "dungeon", "deep", "gale", "storm", "conflux"};
+    const int kWarned[] = {80, 84, 87, 90, 93, 96};
+    const int kLow[] = {79, 82, 85, 88, 91, 95}, kHigh[] = {86, 90, 92, 95, 99, 99};
+    for (int i = 0; i < 6; ++i) {
+        Map a;
+        Check(a.Load(string("maps/") + kChain[i] + ".mx") && a.Ambient() == kAir[i],
+              string(kChain[i]) + " loads, and its air is " + kAir[i]);
+        Check(spans[kChain[i]].first >= kLow[i] && spans[kChain[i]].second <= kHigh[i],
+              string(kChain[i]) + " stands between " + std::to_string(kLow[i]) + " and " + std::to_string(kHigh[i]) + " (" +
+                  std::to_string(spans[kChain[i]].first) + "-" + std::to_string(spans[kChain[i]].second) + ")");
+        if (i + 1 >= 6) continue;
+        Map b;
+        bool on = false, back = false;
+        if (b.Load(string("maps/") + kChain[i + 1] + ".mx")) {
+            for (const Portal& p : a.Portals()) on |= p.target_map == kChain[i + 1] && p.danger_level == kWarned[i + 1];
+            for (const Portal& p : b.Portals()) back |= p.target_map == kChain[i];
+        }
+        Check(on && back, string(kChain[i]) + " leads on to " + kChain[i + 1] + ", warned of at " +
+                              std::to_string(kWarned[i + 1]) + ", and back");
+    }
+    bool kiln_back = false;
+    {
+        Map kiln;
+        if (kiln.Load("maps/prim_kiln.mx"))
+            for (const Portal& p : kiln.Portals()) kiln_back |= p.target_map == "plateau_stronghold" && p.target_spawn == "from_primordium";
+    }
+    Check(kiln_back, "and the rift goes back the way it came");
+    Check(WaystoneById("waystone_primordium") && string(WaystoneById("waystone_primordium")->map) == "prim_kiln",
+          "a waystone stands by the rift, in the Kiln");
+
+    // --- the Conjures -------------------------------------------------------------------------------------
+    struct Conjure { const char* id; Element element; bool greater; };
+    const Conjure kConjures[] = {
+        {"ember_conjure", Element::Fire, false},     {"inferno_conjure", Element::Fire, true},
+        {"stone_conjure", Element::Earth, false},    {"monolith_conjure", Element::Earth, true},
+        {"tide_conjure", Element::Water, false},     {"maelstrom_conjure", Element::Water, true},
+        {"gale_conjure", Element::Air, false},       {"cyclone_conjure", Element::Air, true},
+        {"storm_conjure", Element::Electric, false}, {"thunder_conjure", Element::Electric, true},
+    };
+    int lesser_top = 0;
+    for (const Conjure& c : kConjures) {
+        const EnemyDef* d = enemy_db.Get(c.id);
+        Check(d && !d->is_boss && d->element == c.element && d->kill_target == "conjure",
+              string(c.id) + " is a Conjure of its element");
+        if (!d) continue;
+        Check(d->sprite == c.id && d->tint.r == 255 && d->scale == 1.0f, string(c.id) + " is drawn from a sheet of its own");
+        const SpriteDef* s = sprites.Get(c.id);
+        bool clips = s != nullptr;
+        for (const char* clip : {"idle", "walk", "attack", "hurt", "death"}) clips = clips && s->Find(clip) != nullptr;
+        Check(clips, string(c.id) + " has all five of its clips");
+        Check(!d->shoots.empty() && projectiles.Get(d->shoots) && projectiles.Get(d->shoots)->element == c.element,
+              string(c.id) + " throws its own element");
+        bool immune = false;
+        for (bool b : d->immune) immune = immune || b;
+        Check(immune && d->on_hit.Any(), string(c.id) + " shrugs off what its element leaves, and leaves it on you");
+        Check(d->heavy.enabled == c.greater, string(c.id) + (c.greater ? " has a heavy blow" : " has no heavy blow"));
+        Check(loot.Has(d->loot_table), string(c.id) + " leaves something");
+        if (!c.greater) lesser_top = std::max(lesser_top, Enemy::ShownLevelOf(*d, 1));
+    }
+    Check(lesser_top >= 91 && shown("ember_conjure") == 79, "the lesser Conjures start at 79 and the last at 91");
+    for (const char* core : {"ember_core", "stone_heart", "tide_pearl", "gale_plume", "storm_glass"}) {
+        const ItemDef* it = items.Get(core);
+        Check(it && fs::exists(it->icon) && it->value >= 1500, string(core) + " is a Conjure's heart, and worth having");
+    }
+
+    // --- the Quintessence ----------------------------------------------------------------------------------
+    const EnemyDef* q = enemy_db.Get("quintessence");
+    Check(q && q->is_boss && shown("quintessence") == 99 && q->spells.size() == 5 && q->heavy.enabled,
+          "the Quintessence is a boss at 99, and throws all five in turn");
+    bool on_dais = false, relic = false;
+    {
+        Map conflux;
+        if (conflux.Load("maps/prim_conflux.mx")) {
+            for (const EnemySpawnDef& e : conflux.Enemies()) on_dais |= e.type == "quintessence";
+            for (const MapObject& o : conflux.Objects()) relic |= o.id == "chest_quintessence";
+        }
+    }
+    Check(on_dais && relic, "it waits in the Conflux, and its chest beside it");
+    const ItemDef* heart = items.Get("conflux_heart");
+    Check(heart && heart->slot == SLOT_AMULET && heart->magic_bonus > 0 && heart->ranged_bonus > 0 && heart->strength_bonus > 0,
+          "the Heart of the Conflux is an amulet for every way of fighting");
+    Check(trees.TotemOf("quintessence") != nullptr, "and it leaves a totem on its fifteenth fall");
 }
 
 int main(int argc, char** argv) {
@@ -7170,11 +7346,12 @@ int main(int argc, char** argv) {
                   "the Westwold and the Brackenwood load");
             for (const auto& e : west.Enemies()) ++wold[e.type];
             for (const auto& e : wood.Enemies()) ++bracken[e.type];
-            Check(wold["wolf"] >= 12 && wold["greatwolf"] >= 6, "wolves run on the Westwold, and greatwolves in its Fells (" +
-                  std::to_string(wold["wolf"]) + ", " + std::to_string(wold["greatwolf"]) + ")");
-            Check(bracken["bear"] >= 12 && bracken["den_mother"] == 1 && bracken["dire_bear"] >= 4,
-                  "bears in the Brackenwood, one Den Mother, and dire bears in the Old Growth (" +
-                  std::to_string(bracken["bear"]) + ", " + std::to_string(bracken["dire_bear"]) + ")");
+            Check(wold["wolf"] >= 12 && wold["fell_wolf"] >= 6 && wold["greatwolf"] == 0,
+                  "wolves run on the Westwold, and fell wolves in its Fells -- the greatwolves are the Frostreach's (" +
+                  std::to_string(wold["wolf"]) + ", " + std::to_string(wold["fell_wolf"]) + ")");
+            Check(bracken["bear"] >= 12 && bracken["den_mother"] == 1 && bracken["mossback_bear"] >= 4 && bracken["dire_bear"] == 0,
+                  "bears in the Brackenwood, one Den Mother, and mossbacks in the Old Growth -- the dire bears are the "
+                  "Frostreach's (" + std::to_string(bracken["bear"]) + ", " + std::to_string(bracken["mossback_bear"]) + ")");
             bool gate = false, back = false;
             for (const auto& p : town.Portals()) gate |= p.target_map == "westwold" && p.rect.x < 64.0f;
             for (const auto& p : west.Portals()) back |= p.target_map == "town_havenbrook";
@@ -8821,7 +8998,7 @@ int main(int argc, char** argv) {
         // --- the dragon ----------------------------------------------------------------------
         {
             const EnemyDef* drake = enemy_db.Get("frost_dragon");
-            Check(drake && drake->is_boss && drake->hp > 600, "Hoarfang is a boss with a boss's hit points");
+            Check(drake && drake->is_boss && drake->hp >= 400, "Hoarfang is a boss with a boss's hit points");
             Check(drake && effective("frost_dragon", 1) > range["ice_spire_peak"].first,
                   "and stands above everything else on the Ice Spire");
             Check(types["ice_spire_peak"].count("frost_dragon"), "it holds the ground above the summit");
@@ -14338,7 +14515,7 @@ int main(int argc, char** argv) {
             {"hare", 1, 3}, {"deer", 1, 4}, {"boar", 3, 6}, {"orc1", 4, 8}, {"wolf", 8, 13},
             {"highwayman", 6, 11}, {"orc2", 12, 17}, {"lizardman", 10, 15}, {"bear", 20, 28},
             {"ice_troll", 28, 35}, {"wyvern", 33, 42}, {"demon", 40, 50}, {"greatwolf", 52, 64},
-            {"dire_bear", 66, 80}, {"frost_dragon", 72, 86}, {"pit_lord", 60, 72},
+            {"dire_bear", 66, 80}, {"frost_dragon", 46, 58}, {"pit_lord", 50, 60},
         };
         for (const Expect& x : kExpect) {
             const EnemyDef* d = enemy_db.Get(x.type);
@@ -14401,6 +14578,8 @@ int main(int argc, char** argv) {
             {"hex_drowns", 57}, {"hex_strand", 59}, {"hex_fens", 61}, {"hex_temple", 63}, {"hex_sanctum", 64},
             {"frost_barrows", 62}, {"frost_mere", 64}, {"frost_glacier", 67}, {"frost_howe", 71},
             {"frost_howe_hall", 73},
+            {"prim_kiln", 82}, {"prim_bedrock", 85}, {"prim_deeps", 88}, {"prim_firmament", 91},
+            {"prim_tempest", 94}, {"prim_conflux", 97},
         };
         for (const Area& a : kAreas) {
             Map m;
@@ -20683,6 +20862,7 @@ int main(int argc, char** argv) {
     TestCharmsAndBoons(db);
     TestLightningThroughCombos(db);
     TestOrderLevels(db);
+    TestPrimordium(db);
 
     Section("the Brimstone Palace, and its king");
     {
@@ -20815,8 +20995,8 @@ int main(int argc, char** argv) {
         Check(towns == std::set<string>{"waystone_havenbrook", "waystone_mossvale", "waystone_mossvale_cottage", "waystone_fernhollow"},
               "under Towns: Havenbrook, Mossvale, the house in Mossvale and Fernhollow");
         Check(wilds == std::set<string>{"waystone_ashen_path", "waystone_plateau", "waystone_bayou",
-                                        "waystone_ice_spire", "waystone_frost_cabin"},
-              "under the wilds: the Ashen Path, Purgatory's Plateau, the Bayou, the Ice Spire and Old Harl's cabin");
+                                        "waystone_ice_spire", "waystone_frost_cabin", "waystone_primordium"},
+              "under the wilds: the Ashen Path, Purgatory's Plateau, the Bayou, the Ice Spire, Old Harl's cabin and the Primordium");
         const auto map_of = [](const string& id) { const WaystoneDef* w = WaystoneById(id); return w ? string(w->map) : string(); };
         Check(map_of("waystone_plateau") == "plateau_ascent" && map_of("waystone_bayou") == "bayou" &&
                   map_of("waystone_ashen_path") == "ashen_path" && map_of("waystone_mossvale_cottage") == "mossvale" &&
@@ -23804,12 +23984,12 @@ int main(int argc, char** argv) {
             const auto hand_in = [&] {
                 DialogueRunner r;
                 r.Begin(&dialogue, "sorrel_root", "npc_ranger", "Sorrel", t.dc);
-                return pick(t, r, [&](const DialogueOption& o) { return o.action.take_item == "greatwolf_pelt"; });
+                return pick(t, r, [&](const DialogueOption& o) { return o.action.take_item == "fell_wolf_pelt"; });
             };
-            t.inv.Add("greatwolf_pelt", 2);
+            t.inv.Add("fell_wolf_pelt", 2);
             Check(!hand_in(), "two pelts are not three: nothing to hand over");
-            t.inv.Add("greatwolf_pelt", 1);
-            Check(hand_in() && t.log.IsComplete("q_white_pelts") && t.inv.Count("greatwolf_pelt") == 0,
+            t.inv.Add("fell_wolf_pelt", 1);
+            Check(hand_in() && t.log.IsComplete("q_white_pelts") && t.inv.Count("fell_wolf_pelt") == 0,
                   "three are, and Sorrel takes all three");
         }
 

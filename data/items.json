@@ -1693,6 +1693,17 @@
   "value": 22,
   "icon": "assets/icons/tiers/wolf_pelt.png"
  },
+ "fell_wolf_pelt": {
+  "tags": [
+   "leather",
+   "trophy"
+  ],
+  "name": "Fell Wolf Pelt",
+  "desc": "Pale as the high grass of the Fells it came off. Ivo the tanner pays for white ones.",
+  "stack": true,
+  "value": 64,
+  "icon": "assets/icons/tiers/fell_wolf_pelt.png"
+ },
  "bear_hide": {
   "tags": [
    "leather",
@@ -3019,5 +3030,81 @@
     4
    ]
   }
+ },
+ "ember_core": {
+  "tags": [
+   "trophy",
+   "gem"
+  ],
+  "name": "Ember Core",
+  "desc": "The heart an Ember Conjure burned round. Still warm, and it will be for as long as anyone keeps it.",
+  "stack": true,
+  "value": 1500,
+  "icon": "assets/icons/ember_core.png"
+ },
+ "stone_heart": {
+  "tags": [
+   "trophy",
+   "gem"
+  ],
+  "name": "Stone Heart",
+  "desc": "What held a Stone Conjure together: a fist of stone veined with amber light, heavier than it looks.",
+  "stack": true,
+  "value": 1700,
+  "icon": "assets/icons/stone_heart.png"
+ },
+ "tide_pearl": {
+  "tags": [
+   "trophy",
+   "gem"
+  ],
+  "name": "Tide Pearl",
+  "desc": "A pearl the size of a plum, left where a Tide Conjure poured away. There is a sea moving inside it.",
+  "stack": true,
+  "value": 1900,
+  "icon": "assets/icons/tide_pearl.png"
+ },
+ "gale_plume": {
+  "tags": [
+   "trophy",
+   "gem"
+  ],
+  "name": "Gale Plume",
+  "desc": "A feather of solid air from the eye of a Gale Conjure. It weighs nothing and will not lie still.",
+  "stack": true,
+  "value": 2100,
+  "icon": "assets/icons/gale_plume.png"
+ },
+ "storm_glass": {
+  "tags": [
+   "trophy",
+   "gem"
+  ],
+  "name": "Storm Glass",
+  "desc": "Glass a Storm Conjure fused out of nothing as it died. It crackles in the hand, and your hair stands up.",
+  "stack": true,
+  "value": 2300,
+  "icon": "assets/icons/storm_glass.png"
+ },
+ "conflux_heart": {
+  "name": "Heart of the Conflux",
+  "desc": "A prism the size of a heart, taken from where the Quintessence fell. All five are in it, turning: a flame, a stone, a wave, a wind, a spark. Whoever wears it fights with every one of them.",
+  "slot": "amulet",
+  "value": 9600,
+  "icon": "assets/icons/amulet.png",
+  "bonus": {
+   "attack": 22,
+   "strength": 22,
+   "ranged": 22,
+   "magic": 22,
+   "defence": 16
+  }
+ },
+ "totem_quintessence": {
+  "name": "Totem of the Quintessence",
+  "desc": "A black stake with five stones set in it, one of each: a coal, an amber, a pearl, a feather of air and a bead of storm glass. The Quintessence came apart fifteen times in the Conflux before it left this behind. Stood in the ring in your house at Mossvale and touched, it gives its blessing until dawn: The Fifth Essence.",
+  "value": 0,
+  "keep": true,
+  "icon": "assets/props/totem_quintessence.png"
  }
 }

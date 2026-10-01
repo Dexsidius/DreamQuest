@@ -653,21 +653,24 @@ void Game::DrawHud() {
     if (live) {
         if (const Enemy* t = world->targeting.Current(); t && t->Def()) {
             const bool lock = world->targeting.IsLocked();
-            const float w = 280.0f, cx = ui.ViewWidth() / 2.0f;
-            const SDL_FRect box = {roundf(cx - w / 2.0f), 12.0f, w, 48.0f};
-            ui.Fill(box, {14, 11, 9, 200});
-            ui.Outline(box, lock ? SDL_Color{206, 70, 56, 255} : Palette::BorderDim, lock ? 2.0f : 1.0f);
             // `boss` in enemies.json was read into the definition and then by
             // nothing. It is what tells a player the thing in front of them is
             // not one of a pack, so the frame says so, in the gold a rare
             // thing is written in.
             const bool boss = t->Def()->is_boss;
+            const string level_tag = string(boss ? "Boss   Lv " : "Lv ") + std::to_string(t->ShownLevel());
+            const string tag = lock ? "LOCKED   " + level_tag : input.PromptFor(Action::Target) + " lock   " + level_tag;
+            // As wide as the name and the tag need, and never narrower than it
+            // was: a long name -- the Quintessence's, the Mother of the Fen's --
+            // ran into the tag.
+            const float need = ui.Measure(t->Def()->name, TextSize::Small).x + ui.Measure(tag, TextSize::Small).x + 40.0f;
+            const float w = std::max(280.0f, ceilf(need)), cx = ui.ViewWidth() / 2.0f;
+            const SDL_FRect box = {roundf(cx - w / 2.0f), 12.0f, w, 48.0f};
+            ui.Fill(box, {14, 11, 9, 200});
+            ui.Outline(box, lock ? SDL_Color{206, 70, 56, 255} : Palette::BorderDim, lock ? 2.0f : 1.0f);
             ui.TextShadowed(t->Def()->name, box.x + 12.0f, box.y + 5.0f, TextSize::Small,
                             boss ? SDL_Color{255, 214, 96, 255} : (lock ? Palette::Highlight : Palette::Text));
-            const string level_tag = string(boss ? "Boss   Lv " : "Lv ") + std::to_string(t->ShownLevel());
-            ui.TextShadowed(lock ? "LOCKED   " + level_tag
-                                 : input.PromptFor(Action::Target) + " lock   " + level_tag,
-                            box.x + box.w - 12.0f, box.y + 5.0f, TextSize::Small,
+            ui.TextShadowed(tag, box.x + box.w - 12.0f, box.y + 5.0f, TextSize::Small,
                             lock ? SDL_Color{236, 110, 90, 255} : Palette::TextDim, Align::Right);
             ui.FramedBar({box.x + 12.0f, box.y + 27.0f, box.w - 24.0f, 12.0f}, t->HealthFraction(),
                          {196, 44, 40, 255}, {40, 16, 14, 255});

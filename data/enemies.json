@@ -885,13 +885,13 @@
   "pit_lord": {
     "name": "The Pit Lord",
     "sprite": "demon",
-    "hp": 420,
-    "attack": 54,
-    "strength": 58,
-    "defence": 50,
-    "attack_bonus": 52,
-    "strength_bonus": 58,
-    "defence_bonus": 54,
+    "hp": 344,
+    "attack": 44,
+    "strength": 48,
+    "defence": 41,
+    "attack_bonus": 43,
+    "strength_bonus": 48,
+    "defence_bonus": 44,
     "speed": 48,
     "aggro": 320,
     "attack_range": 78,
@@ -935,13 +935,13 @@
   "frost_dragon": {
     "name": "Hoarfang",
     "sprite": "frost_dragon",
-    "hp": 760,
-    "attack": 62,
-    "strength": 66,
-    "defence": 58,
-    "attack_bonus": 60,
-    "strength_bonus": 66,
-    "defence_bonus": 62,
+    "hp": 440,
+    "attack": 42,
+    "strength": 44,
+    "defence": 29,
+    "attack_bonus": 41,
+    "strength_bonus": 44,
+    "defence_bonus": 32,
     "speed": 46,
     "aggro": 360,
     "attack_range": 124,
@@ -4781,6 +4781,601 @@
     "on_hit": {
       "id": "bleed",
       "chance": 0.35
+    }
+  },
+  "fell_wolf": {
+    "name": "Fell Wolf",
+    "sprite": "wolf",
+    "scale": 1.22,
+    "tint": [
+      168,
+      160,
+      150
+    ],
+    "hp": 45,
+    "attack": 12,
+    "strength": 12,
+    "defence": 9,
+    "attack_bonus": 12,
+    "strength_bonus": 12,
+    "defence_bonus": 9,
+    "speed": 78,
+    "aggro": 190,
+    "attack_range": 58,
+    "attack_cooldown": 1.35,
+    "loot": "fell_wolf",
+    "kill_target": "wolf",
+    "foot_box": [
+      -12,
+      -9,
+      24,
+      9
+    ],
+    "body_box": [
+      -19,
+      -36,
+      38,
+      36
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.2
+    }
+  },
+  "mossback_bear": {
+    "name": "Mossback Bear",
+    "sprite": "bear",
+    "scale": 1.18,
+    "tint": [
+      150,
+      160,
+      120
+    ],
+    "hp": 96,
+    "attack": 20,
+    "strength": 24,
+    "defence": 19,
+    "attack_bonus": 19,
+    "strength_bonus": 24,
+    "defence_bonus": 20,
+    "speed": 48,
+    "aggro": 170,
+    "attack_range": 70,
+    "attack_cooldown": 2.0,
+    "loot": "mossback_bear",
+    "kill_target": "bear",
+    "foot_box": [
+      -21,
+      -14,
+      42,
+      14
+    ],
+    "body_box": [
+      -33,
+      -59,
+      66,
+      59
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.22
+    }
+  },
+  "ember_conjure": {
+    "name": "Ember Conjure",
+    "sprite": "ember_conjure",
+    "hp": 202,
+    "attack": 78,
+    "strength": 78,
+    "defence": 66,
+    "attack_bonus": 82,
+    "strength_bonus": 80,
+    "defence_bonus": 76,
+    "speed": 72,
+    "aggro": 220,
+    "attack_range": 64,
+    "attack_cooldown": 1.5,
+    "shoots": "conjure_flame",
+    "shoot_range": 230.0,
+    "shoot_cooldown": 3.0,
+    "loot": "ember_conjure",
+    "kill_target": "conjure",
+    "foot_box": [
+      -12,
+      -10,
+      24,
+      10
+    ],
+    "body_box": [
+      -17,
+      -62,
+      34,
+      62
+    ],
+    "element": "fire",
+    "immune": [
+      "burn"
+    ],
+    "on_hit": {
+      "id": "burn",
+      "chance": 0.3
+    }
+  },
+  "inferno_conjure": {
+    "name": "Inferno Conjure",
+    "sprite": "inferno_conjure",
+    "hp": 370,
+    "attack": 73,
+    "strength": 75,
+    "defence": 63,
+    "attack_bonus": 77,
+    "strength_bonus": 77,
+    "defence_bonus": 73,
+    "speed": 66,
+    "aggro": 240,
+    "attack_range": 72,
+    "attack_cooldown": 1.6,
+    "shoots": "conjure_flame",
+    "shoot_range": 250.0,
+    "shoot_cooldown": 2.6,
+    "loot": "inferno_conjure",
+    "kill_target": "conjure",
+    "foot_box": [
+      -16,
+      -12,
+      32,
+      12
+    ],
+    "body_box": [
+      -24,
+      -82,
+      48,
+      82
+    ],
+    "element": "fire",
+    "immune": [
+      "burn"
+    ],
+    "on_hit": {
+      "id": "burn",
+      "chance": 0.35
+    },
+    "heavy": {
+      "windup": 1.4,
+      "damage": 2.5,
+      "cooldown": 9.0,
+      "reach": 1.4,
+      "width": 1.3,
+      "status": {
+        "id": "burn",
+        "chance": 0.6
+      }
+    }
+  },
+  "stone_conjure": {
+    "name": "Stone Conjure",
+    "sprite": "stone_conjure",
+    "hp": 590,
+    "attack": 65,
+    "strength": 65,
+    "defence": 77,
+    "attack_bonus": 69,
+    "strength_bonus": 67,
+    "defence_bonus": 87,
+    "speed": 50,
+    "aggro": 220,
+    "attack_range": 70,
+    "attack_cooldown": 1.9,
+    "shoots": "conjure_stone",
+    "shoot_range": 230.0,
+    "shoot_cooldown": 3.0,
+    "loot": "stone_conjure",
+    "kill_target": "conjure",
+    "foot_box": [
+      -14,
+      -10,
+      28,
+      10
+    ],
+    "body_box": [
+      -30,
+      -70,
+      60,
+      70
+    ],
+    "element": "earth",
+    "immune": [
+      "concussed"
+    ],
+    "on_hit": {
+      "id": "concussed",
+      "chance": 0.25
+    }
+  },
+  "monolith_conjure": {
+    "name": "Monolith Conjure",
+    "sprite": "monolith_conjure",
+    "hp": 790,
+    "attack": 62,
+    "strength": 64,
+    "defence": 77,
+    "attack_bonus": 66,
+    "strength_bonus": 66,
+    "defence_bonus": 87,
+    "speed": 46,
+    "aggro": 240,
+    "attack_range": 72,
+    "attack_cooldown": 2.0,
+    "shoots": "conjure_stone",
+    "shoot_range": 250.0,
+    "shoot_cooldown": 2.6,
+    "loot": "monolith_conjure",
+    "kill_target": "conjure",
+    "foot_box": [
+      -16,
+      -12,
+      32,
+      12
+    ],
+    "body_box": [
+      -30,
+      -92,
+      60,
+      92
+    ],
+    "element": "earth",
+    "immune": [
+      "concussed"
+    ],
+    "on_hit": {
+      "id": "concussed",
+      "chance": 0.3
+    },
+    "heavy": {
+      "windup": 1.4,
+      "damage": 2.5,
+      "cooldown": 9.0,
+      "reach": 1.4,
+      "width": 1.3,
+      "status": {
+        "id": "concussed",
+        "chance": 0.6
+      }
+    }
+  },
+  "tide_conjure": {
+    "name": "Tide Conjure",
+    "sprite": "tide_conjure",
+    "hp": 480,
+    "attack": 74,
+    "strength": 74,
+    "defence": 74,
+    "attack_bonus": 78,
+    "strength_bonus": 76,
+    "defence_bonus": 84,
+    "speed": 62,
+    "aggro": 220,
+    "attack_range": 64,
+    "attack_cooldown": 1.55,
+    "shoots": "conjure_tide",
+    "shoot_range": 230.0,
+    "shoot_cooldown": 3.0,
+    "loot": "tide_conjure",
+    "kill_target": "conjure",
+    "foot_box": [
+      -12,
+      -10,
+      24,
+      10
+    ],
+    "body_box": [
+      -16,
+      -62,
+      32,
+      62
+    ],
+    "element": "water",
+    "immune": [
+      "wet",
+      "chill"
+    ],
+    "on_hit": {
+      "id": "wet",
+      "chance": 0.35
+    }
+  },
+  "maelstrom_conjure": {
+    "name": "Maelstrom Conjure",
+    "sprite": "maelstrom_conjure",
+    "hp": 790,
+    "attack": 69,
+    "strength": 71,
+    "defence": 71,
+    "attack_bonus": 73,
+    "strength_bonus": 73,
+    "defence_bonus": 81,
+    "speed": 58,
+    "aggro": 240,
+    "attack_range": 72,
+    "attack_cooldown": 1.65,
+    "shoots": "conjure_tide",
+    "shoot_range": 250.0,
+    "shoot_cooldown": 2.6,
+    "loot": "maelstrom_conjure",
+    "kill_target": "conjure",
+    "foot_box": [
+      -18,
+      -12,
+      36,
+      12
+    ],
+    "body_box": [
+      -25,
+      -76,
+      50,
+      76
+    ],
+    "element": "water",
+    "immune": [
+      "wet",
+      "chill"
+    ],
+    "on_hit": {
+      "id": "chill",
+      "chance": 0.35
+    },
+    "heavy": {
+      "windup": 1.4,
+      "damage": 2.5,
+      "cooldown": 9.0,
+      "reach": 1.4,
+      "width": 1.3,
+      "status": {
+        "id": "frozen",
+        "chance": 0.6
+      }
+    }
+  },
+  "gale_conjure": {
+    "name": "Gale Conjure",
+    "sprite": "gale_conjure",
+    "hp": 260,
+    "attack": 88,
+    "strength": 86,
+    "defence": 73,
+    "attack_bonus": 92,
+    "strength_bonus": 88,
+    "defence_bonus": 83,
+    "speed": 84,
+    "aggro": 220,
+    "attack_range": 64,
+    "attack_cooldown": 1.4,
+    "shoots": "conjure_gale",
+    "shoot_range": 230.0,
+    "shoot_cooldown": 3.0,
+    "loot": "gale_conjure",
+    "kill_target": "conjure",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -20,
+      -74,
+      40,
+      74
+    ],
+    "element": "air",
+    "immune": [
+      "bleed"
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.25
+    }
+  },
+  "cyclone_conjure": {
+    "name": "Cyclone Conjure",
+    "sprite": "cyclone_conjure",
+    "hp": 365,
+    "attack": 85,
+    "strength": 85,
+    "defence": 75,
+    "attack_bonus": 89,
+    "strength_bonus": 87,
+    "defence_bonus": 85,
+    "speed": 78,
+    "aggro": 240,
+    "attack_range": 72,
+    "attack_cooldown": 1.5,
+    "shoots": "conjure_gale",
+    "shoot_range": 250.0,
+    "shoot_cooldown": 2.6,
+    "loot": "cyclone_conjure",
+    "kill_target": "conjure",
+    "foot_box": [
+      -14,
+      -12,
+      28,
+      12
+    ],
+    "body_box": [
+      -30,
+      -94,
+      60,
+      94
+    ],
+    "element": "air",
+    "immune": [
+      "bleed"
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.3
+    },
+    "heavy": {
+      "windup": 1.4,
+      "damage": 2.5,
+      "cooldown": 9.0,
+      "reach": 1.4,
+      "width": 1.3,
+      "status": {
+        "id": "concussed",
+        "chance": 0.6
+      }
+    }
+  },
+  "storm_conjure": {
+    "name": "Storm Conjure",
+    "sprite": "storm_conjure",
+    "hp": 340,
+    "attack": 85,
+    "strength": 87,
+    "defence": 79,
+    "attack_bonus": 89,
+    "strength_bonus": 89,
+    "defence_bonus": 89,
+    "speed": 76,
+    "aggro": 220,
+    "attack_range": 64,
+    "attack_cooldown": 1.45,
+    "shoots": "conjure_spark",
+    "shoot_range": 230.0,
+    "shoot_cooldown": 3.0,
+    "loot": "storm_conjure",
+    "kill_target": "conjure",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -20,
+      -74,
+      40,
+      74
+    ],
+    "element": "electric",
+    "immune": [
+      "electrified"
+    ],
+    "on_hit": {
+      "id": "electrified",
+      "chance": 0.35
+    }
+  },
+  "thunder_conjure": {
+    "name": "Thunder Conjure",
+    "sprite": "thunder_conjure",
+    "hp": 535,
+    "attack": 82,
+    "strength": 84,
+    "defence": 78,
+    "attack_bonus": 86,
+    "strength_bonus": 86,
+    "defence_bonus": 88,
+    "speed": 70,
+    "aggro": 240,
+    "attack_range": 72,
+    "attack_cooldown": 1.55,
+    "shoots": "conjure_spark",
+    "shoot_range": 250.0,
+    "shoot_cooldown": 2.6,
+    "loot": "thunder_conjure",
+    "kill_target": "conjure",
+    "foot_box": [
+      -14,
+      -12,
+      28,
+      12
+    ],
+    "body_box": [
+      -26,
+      -96,
+      52,
+      96
+    ],
+    "element": "electric",
+    "immune": [
+      "electrified"
+    ],
+    "on_hit": {
+      "id": "electrified",
+      "chance": 0.4
+    },
+    "heavy": {
+      "windup": 1.4,
+      "damage": 2.5,
+      "cooldown": 9.0,
+      "reach": 1.4,
+      "width": 1.3,
+      "status": {
+        "id": "electrified",
+        "chance": 0.6
+      }
+    }
+  },
+  "quintessence": {
+    "name": "The Quintessence",
+    "sprite": "quintessence",
+    "hp": 1200,
+    "attack": 83,
+    "strength": 85,
+    "defence": 79,
+    "attack_bonus": 90,
+    "strength_bonus": 88,
+    "defence_bonus": 92,
+    "speed": 64,
+    "aggro": 300,
+    "attack_range": 84,
+    "attack_cooldown": 1.45,
+    "spells": [
+      "conjure_flame",
+      "conjure_stone",
+      "conjure_tide",
+      "conjure_gale",
+      "conjure_spark"
+    ],
+    "shoot_range": 280.0,
+    "shoot_cooldown": 1.8,
+    "heavy": {
+      "windup": 1.5,
+      "damage": 2.8,
+      "cooldown": 8.0,
+      "reach": 1.6,
+      "width": 1.4,
+      "knockback": 320.0,
+      "status": {
+        "id": "concussed",
+        "chance": 0.5
+      }
+    },
+    "loot": "quintessence",
+    "kill_target": "quintessence",
+    "foot_box": [
+      -22,
+      -16,
+      44,
+      16
+    ],
+    "body_box": [
+      -44,
+      -122,
+      88,
+      122
+    ],
+    "immune": [
+      "burn",
+      "frozen",
+      "electrified"
+    ],
+    "boss": true,
+    "on_hit": {
+      "id": "electrified",
+      "chance": 0.3
     }
   }
 }

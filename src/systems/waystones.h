@@ -39,6 +39,7 @@ inline const vector<WaystoneDef>& Waystones() {
         {"waystone_bayou",            "bayou",           "The Bayou",           "on the spur, below the Hexmire's gate",      false},
         {"waystone_ice_spire",        "ice_spire_peak",  "Ice Spire Peak",      "by the igloo at the climbers' camp",         false},
         {"waystone_frost_cabin",      "frost_cabin",     "Old Harl's Cabin",    "in the middle of the Glass Mere",            false},
+        {"waystone_primordium",       "prim_kiln",       "The Primordium",      "in the Kiln, by the rift from the Stronghold", false},
     };
     return kAll;
 }

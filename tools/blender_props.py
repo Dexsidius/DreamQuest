@@ -6102,6 +6102,12 @@ import blender_town_props  # noqa: E402
 
 PROPS.update(blender_town_props.PROPS)
 
+# And the Primordium's -- the rift at the Stronghold, the five elements' maps
+# and their wellsprings, the Conflux's dais and the Quintessence's totem.
+import blender_primordium_props  # noqa: E402
+
+PROPS.update(blender_primordium_props.PROPS)
+
 
 def main():
     only = None

@@ -2392,6 +2392,8 @@ def build_dye(tier, parent):
 PELTS = {
     #                   hide                  fur                   how shaggy
     "wolf_pelt":      ((0.50, 0.49, 0.48), (0.72, 0.71, 0.70), 1.0),
+    # The fell wolf's: paler than the grey ones, off the high grass.
+    "fell_wolf_pelt": ((0.68, 0.65, 0.58), (0.90, 0.88, 0.81), 1.1),
     "bear_hide":      ((0.38, 0.25, 0.16), (0.27, 0.18, 0.12), 1.2),
     "demon_hide":     ((0.52, 0.14, 0.12), (0.20, 0.08, 0.08), 0.0),
     "greatwolf_pelt": ((0.80, 0.83, 0.90), (0.97, 0.98, 1.00), 1.2),

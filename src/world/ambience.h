@@ -27,10 +27,17 @@ public:
     // calm, 1 at the height of a gust.
     float Gust() const { return gust; }
     static constexpr float GUST_RISE = 1.5f, GUST_FALL = 2.0f;
+    // The Tempest's lightning: the whole view lit for a moment every few
+    // seconds, brightest as it strikes and gone in a quarter of one. 0 between.
+    float Flash() const { return flash; }
+    static constexpr float FLASH_TIME = 0.25f;
 
 private:
-    enum class Kind { None, Field, Town, Forest, Grove, Dungeon, Dream, Snow, Ash };
-    enum MoteKind { LEAF, FIREFLY, POLLEN, DUST, WISP, SNOW, EMBER, FLURRY };
+    // The Primordium's: bubbles rising in the Deeps, the wind over the
+    // Firmament, rain and lightning in the Tempest, and in the Conflux motes
+    // of all five elements going up together.
+    enum class Kind { None, Field, Town, Forest, Grove, Dungeon, Dream, Snow, Ash, Deep, Gale, Storm, Conflux };
+    enum MoteKind { LEAF, FIREFLY, POLLEN, DUST, WISP, SNOW, EMBER, FLURRY, BUBBLE, WIND, RAIN };
 
     struct Mote {
         float x = 0, y = 0;          // world position
@@ -49,4 +56,5 @@ private:
     std::mt19937 rng{20260913u};
     bool seeded = false;
     float gust = 0.0f, gust_wait = 7.0f, gust_age = -1.0f, gust_len = 0.0f;
+    float flash = 0.0f, flash_wait = 4.0f, flash_age = -1.0f;
 };

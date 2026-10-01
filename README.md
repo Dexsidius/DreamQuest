@@ -742,11 +742,11 @@ What an average hit costs to block, out of a bar of 100:
 | Lizardman Chief | 15 | 22 | 17 | 11 | 9 | 5 | 2 |
 | Orc Warchief | 28 | 51 | 41 | 26 | 21 | 11 | 5 |
 | Ice Troll | 29 | 52 | 41 | 26 | 21 | 11 | 5 |
-| Hoarfang | 66 | 221 | 177 | 113 | 91 | 46 | 20 |
+| Hoarfang | 44 | 106 | 85 | 54 | 44 | 22 | 10 |
 
 (The level a block is priced by is the attacker's highest combat stat --
 `CombatLevelOf` -- which is what the column gives. Under the old rule the
-Warchief's row began 168 and Hoarfang's 1122.)
+Warchief's row began 168, and Hoarfang's, when he stood at 79, 1122.)
 
 The rule is `ResolveBlock` in `src/systems/combat.h`, and every blow that lands on
 the player goes through `World::HitPlayer`, so no monster or projectile can skip
@@ -1932,12 +1932,12 @@ at twice the chance). The deer, the hares and the farmyard leave nothing.
 | Who | What |
 | --- | --- |
 | Spiders, the Broodmother, the Gloom Spider; zombies, slimes, ghouls, rot shamblers, plague corpses; the Mire Croaker's spit | **Poisoned** -- a spider a quarter of the time |
-| Rats, foxes, boars, wolves, bears, bats, hounds, gators, fen stalkers, bone knights, the Nosferatu and his thralls; orc blades and the monsters' **barbed arrows** | **Bleeding** |
-| Imps, demons, the Pit Lord, the Warchief, the Cinder King | **Burning** |
-| Ice trolls, wyverns, wraiths, revenants, cryptbound, the Crypt Warden, tomb shades | **Chilled** -- and a frost dragon's slam, or a rime revenant's, can **freeze** |
-| Bog lurkers, the drowned, the Thing in the Spring, the Lizard Shaman's bolt | **Soaked** |
-| A witchlight's spark | **Arcing** |
-| Orc slingers' stones; the heavy slams of bears, trolls, chiefs and bosses | **Concussed** |
+| Rats, foxes, boars, wolves, bears, bats, hounds, gators, fen stalkers, bone knights, the Nosferatu and his thralls; orc blades and the monsters' **barbed arrows**; the air Conjures, a wind with an edge in it | **Bleeding** |
+| Imps, demons, the Pit Lord, the Warchief, the Cinder King; the fire Conjures | **Burning** |
+| Ice trolls, wyverns, wraiths, revenants, cryptbound, the Crypt Warden, tomb shades; the Maelstrom Conjure | **Chilled** -- and a frost dragon's slam, a rime revenant's or a maelstrom's can **freeze** |
+| Bog lurkers, the drowned, the Thing in the Spring, the Lizard Shaman's bolt; the Tide Conjure | **Soaked** |
+| A witchlight's spark; the lightning Conjures, and the Quintessence | **Arcing** |
+| Orc slingers' stones; the earth Conjures and the stones they throw; the heavy slams of bears, trolls, chiefs and bosses, and a cyclone's | **Concussed** |
 | Banshees, the Night Terror, the Wailing Dream, a tomb shade's wail | **Confused** |
 
 **The Swamp Hags cast.** A hag stands off and throws her hexes in turn -- no
@@ -2869,8 +2869,8 @@ which the optional equipment pack already uses for its own.
 | Azuryte | Trollhide | troll hide | ice trolls |
 | Damascus | Wyvernscale | wyvern scale | frost wyverns |
 | Orichalcum | Demonhide | demon hide | imps, rarely; demons |
-| Diamond | Greatwolf | greatwolf pelt | the greatwolves of the Howling Fells |
-| Platinum | Direbear | dire bear hide | the Old Growth's dire bears |
+| Diamond | Greatwolf | greatwolf pelt | the Frostreach's greatwolves |
+| Platinum | Direbear | dire bear hide | the dire bears of the Warlord's Howe |
 | Demonite | Dreadhide | dread hide | dread boars and the Nightmare Brute, in the Reverie |
 | Dracon | Dragonhide | dragonhide | the frost dragon |
 | Enchanted | Dreamhide | dragonhide, and dream shards | -- |
@@ -4719,7 +4719,7 @@ live somewhere worse, a few of them, off the roads.
 | ...west of it | wolves | a **bear** down from the Brackenwood, or a **wraith** |
 | The Brackenwood | wolves, bears | **wraiths**, the deep well's **grave-walkers**, and **banshees** |
 | The Bayou | lizardfolk, hags, the drowned | **blood thralls** and **grave hounds** up out of Hollowrest, and a **nosferatu** or two in the deep south |
-| The Ice Spire | ice trolls, wyverns | the white **greatwolves** off the Fells, and one of the Spirewatch's **shades** |
+| The Ice Spire | ice trolls, wyverns | the white **greatwolves** down from the Frostreach, and one of the Spirewatch's **shades** |
 | The Ashen Path | imps, demons | **Greater Demons**, down the road from the plateau |
 | Purgatory's Plateau, all four | dragons, Greater Demons | **Revenants** and **Abyssal Demons** |
 | The Hexmire, all four | the cult, the Shellbacks | the dead its drums call up: **nosferatu**, **crypt wardens**, **Revenants**, an **Abyssal Demon** |
@@ -5158,7 +5158,11 @@ change: wind with slow swells and birdsong in the forest, groves and fields;
 a low breathing drone and echoing drips in the mines; a hearth's rumble and
 crackle indoors; a quiet wind on the title screen. At night the birds give way to crickets, and
 the dreamworld has three detuned sines drifting against each other under
-far-off chimes.
+far-off chimes. The Primordium has four of its own: in the Deeps the wind
+muffled to a pressure over a low drone and slow drops; in the Firmament nothing
+but the wind, and a great deal of it; in the Tempest wind with a rumble under it
+and the crackle of what is charged; and in the Conflux all of it at once and a
+long way off -- a hum, a chime, a breath of wind.
 
 Options has Master, Effects and Ambience volume. With no playback device the
 game runs silently rather than failing.
@@ -5805,7 +5809,7 @@ Given in town, from the first thing the person says:
 | Quest | Who | What | Advised |
 | --- | --- | --- | --- |
 | The Toll at the Bridge | Hollis the Carter, Havenbrook | four highwaymen on the Westwold road, then back to Hollis | 8 |
-| White Pelts | Sorrel, Havenbrook | three greatwolf pelts off the Westwold's high ground | 20 |
+| White Pelts | Sorrel, Havenbrook | three fell wolf pelts off the Westwold's high ground | 20 |
 | Bears in the Brackenwood | Warden Sela, Mossvale | eight bears off the Brackenwood's paths | 22 |
 | The Den Mother | Hale the Trapper, the Brackenwood | the Den Mother herself | 26 |
 | The Singers in the Bayou | Warden Ilse, Fernhollow | four Swamp Hags | 35 |
@@ -6040,10 +6044,10 @@ is a ladder, so only the back wall wears the band.
 
 ### Waystones
 
-There are nine **waystones**. One in each town -- Havenbrook's by the
+There are ten **waystones**. One in each town -- Havenbrook's by the
 crossroads, Mossvale's in the square, Fernhollow's on the green -- and one at
 the door of **your own house in Mossvale**, off to the side of the step. And
-five **checkpoints out in the wild**:
+six **checkpoints out in the wild**:
 
 | Stone | Where |
 | --- | --- |
@@ -6052,6 +6056,7 @@ five **checkpoints out in the wild**:
 | **The Bayou** | on the dry ground by the spur, below the Hexmire's gate: the next trip into the Hexmire starts here instead of at the far end of the swamp |
 | **Ice Spire Peak** | on the east side of the igloo at the climbers' camp, by the last fire before the climb |
 | **Old Harl's Cabin** | inside the trapper's cabin on the islet in the middle of the Glass Mere, between his table and his bed: the ice is walked once |
+| **The Primordium** | in the Kiln, a few steps from the rift you come out of: the climb through the elements starts here |
 
 None at a dungeon's door, and none in the Reverie. The ones out of town are placed
 with their ground cleared round them and nothing posted within a few steps of
@@ -6068,13 +6073,13 @@ price of a waystone is having got there.
 
 So the road to a place is walked once. The long errands in this game are town
 to town (an order for Wynn, a notice from Havenbrook's board, a bar Halda
-wants), and the five stones in the wild are at the far ends of the longest
+wants), and the six stones in the wild are at the far ends of the longest
 walks, once you have made them; the dungeons, the Reverie, and everything
 between a stone and where you are going are still walked.
 
 **The panel has two tabs: Towns and the wilds.** Towns holds the three towns'
 stones and the one at your house; the wilds holds the Ashen Path's, the
-Plateau's, the Bayou's, the Ice Spire's and Old Harl's. Left and right step between them (so do the panel
+Plateau's, the Bayou's, the Ice Spire's, Old Harl's and the Primordium's. Left and right step between them (so do the panel
 keys, `I` and `O`, or the shoulders), each tab says how many of its stones are
 awake ("2 of 4 awake"), and the panel opens on the tab the stone you are
 touching is under -- a hand on the Bayou's stone opens on the wilds. Switching
@@ -6115,8 +6120,9 @@ between them and **his bees** west of the north field, down to the river
 highwaymen wait. East of the river it is a walk in the fields: hares, deer,
 foxes, boar. **West of it the wolves run in twos and threes.** Then a fork:
 north to the Brackenwood, and west up onto the **Howling Fells**, where the
-ground turns to rock and then to snow and the wolves are **greatwolves**, the
-size of a pony, Combat 55 and not alone. A sign says so. Seven standing stones
+ground turns to rock and then to snow and the wolves are **fell wolves**, pale
+as the grass up there and a head taller than the grey ones, Combat 15 to 20 and
+not alone. A sign says so. Seven standing stones
 south of the road have a chest among them.
 
 **The Brackenwood** (4160 x 3520) is old forest with a trail through it, the
@@ -6126,12 +6132,18 @@ hides; bears along the inner trails and in the glades the side trails end in;
 and in the middle of it **the den** -- a mouth of dark under fallen slabs,
 claw-raked trunks either side -- where the **Den Mother** and her two grown cubs
 are. She is a leader: she rears up, and all of it comes down at once. North of
-her the trail climbs into **the Old Growth**, where the **dire bears** are,
-twice the size with a hide that turns a spear, Combat 65.
+her the trail climbs into **the Old Growth**, where the **mossbacks** are, old
+bears gone green across the shoulders and bigger than any on the trails,
+Combat 27 to 31.
 
-Between them the two maps give a hide for four of the twelve tiers, which is
-why they go where they go: wolf for bronze, bear for steel, greatwolf for
-diamond, dire bear for platinum.
+Between them the two maps give a hide for two of the twelve tiers: wolf for
+bronze, bear for steel. They gave four once. The greatwolves stood on the Fells
+and the dire bears in the Old Growth, at the levels of the diamond and platinum
+hides they leave -- 58 and 73, in country advised at 7 and 20 -- and they have
+gone to the Frostreach, where those levels are: the greatwolves to the Barrows,
+the Mere and the glacier, the dire bears to the Warlord's Howe. The fell wolves
+and mossbacks on their old ground leave their own kinds' hides, and the fell
+wolves a pale pelt of their own that Sorrel buys.
 
 ### The Whisperwood
 
@@ -7061,7 +7073,7 @@ sanctum's floor and walls are in `make_ground.ps1` on a seed of their own.
 The Ice Spire was one track up one mountain. Now, a third of the way up, a gap
 opens in the cliffs on the west side between two runestones, and past it is
 the **Frostreach**: four maps round a square at **60 to 75** -- the step between
-the Hexmire and the Brimstone Palace, under Hoarfang's 79 at the summit.
+the Hexmire and the Brimstone Palace.
 
 ```
     the Warlord's Howe  --  the Rimefall Glacier
@@ -7122,6 +7134,108 @@ thirty seconds a gust blows for five to nine: the snow driven sideways, streaks
 of it low and fast over the ground, and the whole view whitened a little, rising
 and dying away (`Ambience::Gust`). Anywhere with `"ambient": "snow"`.
 
+### The Primordium
+
+The ladder stopped at 78. Above it there was the Cinder King at 84 and nothing
+else at all -- and the last three tiers of gear, Demonite at 80, Dracon at 88 and
+Enchanted at 95, had nothing to be worn against. **The Primordium** is where the
+elements were before there was a world to put them in, and it is **79 to 99**.
+
+The way in is a **rift at the Stronghold** on Purgatory's Plateau, east of the
+fort: five standing stones in a ring, each cut with runes and lit its own
+element's colour, round a tear in the air. It is closed to anybody short of
+**Combat 72** and warned of at **80**. Through it is the Kiln, where a second rift
+leads back and a **waystone** stands -- the sixth in the wild -- and from there a
+chain of maps, each a step up from the last, and every one a ground of its own:
+
+```
+                     the Conflux                  95-99, and the Quintessence
+                          |
+     the Firmament -- the Tempest                 88-95, 91-99
+          |
+     the Deeps                                    85-92
+          |
+     the Bedrock                                  82-90
+          |
+     the Kiln  <-- the rift, at the Stronghold    79-86
+```
+
+| Map | Ground (its tileset) | Air | Levels |
+| --- | --- | --- | --- |
+| **The Kiln** | black basalt cracked with light, cinders, fields of obsidian glass, rivers and a lake of lava -- the Ashen Path's country gone further; vents spitting flame and spires of obsidian | embers | 79-86 |
+| **The Bedrock** | stone slabs, gravel and seams of amber and green crystal, split by chasms with something molten at the bottom -- the deep mines' country; monoliths, geodes, crystal, and **demonite** in the chasms' lips | the dust of a mine | 82-90 |
+| **The Deeps** | the floor of a sea nobody has filled: pale sand, coral rubble, shelves of wet rock, tide pools -- the Bayou's country at the bottom of the sea; coral, kelp and shells the size of a cart | bubbles rising | 85-92 |
+| **The Firmament** | the sky with the ground taken out from under it: islands of cloud and wind-worn stone over open sky, bridges of stone between -- the Spire's country gone higher; arches the wind carved, pillars of cloud | the wind, and its gusts | 88-95 |
+| **The Tempest** | wet slate and lightning glass, pools of storm water | rain, and the lightning | 91-99 |
+| **The Conflux** | the five meeting round a dais: each element's ground, and its well, on its own way out from the middle | motes of all five | 95-99 |
+
+Each element map has its **wellspring** -- the Kiln a well of magma under its
+lake of lava, the Bedrock a chasm glowing amber in a ring of monoliths, the
+Deeps a whirlpool, the Firmament a vortex of air in a ring of standing stones,
+the Tempest a crackling sphere of lightning -- and a chest by it. The Conflux
+has all five round its dais, each where its own point of the star cut in the
+dais points: fire to the north, then earth, water, air and lightning going round
+clockwise, so the way in from the Tempest comes up between the sea's and the
+sky's.
+
+**The Conjures** are the elements themselves, awake: not animals and not men,
+but the fire, the stone, the sea, the sky and the storm with a mind in them. Each
+element has a lesser and a greater, and each map is mostly its own element's,
+with the last one's greater ones near the way in and the next one's lesser
+near the way on:
+
+| Element | Lesser | Greater | What they leave on you | Shrug off |
+| --- | --- | --- | --- | --- |
+| Fire | **Ember Conjure** (79-86) | **Inferno Conjure** (80-87), a heavy that burns | burn | burn |
+| Earth | **Stone Conjure** (82-90) | **Monolith Conjure** (84-89), a heavy that concusses | concussed | concussed |
+| Water | **Tide Conjure** (85-92) | **Maelstrom Conjure** (87-92), a heavy that freezes | wet, chill | wet, chill |
+| Air | **Gale Conjure** (88-94) | **Cyclone Conjure** (90-97), a heavy that concusses | bleed | bleed |
+| Lightning | **Storm Conjure** (91-99) | **Thunder Conjure** (93-99), a heavy that electrifies | electrified | electrified |
+
+Every one of them also throws its element -- a ball of flame, a stone, a ball of
+water, a gust, a spark -- each a Conjure's own (`conjure_flame` and the rest in
+`data/projectiles.json`), a little bigger and quicker than the Plateau dragons'.
+They leave coins, demonite, dream shards, now and then a Dracon bar -- and their
+**cores**: an **Ember Core**, a **Stone Heart**, a **Tide Pearl**, a **Gale Plume**
+and a piece of **Storm Glass**, trophies worth 1,500 to 2,300 coins each.
+
+Their levels were solved, not guessed: each stat block was searched for numbers
+that show at the level it starts at, and its hit points tuned so that the levels
+the next spawn levels show (a level or two at a time) fall between each other's
+-- so that **every level from 79 to 99 has at least two kinds of monster** on it,
+two Conjures from 82 up (at 79 and 81 the other is the Ashen Path's Abyssal
+Demon). Each map's posts are dealt out by chance along the way through it,
+weaker near the way in, and then every level each kind is meant to stand at
+there is made sure of (`Cover` in `tools/genmaps.cpp`). Every greater one also
+stands at **95 to 99**, by its own element's well in the Conflux (the table's
+levels are the element maps').
+
+**The Quintessence** waits on the dais in the middle of the Conflux: a boss at
+**99**, with all five in its body -- an arm of fire and one of stone and crystal,
+a lower body of turning water, a mantle of wind and a crown of lightning, five
+small orbs going round it. It throws all five in turn (`spells`), and its heavy
+blow concusses. Its first fall is a skill point and a boon -- there is a
+twenty-second, **Primal Spark** (2% damage and 2% critical blows), because an
+eighteenth boss needs one more boon that any path can have -- and its fifteenth
+its totem, **The Fifth Essence** (10% more damage and 6% more critical blows,
+until dawn). Its chest holds the **Heart of the Conflux**, an amulet for every way
+of fighting at once.
+
+**What they are drawn as** (`tools/blender_primordium.py`, registered into the
+creatures' table like the bestiary, so `.\tools\make_creatures.ps1 -Only
+storm_conjure` renders one): only the stone ones have legs, and walk; the fire
+ones rise out of a heap of embers and the water ones out of a pool, and glide;
+the gale, storm and thunder Conjures float clear of the ground with their
+shadow under them; the cyclone stands on the point of its funnel. The lesser
+are drawn in 112-pixel frames, the greater in 144 and the Quintessence in 192
+-- the biggest sheets in the game, which crash Blender if anything else is on
+the card, so it is rendered on its own. Each one's hit box was measured off
+its own idle, and its reach set to strike back from wherever a sword can reach
+it. The ground under them is `tools/make_ground.ps1`'s last section, sixty
+tiles on a seed of their own; the air over each map is its own ambience --
+embers, a mine's dust, bubbles rising, the wind and its gusts, rain with the
+lightning flashing white, and motes in all five colours.
+
 ### Havenbrook, dreaming
 
 At the bottom of the Reverie, down the dead end in the east of the Dreaming
@@ -7141,8 +7255,8 @@ of it. It is a fourth depth of the dream, so it pays three extra shards a kill.
 - **The bosses of the waking world** stand in it every night -- the Orc Warchief
   in the square, the Hollowrest Wight on the guild hall's steps, the
   Broodmother in the farmyard -- and **one more walks the town every night**
-  (a Vampire Lord, the Pit Lord, the Den Mother, the Lizardman Chief or the
-  Thing in the Spring), with a second on half the nights. They are the real
+  (the Pit Lord, the Den Mother, the Lizardman Chief or the Thing in the
+  Spring), with a second on half the nights. They are the real
   bosses, not dreams of them: **every kill counts toward that boss's totem**,
   so the fifteen kills a totem takes can be had at night as well as by day.
 - It was made from the town itself: `BuildDreamHavenbrook` copies the finished
@@ -7174,13 +7288,49 @@ the last three in the Brimstone Palace, 75-79 -- and most of them it did. Not
 all: a survey on 30 September, against the levels as they are shown now, finds **no
 ordinary monster anywhere at 36, 77 or 79-84** -- 80 to 83 hold nothing at all,
 79 and 84 only bosses -- and nothing met awake at 23, 27 and 48 (only in the
-dream) or 36 (only at Oona's ritual). The Cinder King at 84 is still the top of
-it.
+dream) or 36 (only at Oona's ritual). The Cinder King at 84 was still the top
+of it.
 
-**A monster cannot leave anything on you.** The first draft gave these a status
-their blows could leave and a leech; the player has no `StatusSet` -- statuses
-are a thing the player does to monsters -- so both were data nothing reads, and
-went. What a monster *shrugs off* (`immune`) is real and kept.
+**A second pass, on 1 October, closed all of it**, and the self-test now holds
+the ladder shut (`TestPrimordium` in `tools/selftest.cpp`): every level from 1 to
+99 has an ordinary monster met awake -- not only in the dream, at a ritual, at
+night or walking a pool -- and every level from 15 up has **at least two kinds**
+of thing on it. Three ways:
+
+- **Above 78, the Primordium**: ten Conjures from 79 to 99, and the
+  Quintessence over them (see [the Primordium](#the-primordium)).
+- **Below it, a post put in among its own** wherever a rung was missing or had
+  one kind on it (`Fill` in `tools/genmaps.cpp`): a few cells from a post of a
+  kind already met there, in a straight walk from it -- never across water to
+  an islet, never on another's post -- and the build fails if there is no room,
+  so a fill cannot quietly not be there. The Bayou has a lizardman at 23 by the
+  croakers inside its gate, a croaker at 35, hags at 36 and 41, a stalker at 48,
+  a witchlight at 49 and a shaman at 53; the Ice Spire trolls at 36 and 38; the
+  Ashen Path a demon at 51, Revenants at 76 and 77 and Abyssal Demons at 79 and
+  81; the Rimefall Glacier a frostback at 72; the Brimstone Palace's ballroom a
+  demon at 77. Emberfell's lower workings have their two strongest grunts at 25
+  and 27, the Barrow a bowman at 23 and the Infernal Pit a third demon, at 48.
+- **What stood far above its ground came down to it**: Hoarfang from 79 to 52,
+  still the top of the Ice Spire; the Pit Lord from 66 to 55, still the top of
+  his pit; the greatwolves (58-61) and dire bears (73-74) out of the Westwold and
+  the Brackenwood, advised at 7 and 20, to the Frostreach, where the Tanning
+  their pelts and hides are wanted for is -- **fell wolves** (15-20) and
+  **mossbacks** (27-31) in their places; and Lord Ashcroft out of every walking
+  pool aimed under his own 71.
+
+Where each went is the rules of the place it went to: the Plateau holds what
+lives there to 50-70 and the Frostreach's four maps to 60-75, so 72 is a
+frostback on the glacier and 77 a demon in the palace. A fell wolf has 45 hit
+points rather than 44, so that its five spawn levels show 15, 16, 17, 19 and
+20: at 19 there was only one other kind.
+
+**A monster could not leave anything on you** when these were written. The
+first draft gave them a status their blows could leave and a leech; the player
+had no `StatusSet` then -- statuses were a thing the player did to monsters --
+so both were data nothing read, and went. Statuses on the player came later
+([what the monsters leave on you](#what-the-monsters-leave-on-you)) and these
+have theirs now; a monster still has no leech. What a monster *shrugs off*
+(`immune`) is real and kept.
 
 **A new boss costs more than a stat block**, and the self-test holds all of it:
 a boon for every path (the count of boons each path can be given has to be at
@@ -7309,8 +7459,10 @@ draw every bar wrong, so the co-op protocol went up to 12.
 | Grey Wolf | the Westwold west of the Wend, the Brackenwood's south | 11-14 | bones, a **wolf pelt** |
 | Brown Bear | the Brackenwood | 24-26 | bones, meat, **bear hide** |
 | The Den Mother | the den, in the middle of the Brackenwood | 41, a leader | four to six bear hides, and better |
-| Greatwolf | the Howling Fells, in the Westwold's west | 58-61 | bones, a **greatwolf pelt** |
-| Dire Bear | the Old Growth, in the Brackenwood's north | 73-74, a leader's heavy | bones, meat, **dire bear hide** |
+| Fell Wolf | the Howling Fells, in the Westwold's west | 15-20 | bones, **wolf pelts**, and the pale **fell wolf pelt** Sorrel wants |
+| Greatwolf | the Frostreach: the Barrows, the Mere and the glacier | 58-66 | bones, a **greatwolf pelt** |
+| Mossback Bear | the Old Growth, in the Brackenwood's north | 27-31 | bones, meat, **bear hides** |
+| Dire Bear | the Warlord's Howe, in the Frostreach | 73-74, a leader's heavy | bones, meat, **dire bear hide** |
 | Cellar Rat | the inn's cellar | 1 | bones, raw meat, a few coins |
 | Cellar Spider | the inn's cellar | 3-4 | spider silk |
 | Broodmother | the back of the inn's cellar | 10 | silk, coins, a tonic or a copper ring |
@@ -7322,7 +7474,7 @@ draw every bar wrong, so the co-op protocol went up to 12.
 | Ice Troll | the Ice Spire's slopes | 31-35 | troll hide, damascus ore, azuryte gear |
 | Frost Wyvern | round the Ice Spire's summit | 37-41 | wyvern scales, platinum ore, damascus gear |
 | Wyvern Matriarch | the summit | 49 | scales, platinum gear, diamond ore |
-| **Hoarfang** | its own ground above the summit | 79 | dragon fangs, scales, diamond and platinum, diamond gear |
+| **Hoarfang** | its own ground above the summit | 52 | dragon fangs, scales, diamond and platinum, diamond gear |
 | Cellar Slime | the well's upper workings | 11-13 | empty vials, bones, coins |
 | Well Bat | the well's upper workings | 10-11 | bones, coins |
 | Pit Hound | the well's deep cut | 22-24 | bones, hides, raw meat, coins |
@@ -7335,12 +7487,14 @@ draw every bar wrong, so the co-op protocol went up to 12.
 | The Hollowrest Wight | in front of the crypt | 33 | lockets, rings, candles, coins, steel |
 | Imp | the Ashen Path and the pit | 29-34, and 43-55 on the way north to the palace | coins, emberbloom, platinum ore, the odd horn |
 | Demon | the hellgate and the pit | 45-50, and 60-70 on the way north | demon horns, demonite ore, platinum gear |
-| The Pit Lord | the pit's last room | 66 | horns, demonite bars and gear |
+| The Pit Lord | the pit's last room | 55 | horns, demonite bars and gear |
 
 (The level shown over each -- what `Enemy::ShownLevelOf` makes of its post's
 numbers -- as a survey on 30 September found them. They move whenever a monster
 is retuned; this table had stood since the first of them were placed, and every
-row but three had moved.)
+row but three had moved. The greatwolves and dire bears have since gone to the
+Frostreach, and Hoarfang and the Pit Lord come down to their own ground: see
+[the Primordium](#the-primordium).)
 
 Each place is a step up from the one before, and none is a wall: monsters in the
 new areas are spaced along the way, do not chase far, and the Ice Spire has a camp
@@ -7479,25 +7633,31 @@ and walks on.
 | --- | --- | --- | --- |
 | The Bayou | Lizardman Chief, Broodmother, Den Mother, the Thing in the Spring | 52 | 6 days in 10 |
 | The Ice Spire, on the track | Den Mother, Hollowrest Wight, Broodmother, Lizardman Chief | 50 | 6 in 10 |
-| The Ashen Path, on the track worn round the north | Pit Lord, Orc Warchief, Lord Ashcroft, Hollowrest Wight | 62 | 6 in 10 |
+| The Ashen Path, on the track worn round the north | Pit Lord, Orc Warchief, Hollowrest Wight | 62 | 6 in 10 |
 | The Pale Ascent | Orc Warchief, Lizardman Chief, Den Mother, Broodmother | 58 | 5 in 10 |
-| The Scoured Flats | Pit Lord, Lord Ashcroft, Wyvern Matriarch | 64 | 5 in 10 |
+| The Scoured Flats | Pit Lord, Wyvern Matriarch | 64 | 5 in 10 |
 | The Brine Terraces | the Mother of the Fen, the Thing in the Spring, the Sleepless | 64 | 5 in 10 |
 | The Stronghold, round its walls | Cerberus | 70 | 6 in 10 |
 | The Cypress Drowns | the Mother of the Fen, Lizardman Chief, the Thing in the Spring, Den Mother | 58 | 5 in 10 |
 | Shellback Strand | Wyvern Matriarch, the Mother of the Fen, Broodmother | 60 | 5 in 10 |
-| The Candle Fens | Lord Ashcroft, Hollowrest Wight, the Sleepless | 62 | 5 in 10 |
-| The Hexmire Temple, round its stakes | Pit Lord, Lord Ashcroft, the Mother of the Fen, Orc Warchief | 64 | 6 in 10 |
-| The Draugr Barrows | Hollowrest Wight, Lord Ashcroft, Den Mother | 66 | 5 in 10 |
+| The Candle Fens | Hollowrest Wight, the Sleepless | 62 | 5 in 10 |
+| The Hexmire Temple, round its stakes | Pit Lord, the Mother of the Fen, Orc Warchief | 64 | 6 in 10 |
+| The Draugr Barrows | Hollowrest Wight, Den Mother | 66 | 5 in 10 |
 | The Warlord's Howe | Pit Lord, Lord Ashcroft, Wyvern Matriarch, the Sleepless | 72 | 5 in 10 |
 | The Rimefall Glacier, along its roads | the Abominable Snowman | 74 | 2 in 10 |
 | The Glass Mere, round the shore | the Abominable Snowman | 74 | 15 in 100 |
-| The Dreaming Dark, over the bridges | the Sleepless, Hollowrest Wight, Lord Ashcroft | 62 | 7 in 10 |
+| The Dreaming Dark, over the bridges | the Sleepless, Hollowrest Wight | 62 | 7 in 10 |
 | Havenbrook, dreaming | (see above) | 62 and 58 | every night, and half |
 
 They are the bosses themselves: a first kill is a skill point and a boon, and
 every kill counts toward the totem, the same as in their lairs. Killed, one
 stays dead until the next day.
+
+A pool only ever raises a boss to its level, never lowers one, so nothing in a
+pool may be stronger than the level it walks at. Lord Ashcroft is 71 in his own
+vault, and walked pools aimed at 62 to 66 at his own 71 to 75 until 1 October;
+he walks only the Warlord's Howe now, at 72 (the self-test holds every pool to
+it).
 
 How: a post can carry a **`route`** -- a loop of points -- and a **`shown`**
 level (`EnemySpawnDef`). With `shown`, whatever the day picks from the pool is
@@ -7518,14 +7678,14 @@ fight for a loot roll. **The first time a character brings one down** it leaves
 them two things -- the one for good, the other for a day:
 
 - **A skill point** for their tree, over and above the one every third level
-  earns. There are seventeen bosses, so seventeen points against the nine a
+  earns. There are eighteen bosses, so eighteen points against the nine a
   finished tree is short of at 99 (twelve, for the hero's): any nine of them
   finish a tree, twelve the hero's. It was written when there were eleven, and
-  only someone who had killed everything could finish a tree; six bosses have
+  only someone who had killed everything could finish a tree; seven bosses have
   come since, and their points with them. The tree's header says how many of
   your points came that way.
 - **A boon**, by the dice, **for 24 hours of the world's clock**: one of
-  twenty-one small things, of those the character's path can use and do not have
+  twenty-two small things, of those the character's path can use and do not have
   running already -- so no two running at once are the same, a hero is never
   handed mana, and two characters who kill the same bosses do not end up the
   same. When the day is up it wears off, and the game says so ("A day has
@@ -7544,7 +7704,7 @@ them two things -- the one for good, the other for a day:
 | The Leech's Gift | 2% of damage dealt returns as health | Hexward *(wayfarer)* | +8% maximum mana |
 | Ironhide | +6% of all your Defence | Quickstep | on the move, 4% of blows miss you |
 | Cinderheart | +4% damage | Threefold | attacks 2% faster |
-| Thick Fur | +6% maximum health | | |
+| Thick Fur | +6% maximum health | Primal Spark | +2% damage and +2% critical chance |
 
 Each is about one rank of a talent, of a kind any path can use -- and maximum
 health, which no tree teaches at all. **Ironhide is a share, not points**: six
@@ -7713,7 +7873,8 @@ Leaders -- every boss, and the strongest of the rest: the five dragons, the
 greater and abyssal demons of the Plateau and the palace, the Rime Revenants, the
 crypt's colossi and wardens, the Hexmire's zealots and shellbacks, the
 Frostreach's warlords and frostbacks, the dream's nightmares, the wyverns and the
-dire bears, thirty-eight in all -- have a second attack besides their swing:
+dire bears, and the Primordium's greater Conjures and the Quintessence -- forty-four
+in all -- have a second attack besides their swing:
 **a heavy, telegraphed blow that no shield stops.**
 
 A few seconds into a fight, when the player is within its reach, the leader
@@ -7756,6 +7917,11 @@ before stamina comes back is doubled.
 | Basalt Dragon | 1.4s | x2.4 | 9s |
 | **Orc Warchief** | 1.4s | x2.4 | 9s |
 | **The Hollowrest Wight** | 1.4s | x2.4 | 9s |
+| Cyclone Conjure | 1.4s | x2.5 | 9s |
+| Inferno Conjure | 1.4s | x2.5 | 9s |
+| Maelstrom Conjure | 1.4s | x2.5 | 9s |
+| Monolith Conjure | 1.4s | x2.5 | 9s |
+| Thunder Conjure | 1.4s | x2.5 | 9s |
 | Shellback Elder | 1.4s | x2.6 | 9s |
 | Undead Warlord | 1.4s | x2.6 | 9s |
 | **The Cinder King** | 1.4s | x2.8 | 8s |
@@ -7768,6 +7934,7 @@ before stamina comes back is doubled.
 | **The Thing in the Spring** | 1.5s | x2.5 | 9s |
 | **Wyvern Matriarch** | 1.5s | x2.5 | 9s |
 | Frostback Troll | 1.5s | x2.6 | 10s |
+| **The Quintessence** | 1.5s | x2.8 | 8s |
 | **The Pit Lord** | 1.6s | x2.6 | 9s |
 | **Lord Ashcroft** | 1.6s | x2.7 | 8.5s |
 | **The Unwaking** | 1.8s | x2.6 | 10s |
@@ -7919,7 +8086,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **70471 checks** covering:
+and checks all of it — currently **71598 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -7947,6 +8114,19 @@ and checks all of it — currently **70471 checks** covering:
   five days to a full poppet, Oona's hand-in owes a choice of weapons, and
   leaving the map puts a ritual out; a friend's window burns and is held to
   the ring it is told of, and the ring crosses the wire
+- the ladder and the Primordium: every level from 1 to 99 has an ordinary
+  monster met awake, and from 15 up two kinds; Hoarfang tops the Ice Spire and
+  the Pit Lord his pit without standing far over them; nothing in the Westwold
+  past 22 or the Brackenwood past 33, and the greatwolves and dire bears are
+  the Frostreach's; no walking pool holds a boss stronger than the level it
+  walks at; the rift opens on the Kiln from Combat 72, warned of at 80, and
+  goes back; each map leads on, warned of at 84 to 96, and back, in its own air
+  and its own band of levels; a waystone by the rift; each Conjure is of its
+  element, drawn from a sheet of its own with all five clips, throws its
+  element, shrugs off what it leaves and leaves it, has a heavy blow only if it
+  is a greater one, and leaves something; the cores are worth having; and the
+  Quintessence is a boss at 99 that throws all five, in the Conflux with its
+  chest, with its relic and its totem
 - the dialogue graph is fully connected
 - no NPC offers a quest that is not yet available, and every Talk and Deliver
   stage has a hand-in option reachable from that NPC, shown only while the quest
@@ -8668,8 +8848,8 @@ and checks all of it — currently **70471 checks** covering:
   character, and gauntlets and gloves are drawn on the hands in their own
   cut, gauntlets in their own colour and a set's gloves a shade under theirs
 - the Westwold and the Brackenwood: they load, take every check every other map
-  takes, and neither is small; wolves on the downs and greatwolves in the Fells;
-  bears, one Den Mother, and dire bears in the Old Growth; Havenbrook has a west
+  takes, and neither is small; wolves on the downs and fell wolves in the Fells;
+  bears, one Den Mother, and mossbacks in the Old Growth; Havenbrook has a west
   gate and the road comes back to it
 - what starts a fight and what ends one: a boar does not notice someone three
   hundred pixels off, and hurt from out of its sight it comes for whoever did
@@ -8846,7 +9026,7 @@ and checks all of it — currently **70471 checks** covering:
   left and wears off at the day, saying which, while the point stays; killing
   the boss again does not bring it back; an old save's boons get a day from
   now; and Vigour's health is gone again a day later; the point buys a rank and comes back when the tree is
-  unlearned, the boon is kept; all seventeen bosses leave seventeen different
+  unlearned, the boon is kept; all eighteen bosses leave eighteen different
   boons, none for another path, thirty heroes are never once given mana or
   arrows, and no hero or warden is ever handed Hexward; it
   survives a save, a boss killed before the save is not a first kill after it,

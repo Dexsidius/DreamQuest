@@ -432,7 +432,8 @@
       "exits": [
         "plateau_flats",
         "plateau_terraces",
-        "stronghold_keep"
+        "stronghold_keep",
+        "prim_kiln"
       ],
       "kind": "land",
       "name": "The Stronghold"
@@ -444,6 +445,53 @@
       ],
       "kind": "land",
       "name": "The Brine Terraces"
+    },
+    "prim_bedrock": {
+      "exits": [
+        "prim_kiln",
+        "prim_deeps"
+      ],
+      "kind": "dungeon",
+      "name": "The Bedrock"
+    },
+    "prim_conflux": {
+      "exits": [
+        "prim_tempest"
+      ],
+      "kind": "land",
+      "name": "The Conflux"
+    },
+    "prim_deeps": {
+      "exits": [
+        "prim_bedrock",
+        "prim_firmament"
+      ],
+      "kind": "land",
+      "name": "The Deeps"
+    },
+    "prim_firmament": {
+      "exits": [
+        "prim_deeps",
+        "prim_tempest"
+      ],
+      "kind": "land",
+      "name": "The Firmament"
+    },
+    "prim_kiln": {
+      "exits": [
+        "prim_bedrock",
+        "plateau_stronghold"
+      ],
+      "kind": "land",
+      "name": "The Kiln"
+    },
+    "prim_tempest": {
+      "exits": [
+        "prim_firmament",
+        "prim_conflux"
+      ],
+      "kind": "land",
+      "name": "The Tempest"
     },
     "stronghold_keep": {
       "exits": [

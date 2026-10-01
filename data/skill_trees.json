@@ -1087,6 +1087,15 @@
       "effects": {
         "max_health": 0.06
       }
+    },
+    {
+      "id": "boon_primal_spark",
+      "name": "Primal Spark",
+      "text": "+2% damage, and 2% more critical blows",
+      "effects": {
+        "damage": 0.02,
+        "crit": 0.02
+      }
     }
   ],
   "totems": [
@@ -1705,6 +1714,43 @@
         "light": [
           128,
           217,
+          255
+        ]
+      }
+    },
+    {
+      "item": "totem_quintessence",
+      "boss": "quintessence",
+      "name": "The Fifth Essence",
+      "text": "10% more damage, and 6% more critical blows",
+      "effects": {
+        "damage": 0.1,
+        "crit": 0.06
+      },
+      "house": {
+        "floor": [
+          84,
+          80,
+          96
+        ],
+        "wall": [
+          124,
+          118,
+          140
+        ],
+        "cloth": [
+          210,
+          180,
+          255
+        ],
+        "trim": [
+          255,
+          214,
+          120
+        ],
+        "light": [
+          220,
+          200,
           255
         ]
       }

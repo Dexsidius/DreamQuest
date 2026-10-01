@@ -2965,12 +2965,12 @@
   "source": "npc",
   "giver": "npc_ranger",
   "level": 20,
-  "summary": "Sorrel carries wolf pelts to Ivo for a living. Ivo has asked for white ones -- the greatwolves off the Westwold's high ground -- and Sorrel has seen what wears them.",
+  "summary": "Sorrel carries wolf pelts to Ivo for a living. Ivo has asked for white ones -- the fell wolves off the Westwold's high ground -- and Sorrel has seen what wears them.",
   "stages": [
    {
-    "desc": "Bring Sorrel three greatwolf pelts from the Westwold",
+    "desc": "Bring Sorrel three fell wolf pelts from the Westwold",
     "type": "deliver",
-    "target": "greatwolf_pelt",
+    "target": "fell_wolf_pelt",
     "to": "npc_ranger",
     "count": 3
    }

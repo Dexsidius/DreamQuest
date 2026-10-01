@@ -158,6 +158,13 @@ $sizes = @{
     mine_lantern = 56; dwarf_statue = 80
     fisher_cottage_a = 128; fisher_cottage_b = 128; ferry_house = 160; boat_shed = 128; net_rack = 64
     post_lantern = 64; wattle_fence = 64
+    # The Primordium (tools/blender_primordium_props.py).
+    primordial_rift = 192; conflux_dais = 256; totem_quintessence = 32
+    kiln_vent = 64; obsidian_spire = 96; magma_well = 160; cinder_heap = 48
+    crystal_cluster = 72; monolith = 112; geode = 96; stone_well = 160
+    coral_spire = 96; kelp_stand = 72; giant_shell = 80; tide_well = 160
+    wind_arch = 128; cloud_pillar = 96; sky_rock = 72; gale_well = 160
+    fulgurite_spire = 96; storm_rod = 80; thunder_stone = 72; storm_well = 160
 }
 
 # Pieces the game colours itself, as two pictures laid one on the other: the

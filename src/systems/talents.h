@@ -142,10 +142,10 @@ public:
     // it leaves them two things, for good: a point for their tree, over and
     // above the one every third level earns, and a boon -- one of
     // data/skill_trees.json's, by the dice, of those their path can use and they
-    // do not already have. Seventeen bosses, so seventeen points against the
+    // do not already have. Eighteen bosses, so eighteen points against the
     // nine a finished tree is short of at 99 (twelve, for the hero's, with
     // Rushing Strike and Counter): any nine of them finish a tree, twelve the
-    // hero's. With eleven bosses it was everything or nothing; six more came,
+    // hero's. With eleven bosses it was everything or nothing; seven more came,
     // and their points with them.
     //
     // The first time, and once: a boss is back the next dawn and leaves its
