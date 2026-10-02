@@ -1294,6 +1294,35 @@ four spells.** Twelve new spells, three an element, at Magic 12, 24 and 36:
 | **Earth** | Sharpstone, Upheaval | **Slabstrike** -- a square of the ground torn up and swung at what is in front. Twenty pixels of it on a light, thirty-two on a heavy, and [held and let go the big one is dropped on your quarry](#slabstrike) and breaks on them. What it hits is thrown, and often concussed | **Sedimentary Rain** -- the Arrow Rain's numbers, in stone | **Mineral Burst** -- eight sharp stones, one after another, from wherever you have got to |
 | **Air** | Gust, Galewind | **Tornado** -- it walks the way it was sent, throwing what it catches in any direction it likes, and **the further it is thrown the more it is hurt**. A light cast is a dust devil; **held and let go it lasts four seconds** | **Air Slash** -- an edge of air as wide as a doorway, through everything | **Turbulence** -- three seconds of your own weather, that goes where you go |
 
+#### Grown: the second tiers, Magic 62 to 92
+
+Past Magic 58 nothing new opened: no spell, no tree row. Now **each of those
+twelve grows into a second tier**, the way the bolt on `1` grows from Ember to
+Pyre: once the Magic level reaches it, the same key casts it instead, and the
+spellbook and the bar say so. They are the same shapes, bigger -- a spell says
+how much bigger in `data/spells.json` (`size` for what the shape is laid out
+across, `count` for how many pieces, `seconds` for how long its ground lasts,
+`rings` and `waves`; `SpellDef::size`) -- with the numbers to go with the level.
+
+| | 2 | 3 | 4 |
+| --- | --- | --- | --- |
+| **Fire** | **Dragon's Breath** (62) -- seven tongues, whiter and quicker to catch, across a cone a third wider; the lance reaches a third as far again | **Firestorm** (74) -- two rings of fire, the outer further out than the ring ever was, for four and a half seconds | **Wall of Cinders** (86) -- eleven across where it was seven, each patch wider, for seven seconds |
+| **Water** | **Tidal Lance** (64) -- a ball twice the weight that goes through three before it breaks | **Tsunami** (76) -- eleven abreast and wider set, and a second wave out of you close behind the first | **Undertow** (88) -- wider, pulling harder, for five seconds |
+| **Earth** | **Monolith** (66) -- a bigger square of ground, swung further round, and dropped on a wider patch | **Landslide** (78) -- a wider circle of falling stone, for longer | **Geode Burst** (90) -- twelve shards of amethyst, each through the first thing it strikes |
+| **Air** | **Cyclone** (68) -- wider and harder thrown, and held, five and a half seconds | **Wind Scythe** (80) -- three crescents in a fan, each through everything | **Hurricane** (92) -- your own weather, far wider, for four seconds |
+
+What they throw is drawn for them (`make_effects.ps1`): a whiter billow, a
+bigger ball of water and its wake, a taller crest, a shard of amethyst, a wider
+crescent. A Tsunami's second wave is eleven owed shots let go abreast of the
+line (`QueuedShot::side`). Nothing about them is new to a friend's machine.
+
+**Starfall** (90) is the ancient magic's last: **five stars out of the sky, one
+after another**, the first on the quarry and the rest round where it stands,
+each its own blow where it lands -- what walks out from under one is under the
+next. An arcane fall is drawn as a star, not a rock: a point of white light in a
+violet glow, four rays turning, a thin streak behind. The college's copying
+room sells the tome; Magic 90 is the gate, as for every spell.
+
 The bar over the hands shows the four spells in the
 staff's colour, the spellbook page lists them, the pad's *next element* steps
 through them, and the fifth slot is still the ancient magic. What the big ones
@@ -2086,9 +2115,10 @@ outright. The old books, and D&D's, are where the names come from:
 | **Hellish Rebuke** | 36 | 14 | fire where the target stands, at once, at 1.6x, and it is left **burning** -- half as hard again if you were hurt in the last four seconds |
 | Cloud of Daggers | 40 | 16 | a slow orb that bursts into a cloud of knives where it lands and cuts for four seconds |
 | Thunderwave | 48 | 18 | a ring of force out of the caster in every direction, at 0.7x, that throws everything it touches |
+| **Starfall** | 90 | 26 | five stars out of the sky one after another, each a blow at 0.95x where it lands: the first on the target and the rest round it ([the late spells](#grown-the-second-tiers-magic-62-to-92)) |
 
 Every spell has a shape in `data/spells.json` -- `bolt`, `darts`, `rays`,
-`rain`, `ring`, `spray`, `rebuke` -- and the world casts by shape, so a new
+`rain`, `ring`, `spray`, `rebuke`, `starfall` -- and the world casts by shape, so a new
 spell is a line of data and a projectile. The two touches are bolts that live a
 quarter of a second. The four in bold came with the [status
 effects](#status-effects), and are the ancient magic's way into them: all four
@@ -2386,7 +2416,7 @@ and loses the rest.
 | Ranged | the warden | Ranged | Marksman, Skirmisher, Hunter |
 | Magic | the wayfarer | Magic | Evoker, Channeler, Warden, and Aegis |
 
-A tree is three branches, eight rows deep, and every branch has the same shape:
+A tree is three branches, eleven rows deep, and every branch has the same shape:
 
 | Row | Level | What it is | Ranks |
 | --- | --- | --- | --- |
@@ -2398,6 +2428,31 @@ A tree is three branches, eight rows deep, and every branch has the same shape:
 | 6 | 54 | a second **ability** | 1 |
 | 7 | 62 | a second passive that asks when | 2 |
 | 8 | 70 | the branch's capstone | 1 |
+| 9 | 78 | a passive | 2 |
+| 10 | 86 | a point that **grows the branch's own ability** | 1 |
+| 11 | 94 | the branch's second capstone | 1 |
+
+**Past 70 the trees go on.** They used to stop there, and the twenty-nine
+levels after it -- the slowest in the game -- opened nothing in the tree. Three
+rows more in every branch, eight levels apart as the rest are:
+
+| Tree | Branch | 78 (2 ranks) | 86 | 94 |
+| --- | --- | --- | --- | --- |
+| Melee | Blade | **Honed**: +3% crit a rank | **Bloodrush**: Frenzy 3 s longer and a tenth quicker again | **Reaper**: criticals 35% harder, and the execute line a little higher |
+| | Brawn | **Crushing Weight**: charged attacks +7% a rank | **Rallying Roar**: War Cry +15% more, 4 s longer | **Colossus**: +6% damage, +10% health, a third more shove |
+| | Guard | **Tempered**: Defence +6 a rank | **Immovable**: Stand Fast 3 s longer, and lets through half | **Unbroken**: +8% Defence, +8% health, blocks 15% cheaper |
+| Ranged | Marksman | **Keen Sight**: +3% crit a rank | **Deadly Mark**: the Mark 5 s longer, and +15% from your shots | **Eagle's Patience**: criticals 30% harder, long shots +10% |
+| | Skirmisher | **Light Step**: +2.5% evade a rank | **Arrow Storm**: Rapid Fire 3 s longer | **Windrunner**: shots and feet 6% quicker |
+| | Hunter | **Barbed Points**: +3% damage a rank | **Iron Jaws**: a Snare holds 2 s longer | **Apex**: +6% damage, 3% lifesteal |
+| Magic | Evoker | **Empowered**: +3% damage a rank | **Overcharge**: an Overloaded spell 2.5x where it was 2x | **Cataclysm**: +15% against the element a creature fears, +5% crit |
+| | Channeler | **Deep Currents**: mana 8% faster a rank | **Deep Invocation**: Invoke draws back three quarters | **Font of Power**: +15% mana, spells a tenth cheaper |
+| | Warden | **Spellward**: Defence +5 a rank | **Bastion**: the Mana Shield 5 s longer | **Undying**: +10% health, +3 mana for every blow that draws blood |
+
+What an ability is grown by is asked in one place for each (`Player::WarCryDamage`,
+`FrenzySpeed`, `StandFastShare`, `StandFastTime`, `OverloadDamage`, and the
+timers set in `Player::TryAbility`), so the character panel's boons say the grown
+numbers. The tree page fits the eleven rows by giving up the gap between boxes
+first (`DrawSkillTree`).
 
 **The rows come closer together as they go down**, because the levels come
 slower: a level in the fifties is several times the work of one in the teens,
@@ -2406,8 +2461,9 @@ first ability no row is more than eight levels after the one before.
 
 **Every third level of the tree's skill is a point**, a rank costs one, and a
 node needs at least one rank of the node above it. That is **thirty-three
-points by level 99 against forty-two ranks a tree** (forty-five for the hero,
-with Rushing Strike and Counter; forty-four for the wayfarer, with the Aegis): two branches to the bottom and a little of the third, or
+points by level 99, and one for each boss's first fall, against fifty-four ranks
+a tree** (fifty-seven for the hero, with Rushing Strike and Counter; fifty-six
+for the wayfarer, with the Aegis): two branches to the bottom and a little of the third, or
 all three most of the way. A build, not a checklist. `J` on a
 node buys its next rank; `L` twice unlearns the whole tree and gives every point
 back, for anyone who wants to fight another way -- at **sixty coins a point
@@ -3264,14 +3320,26 @@ the scenery.
 **Fishing** is its own skill. A fishing spot is drawn as rings spreading on the
 water with the odd bubble: three on the Fernhollow pond (one off the end of the
 jetty), three on the Whisperwood stream, and four along the Hollowmarch lake.
+Past 60 the fish are in the late lands, four spots to each: the **ice holes** on
+the Glass Mere, the **lava moat** under the Brimstone Palace (two casts from
+the outer bank of each of its arms), and four of the **pools of the Deeps** in
+the Primordium.
 
 | Fish | Fishing | Caught in | Cooked, heals | Cooking |
 | --- | --- | --- | --- | --- |
-| Minnow | 1 | pond, stream, lake | 4 | 1 |
-| Trout | 15 | pond, stream | 9 | 15 |
-| Pike | 30 | pond, lake | 13 | 30 |
-| Salmon | 45 | stream | 17 | 45 |
-| Eel | 60 | lake | 22 | 60 |
+| Minnow | 1 | pond, stream, lake | 5 | 1 |
+| Trout | 15 | pond, stream | 14 | 15 |
+| Pike | 30 | pond, lake | 21 | 30 |
+| Salmon | 45 | stream | 28 | 45 |
+| Eel | 60 | lake | 36 | 60 |
+| Frostfin | 68 | the Glass Mere's ice holes | 43 | 68 |
+| Cindergill | 78 | the Brimstone Palace's lava moat | 50 | 78 |
+| Deepgleam | 90 | the pools of the Deeps | 58 | 90 |
+
+A late spot holds only its own fish, so the water says what it asks before the
+rod goes in (*Needs Fishing 78 for the lava moat*). Each of the three bites
+later, pays more and heals more than the one before, which the self-test holds
+the whole ladder to; their dishes are below.
 
 Each spot gives up the best fish the level allows about a third of the time,
 more often the further past it the level is, and something lesser otherwise.
@@ -3310,6 +3378,18 @@ twenty minutes or so and lifts something while it does:
 | Fisherman's Broth | 28 | +12% max mana |
 | Moonpetal Tea | 34 | +18% max mana, +3 Magic |
 | Farmer's Supper | 40 | +15% max health, +3 Attack |
+| Frostfin Chowder | 72 | +20% max health, +15% max breath |
+| Cindergill Skewers | 84 | +10% max health, +4 Attack, +4 Strength |
+| Deepgleam Broth | 92 | +22% max mana, +5 Magic |
+| Hollowmarch Feast | 95 | +25% max health, +20% max mana, +30% max breath, +6 to every way of fighting, for forty minutes |
+
+The four past 70 are cooked from the late fish -- the chowder with milk and
+mint, the skewers with emberbloom, the broth with moonpetal, and the feast from
+all three and a joint of beef -- so from the eel at 60 a cook has something new
+every six levels or less to 95. The feast is 95 and not 99 because burning only
+falls away three in a hundred a level past a dish's level: a feast at 99 would
+burn a third of the time at the top of the skill, where at 95 it burns a little
+over a fifth.
 
 The pools are **shares** of what they already are, so a good dinner is worth
 cooking at fifty as well as at five, and the levels are held steady for as long
@@ -3345,6 +3425,23 @@ half the time.
 | Emberbloom | 46 | the burnt ground of the Cursed Reach |
 | Moonpetal | 56 | the Reverie's islands |
 | Starlily | 68 | only the Reverie's crystal field |
+| Rimebloom | 74 | the snow of the Frostreach: the Barrows' turf, the Glass Mere's shore, the glacier, the fells round the Howe |
+| Cinderwort | 81 | the scorched ground at the edge of the Kiln's lava, in the Primordium |
+| Tidecress | 88 | the sand round the pools of the Deeps |
+| Aetherbell | 95 | the Firmament's islands -- the ones the ways across join up |
+
+The last four grow only in the late lands, as the bugs live only in theirs, and
+are put down the way the bugs are: `PlaceHerbs` shares `PlaceBugs`' core
+(`Spread` -- cells ranked by their own hash, a few cells apart, on ground that
+can be stood on and quiet round it), after the bugs, so neither moves the other.
+Sixteen rimebloom, four a map, and fourteen of each of the others. Their levels
+sit between the bugs', so from moonpetal at 56 a forager has something new every
+six or seven levels to 95, and each pays more and sells for more than
+everything below it. Each has its own prop growing and picked -- an ice-blue
+flower pointed like a frost crystal in a drift of snow, charred leaves
+smouldering at their edges on ash, a clump of wet round leaves on dark sand, and
+pale bells hanging lit from leaning stems -- and the cinderwort, the aetherbell
+and the rimebloom shine through the dark.
 
 Each is scattered thinly over its own ground, and on the overworld each has
 **one patch where it grows thick**, found by `tools/genmaps.cpp` by looking out
@@ -3494,6 +3591,21 @@ And the five brewed from bugs and honey:
 | Cinderbug Ward | 50 | 2 firebugs, emberbloom, honey | nothing sets you burning for five minutes | Garrow's Smithy |
 | Rimeshell Ward | 62 | 2 rime beetles, mountain sage, honey | nothing chills or freezes you for five minutes | the College copying room |
 
+And the nine brewed from the late herbs, each at its herb's level and each with
+a recipe sold where the earlier ones are:
+
+| Potion | Brewing | Ingredients | Effect | Recipe from |
+| --- | --- | --- | --- | --- |
+| Rimebloom Tonic | 74 | 2 rimebloom, mountain sage | 20 hitpoints, Defence +6 and a seventh | Garrow's Smithy |
+| Glacier Ward | 74 | 2 rimebloom, rime beetle | nothing chills, freezes or soaks you for eight minutes | the College copying room |
+| Draught of Fury | 81 | 2 cinderwort, emberbloom | Attack and Strength +6 and a seventh | the Collector |
+| Ashen Ward | 81 | 2 cinderwort, firebug | nothing sets you burning or poisons you for eight minutes | Garrow's Smithy |
+| Hawkeye Draught | 88 | 2 tidecress, glowcap | Ranged +6 and a sixth | Ivo's Bows and Hides |
+| Tidemind Draught | 88 | 2 tidecress, moonpetal | 120 mana, Magic +6 and a sixth | the College copying room |
+| Storm Ward | 88 | 2 tidecress, honey | no lightning takes hold of you and no blow concusses you, for eight minutes | Oona |
+| Firmament Elixir | 95 | 2 aetherbell, starlily, cinderwort | 60 hitpoints, 150 mana, all stamina, every combat level +4 and a tenth | the Collector |
+| Primordium Ward | 95 | 2 aetherbell, rimebloom, cinderwort, tidecress | for ten minutes nothing takes at all: burning, soaking, chill, frost, lightning, concussion, poison, bleeding | the College copying room |
+
 Every brew also takes one vial, and each is brewed at the Foraging level of its
 rarest herb or bug -- `ItemDef::GatherLevel`, the higher of a thing's `forage`
 and `catch` levels -- so the two skills climb together. A boost is the OSRS kind: a flat
@@ -3506,8 +3618,9 @@ The art is original. The plants (each growing and picked) and the cauldron are
 modelled in `tools/blender_props.py` and rendered with `make_props.ps1`; the
 herb, bug, vial, potion and recipe-scroll icons are built in
 `tools/blender_tiers.py` beside the fish (`.\tools\make_tiers.ps1 -What brewing`,
-with `-Names` for only some of them), and the honey jar with the food
-(`-What food -Names honey`); the kneel-and-pick `gather` clip is in
+with `-Names` for only some of them), the honey jar and the dishes with the food
+(`-What food -Names honey`), and the fish by themselves, raw and cooked
+(`-What fish -Names raw_frostfin,cooked_frostfin`); the kneel-and-pick `gather` clip is in
 `tools/blender_character.py`.
 
 ### Wards
@@ -3518,6 +3631,9 @@ Two of the brews **keep a status off** rather than lift a level. After a
 through the Glass Mere's ice, not a frost thawing back into a chill, not a
 chill on someone soaked that would have been a freeze. A blow that would have
 left it says *warded* over your head instead, so a ward is seen to be working.
+The late herbs brew four more, eight minutes each (the table above), and the
+**Primordium Ward**'s ten keep off everything a monster can leave on you but a
+charm or a confusion -- the Tempest's lightning among it.
 
 Burning **ground** is not a status, but a fire ward takes half its bite as
 well: that ground is what the Ashen Path's fords and ember fields are, and the
@@ -8325,7 +8441,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **73169 checks** covering:
+and checks all of it — currently **74129 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -8393,6 +8509,32 @@ and checks all of it — currently **73169 checks** covering:
   turns a shot back on the archer; every metal tier has its six pieces of
   jewellery, made at the bench with Crafting, so Crafting opens something every
   ten levels to 95
+- the late spells: every element's second, third and fourth slot has a second
+  tier at Magic 60 to 92, cast in the first's place from its level, dearer and
+  better paid, with its own art; Magic opens something at least every six levels
+  from 58 to 92; each, cast at its level, is measurably its first grown against
+  the first cast a level below (patches, shots, pierce, radius, life, slab);
+  a Firestorm is two rings, a Wall of Cinders eleven across for seven seconds, a
+  Tsunami eleven abreast and eleven more behind; Starfall is the ancient magic's
+  at 90, its tome on the college's shelf, and cast it is five stars falling, five
+  blows, its quarry struck and its experience paid
+- the trees past 70: every branch of every tree has rows at 78, 86 and 94, eight
+  levels apart; Bloodrush, Rallying Roar, Immovable, Deadly Mark, Arrow Storm,
+  Iron Jaws, Overcharge, Deep Invocation and Bastion each measurably grow their
+  branch's ability, fought and cast with and without the node
+- the late gathering: every fish bites later, pays more and heals more than the
+  one before, up to the deepgleam at 90; frostfin, cindergill and deepgleam are
+  fished only at their own water, at their own level, which says so to anyone
+  below it and gives the fish to anyone at it; past Foraging 56 every herb and
+  bug pays more and sells for more than all below it, never more than seven
+  levels above the last, up to 95; Cooking and Brewing open something at least
+  every eight levels past 60; each late herb grows only in its own land, a dozen
+  or more of it, goes into two brews or more, and is picked at its level and
+  refused a level below; the four late dishes are cooked from late fish, and the
+  feast, eaten, lifts health, mana, breath and all five ways of fighting by six;
+  the nine late brews come from late herbs, with scrolls priced like the rest
+  and on somebody's shelf; the Firmament Elixir lifts all five, and the
+  Primordium Ward keeps everything off for ten minutes, lightning included
 - co-op, what the report found, put right: a quest's chest, lever, stone, page
   or voice each character's own and nothing else, every quest's thing to use on
   a map; the key's chest opened by the host and by a friend, each their own key

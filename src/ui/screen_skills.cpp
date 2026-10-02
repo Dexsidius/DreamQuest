@@ -1245,14 +1245,14 @@ void Game::DrawSkillTree(const SDL_FRect& panel) {
     // --- the grid ----------------------------------------------------------------
     const float gx = panel.x + 78.0f, gy = panel.y + 112.0f;
     // The grid is cut to the panel, which is cut to the window: the melee
-    // tree's four columns are 1032 wide at their full size, and eight rows of
-    // 62 are 496 before the headings. Columns give up width and rows give up
+    // tree's four columns are 1032 wide at their full size, and eleven rows of
+    // 62 are 682 before the headings. Columns give up width and rows give up
     // the gap between boxes before either gives up the box itself, which has
-    // two lines of text to hold.
+    // two lines of text to hold -- at 38 the two just clear each other.
     const int   columns = std::max(1, tree.BranchCount());
     const float col_w = std::min(172.0f, floorf((panel.w - 78.0f - 36.0f - 230.0f) / columns));
-    const float row_h = std::clamp(floorf((panel.h - 112.0f - 82.0f) / SkillTrees::ROWS), 46.0f, 62.0f);
-    const float box_w = col_w - 22.0f, box_h = std::min(44.0f, row_h - 6.0f);
+    const float row_h = std::clamp(floorf((panel.h - 112.0f - 82.0f) / SkillTrees::ROWS), 42.0f, 62.0f);
+    const float box_w = col_w - 22.0f, box_h = std::min(44.0f, row_h - 4.0f);
 
     for (int b = 0; b < tree.BranchCount(); ++b) {
         const string name = b < static_cast<int>(tree.branches.size()) ? tree.branches[b] : "";
@@ -1296,7 +1296,8 @@ void Game::DrawSkillTree(const SDL_FRect& panel) {
         string kind = !n.technique.empty() ? string(active ? "technique - active" : "technique")
                     : !n.ability.empty() ? (slot >= 0 ? "ability - slot " + std::to_string(slot + 1) : string("ability"))
                     : n.effects.count("rushing_strike") ? string("move")
-                    : n.row == SkillTrees::ROWS - 1 ? string("capstone") : string("passive");
+                    : (n.row == SkillTrees::CAPSTONE_ROW || n.row == SkillTrees::LAST_ROW) ? string("capstone")
+                    : string("passive");
         if (n.ranks > 1) kind += "  " + std::to_string(rank) + "/" + std::to_string(n.ranks);
         ui.Text(kind, box.x + box_w / 2.0f, box.y + box_h - 21.0f, TextSize::Small,
                 !n.technique.empty() ? SDL_Color{236, 150, 110, 255}

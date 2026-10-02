@@ -55,6 +55,10 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
     float damage_mult = atk.damage_mult * player.TalentDamage(style, atk.type);
     Element element = Element::None;
     string shape;
+    // How big the shape is laid out, as the spell says: a slot's second tier is
+    // its first grown. A plain spell's are the shape's own. See SpellDef::size.
+    float size = 1.0f, seconds = 0.0f;
+    int count = 0, rings = 1, waves = 1;
     // The lightning's charge: what this cast took out of the bar (a Discharge
     // is worth what it spent) and what every enemy it lands on puts back.
     float battery_spent = 0.0f, battery_gain = 0.0f;
@@ -138,6 +142,11 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         element = spell->element;
         player.NoteCast(spell->element);      // Attunement: the same element, again
         shape = spell->shape;
+        size = spell->size;
+        count = spell->count;
+        seconds = spell->seconds;
+        rings = spell->rings;
+        waves = spell->waves;
         // The spell's own experience is owed, not paid: it comes when the
         // spell lands on something. See OpenCast in world.h for why.
         casting = OpenCast(SKILL_MAGIC, spell->xp);
@@ -158,7 +167,7 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
     // hits harder, and an aimed shot strikes critically whatever the dice say.
     const bool aimed_shot = atk.empowered && style == AttackStyle::Ranged;
     if (atk.empowered) {
-        damage_mult *= aimed_shot ? Player::AIM_DAMAGE : Player::OVERLOAD_DAMAGE;
+        damage_mult *= aimed_shot ? Player::AIM_DAMAGE : player.OverloadDamage();
         AddText(aimed_shot ? "Aimed" : "Overload", player.x, player.y - 58.0f,
                 aimed_shot ? SDL_Color{255, 232, 150, 255} : SDL_Color{190, 170, 255, 255}, 0.9f);
     }
@@ -627,9 +636,46 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
             Audio::PlayAt(Sfx::Impact, at.x, at.y, 1.0f, 0.62f);
         }
     } else if (shape == "rays") {
-        for (float deg : {-12.0f, 0.0f, 12.0f}) {
+        // Three in a fan, twelve degrees apart -- or as many as the spell
+        // says, across as wide: the Wind Scythe's three crescents.
+        const int n = count > 0 ? count : 3;
+        const float spread = 24.0f * size;
+        for (int i = 0; i < n; ++i) {
+            const float deg = n > 1 ? -spread / 2.0f + spread * static_cast<float>(i) / static_cast<float>(n - 1) : 0.0f;
             const Vec2 d = turned(deg);
-            loose(d.x, d.y, damage_mult, deg == 0.0f);
+            loose(d.x, d.y, damage_mult, i == n / 2);
+        }
+    } else if (shape == "starfall") {
+        // Stars out of the sky, one after another: the first on the quarry and
+        // the rest round where it stands, each its own fall and its own blow
+        // where it lands -- so what walks out of the first is under the next.
+        const int n = count > 0 ? count : 5;
+        const SDL_FPoint at = strike_point();
+        const float radius = 40.0f * size;
+        for (int i = 0; i < n; ++i) {
+            const float wait = 0.45f + 0.18f * static_cast<float>(i);
+            float x = at.x, y = at.y;
+            if (i > 0) {
+                const float a = 6.2831853f * static_cast<float>(i - 1) / static_cast<float>(std::max(1, n - 1)) + 0.4f;
+                x += cosf(a) * radius * 1.35f;
+                y += sinf(a) * radius * 0.95f;
+            }
+            GroundEffect g;
+            g.x = x;
+            g.y = y + 8.0f;
+            g.radius = radius;
+            g.delay = wait;
+            g.life = g.max_life = 0.35f;
+            g.burst = true;
+            g.from_player = true;
+            g.owner = player.Profile();
+            g.element = element;
+            g.style = style;
+            g.hit_mult = damage_mult;
+            g.knockback = 50.0f;
+            g.sure_crit = aimed_shot;
+            AddGroundEffect(g);
+            AddFalling(x, y + 8.0f, radius * 1.2f, element, wait, LiftAt(x, y));
         }
     } else if (shape == "rain") {
         strike(56.0f, 0.45f, damage_mult, element);
@@ -665,39 +711,68 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         // later, in the gaps of the first. It is what makes it a jet of fire
         // and not five darts -- and it is the same fire, shared out: what the
         // two flights are worth together is what the one was.
+        // Grown (Dragon's Breath): more tongues across a wider cone, and a
+        // lance that reaches further by as much.
         const bool focused = atk.type != AttackType::Light;
         if (focused) {
             for (float deg : {-5.0f, 0.0f, 5.0f})
-                if (Projectile* p = loose(turned(deg).x, turned(deg).y, damage_mult * 1.25f * 0.7f, deg == 0.0f)) p->life *= 2.9f;
+                if (Projectile* p = loose(turned(deg).x, turned(deg).y, damage_mult * 1.25f * 0.7f, deg == 0.0f)) p->life *= 2.9f * size;
             for (float deg : {-2.5f, 2.5f})
-                QueueShot(0.08f, projectile_id, damage_mult * 1.25f * 0.45f, deg, casting, 2.9f);
+                QueueShot(0.08f, projectile_id, damage_mult * 1.25f * 0.45f, deg, casting, 2.9f * size);
         } else {
-            for (float deg : {-30.0f, -15.0f, 0.0f, 15.0f, 30.0f}) loose(turned(deg).x, turned(deg).y, damage_mult * 0.64f, false);
-            for (float deg : {-22.5f, -7.5f, 7.5f, 22.5f})
-                QueueShot(0.07f, projectile_id, damage_mult * 0.45f, deg, casting, 1.0f);
+            const int n = std::max(2, count > 0 ? count : 5);
+            const float spread = 60.0f * size;
+            const auto across = [&](float k) { return -spread / 2.0f + spread * k / static_cast<float>(n - 1); };
+            for (int i = 0; i < n; ++i) loose(turned(across(static_cast<float>(i))).x, turned(across(static_cast<float>(i))).y,
+                                              damage_mult * 0.64f, false);
+            for (int i = 0; i + 1 < n; ++i)
+                QueueShot(0.07f, projectile_id, damage_mult * 0.45f, across(static_cast<float>(i) + 0.5f), casting, 1.0f);
         }
     } else if (shape == "fire_ring" || shape == "wall") {
         // Burning ground, laid out: a ring round the caster, or a wall across
         // the way they face, a little way off (or where the target stands).
+        // Grown: a Firestorm is two rings, the outer further out, and a Wall of
+        // Cinders longer and lasting -- each patch as big again as the spell
+        // is (`size`).
         const bool ring = shape == "fire_ring";
-        const int   count = ring ? 12 : 7;
-        const float life = ring ? 3.5f : 5.0f;
+        const float life = seconds > 0.0f ? seconds : ring ? 3.5f : 5.0f;
         const SDL_FPoint middle = ring ? SDL_FPoint{player.x, player.y - 4.0f}
                                 : target ? strike_point() : SDL_FPoint{player.x + aim.x * 92.0f, player.y + aim.y * 92.0f};
         const ProjectileDef* bolt = ctx.projectiles ? ctx.projectiles->Get(projectile_id) : nullptr;
-        for (int i = 0; i < count; ++i) {
-            GroundEffect g;
-            if (ring) {
-                const float a = 6.2831853f * i / count;
-                g.x = middle.x + cosf(a) * 66.0f; g.y = middle.y + sinf(a) * 66.0f;
-            } else {
-                const float along = (i - (count - 1) / 2.0f) * 26.0f;
-                g.x = middle.x - aim.y * along; g.y = middle.y + aim.x * along;
+        // Where each patch lies: round the caster ring by ring, each ring with
+        // as many patches as its length wants, or along the wall.
+        vector<SDL_FPoint> spots;
+        if (ring) {
+            // Rings inside rings are each their own: the inmost at a little under
+            // half the outer's reach, with ground between every two that does not
+            // burn, so they read as rings and not as one great fire.
+            const float outer = 66.0f * size;
+            for (int k = 0; k < rings; ++k) {
+                const float reach = rings == 1 ? outer
+                                  : outer * (0.45f + 0.55f * static_cast<float>(k) / static_cast<float>(rings - 1));
+                const int n = std::max(6, static_cast<int>(std::lround((count > 0 ? count : 12) * reach / 66.0f)));
+                for (int i = 0; i < n; ++i) {
+                    const float a = 6.2831853f * static_cast<float>(i) / static_cast<float>(n) + 0.35f * static_cast<float>(k);
+                    spots.push_back({middle.x + cosf(a) * reach, middle.y + sinf(a) * reach});
+                }
             }
-            g.radius = ring ? 20.0f : 18.0f;
+        } else {
+            const int n = count > 0 ? count : 7;
+            for (int i = 0; i < n; ++i) {
+                const float along = (static_cast<float>(i) - (n - 1) / 2.0f) * 26.0f * size;
+                spots.push_back({middle.x - aim.y * along, middle.y + aim.x * along});
+            }
+        }
+        for (size_t i = 0; i < spots.size(); ++i) {
+            GroundEffect g;
+            g.x = spots[i].x;
+            g.y = spots[i].y;
+            // A ring of rings keeps its patches the ring's own size, or they run
+            // into each other; one ring, and a wall, grow with the spell.
+            g.radius = ring ? 20.0f * (rings > 1 ? 1.0f : size) : 18.0f * size;
             g.life = g.max_life = life;
             g.tick_interval = 0.5f;
-            g.tick_timer = 0.05f * i;                 // not all on the same frame
+            g.tick_timer = 0.05f * static_cast<float>(i % 12);   // not all on the same frame
             g.from_player = true;
             g.owner = player.Profile();
             g.element = element;
@@ -707,14 +782,20 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
             if (bolt) { g.status = bolt->status; g.status.chance *= 0.5f; }
             AddGroundEffect(g);
         }
-        Burst(middle.x, middle.y, ring ? 66.0f : 40.0f, ElementColor(element), ring ? 16 : 8);
+        Burst(middle.x, middle.y, (ring ? 66.0f : 40.0f) * size, ElementColor(element), ring ? 16 : 8);
     } else if (shape == "wave") {
-        // Seven abreast, rolling out together.
-        for (int i = -3; i <= 3; ++i) {
+        // Seven abreast, rolling out together -- a Tsunami eleven, wider set,
+        // and a second wave out of the caster close behind the first.
+        const int n = count > 0 ? count : 7;
+        const float gap = 13.0f * size;
+        for (int i = 0; i < n; ++i) {
+            const float off = (static_cast<float>(i) - (n - 1) / 2.0f) * gap;
             const size_t before = projectiles.size();
-            SpawnProjectile(projectile_id, muzzle.x + aim.x * 10.0f - aim.y * i * 13.0f, muzzle.y + aim.y * 10.0f + aim.x * i * 13.0f,
+            SpawnProjectile(projectile_id, muzzle.x + aim.x * 10.0f - aim.y * off, muzzle.y + aim.y * 10.0f + aim.x * off,
                             aim.x, aim.y, player.Profile(), style, damage_mult, true, ctx);
             if (projectiles.size() > before) projectiles.back().knockback_mult = 1.0f + player.talents.Effect("knockback", style);
+            for (int w = 1; w < waves; ++w)
+                QueueShot(0.32f * static_cast<float>(w), projectile_id, damage_mult * 0.7f, 0.0f, casting, 1.0f, off);
         }
     } else if (shape == "whirlpool" || shape == "turbulence" || shape == "tornado") {
         GroundEffect g;
@@ -725,12 +806,14 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         g.style = style;
         g.tick_interval = 0.4f;
         g.tick_timer = 0.15f;
+        // Grown (an Undertow, a Cyclone, a Hurricane): as much wider as the
+        // spell is, pulling or throwing as much harder, and for its own time.
         if (shape == "whirlpool") {
             const SDL_FPoint at = strike_point();
             g.x = at.x; g.y = at.y + 6.0f;
-            g.radius = 72.0f;
-            g.life = g.max_life = 4.0f;
-            g.pull = 120.0f;
+            g.radius = 72.0f * size;
+            g.life = g.max_life = seconds > 0.0f ? seconds : 4.0f;
+            g.pull = 120.0f * size;
             g.hit_mult = damage_mult * 0.5f;
             g.knockback = 0.0f;
             g.draw = GroundEffect::Draw::Whirlpool;
@@ -739,19 +822,19 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
             // A light cast is a dust devil; held and let go it is the whole
             // four seconds, and it walks the way it was sent.
             g.x = player.x + aim.x * 40.0f; g.y = player.y + aim.y * 40.0f;
-            g.radius = held ? 46.0f : 34.0f;
-            g.life = g.max_life = held ? 4.0f : 1.4f;
+            g.radius = (held ? 46.0f : 34.0f) * size;
+            g.life = g.max_life = held ? (seconds > 0.0f ? seconds : 4.0f) : 1.4f * size;
             g.drift_x = aim.x * 46.0f; g.drift_y = aim.y * 46.0f;
-            g.fling = held ? 300.0f : 220.0f;
+            g.fling = (held ? 300.0f : 220.0f) * size;
             g.fling_hurt = damage_mult * 0.55f;
             g.hit_mult = 0.0f;
             g.draw = GroundEffect::Draw::Tornado;
         } else {
             g.x = player.x; g.y = player.y;
-            g.radius = 92.0f;
-            g.life = g.max_life = 3.0f;
+            g.radius = 92.0f * size;
+            g.life = g.max_life = seconds > 0.0f ? seconds : 3.0f;
             g.tick_interval = 0.3f;
-            g.fling = 200.0f;
+            g.fling = 200.0f * size;
             g.fling_hurt = damage_mult * 0.5f;
             g.hit_mult = 0.0f;
             g.follows = true;
@@ -764,6 +847,8 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         // -- the same swing, but the heavy's own slowness carries it. Held and
         // let go, the big one is carried over whoever is being fought instead
         // and dropped on them, and breaks on top of them.
+        // Grown (the Monolith): a bigger square of the ground, swung further
+        // round and dropped on a wider patch.
         const ProjectileDef* stone = ctx.projectiles ? ctx.projectiles->Get(projectile_id) : nullptr;
         const StatusProc leaves = stone ? StatusProc{stone->status.kind, 0.4f} : StatusProc{};
         if (atk.type == AttackType::Charged) {
@@ -772,16 +857,16 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
             // status has to go into: set for the next blow, it was gone before
             // the slab came down, and the held one never concussed.
             const size_t before = ground_effects.size();
-            strike(26.0f, World::SLAB_DROP_TIME * World::SLAB_DROP_FALL, damage_mult * 1.35f, element, true);
+            strike(26.0f * size, World::SLAB_DROP_TIME * World::SLAB_DROP_FALL, damage_mult * 1.35f, element, true);
             if (ground_effects.size() > before) ground_effects.back().status = leaves;
-            AddSlabDrop(at.x, at.y + 8.0f, World::SLAB_HEAVY, LiftAt(at.x, at.y));
+            AddSlabDrop(at.x, at.y + 8.0f, World::SLAB_HEAVY * size, LiftAt(at.x, at.y));
             Audio::PlayAt(Sfx::SwingHeavy, player.x, player.y, 1.0f, 0.62f);
         } else {
             const bool heavy = atk.type != AttackType::Light;
-            const float side = heavy ? World::SLAB_HEAVY : World::SLAB_LIGHT;
+            const float side = (heavy ? World::SLAB_HEAVY : World::SLAB_LIGHT) * size;
             AttackProfile swing;
-            swing.reach = heavy ? 84.0f : 70.0f;
-            swing.width = heavy ? 60.0f : 44.0f;
+            swing.reach = (heavy ? 84.0f : 70.0f) * size;
+            swing.width = (heavy ? 60.0f : 44.0f) * size;
             swing.sweep_deg = heavy ? 62.0f : 54.0f;
             const SDL_FPoint from = player.GroundCentre();
             const StrikeArc arc = ArcFor(from.x, from.y, player.facing, swing, 1.0f);
@@ -803,13 +888,14 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
             Audio::PlayAt(Sfx::SwingHeavy, player.x, player.y, 1.0f, heavy ? 0.7f : 0.95f);
         }
     } else if (shape == "stone_rain") {
-        // The Arrow Rain's numbers, in stone: see GroundEffect::RAIN_TIME.
+        // The Arrow Rain's numbers, in stone: see GroundEffect::RAIN_TIME. A
+        // Landslide comes down on a wider circle, for longer.
         const SDL_FPoint at = strike_point();
         GroundEffect g;
         g.x = at.x; g.y = at.y + 8.0f;
-        g.radius = GroundEffect::RAIN_RADIUS;
+        g.radius = GroundEffect::RAIN_RADIUS * size;
         g.delay = 0.35f;
-        g.life = g.max_life = GroundEffect::RAIN_TIME + GroundEffect::RAIN_LINGER;
+        g.life = g.max_life = (seconds > 0.0f ? seconds : GroundEffect::RAIN_TIME) + GroundEffect::RAIN_LINGER;
         g.tick_interval = GroundEffect::RAIN_EVERY;
         g.tick_timer = 0.0f;
         g.rain = true;
@@ -823,9 +909,11 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         g.status = {Status::Concussed, 0.12f};
         AddGroundEffect(g);
     } else if (shape == "burst") {
-        // Eight, one after another: the first now and the rest owed.
+        // Eight, one after another: the first now and the rest owed. A Geode
+        // Burst is twelve, and its shards go through what they strike.
+        const int n = count > 0 ? count : 8;
         loose(aim.x, aim.y, damage_mult, true);
-        for (int i = 1; i < 8; ++i) QueueShot(0.07f * i, projectile_id, damage_mult, (i % 2 ? 1.0f : -1.0f) * 2.5f * ((i + 1) / 2), casting);
+        for (int i = 1; i < n; ++i) QueueShot(0.07f * i, projectile_id, damage_mult, (i % 2 ? 1.0f : -1.0f) * 2.5f * ((i + 1) / 2), casting);
     } else {
         loose(aim.x, aim.y, damage_mult, true);
         multishot(7.0f, damage_mult);
@@ -1009,7 +1097,7 @@ void World::ApplyPlayerAbility(const GameContext& ctx) {
                      AttackType::Strong);
             AddText("Sundered", target->x, target->y - 64.0f, {255, 190, 110, 255}, 1.4f);
         } else {
-            target->Mark(12.0f);
+            target->Mark(12.0f + player.talents.Global("mark_time"));   // Deadly Mark: longer
             target->RevealHealthBar();
             AddText("Marked", target->x, target->y - 64.0f, {255, 120, 120, 255}, 1.4f);
         }
@@ -1149,7 +1237,7 @@ void World::ApplyPlayerAbility(const GameContext& ctx) {
         // friends alone for as long as it lasts.
         for (auto& e : enemies)
             if (Targeting::Targetable(*e) && Length(e->x - px, e->y - py) < 260.0f)
-                e->Taunt(static_cast<int>(player.seat), Player::STAND_FAST_TIME);
+                e->Taunt(static_cast<int>(player.seat), player.StandFastTime());
     } else if (ability == "take_aim") {
         say("Take Aim", {255, 232, 150, 255});
         AbilityFx(ability, Element::None, nullptr);
@@ -1169,7 +1257,7 @@ void World::ApplyPlayerAbility(const GameContext& ctx) {
         g.style = AttackStyle::Ranged;
         g.hit_mult = 1.2f * player.TalentDamage(AttackStyle::Ranged, AttackType::Light);
         g.knockback = 0.0f;
-        g.stagger = 3.0f;
+        g.stagger = 3.0f + player.talents.Global("snare_time");   // Iron Jaws: held longer
         g.once = true;
         AddGroundEffect(g);
         say("Snare set", {200, 190, 160, 255});
@@ -1338,7 +1426,8 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
     if (style == AttackStyle::Magic)
         damage_mult *= 1.0f + player.talents.Effect("attunement", style) * static_cast<float>(player.AttuneStacks());
     // A mark is on the monster, not on whoever made it: a friend's blow too.
-    if (e.Marked()) damage_mult *= 1.0f + Enemy::MARK_DAMAGE;
+    // Marked: a quarter harder -- and harder again from a warden with Deadly Mark.
+    if (e.Marked()) damage_mult *= 1.0f + Enemy::MARK_DAMAGE + player.talents.Global("mark_bonus");
     if (style == AttackStyle::Magic && ElementMultiplier(element, e.ElementOf()) > 1.05f)
         damage_mult *= 1.0f + player.talents.Effect("elemental", style);
 
@@ -1556,7 +1645,7 @@ int World::HitPlayer(int damage, const CombatProfile& attacker, float from_x, fl
     }
     // Stand Fast: feet set, less of it gets through and none of it moves you.
     if (player.StandingFast()) {
-        damage = std::max(1, static_cast<int>(std::lround(damage * Player::STAND_FAST_SHARE)));
+        damage = std::max(1, static_cast<int>(std::lround(damage * player.StandFastShare())));
         knock_x = knock_y = 0.0f;
     }
     // A dagger's or a greatsword's parry: caught outright in its first
@@ -1629,7 +1718,7 @@ int World::HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x,
     }
     float push = 1.0f;
     if (player.StandingFast()) {
-        damage = std::max(1, static_cast<int>(std::lround(damage * Player::STAND_FAST_SHARE)));
+        damage = std::max(1, static_cast<int>(std::lround(damage * player.StandFastShare())));
         push = 0.0f;
     }
     if (player.GuardFacing(from_x, from_y) || player.ParryFacing(from_x, from_y)) {
@@ -1674,7 +1763,7 @@ int World::GroundHitPlayer(int damage, bool fire) {
     // Rolled through it: nothing. (No "dodged": a patch is not a blow.)
     if (player.Untouchable()) return 0;
     // Feet set: less of it, as of a blow.
-    if (player.StandingFast()) damage = std::max(1, static_cast<int>(std::lround(damage * Player::STAND_FAST_SHARE)));
+    if (player.StandingFast()) damage = std::max(1, static_cast<int>(std::lround(damage * player.StandFastShare())));
     // What is worn takes its share, as it does of a heavy blow -- nothing rolls
     // to hit here either.
     {

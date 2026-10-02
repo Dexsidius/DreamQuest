@@ -162,10 +162,10 @@ vector<BoonLine> CharacterBoons(const Player& p, const StatusDatabase* statuses,
     {
         struct Running { uint8_t bit; const char* id; const char* fallback; string what; };
         char war_cry[64], frenzy[64], stand_fast[64], rapid[64];
-        SDL_snprintf(war_cry, sizeof(war_cry), "melee blows %s harder", Percent(Player::WAR_CRY_DAMAGE).c_str());
-        SDL_snprintf(frenzy, sizeof(frenzy), "melee swings %s quicker", Percent(Player::FRENZY_SPEED).c_str());
+        SDL_snprintf(war_cry, sizeof(war_cry), "melee blows %s harder", Percent(p.WarCryDamage()).c_str());
+        SDL_snprintf(frenzy, sizeof(frenzy), "melee swings %s quicker", Percent(p.FrenzySpeed()).c_str());
         SDL_snprintf(stand_fast, sizeof(stand_fast), "blows take %s of what they would, and cannot move you",
-                     Percent(Player::STAND_FAST_SHARE).c_str());
+                     Percent(p.StandFastShare()).c_str());
         SDL_snprintf(rapid, sizeof(rapid), "shots %s quicker", Percent(Player::RAPID_SPEED).c_str());
         const Running running[] = {
             {Player::BUFF_WAR_CRY,    "war_cry",    "War Cry",    war_cry},

@@ -621,6 +621,81 @@
   "heal": 36,
   "icon": "assets/icons/tiers/cooked_eel.png"
  },
+ "raw_frostfin": {
+  "name": "Raw Frostfin",
+  "desc": "Pulled up through a hole in the Glass Mere, as pale as the ice and nearly as cold. It keeps a week without salt.",
+  "stack": true,
+  "value": 130,
+  "fish": {
+   "level": 68,
+   "xp": 180
+  },
+  "cook": {
+   "result": "cooked_frostfin",
+   "xp": 215,
+   "level": 68
+  },
+  "icon": "assets/icons/tiers/raw_frostfin.png"
+ },
+ "cooked_frostfin": {
+  "name": "Cooked Frostfin",
+  "desc": "Restores 43 hitpoints.",
+  "stack": true,
+  "value": 260,
+  "consume": true,
+  "heal": 43,
+  "icon": "assets/icons/tiers/cooked_frostfin.png"
+ },
+ "raw_cindergill": {
+  "name": "Raw Cindergill",
+  "desc": "It lives in the lava moat under the Brimstone Palace, which should not be possible, and its gills are still glowing. Take it off the hook with tongs.",
+  "stack": true,
+  "value": 165,
+  "fish": {
+   "level": 78,
+   "xp": 215
+  },
+  "cook": {
+   "result": "cooked_cindergill",
+   "xp": 255,
+   "level": 78
+  },
+  "icon": "assets/icons/tiers/raw_cindergill.png"
+ },
+ "cooked_cindergill": {
+  "name": "Cooked Cindergill",
+  "desc": "Restores 50 hitpoints.",
+  "stack": true,
+  "value": 330,
+  "consume": true,
+  "heal": 50,
+  "icon": "assets/icons/tiers/cooked_cindergill.png"
+ },
+ "raw_deepgleam": {
+  "name": "Raw Deepgleam",
+  "desc": "From the bottom of a sea nobody has filled. It gives off a light of its own, and goes on giving it off on the plate.",
+  "stack": true,
+  "value": 210,
+  "fish": {
+   "level": 90,
+   "xp": 260
+  },
+  "cook": {
+   "result": "cooked_deepgleam",
+   "xp": 300,
+   "level": 90
+  },
+  "icon": "assets/icons/tiers/raw_deepgleam.png"
+ },
+ "cooked_deepgleam": {
+  "name": "Cooked Deepgleam",
+  "desc": "Restores 58 hitpoints.",
+  "stack": true,
+  "value": 420,
+  "consume": true,
+  "heal": 58,
+  "icon": "assets/icons/tiers/cooked_deepgleam.png"
+ },
  "marigold": {
   "tags": [
    "herb",
@@ -764,6 +839,70 @@
    "grows": "reverie"
   },
   "icon": "assets/icons/tiers/starlily.png"
+ },
+ "rimebloom": {
+  "tags": [
+   "herb",
+   "brewing"
+  ],
+  "name": "Rimebloom",
+  "desc": "A blue flower that opens under the snow and never above it. Frost forms on the petals even in a warm hand.",
+  "stack": true,
+  "value": 108,
+  "forage": {
+   "level": 74,
+   "xp": 360,
+   "grows": "frostreach"
+  },
+  "icon": "assets/icons/tiers/rimebloom.png"
+ },
+ "cinderwort": {
+  "tags": [
+   "herb",
+   "brewing"
+  ],
+  "name": "Cinderwort",
+  "desc": "It grows at the lava's edge in the Kiln, and its leaves smoulder without ever burning down.",
+  "stack": true,
+  "value": 128,
+  "forage": {
+   "level": 81,
+   "xp": 395,
+   "grows": "kiln"
+  },
+  "icon": "assets/icons/tiers/cinderwort.png"
+ },
+ "tidecress": {
+  "tags": [
+   "herb",
+   "brewing"
+  ],
+  "name": "Tidecress",
+  "desc": "Cress from the sand of the Deeps, still wet whatever is done to it. It tastes of a sea that was never there.",
+  "stack": true,
+  "value": 150,
+  "forage": {
+   "level": 88,
+   "xp": 430,
+   "grows": "deeps"
+  },
+  "icon": "assets/icons/tiers/tidecress.png"
+ },
+ "aetherbell": {
+  "tags": [
+   "herb",
+   "brewing"
+  ],
+  "name": "Aetherbell",
+  "desc": "A pale bell of a flower from the islands of the Firmament. It rings, very faintly, when the wind goes through it, and there is always wind.",
+  "stack": true,
+  "value": 175,
+  "forage": {
+   "level": 95,
+   "xp": 470,
+   "grows": "firmament"
+  },
+  "icon": "assets/icons/tiers/aetherbell.png"
  },
  "swallowtail": {
   "tags": [
@@ -1383,6 +1522,396 @@
   "learn": "rimeshell_ward",
   "icon": "assets/icons/tiers/recipe_scroll.png"
  },
+ "rimebloom_tonic": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Rimebloom Tonic",
+  "desc": "Blue, and cold enough to ache the teeth. Restores 20 hitpoints and boosts Defence by 6 and a seventh.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "heal": 20,
+  "boost": {
+   "Defence": [
+    6,
+    0.14
+   ]
+  },
+  "recipe_from": "Garrow the smith sells the recipe in Mossvale.",
+  "craft": {
+   "result": "rimebloom_tonic",
+   "qty": 1,
+   "xp": 208,
+   "level": 74,
+   "inputs": {
+    "rimebloom": 2,
+    "mountain_sage": 1,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/rimebloom_tonic.png"
+ },
+ "scroll_rimebloom_tonic": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Recipe: Rimebloom Tonic",
+  "desc": "Brewing notes in a careful hand. Read it to learn to brew Rimebloom Tonic.",
+  "value": 464,
+  "learn": "rimebloom_tonic",
+  "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
+ "glacier_ward": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Glacier Ward",
+  "desc": "It frosts the glass from the inside. For eight minutes no frost can chill you or freeze you, and no water can soak you through.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "ward": {
+   "statuses": [
+    "chill",
+    "frozen",
+    "wet"
+   ],
+   "minutes": 8
+  },
+  "recipe_from": "The College copying room in Fernhollow sells the recipe.",
+  "craft": {
+   "result": "glacier_ward",
+   "qty": 1,
+   "xp": 210,
+   "level": 74,
+   "inputs": {
+    "rimebloom": 2,
+    "rime_beetle": 1,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/glacier_ward.png"
+ },
+ "scroll_glacier_ward": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Recipe: Glacier Ward",
+  "desc": "Brewing notes in a careful hand. Read it to learn to brew Glacier Ward.",
+  "value": 464,
+  "learn": "glacier_ward",
+  "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
+ "draught_of_fury": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Draught of Fury",
+  "desc": "Hot going down, and hotter after. Boosts Attack and Strength by 6 and a seventh.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "boost": {
+   "Attack": [
+    6,
+    0.14
+   ],
+   "Strength": [
+    6,
+    0.14
+   ]
+  },
+  "recipe_from": "The Collector in the Reverie sells the recipe.",
+  "craft": {
+   "result": "draught_of_fury",
+   "qty": 1,
+   "xp": 232,
+   "level": 81,
+   "inputs": {
+    "cinderwort": 2,
+    "emberbloom": 1,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/draught_of_fury.png"
+ },
+ "scroll_draught_of_fury": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Recipe: Draught of Fury",
+  "desc": "Brewing notes in a careful hand. Read it to learn to brew Draught of Fury.",
+  "value": 506,
+  "learn": "draught_of_fury",
+  "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
+ "ashen_ward": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Ashen Ward",
+  "desc": "Grey, and it tastes of a hearth gone out. For eight minutes nothing can set you burning or poison you, and burning ground bites half as hard.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "ward": {
+   "statuses": [
+    "burn",
+    "poison"
+   ],
+   "minutes": 8
+  },
+  "recipe_from": "Garrow the smith sells the recipe in Mossvale.",
+  "craft": {
+   "result": "ashen_ward",
+   "qty": 1,
+   "xp": 234,
+   "level": 81,
+   "inputs": {
+    "cinderwort": 2,
+    "firebug": 1,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/ashen_ward.png"
+ },
+ "scroll_ashen_ward": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Recipe: Ashen Ward",
+  "desc": "Brewing notes in a careful hand. Read it to learn to brew Ashen Ward.",
+  "value": 506,
+  "learn": "ashen_ward",
+  "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
+ "hawkeye_draught": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Hawkeye Draught",
+  "desc": "As clear as the pool it came out of, and it leaves the eye clearer. Boosts Ranged by 6 and a sixth.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "boost": {
+   "Ranged": [
+    6,
+    0.16
+   ]
+  },
+  "recipe_from": "Hunter Ivo sells the recipe in Havenbrook.",
+  "craft": {
+   "result": "hawkeye_draught",
+   "qty": 1,
+   "xp": 256,
+   "level": 88,
+   "inputs": {
+    "tidecress": 2,
+    "glowcap": 1,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/hawkeye_draught.png"
+ },
+ "scroll_hawkeye_draught": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Recipe: Hawkeye Draught",
+  "desc": "Brewing notes in a careful hand. Read it to learn to brew Hawkeye Draught.",
+  "value": 548,
+  "learn": "hawkeye_draught",
+  "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
+ "tidemind_draught": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Tidemind Draught",
+  "desc": "It moves in the vial like a tide coming in. Restores 120 mana and boosts Magic by 6 and a sixth.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "mana": 120,
+  "boost": {
+   "Magic": [
+    6,
+    0.16
+   ]
+  },
+  "recipe_from": "The College copying room in Fernhollow sells the recipe.",
+  "craft": {
+   "result": "tidemind_draught",
+   "qty": 1,
+   "xp": 258,
+   "level": 88,
+   "inputs": {
+    "tidecress": 2,
+    "moonpetal": 1,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/tidemind_draught.png"
+ },
+ "scroll_tidemind_draught": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Recipe: Tidemind Draught",
+  "desc": "Brewing notes in a careful hand. Read it to learn to brew Tidemind Draught.",
+  "value": 548,
+  "learn": "tidemind_draught",
+  "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
+ "storm_ward": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Storm Ward",
+  "desc": "It crackles when the stopper comes out. For eight minutes no lightning can take hold of you, and no blow can knock the sense out of you.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "ward": {
+   "statuses": [
+    "electrified",
+    "concussed"
+   ],
+   "minutes": 8
+  },
+  "recipe_from": "Oona sells the recipe in Mossvale.",
+  "craft": {
+   "result": "storm_ward",
+   "qty": 1,
+   "xp": 260,
+   "level": 88,
+   "inputs": {
+    "tidecress": 2,
+    "honey": 1,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/storm_ward.png"
+ },
+ "scroll_storm_ward": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Recipe: Storm Ward",
+  "desc": "Brewing notes in a careful hand. Read it to learn to brew Storm Ward.",
+  "value": 548,
+  "learn": "storm_ward",
+  "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
+ "firmament_elixir": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Firmament Elixir",
+  "desc": "There is weather in it. Restores 60 hitpoints, 150 mana and all stamina, and boosts every combat level by 4 and a tenth.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "heal": 60,
+  "mana": 150,
+  "stamina": true,
+  "boost": {
+   "Attack": [
+    4,
+    0.1
+   ],
+   "Strength": [
+    4,
+    0.1
+   ],
+   "Defence": [
+    4,
+    0.1
+   ],
+   "Ranged": [
+    4,
+    0.1
+   ],
+   "Magic": [
+    4,
+    0.1
+   ]
+  },
+  "recipe_from": "The Collector in the Reverie sells the recipe.",
+  "craft": {
+   "result": "firmament_elixir",
+   "qty": 1,
+   "xp": 280,
+   "level": 95,
+   "inputs": {
+    "aetherbell": 2,
+    "starlily": 1,
+    "cinderwort": 1,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/firmament_elixir.png"
+ },
+ "scroll_firmament_elixir": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Recipe: Firmament Elixir",
+  "desc": "Brewing notes in a careful hand. Read it to learn to brew Firmament Elixir.",
+  "value": 590,
+  "learn": "firmament_elixir",
+  "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
+ "primordium_ward": {
+  "tags": [
+   "potion"
+  ],
+  "name": "Primordium Ward",
+  "desc": "Every element in one bottle, and none of them on speaking terms. For ten minutes nothing takes hold of you -- no fire, frost, water, lightning, poison or bleeding, and no blow that would leave you reeling.",
+  "stack": true,
+  "value": 10,
+  "consume": true,
+  "ward": {
+   "statuses": [
+    "burn",
+    "wet",
+    "chill",
+    "frozen",
+    "electrified",
+    "concussed",
+    "poison",
+    "bleed"
+   ],
+   "minutes": 10
+  },
+  "recipe_from": "The College copying room in Fernhollow sells the recipe.",
+  "craft": {
+   "result": "primordium_ward",
+   "qty": 1,
+   "xp": 284,
+   "level": 95,
+   "inputs": {
+    "aetherbell": 2,
+    "rimebloom": 1,
+    "cinderwort": 1,
+    "tidecress": 1,
+    "vial": 1
+   }
+  },
+  "icon": "assets/icons/tiers/primordium_ward.png"
+ },
+ "scroll_primordium_ward": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Recipe: Primordium Ward",
+  "desc": "Brewing notes in a careful hand. Read it to learn to brew Primordium Ward.",
+  "value": 590,
+  "learn": "primordium_ward",
+  "icon": "assets/icons/tiers/recipe_scroll.png"
+ },
  "scroll_enchant_warding": {
   "tags": [
    "recipe"
@@ -1501,6 +2030,16 @@
   "desc": "A bound volume from the college's copying room, the words worn where a hundred students have run a finger under them. Read it to learn Thunderwave.",
   "value": 1500,
   "learn": "spell:thunderwave",
+  "icon": "assets/icons/tiers/spell_tome.png"
+ },
+ "tome_starfall": {
+  "tags": [
+   "recipe"
+  ],
+  "name": "Tome: Starfall",
+  "desc": "A bound volume the college keeps under glass and copies for no one twice, its pages flecked with something that catches the light. Read it to learn Starfall.",
+  "value": 6000,
+  "learn": "spell:starfall",
   "icon": "assets/icons/tiers/spell_tome.png"
  },
  "spider_silk": {
@@ -2362,6 +2901,144 @@
    "inputs": {
     "frog_legs": 2,
     "brookmint": 1
+   }
+  }
+ },
+ "frostfin_chowder": {
+  "tags": [
+   "food",
+   "dish"
+  ],
+  "name": "Frostfin Chowder",
+  "desc": "Frostfin, milk and a little mint, simmered slow. The trapper on the Glass Mere lives on it, and looks it.",
+  "stack": true,
+  "value": 520,
+  "consume": true,
+  "heal": 62,
+  "icon": "assets/icons/tiers/frostfin_chowder.png",
+  "dish": {
+   "minutes": 30,
+   "max_hp": 0.2,
+   "max_mana": 0.0,
+   "max_stamina": 0.15,
+   "levels": {}
+  },
+  "craft": {
+   "result": "frostfin_chowder",
+   "qty": 1,
+   "xp": 924,
+   "level": 72,
+   "station": "range",
+   "inputs": {
+    "cooked_frostfin": 1,
+    "milk": 1,
+    "brookmint": 1
+   }
+  }
+ },
+ "cindergill_skewers": {
+  "tags": [
+   "food",
+   "dish"
+  ],
+  "name": "Cindergill Skewers",
+  "desc": "Cindergill and emberbloom on iron skewers, charred at the edges. It goes down warm and stays warm, somewhere behind the ribs.",
+  "stack": true,
+  "value": 680,
+  "consume": true,
+  "heal": 70,
+  "icon": "assets/icons/tiers/cindergill_skewers.png",
+  "dish": {
+   "minutes": 30,
+   "max_hp": 0.1,
+   "max_mana": 0.0,
+   "max_stamina": 0.0,
+   "levels": {
+    "Attack": 4,
+    "Strength": 4
+   }
+  },
+  "craft": {
+   "result": "cindergill_skewers",
+   "qty": 1,
+   "xp": 1068,
+   "level": 84,
+   "station": "range",
+   "inputs": {
+    "cooked_cindergill": 2,
+    "emberbloom": 1
+   }
+  }
+ },
+ "deepgleam_broth": {
+  "tags": [
+   "food",
+   "dish"
+  ],
+  "name": "Deepgleam Broth",
+  "desc": "A clear broth with moonpetal floating in it, and a light at the bottom of the bowl that is the fish. The College's kitchen makes it the night before examinations.",
+  "stack": true,
+  "value": 800,
+  "consume": true,
+  "heal": 76,
+  "icon": "assets/icons/tiers/deepgleam_broth.png",
+  "dish": {
+   "minutes": 30,
+   "max_hp": 0.0,
+   "max_mana": 0.22,
+   "max_stamina": 0.0,
+   "levels": {
+    "Magic": 5
+   }
+  },
+  "craft": {
+   "result": "deepgleam_broth",
+   "qty": 1,
+   "xp": 1164,
+   "level": 92,
+   "station": "range",
+   "inputs": {
+    "cooked_deepgleam": 1,
+    "moonpetal": 1
+   }
+  }
+ },
+ "hollowmarch_feast": {
+  "tags": [
+   "food",
+   "dish"
+  ],
+  "name": "Hollowmarch Feast",
+  "desc": "Every fish the far north and the Primordium have to give, on one board, with beef under all of it. It takes an evening to eat, and leaves you fit for whatever the night brings.",
+  "stack": true,
+  "value": 1200,
+  "consume": true,
+  "heal": 90,
+  "icon": "assets/icons/tiers/hollowmarch_feast.png",
+  "dish": {
+   "minutes": 40,
+   "max_hp": 0.25,
+   "max_mana": 0.2,
+   "max_stamina": 0.3,
+   "levels": {
+    "Attack": 6,
+    "Strength": 6,
+    "Defence": 6,
+    "Ranged": 6,
+    "Magic": 6
+   }
+  },
+  "craft": {
+   "result": "hollowmarch_feast",
+   "qty": 1,
+   "xp": 1200,
+   "level": 95,
+   "station": "range",
+   "inputs": {
+    "cooked_frostfin": 1,
+    "cooked_cindergill": 1,
+    "cooked_deepgleam": 1,
+    "cooked_beef": 1
    }
   }
  },

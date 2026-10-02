@@ -2520,6 +2520,14 @@
                                           "w":  144,
                                           "h":  144
                                       },
+                   "props/herb_aetherbell":  {
+                                                 "w":  40,
+                                                 "h":  40
+                                             },
+                   "props/herb_aetherbell_picked":  {
+                                                        "w":  40,
+                                                        "h":  40
+                                                    },
                    "props/herb_bogbean":  {
                                               "w":  40,
                                               "h":  40
@@ -2536,6 +2544,14 @@
                                                        "w":  40,
                                                        "h":  40
                                                    },
+                   "props/herb_cinderwort":  {
+                                                 "w":  40,
+                                                 "h":  40
+                                             },
+                   "props/herb_cinderwort_picked":  {
+                                                        "w":  40,
+                                                        "h":  40
+                                                    },
                    "props/herb_emberbloom":  {
                                                  "w":  40,
                                                  "h":  40
@@ -2596,6 +2612,14 @@
                                            "w":  36,
                                            "h":  36
                                        },
+                   "props/herb_rimebloom":  {
+                                                "w":  40,
+                                                "h":  40
+                                            },
+                   "props/herb_rimebloom_picked":  {
+                                                       "w":  40,
+                                                       "h":  40
+                                                   },
                    "props/herb_starlily":  {
                                                "w":  40,
                                                "h":  40
@@ -2604,6 +2628,14 @@
                                                       "w":  40,
                                                       "h":  40
                                                   },
+                   "props/herb_tidecress":  {
+                                                "w":  40,
+                                                "h":  40
+                                            },
+                   "props/herb_tidecress_picked":  {
+                                                       "w":  40,
+                                                       "h":  40
+                                                   },
                    "props/herbalist_cottage":  {
                                                    "w":  168,
                                                    "h":  168

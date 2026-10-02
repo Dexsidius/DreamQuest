@@ -249,6 +249,10 @@
      "stock": 1
     },
     {
+     "item": "scroll_hawkeye_draught",
+     "stock": 1
+    },
+    {
      "item": "hide_boots",
      "stock": 1
     },
@@ -435,6 +439,14 @@
      "stock": 1
     },
     {
+     "item": "scroll_rimebloom_tonic",
+     "stock": 1
+    },
+    {
+     "item": "scroll_ashen_ward",
+     "stock": 1
+    },
+    {
      "item": "scroll_enchant_precision",
      "stock": 1
     },
@@ -484,6 +496,10 @@
     },
     {
      "item": "scroll_skimmer_tonic",
+     "stock": 1
+    },
+    {
+     "item": "scroll_storm_ward",
      "stock": 1
     },
     {
@@ -656,6 +672,10 @@
      ]
     },
     {
+     "item": "tome_starfall",
+     "stock": 1
+    },
+    {
      "item": "steel_staff",
      "stock": 1
     },
@@ -665,6 +685,18 @@
     },
     {
      "item": "scroll_rimeshell_ward",
+     "stock": 1
+    },
+    {
+     "item": "scroll_glacier_ward",
+     "stock": 1
+    },
+    {
+     "item": "scroll_tidemind_draught",
+     "stock": 1
+    },
+    {
+     "item": "scroll_primordium_ward",
      "stock": 1
     },
     {
@@ -917,6 +949,14 @@
     },
     {
      "item": "scroll_emberfire_elixir",
+     "stock": 1
+    },
+    {
+     "item": "scroll_draught_of_fury",
+     "stock": 1
+    },
+    {
+     "item": "scroll_firmament_elixir",
      "stock": 1
     },
     {

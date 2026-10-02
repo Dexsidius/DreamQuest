@@ -30,6 +30,11 @@
 #    frost_shard            the Ice Touch: the stone shard, cut in ice
 #    throwing_knife         a knife going end over end
 #    air_slash              the Air Slash: the greater gust's edge, with nothing behind it
+#    dragon_flame, water_orb_lance (+ water_wake_lance), wave_crest_greater,
+#    geode_shard, air_scythe
+#                           the elements' slots grown (their second tiers): a whiter
+#                           billow, a bigger ball of water, a taller crest, a shard of
+#                           amethyst, a wider crescent
 #    arrow, crossbow_bolt   what a bow and a crossbow loose: drawn a pixel at a time
 #                           from rows of letters, since a shape is not a field
 #
@@ -216,10 +221,17 @@ public static class Fx
     // its hottest -- the white heart is what makes a fireball a ball.
     public static Bitmap[] Flame(int w, int h, double cx, double cy, double rx, double ry, int frames, int seed)
     {
-        double[] stops = { 0.80, 0.54, 0.31, 0.15 };
         Color[] cols = {
             Color.FromArgb(255, 255, 238, 150), Color.FromArgb(255, 255, 178, 52),
             Color.FromArgb(255, 236, 98, 28),   Color.FromArgb(255, 166, 44, 22) };
+        return FlamePal(w, h, cx, cy, rx, ry, frames, seed, cols);
+    }
+
+    // The same billow in four colours of one's own, hottest first: the Dragon's
+    // Breath burns whiter than the Flamethrower.
+    public static Bitmap[] FlamePal(int w, int h, double cx, double cy, double rx, double ry, int frames, int seed, Color[] cols)
+    {
+        double[] stops = { 0.80, 0.54, 0.31, 0.15 };
         Bitmap[] outp = new Bitmap[frames];
         for (int f = 0; f < frames; ++f) {
             double phase = f / (double)frames, scroll = phase * PERIOD * CELL;
@@ -692,9 +704,20 @@ Save-Strip "water_wake_cannon" ([Fx]::WaterWake(56, 28, 45.0, 14.0, 14.0, $N, 61
 Save-Strip "wave_crest"        ([Fx]::Wave(24, 30, 19.0, 5.0, 17.0, $N, 71)) 17 15
 Save-Strip "rock_shard_small"  ([Fx]::Rock(14, 4.6, $N, 45)) 7 7
 
+# --- the same slots' second tiers: each its first grown, and drawn at its own size.
+#     The Dragon's Breath burns whiter; the Geode Burst's shards are amethyst.
+$hot = [System.Drawing.Color[]]@((Argb 255 255 252 230), (Argb 255 255 226 120), (Argb 255 255 150 44), (Argb 255 210 66 24))
+$amethyst = [System.Drawing.Color[]]@((Argb 255 238 218 255), (Argb 255 192 150 242), (Argb 255 142 96 212), (Argb 255 92 56 158))
+Save-Strip "dragon_flame"       ([Fx]::FlamePal(40, 24, 25.0, 12.0, 12.8, 8.6, $N, 113, $hot)) 25 12
+Save-Strip "water_orb_lance"    ([Fx]::WaterOrb(42, 17.5, $N, 19)) 21 21
+Save-Strip "water_wake_lance"   ([Fx]::WaterWake(70, 34, 56.0, 17.0, 17.5, $N, 67)) 56 17
+Save-Strip "wave_crest_greater" ([Fx]::Wave(30, 40, 24.0, 6.5, 22.5, $N, 77)) 22 20
+Save-Strip "geode_shard"        ([Fx]::Shard(18, 6.2, $N, 53, $amethyst, (Argb 255 255 255 255), (Argb 255 46 24 84))) 9 9
+
 # --- what the armoury throws, and the air's third spell
 Save-Strip "throwing_knife" ([Fx]::Knife(16, $N)) 8 8
 Save-Strip "air_slash" ([Fx]::Slash(24, 40, [double[]]@(4.0, 20.0, 18.0, 5.0), $N)) 16 20
+Save-Strip "air_scythe" ([Fx]::Slash(30, 52, [double[]]@(5.0, 26.0, 23.0, 6.4), $N)) 20 26
 
 # --- what a string looses, pointing along +x and held by its head, which is what
 #     strikes. The arrow was a picture of a few brown pixels in a 24-pixel square,

@@ -33,6 +33,11 @@ bool SpellBook::Load(const string& path) {
         d.shape       = o.value("shape", string("bolt"));
         d.slot        = std::clamp(o.value("slot", 1), 1, MAX_SPELL_SLOT);
         d.taught_by   = o.value("taught_by", string(""));
+        d.size        = std::max(0.25f, o.value("size", 1.0f));
+        d.count       = std::max(0, o.value("count", 0));
+        d.seconds     = std::max(0.0f, o.value("seconds", 0.0f));
+        d.rings       = std::clamp(o.value("rings", 1), 1, 4);
+        d.waves       = std::clamp(o.value("waves", 1), 1, 4);
         d.battery_gain  = o.value("battery_gain", 0.0f);
         d.battery_cost  = o.value("battery_cost", 0.0f);
         d.battery_heavy = o.value("battery_heavy", d.battery_cost);

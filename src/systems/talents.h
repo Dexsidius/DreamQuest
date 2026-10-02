@@ -85,10 +85,14 @@ struct TalentTree {
 class SkillTrees {
 public:
     static constexpr int BRANCHES = 3;          // the full columns every tree has
-    static constexpr int ROWS = 8;
-    // A point every three levels: thirty-three by level 99, against the
-    // forty-two ranks a tree holds. Two branches to the bottom and a little of
-    // the third, or all three most of the way: a build, not a checklist.
+    // Eight rows from 5 to 70, and three past them at 78, 86 and 94: the levels
+    // past 70 opened nothing, and a row is never more than eight levels after
+    // the one before. Row 7 is the branch's capstone and row 10 its second.
+    static constexpr int ROWS = 11;
+    static constexpr int CAPSTONE_ROW = 7, LAST_ROW = ROWS - 1;
+    // A point every three levels: thirty-three by level 99, and one for each
+    // boss's first fall, against the fifty-four ranks a tree holds. Two
+    // branches to the bottom and a little of the third: a build, not a checklist.
     static constexpr int LEVELS_PER_POINT = 3;
     static constexpr int ABILITY_SLOTS = 3;
 

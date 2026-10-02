@@ -1386,6 +1386,48 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
         const auto seat = [&](float t) {
             return camera.ToScreen(f.x - f.Lead() * t, f.y - f.Drop() * t - f.lift);
         };
+        // The ancient magic's is a star (Starfall): no rock and no fire, a point
+        // of white light in a violet glow with four rays turning about it, and a
+        // thin streak back along the way it fell.
+        if (f.element == Element::Arcane) {
+            const float now = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+            const SDL_FPoint at = seat(k);
+            for (int i = 1; i <= 10; ++i) {
+                const float t = k + static_cast<float>(i) * 0.03f;
+                if (t > 1.3f) break;
+                const SDL_FPoint p = seat(t);
+                const float w = std::max(z, rad * z * (0.22f - 0.018f * static_cast<float>(i)));
+                fill_disc(p.x, p.y, w, w, {c.r, c.g, c.b, static_cast<Uint8>(std::max(0.0f, 170.0f - 15.0f * i))});
+            }
+            if (SDL_Texture* glow = cache.Get("assets/effects/glow.png")) {
+                const float across = rad * 2.6f * z;
+                const SDL_FRect lit = {at.x - across / 2.0f, at.y - across / 2.0f, across, across};
+                SDL_SetTextureBlendMode(glow, SDL_BLENDMODE_ADD);
+                SDL_SetTextureColorMod(glow, c.r, c.g, c.b);
+                SDL_SetTextureAlphaMod(glow, 200);
+                SDL_RenderTexture(r, glow, nullptr, &lit);
+                SDL_SetTextureAlphaMod(glow, 255);
+                SDL_SetTextureColorMod(glow, 255, 255, 255);
+                SDL_SetTextureBlendMode(glow, SDL_BLENDMODE_BLEND);
+            }
+            fill_disc(at.x, at.y, rad * z * 0.42f, rad * z * 0.42f, {c.r, c.g, c.b, 130});
+            // Four rays, turning, thinning to a point: drawn a pixel at a time.
+            const float spin = now * 2.2f + f.x * 0.01f;
+            const float len = rad * z * 0.9f;
+            SDL_SetRenderDrawColor(r, 255, 255, 255, 235);
+            for (int ray = 0; ray < 4; ++ray) {
+                const float a = spin + 1.5707963f * static_cast<float>(ray);
+                const float ca = cosf(a), sa = sinf(a);
+                for (float s = 0.0f; s < len; s += z) {
+                    const float w = std::max(z, (1.0f - s / len) * z * 2.0f);
+                    const float px = at.x + ca * s, py = at.y + sa * s;
+                    const SDL_FRect q = {roundf((px - w / 2.0f) / z) * z, roundf((py - w / 2.0f) / z) * z, w, w};
+                    SDL_RenderFillRect(r, &q);
+                }
+            }
+            fill_disc(at.x, at.y, rad * z * 0.26f, rad * z * 0.26f, {255, 255, 255, 255});
+            continue;
+        }
         // The tail: puffs strung out behind it, hottest at the head.
         for (int i = 8; i >= 1; --i) {
             const float t = k + static_cast<float>(i) * 0.055f;

@@ -745,11 +745,13 @@ public:
         float in = 0; string projectile; float mult = 1; float spread = 0; uint32_t cast = 0; float life = 1;
         bool owner_local = true; uint8_t owner_seat = 0;
         float base = 0.0f;                 // the spell's own multiplier: see Projectile::spell_base
+        float side = 0.0f;                 // let go this far to the right of the aim: a wave's crest, abreast
     };
     vector<QueuedShot> queued_shots;
     // Owed by whoever `player` is now, of the cast being let go of.
-    void QueueShot(float in, const string& projectile, float mult, float spread, uint32_t cast, float life = 1.0f) {
-        queued_shots.push_back({in, projectile, mult, spread, cast, life, player.local, player.seat, casting_base});
+    void QueueShot(float in, const string& projectile, float mult, float spread, uint32_t cast, float life = 1.0f,
+                   float side = 0.0f) {
+        queued_shots.push_back({in, projectile, mult, spread, cast, life, player.local, player.seat, casting_base, side});
     }
     // A square of the ground torn up and thrown about: the Slabstrike. Swung
     // through an arc in front of the caster -- a small one on a light, a bigger

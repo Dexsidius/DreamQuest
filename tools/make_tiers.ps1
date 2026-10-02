@@ -7,6 +7,7 @@
 #      .\tools\make_tiers.ps1 -What hands,feet      # only the gloves and boots, plate, hide and robe
 #      .\tools\make_tiers.ps1 -What jewellery       # the rings and amulets of every metal tier
 #      .\tools\make_tiers.ps1 -What jewellery -Names ring_bow_iron
+#      .\tools\make_tiers.ps1 -What fish -Names raw_frostfin,cooked_frostfin
 #      .\tools\make_tiers.ps1 -What feet -Tiers iron -Names boots_iron
 #      .\tools\make_tiers.ps1 -What layers -Only attack -Models sword_iron
 #
@@ -24,7 +25,7 @@ param(
     [string[]]$Only = @(),
     [string[]]$Tiers = @(),
     [string[]]$Models = @(),
-    # With -What brewing, food, sets, hands or feet: only these icons.
+    # With -What brewing, food, fish, sets, hands or feet: only these icons.
     [string[]]$Names = @()
 )
 

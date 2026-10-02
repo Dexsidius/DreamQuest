@@ -123,6 +123,10 @@ $sizes = @{
     herb_moonpetal = 40; herb_moonpetal_picked = 40
     herb_starlily = 40; herb_starlily_picked = 40
     herb_flax = 40; herb_flax_picked = 40
+    herb_rimebloom = 40; herb_rimebloom_picked = 40
+    herb_cinderwort = 40; herb_cinderwort_picked = 40
+    herb_tidecress = 40; herb_tidecress_picked = 40
+    herb_aetherbell = 40; herb_aetherbell_picked = 40
     # The Westwold's steadings and the Brackenwood's den.
     tanning_rack = 64; hay_rick = 56; rail_fence = 64; bear_den = 144
     # The Brimstone Palace (tools/blender_palace.py).

@@ -43,6 +43,20 @@ struct SpellDef {
     string  shape = "bolt";
     string  taught_by;          // where it is learned, for the panel to say
 
+    // --- how big the shape is ----------------------------------------------------------
+    // A slot's second tier is its first grown, not another thing to learn: the
+    // same shape, bigger. `size` multiplies what the shape is laid out across
+    // -- a ring's reach, a wall's length, a whirl's breadth, a slab's side --
+    // `count` is how many pieces it is in (0 for the shape's own), `seconds`
+    // how long what it leaves on the ground lasts (0 for the shape's own),
+    // `rings` how many rings a fire ring is, and `waves` how many waves a
+    // wave is, one close behind the other. See World::FirePlayerProjectile.
+    float   size = 1.0f;
+    int     count = 0;
+    float   seconds = 0.0f;
+    int     rings = 1;
+    int     waves = 1;
+
     // --- the battery ------------------------------------------------------------
     // Lightning's own resource, which nothing else uses. A share of the bar,
     // 0 to 1: what this adds on every enemy it lands on (`battery_gain`), what

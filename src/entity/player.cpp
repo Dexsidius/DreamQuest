@@ -1566,7 +1566,7 @@ float Player::TalentDamage(AttackStyle style, AttackType type) const {
     if (type == AttackType::Charged) mult += talents.Effect("charged_damage", style);
     if (max_hp > 0 && hp * 3 < max_hp) mult += talents.Effect("low_hp_damage", style);
     // The shout's strength is in the arm, whatever it holds.
-    if (war_cry_timer > 0.0f && style == AttackStyle::Melee) mult += WAR_CRY_DAMAGE;
+    if (war_cry_timer > 0.0f && style == AttackStyle::Melee) mult += WarCryDamage();
     return mult;
 }
 
@@ -1701,18 +1701,18 @@ bool Player::TryAbility(int slot, World& world) {
         y += dy * best;
         knock_x = knock_y = 0.0f;
     } else if (node->ability == "war_cry") {
-        war_cry_timer = WAR_CRY_TIME;
+        war_cry_timer = WAR_CRY_TIME + talents.Global("war_cry_time");
     } else if (node->ability == "mana_shield") {
-        mana_shield_timer = MANA_SHIELD_TIME;
+        mana_shield_timer = MANA_SHIELD_TIME + talents.Global("shield_time");
     } else if (node->ability == "frenzy") {
-        frenzy_timer = FRENZY_TIME;
+        frenzy_timer = FRENZY_TIME + talents.Global("frenzy_time");
     } else if (node->ability == "stand_fast") {
-        stand_fast_timer = STAND_FAST_TIME;
+        stand_fast_timer = StandFastTime();
         knock_x = knock_y = 0.0f;
     } else if (node->ability == "take_aim") {
         aim_timer = AIM_WINDOW;
     } else if (node->ability == "rapid_fire") {
-        rapid_timer = RAPID_TIME;
+        rapid_timer = RAPID_TIME + talents.Global("rapid_time");
     } else if (node->ability == "overload") {
         overload_timer = OVERLOAD_WINDOW;
     } else if (node->ability == "invoke") {
@@ -1782,7 +1782,7 @@ float Player::WeaponSpeed() const {
     const float base = item_db ? equipment.AttackSpeed() : 1.0f;
     // Below one is faster, so a speed talent takes a share off the time.
     float time = base * (1.0f - talents.Effect("speed", Style()));
-    if (frenzy_timer > 0.0f && Style() == AttackStyle::Melee) time *= 1.0f - FRENZY_SPEED;
+    if (frenzy_timer > 0.0f && Style() == AttackStyle::Melee) time *= 1.0f - FrenzySpeed();
     if (rapid_timer > 0.0f && Style() == AttackStyle::Ranged) time *= 1.0f - RAPID_SPEED;
     return std::clamp(time, SWING_SPEED_MIN, SWING_SPEED_MAX);
 }
@@ -1932,7 +1932,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         // Half of all the mana there is, over the four seconds.
         const float step = std::min(dt, invoke_timer);
         invoke_timer -= step;
-        invoke_bank += static_cast<float>(max_mana) * INVOKE_SHARE * step / INVOKE_TIME;
+        invoke_bank += static_cast<float>(max_mana) * (INVOKE_SHARE + talents.Global("invoke_share")) * step / INVOKE_TIME;
         const int whole = static_cast<int>(invoke_bank);
         if (whole > 0) { invoke_bank -= static_cast<float>(whole); GainMana(whole); }
     }

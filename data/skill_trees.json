@@ -1,5 +1,5 @@
 {
-  "_comment": "One tree per combat style, and a character has one: their path's -- the hero the blade, the warden the bow, the wayfarer the staff. A tree earns a point at every third level of its skill. A node needs its milestone level in that skill and at least one rank of the node above it in its branch; each rank costs a point, and 'effects' is what one rank gives (fractions unless noted: damage 0.04 is +4%). Eight rows, at 5, 15, 30, 40, 47, 54, 62 and 70 -- closer together as levels come slower: two passives of three ranks, a technique (a move that replaces the charged heavy attack once chosen), an ability (a move of its own with a cooldown and a cost, carried in one of three slots: guard + light, guard + heavy, guard + lock on), a passive of two ranks that asks when, a second ability, a second passive of two, and a capstone. Forty-two ranks a tree against thirty-three points by level 99. The melee tree has a fourth branch, Footwork, for moves made on the run; it is not a full column and its nodes need nothing above them.",
+  "_comment": "One tree per combat style, and a character has one: their path's -- the hero the blade, the warden the bow, the wayfarer the staff. A tree earns a point at every third level of its skill. A node needs its milestone level in that skill and at least one rank of the node above it in its branch; each rank costs a point, and 'effects' is what one rank gives (fractions unless noted: damage 0.04 is +4%). Eleven rows, at 5, 15, 30, 40, 47, 54, 62, 70, 78, 86 and 94 -- closer together as levels come slower, and never more than eight levels apart once past the first ability: two passives of three ranks, a technique (a move that replaces the charged heavy attack once chosen), an ability (a move of its own with a cooldown and a cost, carried in one of three slots: guard + light, guard + heavy, guard + lock on), a passive of two ranks that asks when, a second ability, a second passive of two, and a capstone. Past the capstone, three rows more for the levels that opened nothing: a passive of two ranks, one point that grows the branch's own ability (Frenzy longer, the Mark harder, the Mana Shield longer), and a second capstone. Fifty-four ranks a tree against thirty-three points by level 99. The melee tree has a fourth branch, Footwork, for moves made on the run; it is not a full column and its nodes need nothing above them.",
   "melee": {
     "name": "Melee",
     "skill": "Attack",
@@ -315,6 +315,116 @@
         "effects": {
           "counter": 1
         }
+      },
+      {
+        "id": "honed",
+        "name": "Honed",
+        "branch": 0,
+        "row": 8,
+        "level": 78,
+        "ranks": 2,
+        "desc": "An edge kept fine. 3% more chance a rank to strike critically.",
+        "effects": {
+          "crit": 0.03
+        }
+      },
+      {
+        "id": "bloodrush",
+        "name": "Bloodrush",
+        "branch": 0,
+        "row": 9,
+        "level": 86,
+        "desc": "After Honed. Frenzy runs three seconds longer, and swings a tenth quicker again while it does.",
+        "effects": {
+          "frenzy_time": 3.0,
+          "frenzy_speed": 0.1
+        }
+      },
+      {
+        "id": "reaper",
+        "name": "Reaper",
+        "branch": 0,
+        "row": 10,
+        "level": 94,
+        "desc": "Second capstone. Critical blows land a third harder again, and what is nearly down is struck critically a little sooner.",
+        "effects": {
+          "crit_damage": 0.35,
+          "execute": 0.05
+        }
+      },
+      {
+        "id": "crushing_weight",
+        "name": "Crushing Weight",
+        "branch": 1,
+        "row": 8,
+        "level": 78,
+        "ranks": 2,
+        "desc": "Charged attacks hit 7% harder a rank.",
+        "effects": {
+          "charged_damage": 0.07
+        }
+      },
+      {
+        "id": "rallying_roar",
+        "name": "Rallying Roar",
+        "branch": 1,
+        "row": 9,
+        "level": 86,
+        "desc": "After Crushing Weight. War Cry lifts blows by 15% more, and for four seconds longer.",
+        "effects": {
+          "war_cry_bonus": 0.15,
+          "war_cry_time": 4.0
+        }
+      },
+      {
+        "id": "colossus",
+        "name": "Colossus",
+        "branch": 1,
+        "row": 10,
+        "level": 94,
+        "desc": "Second capstone. 6% more damage, a tenth more health, and every blow shoves a third further.",
+        "effects": {
+          "damage": 0.06,
+          "max_health": 0.1,
+          "knockback": 0.3
+        }
+      },
+      {
+        "id": "tempered",
+        "name": "Tempered",
+        "branch": 2,
+        "row": 8,
+        "level": 78,
+        "ranks": 2,
+        "desc": "Defence +6 a rank, whatever is worn.",
+        "effects": {
+          "defence": 6
+        }
+      },
+      {
+        "id": "immovable",
+        "name": "Immovable",
+        "branch": 2,
+        "row": 9,
+        "level": 86,
+        "desc": "After Tempered. Stand Fast holds three seconds longer, and lets through half of a blow where it let through three fifths.",
+        "effects": {
+          "stand_fast_time": 3.0,
+          "stand_fast_share": 0.1
+        }
+      },
+      {
+        "id": "unbroken",
+        "name": "Unbroken",
+        "branch": 2,
+        "row": 10,
+        "level": 94,
+        "desc": "Second capstone. 8% more of all your Defence, 8% more health, and a blow caught on the shield costs 15% less breath.",
+        "effects": {
+          "defence_share": 0.08,
+          "max_health": 0.08,
+          "block_cost": 0.15
+        }
       }
     ]
   },
@@ -608,6 +718,112 @@
         "effects": {
           "damage": 0.1,
           "lifesteal": 0.05
+        }
+      },
+      {
+        "id": "keen_sight",
+        "name": "Keen Sight",
+        "branch": 0,
+        "row": 8,
+        "level": 78,
+        "ranks": 2,
+        "desc": "3% more chance a rank to strike critically.",
+        "effects": {
+          "crit": 0.03
+        }
+      },
+      {
+        "id": "deadly_mark",
+        "name": "Deadly Mark",
+        "branch": 0,
+        "row": 9,
+        "level": 86,
+        "desc": "After Keen Sight. Hunter's Mark lasts five seconds longer, and what it marks takes 15% more from your shots.",
+        "effects": {
+          "mark_time": 5.0,
+          "mark_bonus": 0.15
+        }
+      },
+      {
+        "id": "eagles_patience",
+        "name": "Eagle's Patience",
+        "branch": 0,
+        "row": 10,
+        "level": 94,
+        "desc": "Second capstone. Critical shots hit 30% harder, and a long shot is worth a tenth more again.",
+        "effects": {
+          "crit_damage": 0.3,
+          "long_shot": 0.1
+        }
+      },
+      {
+        "id": "light_step",
+        "name": "Light Step",
+        "branch": 1,
+        "row": 8,
+        "level": 78,
+        "ranks": 2,
+        "desc": "On the move, 2.5% more of the blows aimed at you a rank simply miss.",
+        "effects": {
+          "evade": 0.025
+        }
+      },
+      {
+        "id": "arrow_storm",
+        "name": "Arrow Storm",
+        "branch": 1,
+        "row": 9,
+        "level": 86,
+        "desc": "After Light Step. Rapid Fire lasts three seconds longer.",
+        "effects": {
+          "rapid_time": 3.0
+        }
+      },
+      {
+        "id": "windrunner",
+        "name": "Windrunner",
+        "branch": 1,
+        "row": 10,
+        "level": 94,
+        "desc": "Second capstone. Shots let go 6% quicker, and you are 6% quicker on your feet.",
+        "effects": {
+          "speed": 0.06,
+          "move_speed": 0.06
+        }
+      },
+      {
+        "id": "barbed_points",
+        "name": "Barbed Points",
+        "branch": 2,
+        "row": 8,
+        "level": 78,
+        "ranks": 2,
+        "desc": "Shots hit 3% harder a rank.",
+        "effects": {
+          "damage": 0.03
+        }
+      },
+      {
+        "id": "iron_jaws",
+        "name": "Iron Jaws",
+        "branch": 2,
+        "row": 9,
+        "level": 86,
+        "desc": "After Barbed Points. A Snare holds what it catches two seconds longer.",
+        "effects": {
+          "snare_time": 2.0
+        }
+      },
+      {
+        "id": "apex",
+        "name": "Apex",
+        "branch": 2,
+        "row": 10,
+        "level": 94,
+        "desc": "Second capstone. 6% more damage, and 3% of what you deal comes back as health.",
+        "effects": {
+          "damage": 0.06,
+          "lifesteal": 0.03
         }
       }
     ]
@@ -923,6 +1139,111 @@
         "desc": "After Magic Block. A shot that strikes the ward is turned back at whoever loosed it, as your own magic -- the higher your Magic, the harder it returns -- for the breath a block of it would cost.",
         "effects": {
           "mirror": 1
+        }
+      },
+      {
+        "id": "empowered",
+        "name": "Empowered",
+        "branch": 0,
+        "row": 8,
+        "level": 78,
+        "ranks": 2,
+        "desc": "Spells hit 3% harder a rank.",
+        "effects": {
+          "damage": 0.03
+        }
+      },
+      {
+        "id": "overcharge",
+        "name": "Overcharge",
+        "branch": 0,
+        "row": 9,
+        "level": 86,
+        "desc": "After Empowered. The spell an Overload pays for hits two and a half times as hard where it was twice.",
+        "effects": {
+          "overload_damage": 0.5
+        }
+      },
+      {
+        "id": "cataclysm",
+        "name": "Cataclysm",
+        "branch": 0,
+        "row": 10,
+        "level": 94,
+        "desc": "Second capstone. A spell of the element a creature fears does 15% more again, and 5% more of your spells strike critically.",
+        "effects": {
+          "elemental": 0.15,
+          "crit": 0.05
+        }
+      },
+      {
+        "id": "deep_currents",
+        "name": "Deep Currents",
+        "branch": 1,
+        "row": 8,
+        "level": 78,
+        "ranks": 2,
+        "desc": "Mana comes back 8% faster a rank.",
+        "effects": {
+          "mana_regen": 0.08
+        }
+      },
+      {
+        "id": "deep_invocation",
+        "name": "Deep Invocation",
+        "branch": 1,
+        "row": 9,
+        "level": 86,
+        "desc": "After Deep Currents. Invoke draws back three quarters of all your mana where it drew half.",
+        "effects": {
+          "invoke_share": 0.25
+        }
+      },
+      {
+        "id": "font_of_power",
+        "name": "Font of Power",
+        "branch": 1,
+        "row": 10,
+        "level": 94,
+        "desc": "Second capstone. 15% more mana, and every spell costs a tenth less.",
+        "effects": {
+          "max_mana": 0.15,
+          "mana_cost": 0.1
+        }
+      },
+      {
+        "id": "spellward",
+        "name": "Spellward",
+        "branch": 2,
+        "row": 8,
+        "level": 78,
+        "ranks": 2,
+        "desc": "Defence +5 a rank, whatever is in hand.",
+        "effects": {
+          "defence": 5
+        }
+      },
+      {
+        "id": "bastion",
+        "name": "Bastion",
+        "branch": 2,
+        "row": 9,
+        "level": 86,
+        "desc": "After Spellward. The Mana Shield holds five seconds longer.",
+        "effects": {
+          "shield_time": 5.0
+        }
+      },
+      {
+        "id": "undying",
+        "name": "Undying",
+        "branch": 2,
+        "row": 10,
+        "level": 94,
+        "desc": "Second capstone. A tenth more health, and three more mana back for every blow that draws blood.",
+        "effects": {
+          "max_health": 0.1,
+          "hurt_mana": 3
         }
       }
     ]

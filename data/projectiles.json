@@ -1042,5 +1042,134 @@
   "conjure_tide": {"status": {"id": "wet", "chance": 0.65}, "sprite": "assets/effects/water_orb_greater.png", "frames": 8, "fps": 10, "upright": true, "pivot": [13, 13], "tail": {"sprite": "assets/effects/water_wake_greater.png", "frames": 8, "pivot": [34, 11]}, "scale": 1.25, "tint": [220, 240, 255], "speed": 320, "life": 1.3, "radius": 9, "knockback": 70, "homing": 1.4, "element": "water", "impact_size": 13},
   "conjure_stone": {"status": {"id": "concussed", "chance": 0.35}, "sprite": "assets/effects/rock_shard_greater.png", "frames": 8, "fps": 12, "upright": true, "scale": 1.3, "tint": [255, 236, 196], "speed": 280, "life": 1.4, "radius": 10, "knockback": 110, "homing": 1.1, "element": "earth", "impact_size": 12},
   "conjure_gale": {"status": {"id": "bleed", "chance": 0.3}, "sprite": "assets/effects/gust_greater.png", "frames": 8, "fps": 14, "pivot": [38, 17], "scale": 1.25, "tint": [236, 244, 255], "speed": 390, "life": 1.15, "radius": 9, "knockback": 220, "homing": 1.4, "element": "air", "bounces": 3, "bounce_damping": 0.14, "impact_size": 12},
-  "conjure_spark": {"status": {"id": "electrified", "chance": 0.5}, "sprite": "assets/icons/spark.png", "frames": 1, "spin": true, "tint": [255, 250, 170], "speed": 470, "life": 1.05, "radius": 7, "knockback": 50, "homing": 1.8, "scale": 2.0, "glow": 48, "element": "electric", "impact_size": 8}
+  "conjure_spark": {"status": {"id": "electrified", "chance": 0.5}, "sprite": "assets/icons/spark.png", "frames": 1, "spin": true, "tint": [255, 250, 170], "speed": 470, "life": 1.05, "radius": 7, "knockback": 50, "homing": 1.8, "scale": 2.0, "glow": 48, "element": "electric", "impact_size": 8},
+  "dragon_flame": {
+    "sprite": "assets/effects/dragon_flame.png",
+    "frames": 8,
+    "fps": 18,
+    "pivot": [
+      25,
+      12
+    ],
+    "glow": 52,
+    "tint": [
+      255,
+      255,
+      255
+    ],
+    "status": {
+      "id": "burn",
+      "chance": 0.3
+    },
+    "speed": 340,
+    "life": 0.3,
+    "radius": 10,
+    "pierce": 4,
+    "knockback": 10,
+    "element": "fire",
+    "impact_size": 0
+  },
+  "hydro_lance": {
+    "sprite": "assets/effects/water_orb_lance.png",
+    "frames": 8,
+    "fps": 12,
+    "upright": true,
+    "pivot": [
+      21,
+      21
+    ],
+    "tail": {
+      "sprite": "assets/effects/water_wake_lance.png",
+      "frames": 8,
+      "pivot": [
+        56,
+        17
+      ]
+    },
+    "tint": [
+      255,
+      255,
+      255
+    ],
+    "status": {
+      "id": "wet",
+      "chance": 0.9
+    },
+    "speed": 460,
+    "life": 1.3,
+    "radius": 14,
+    "pierce": 3,
+    "knockback": 320,
+    "element": "water",
+    "impact_size": 20
+  },
+  "wave_crest_greater": {
+    "sprite": "assets/effects/wave_crest_greater.png",
+    "frames": 8,
+    "fps": 10,
+    "pivot": [
+      22,
+      20
+    ],
+    "tint": [
+      255,
+      255,
+      255
+    ],
+    "status": {
+      "id": "wet",
+      "chance": 0.6
+    },
+    "speed": 185,
+    "life": 1.15,
+    "radius": 10,
+    "pierce": 99,
+    "knockback": 170,
+    "element": "water",
+    "impact_size": 10
+  },
+  "geode_shard": {
+    "sprite": "assets/effects/geode_shard.png",
+    "frames": 8,
+    "fps": 20,
+    "upright": true,
+    "tint": [
+      255,
+      255,
+      255
+    ],
+    "status": {
+      "id": "bleed",
+      "chance": 0.16
+    },
+    "speed": 500,
+    "life": 0.95,
+    "radius": 7,
+    "pierce": 1,
+    "knockback": 30,
+    "homing": 2.0,
+    "element": "earth",
+    "impact_size": 7
+  },
+  "air_scythe": {
+    "sprite": "assets/effects/air_scythe.png",
+    "frames": 8,
+    "fps": 16,
+    "pivot": [
+      20,
+      26
+    ],
+    "tint": [
+      255,
+      255,
+      255
+    ],
+    "speed": 540,
+    "life": 0.5,
+    "radius": 20,
+    "pierce": 99,
+    "knockback": 110,
+    "element": "air",
+    "impact_size": 12
+  }
 }

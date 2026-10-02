@@ -4591,6 +4591,768 @@ static void TestBalanceFixes(const Databases& db) {
     }
 }
 
+// Magic past 58 opens things again: every element's second, third and fourth
+// slot grows into a second tier between 62 and 92, cast in the first's place
+// once the level reaches it (SpellDef::size and the rest), and the ancient
+// magic has Starfall at 90.
+static void TestLateSpells(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    Section("the late spells: every element's slots grown, and Starfall");
+
+    Input input;
+    std::mt19937 rng(6262);
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+    ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.statuses = &statuses; ctx.input = &input;       ctx.rng = &rng;
+    const float dt = 1.0f / 60.0f;
+    const auto key = [&](SDL_Keycode k, bool down) {
+        SDL_Event e{};
+        e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+        e.key.key = k;
+        input.HandleEvent(e);
+    };
+    const auto field = [&](World& w, const string& weapon, int magic) {
+        w.player.Init(ctx, "player_wayfarer");
+        if (!w.LoadMap("overworld", "start", ctx)) return false;
+        w.enemies.clear();
+        w.clock.Set(1, 12.0f);
+        LevelUp lu;
+        w.player.skills.AddXp(SKILL_MAGIC, XpForLevel(magic), lu);
+        w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(60), lu);
+        w.player.SyncHitpoints();
+        w.player.hp = w.player.max_hp;
+        w.player.SyncMana();
+        w.player.RestoreMana();
+        w.player.equipment.Unequip(SLOT_SHIELD);
+        w.player.equipment.Equip(SLOT_WEAPON, weapon);
+        w.player.facing = FACE_RIGHT;
+        w.player.sprite.facing = FACE_RIGHT;
+        return true;
+    };
+    const auto cast = [&](World& w) {
+        input.Update(dt); key(SDLK_J, true); w.Update(dt, ctx);
+        input.Update(dt); key(SDLK_J, false); w.Update(dt, ctx);
+    };
+
+    struct Grown { const char* element; int slot; const char* first; const char* second; };
+    static const Grown kGrown[] = {
+        {"fire", 2, "flamethrower", "dragons_breath"},   {"fire", 3, "flame_ring", "firestorm"},
+        {"fire", 4, "wall_of_fire", "wall_of_cinders"},  {"water", 2, "hydro_cannon", "tidal_lance"},
+        {"water", 3, "tidal_wave", "tsunami"},           {"water", 4, "whirlpool", "undertow"},
+        {"earth", 2, "slabstrike", "monolith"},          {"earth", 3, "sedimentary_rain", "landslide"},
+        {"earth", 4, "mineral_burst", "geode_burst"},    {"air", 2, "tornado", "cyclone"},
+        {"air", 3, "air_slash", "wind_scythe"},          {"air", 4, "turbulence", "hurricane"}};
+
+    // --- the book ---------------------------------------------------------------------------------
+    {
+        bool tiers_ok = true, art_ok = true;
+        for (const Grown& g : kGrown) {
+            const Element e = ElementFromName(g.element);
+            const SpellDef* a = spells.Get(g.first);
+            const SpellDef* b = spells.Get(g.second);
+            if (!a || !b || spells.FirstOnSlot(e, g.slot) != a || spells.ForSlot(e, g.slot, 99) != b ||
+                spells.ForSlot(e, g.slot, b->level - 1) != a || b->tier <= a->tier || b->element != e ||
+                b->slot != g.slot || b->level < 60 || b->level > 92 || b->mana <= a->mana || b->xp <= a->xp) {
+                tiers_ok = false;
+                SDL_Log("  %s on %s's slot %d", g.second, g.element, g.slot);
+            }
+            const ProjectileDef* shot = b ? projectiles.Get(b->projectile) : nullptr;
+            if (!shot || shot->sprite.empty() || !fs::exists(shot->sprite)) art_ok = false;
+        }
+        Check(tiers_ok, "every element's second, third and fourth slot has a second tier at Magic 60 to 92, cast in "
+                        "the first's place once the level reaches it, dearer and better paid");
+        Check(art_ok, "and what each throws is drawn");
+        std::set<int> levels;
+        for (const auto& kv : spells.All()) levels.insert(kv.second.level);
+        int last = 58, widest = 0;
+        for (int lv : levels)
+            if (lv > 58 && lv <= 92) { widest = std::max(widest, lv - last); last = lv; }
+        Check(last == 92 && widest <= 6, "Magic opens a spell at least every six levels from 58 to 92, where it opened "
+                                         "nothing past 58 (the longest wait " + std::to_string(widest) + ")");
+    }
+
+    // --- each grown in play, against its first at the level below -----------------------------------
+    {
+        struct Seen {
+            size_t patches = 0;
+            float radius = 0.0f, life = 0.0f, far = 0.0f, slab = 0.0f;
+            std::set<uint32_t> shots;
+            int pierce = 0;
+            string cast;
+        };
+        // One light cast from an element's own staff on a slot, watched for a
+        // second: what it leaves on the ground, what it throws, the slab.
+        const auto watch = [&](const char* element, int slot, int magic) {
+            Seen s;
+            World w;
+            if (!field(w, string("iron_") + element + "_staff", magic)) return s;
+            w.player.SelectSlot(slot - 1);
+            if (const SpellDef* sp = w.player.SpellOf(ElementFromName(element), spells)) s.cast = sp->id;
+            w.ground_effects.clear();
+            w.projectiles.clear();
+            w.slabs.clear();
+            cast(w);
+            for (int f = 0; f < 50; ++f) {
+                input.Update(dt);
+                w.Update(dt, ctx);
+                for (const Projectile& p : w.projectiles)
+                    if (p.from_player) { s.shots.insert(p.net_id); s.pierce = std::max(s.pierce, p.pierce_left); }
+                for (const World::SlabSwing& sl : w.slabs) s.slab = std::max(s.slab, sl.side);
+                s.patches = std::max(s.patches, w.ground_effects.size());
+                for (const GroundEffect& g : w.ground_effects) {
+                    s.radius = std::max(s.radius, g.radius);
+                    s.life = std::max(s.life, g.max_life);
+                    s.far = std::max(s.far, Length(g.x - w.player.x, g.y - w.player.y));
+                }
+            }
+            return s;
+        };
+        for (const Grown& g : kGrown) {
+            const SpellDef* b = spells.Get(g.second);
+            if (!b) continue;
+            const Seen a = watch(g.element, g.slot, b->level - 1);
+            const Seen c = watch(g.element, g.slot, b->level);
+            const bool bigger = c.patches > a.patches || c.radius > a.radius * 1.1f || c.life > a.life * 1.1f ||
+                                c.far > a.far * 1.1f || c.shots.size() > a.shots.size() || c.pierce > a.pierce ||
+                                c.slab > a.slab * 1.1f;
+            Check(a.cast == g.first && c.cast == g.second && bigger,
+                  string(b->name) + " is the " + (spells.Get(g.first) ? spells.Get(g.first)->name : string("?")) +
+                      " grown, from Magic " + std::to_string(b->level) + " (" + std::to_string(a.patches) + "/" +
+                      std::to_string(c.patches) + " patches, " + std::to_string(a.shots.size()) + "/" +
+                      std::to_string(c.shots.size()) + " shots, radius " + std::to_string(static_cast<int>(a.radius)) +
+                      "/" + std::to_string(static_cast<int>(c.radius)) + ")");
+        }
+        // The two that are the most different, said exactly.
+        const Seen ring = watch("fire", 3, 74), wall = watch("fire", 4, 86), wave = watch("water", 3, 76);
+        Check(ring.patches >= 22 && ring.far > 66.0f * 1.3f, "a Firestorm is two rings of fire, the outer further out "
+                                                              "than the Flame Ring's");
+        Check(wall.patches == 11 && fabsf(wall.life - 7.0f) < 0.01f, "a Wall of Cinders is eleven across, for seven seconds");
+        Check(wave.shots.size() == 22, "a Tsunami is eleven abreast, and eleven more close behind (" +
+                                           std::to_string(wave.shots.size()) + ")");
+    }
+
+    // --- Starfall -----------------------------------------------------------------------------------
+    {
+        const SpellDef* star = spells.Get("starfall");
+        const ItemDef* tome = items.Get("tome_starfall");
+        ShopDatabase shopdb;
+        shopdb.Load("data/shops.json");
+        bool sold = false;
+        for (const auto& kv : shopdb.All())
+            for (const ShopStock& line : kv.second.sells) sold |= line.item == "tome_starfall";
+        Check(star && star->arcane && star->level == 90 && star->shape == "starfall" && tome &&
+                  tome->learn == "spell:starfall" && sold,
+              "Starfall is the ancient magic's, at Magic 90, and the college's copying room sells its tome");
+        World w;
+        if (star && field(w, "iron_staff", 90)) {
+            w.SetFlag("recipe:spell:starfall");
+            w.player.SelectArcane(w.KnownArcane(spells));
+            const EnemyDef* stats = enemy_db.Get("boar");
+            Enemy* boar = nullptr;
+            if (stats) {
+                EnemySpawnDef def;
+                def.type = "boar"; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+                def.x = w.player.x + 110.0f; def.y = w.player.y;
+                auto e = std::make_unique<Enemy>();
+                e->Init(stats, def, ctx);
+                e->max_hp = 60000;
+                e->hp = e->max_hp;
+                boar = e.get();
+                w.enemies.push_back(std::move(e));
+            }
+            const int hp0 = boar ? boar->hp : 0, xp0 = w.player.skills.Xp(SKILL_MAGIC);
+            if (boar) boar->Stagger(5.0f, true);
+            cast(w);
+            size_t falling = 0, bursts = 0;
+            bool all_stars = true;
+            for (int f = 0; f < 120; ++f) {
+                if (boar) boar->Stagger(5.0f, true);
+                input.Update(dt);
+                w.Update(dt, ctx);
+                falling = std::max(falling, w.falls.size());
+                for (const World::Falling& fl : w.falls) all_stars &= fl.element == Element::Arcane;
+                size_t b = 0;
+                for (const GroundEffect& g : w.ground_effects) b += g.from_player ? 1 : 0;
+                bursts = std::max(bursts, b);
+            }
+            Check(w.player.ArcaneSpell() == "starfall" && falling == 5 && all_stars && bursts == 5,
+                  "cast, it is five stars falling, each its own blow where it lands (" + std::to_string(falling) + " falling, " +
+                      std::to_string(bursts) + " blows)");
+            Check(boar && boar->hp < hp0 && w.player.skills.Xp(SKILL_MAGIC) - xp0 >= star->xp,
+                  "and what it was cast at is struck, and the spell's experience paid");
+        }
+    }
+}
+
+// --- the late gathering: fish past Fishing 60, dishes past Cooking 60, herbs
+// past Foraging 68, and what is brewed from them ----------------------------------------------------
+static void TestLateGathering(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    Section("the late gathering: fish past 60, herbs past 68, and what is made of them");
+
+    // --- the ladders ---------------------------------------------------------------------------------
+    // Every fish bites later than the last, is worth more and heals more.
+    {
+        const char* fishes[] = {"raw_minnow", "raw_trout", "raw_pike", "raw_salmon", "raw_eel",
+                                "raw_frostfin", "raw_cindergill", "raw_deepgleam"};
+        const ItemDef* prev = nullptr;
+        const ItemDef* prev_cooked = nullptr;
+        string out_of_line;
+        for (const char* id : fishes) {
+            const ItemDef* raw = items.Get(id);
+            const ItemDef* cooked = raw ? items.Get(raw->cook_result) : nullptr;
+            Check(raw && raw->fish_level > 0 && cooked && cooked->consumable && cooked->heal > 0 &&
+                      raw->cook_level == raw->fish_level && fs::exists(raw->icon) && fs::exists(cooked->icon),
+                  string(id) + " is caught, cooked at the level it bites at, and drawn raw and cooked");
+            if (!raw || !cooked) { out_of_line = id; continue; }
+            if (prev && !(raw->fish_level > prev->fish_level && raw->fish_xp > prev->fish_xp &&
+                          raw->cook_xp > prev->cook_xp && raw->value > prev->value &&
+                          cooked->heal > prev_cooked->heal && cooked->value > prev_cooked->value))
+                out_of_line = id;
+            prev = raw;
+            prev_cooked = cooked;
+        }
+        Check(out_of_line.empty(), "each fish bites later, pays more and heals more than the one before" +
+                                       (out_of_line.empty() ? string() : " (not " + out_of_line + ")"));
+        Check(prev && prev->fish_level >= 90, "and the last of them bites at Fishing 90 or more");
+    }
+    // Past Foraging 56 every herb and bug is worth more than everything below
+    // it, and the rungs are never more than seven levels apart.
+    {
+        vector<const ItemDef*> gathered;
+        for (const auto& kv : items.All()) if (kv.second.GatherLevel() > 0) gathered.push_back(&kv.second);
+        std::sort(gathered.begin(), gathered.end(),
+                  [](const ItemDef* a, const ItemDef* b) { return a->GatherLevel() < b->GatherLevel(); });
+        std::set<int> levels;
+        int last = 0, widest = 0;
+        string out_of_line;
+        for (size_t i = 0; i < gathered.size(); ++i) {
+            const ItemDef* g = gathered[i];
+            levels.insert(g->GatherLevel());
+            if (g->GatherLevel() >= 56) {
+                if (last) widest = std::max(widest, g->GatherLevel() - last);
+                last = g->GatherLevel();
+            }
+            if (g->GatherLevel() < 56) continue;
+            const int xp = std::max(g->forage_xp, g->catch_xp);
+            for (size_t j = 0; j < i; ++j) {
+                const int below = std::max(gathered[j]->forage_xp, gathered[j]->catch_xp);
+                if (below >= xp || gathered[j]->value >= g->value) out_of_line = g->id;
+            }
+        }
+        Check(levels.size() == gathered.size(), "every herb and bug opens at its own Foraging level");
+        Check(out_of_line.empty(), "past Foraging 56 each one pays more and sells for more than all below it" +
+                                       (out_of_line.empty() ? string() : " (not " + out_of_line + ")"));
+        Check(widest > 0 && widest <= 7 && last >= 95,
+              "and from 56 to " + std::to_string(last) + " no rung is more than seven levels above the last (" +
+                  std::to_string(widest) + ")");
+    }
+    // Cooking and Brewing past 60: something new at least every eight levels,
+    // and something to make in the nineties.
+    for (CraftStation station : {CraftStation::Range, CraftStation::Cauldron}) {
+        std::set<int> at;
+        for (const ItemDef* r : items.Recipes(station)) {
+            const ItemDef* made = items.Get(r->craft_result);
+            if (made && !made->untaught && r->craft_level >= 60) at.insert(r->craft_level);
+        }
+        int widest = 0, prev = 0;
+        for (int l : at) { if (prev) widest = std::max(widest, l - prev); prev = l; }
+        const char* skill = station == CraftStation::Range ? "Cooking" : "Brewing";
+        Check(at.size() >= 6 && widest <= 8 && prev >= 95,
+              string(skill) + " past 60 opens something new every few levels, up to " + std::to_string(prev) +
+                  " (" + std::to_string(at.size()) + " rungs, widest gap " + std::to_string(widest) + ")");
+    }
+
+    // --- where the fish are --------------------------------------------------------------------------
+    {
+        struct Water { const char* map; const char* fish; int level; int spots; };
+        const Water waters[] = {{"frost_mere", "raw_frostfin", 68, 4},
+                                {"ashen_path", "raw_cindergill", 78, 4},
+                                {"prim_deeps", "raw_deepgleam", 90, 4}};
+        for (const Water& wa : waters) {
+            int spots = 0;
+            bool right = true;
+            for (const char* id : kMaps) {
+                Map m;
+                if (!m.Load(string("maps/") + id + ".mx")) continue;
+                for (const MapObject& o : m.Objects()) {
+                    if (o.type != "fishing_spot") continue;
+                    const bool has = std::find(o.fish.begin(), o.fish.end(), wa.fish) != o.fish.end();
+                    if (!has) continue;
+                    if (string(id) == wa.map) ++spots;
+                    right &= string(id) == wa.map && o.skill_level == wa.level && o.fish.size() == 1;
+                }
+            }
+            Check(spots >= wa.spots && right, string(wa.fish) + " is fished only in " + wa.map + ", at Fishing " +
+                                                  std::to_string(wa.level) + " (" + std::to_string(spots) + " spots)");
+        }
+    }
+
+    // --- where the herbs grow ------------------------------------------------------------------------
+    {
+        struct Ground { const char* herb; int level; const char* prefix; };
+        const Ground grounds[] = {{"rimebloom", 74, "frost_"}, {"cinderwort", 81, "prim_kiln"},
+                                  {"tidecress", 88, "prim_deeps"}, {"aetherbell", 95, "prim_firmament"}};
+        for (const Ground& g : grounds) {
+            const ItemDef* h = items.Get(g.herb);
+            Check(h && h->forage_level == g.level && fs::exists(h->icon) &&
+                      std::find(h->tags.begin(), h->tags.end(), "brewing") != h->tags.end(),
+                  string(g.herb) + " is a herb for brewing, picked at Foraging " + std::to_string(g.level));
+            int in = 0, out = 0, maps = 0;
+            for (const char* id : kMaps) {
+                Map m;
+                if (!m.Load(string("maps/") + id + ".mx")) continue;
+                int here = 0;
+                for (const MapObject& o : m.Objects())
+                    if (o.type == "herb" && o.yield == g.herb) ++here;
+                (string(id).rfind(g.prefix, 0) == 0 ? in : out) += here;
+                maps += here > 0;
+            }
+            Check(in >= 12 && out == 0, string(g.herb) + " grows only in its own land (" + std::to_string(in) +
+                                            " there, " + std::to_string(out) + " elsewhere, on " +
+                                            std::to_string(maps) + " maps)");
+            // Something brewed from it.
+            int brews = 0;
+            for (const ItemDef* r : items.Recipes(CraftStation::Cauldron))
+                if (r->craft_inputs.count(g.herb)) ++brews;
+            Check(brews >= 2, string(g.herb) + " goes into more than one brew (" + std::to_string(brews) + ")");
+        }
+    }
+
+    // --- in the world: standing at one, too green and then good enough ------------------------------
+    Input input;
+    std::mt19937 rng(9090);
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+    ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.statuses = &statuses; ctx.input = &input;       ctx.rng = &rng;
+    const float dt = 1.0f / 60.0f;
+    const auto frames = [&](World& w, int n) {
+        for (int f = 0; f < n; ++f) { input.Update(dt); w.Update(dt, ctx); }
+    };
+    // Stands a player with `level` in `skill` where the first object `pick`
+    // likes can be worked from; returns it, or null.
+    const auto stand_at = [&](World& w, const string& map_id, const std::function<bool(const MapObject&)>& pick,
+                              int skill, int level) -> const MapObject* {
+        w.player = Player();
+        w.player.Init(ctx, "player_hero");
+        w.SetPickedHerbs({});
+        w.clock.Set(2, 10.0f);
+        if (!w.LoadMap(map_id, "", ctx)) return nullptr;
+        w.enemies.clear();
+        LevelUp lu;
+        w.player.skills.AddXp(skill, XpForLevel(level), lu);
+        for (const MapObject& o : w.CurrentMap().Objects()) {
+            if (!pick(o)) continue;
+            for (float a = 1.57f; a < 1.57f + 6.28f; a += 0.3f)
+                for (float d = 14.0f; d <= 44.0f; d += 6.0f) {
+                    const float px = o.x + cosf(a) * d, py = o.y + sinf(a) * d;
+                    if (w.CurrentMap().Blocked({px - 8.0f, py - 10.0f, 16.0f, 10.0f})) continue;
+                    w.player.x = px;
+                    w.player.y = py;
+                    frames(w, 2);
+                    if (w.player.interact.kind == InteractTarget::Object &&
+                        &w.CurrentMap().Objects()[w.player.interact.index] == &o) return &o;
+                }
+        }
+        return nullptr;
+    };
+    {
+        struct Water { const char* map; const char* fish; int level; };
+        for (const Water& wa : {Water{"frost_mere", "raw_frostfin", 68}, Water{"ashen_path", "raw_cindergill", 78},
+                                Water{"prim_deeps", "raw_deepgleam", 90}}) {
+            const auto spot = [&](const MapObject& o) {
+                return o.type == "fishing_spot" && std::find(o.fish.begin(), o.fish.end(), wa.fish) != o.fish.end();
+            };
+            World green;
+            const MapObject* s = stand_at(green, wa.map, spot, SKILL_FISHING, wa.level - 1);
+            Check(s && green.player.interact.label.rfind("Needs Fishing " + std::to_string(wa.level), 0) == 0,
+                  string("at Fishing ") + std::to_string(wa.level - 1) + " the " + wa.map + " water says it needs " +
+                      std::to_string(wa.level) + " (" + (s ? green.player.interact.label : string("no spot")) + ")");
+            World w;
+            if (!stand_at(w, wa.map, spot, SKILL_FISHING, wa.level)) { Check(false, string("stood at ") + wa.map); continue; }
+            w.player.inventory.Add("fishing_rod", 1);
+            frames(w, 1);
+            w.TryInteract(ctx);
+            int f = 0;
+            while (w.player.inventory.Count(wa.fish) == 0 && f++ < 60 * 40) frames(w, 1);
+            Check(w.player.inventory.Count(wa.fish) > 0,
+                  string("at Fishing ") + std::to_string(wa.level) + " it gives up a " + wa.fish + " (" +
+                      std::to_string(f / 60) + "s)");
+        }
+    }
+    {
+        struct Herb { const char* map; const char* herb; int level; };
+        for (const Herb& hb : {Herb{"frost_glacier", "rimebloom", 74}, Herb{"prim_kiln", "cinderwort", 81},
+                               Herb{"prim_deeps", "tidecress", 88}, Herb{"prim_firmament", "aetherbell", 95}}) {
+            const auto plant = [&](const MapObject& o) { return o.type == "herb" && o.yield == hb.herb; };
+            World green;
+            const MapObject* h = stand_at(green, hb.map, plant, SKILL_FORAGING, hb.level - 1);
+            Check(h && green.player.interact.label.find("Needs Foraging " + std::to_string(hb.level)) != string::npos,
+                  string("a forager at ") + std::to_string(hb.level - 1) + " is told " + hb.herb + " needs " +
+                      std::to_string(hb.level) + " (" + (h ? green.player.interact.label : string("none reached")) + ")");
+            World w;
+            if (!stand_at(w, hb.map, plant, SKILL_FORAGING, hb.level)) { Check(false, string("stood at ") + hb.herb); continue; }
+            w.TryInteract(ctx);
+            int f = 0;
+            while (w.player.inventory.Count(hb.herb) == 0 && f++ < 60 * 10) frames(w, 1);
+            Check(w.player.inventory.Count(hb.herb) > 0, string("and at ") + std::to_string(hb.level) + " it is picked");
+        }
+    }
+
+    // --- the dishes ----------------------------------------------------------------------------------
+    {
+        struct Dish { const char* id; int level; };
+        for (const Dish& d : {Dish{"frostfin_chowder", 72}, Dish{"cindergill_skewers", 84},
+                              Dish{"deepgleam_broth", 92}, Dish{"hollowmarch_feast", 95}}) {
+            const ItemDef* recipe = nullptr;
+            for (const ItemDef* r : items.Recipes(CraftStation::Range)) if (r->craft_result == d.id) recipe = r;
+            const ItemDef* dish = items.Get(d.id);
+            Check(dish && dish->IsDish() && fs::exists(dish->icon) && recipe && recipe->craft_level == d.level &&
+                      recipe->craft_xp == 12 * d.level + 60,
+                  string(d.id) + " is a dish cooked at Cooking " + std::to_string(d.level));
+            if (!recipe) continue;
+            int late = 0;
+            bool in_reach = true;
+            for (const auto& in : recipe->craft_inputs)
+                for (const auto& kv : items.All())
+                    if (kv.second.cook_result == in.first && kv.second.fish_level >= 68) {
+                        ++late;
+                        in_reach &= kv.second.cook_level <= d.level;
+                    }
+            Check(late >= 1 && in_reach, string(d.id) + " is made of a late fish a cook at its level can cook");
+        }
+        const ItemDef* feast = items.Get("hollowmarch_feast");
+        const ItemDef* recipe = nullptr;
+        for (const ItemDef* r : items.Recipes(CraftStation::Range)) if (r->craft_result == "hollowmarch_feast") recipe = r;
+        Check(recipe && recipe->craft_inputs.count("cooked_frostfin") && recipe->craft_inputs.count("cooked_cindergill") &&
+                  recipe->craft_inputs.count("cooked_deepgleam"),
+              "the feast wants all three of the late fish");
+        // Eaten: everything it says, at once.
+        World w;
+        w.player.Init(ctx, "player_hero");
+        if (w.LoadMap("overworld", "start", ctx) && feast) {
+            w.enemies.clear();
+            Player& p = w.player;
+            LevelUp lu;
+            for (int sk : {SKILL_ATTACK, SKILL_STRENGTH, SKILL_RANGED, SKILL_MAGIC, SKILL_HITPOINTS})
+                p.skills.AddXp(sk, XpForLevel(80), lu);
+            p.SyncDefence(false);
+            p.SyncHitpoints();
+            p.hp = p.max_hp;
+            p.SyncMana();
+            p.RestoreMana();
+            const int hp0 = p.max_hp, mana0 = p.MaxMana();
+            const float breath0 = p.MaxStamina();
+            p.inventory.Add("hollowmarch_feast", 1);
+            int slot = -1;
+            for (int k = 0; k < p.inventory.SlotCount(); ++k) if (p.inventory.Slot(k).id == "hollowmarch_feast") slot = k;
+            string why;
+            Check(slot >= 0 && p.Consume(slot, why) && p.Meal() == feast, "the feast can be eaten");
+            Check(p.max_hp > hp0 && p.MaxMana() > mana0 && p.MaxStamina() > breath0,
+                  "and lifts health, mana and breath together (" + std::to_string(hp0) + " -> " +
+                      std::to_string(p.max_hp) + " health)");
+            bool all = feast->dish_levels.size() == 5;
+            for (const auto& b : feast->dish_levels) all &= p.skills.Current(b.first) >= p.skills.Level(b.first) + 6;
+            Check(all, "and every way of fighting by six");
+        }
+    }
+
+    // --- the brews -----------------------------------------------------------------------------------
+    {
+        const char* brews[] = {"rimebloom_tonic", "glacier_ward", "draught_of_fury", "ashen_ward", "hawkeye_draught",
+                               "tidemind_draught", "storm_ward", "firmament_elixir", "primordium_ward"};
+        ShopDatabase shops;
+        shops.Load("data/shops.json");
+        std::set<string> sold;
+        for (const auto& kv : shops.All())
+            for (const ShopStock& line : kv.second.sells) sold.insert(line.item);
+        for (const char* id : brews) {
+            const ItemDef* potion = items.Get(id);
+            const ItemDef* scroll = items.Get(string("scroll_") + id);
+            const ItemDef* recipe = nullptr;
+            for (const ItemDef* r : items.Recipes(CraftStation::Cauldron)) if (r->craft_result == id) recipe = r;
+            int late = 0;
+            if (recipe)
+                for (const auto& in : recipe->craft_inputs)
+                    if (const ItemDef* mat = items.Get(in.first)) late += mat->forage_level >= 74;
+            Check(potion && potion->consumable && fs::exists(potion->icon) && recipe && late >= 1 &&
+                      recipe->craft_level >= 74,
+                  string(id) + " is brewed from a late herb, at Brewing " +
+                      (recipe ? std::to_string(recipe->craft_level) : string("?")));
+            Check(scroll && scroll->learn == id && recipe && scroll->value == 20 + 6 * recipe->craft_level &&
+                      sold.count(scroll->id),
+                  string(id) + "'s recipe is a scroll somebody sells, priced as the others are");
+        }
+        // Drunk: the elixir lifts every way of fighting, and the last ward
+        // keeps everything off.
+        World w;
+        w.player.Init(ctx, "player_hero");
+        if (w.LoadMap("overworld", "start", ctx)) {
+            w.enemies.clear();
+            Player& p = w.player;
+            LevelUp lu;
+            for (int sk : {SKILL_ATTACK, SKILL_STRENGTH, SKILL_RANGED, SKILL_MAGIC, SKILL_HITPOINTS})
+                p.skills.AddXp(sk, XpForLevel(90), lu);
+            p.SyncDefence(false);
+            p.skills.ResetCurrent();
+            p.SyncHitpoints();
+            const auto slot = [&](const string& item) {
+                for (int i = 0; i < p.inventory.SlotCount(); ++i) if (p.inventory.Slot(i).id == item) return i;
+                return -1;
+            };
+            string why;
+            p.inventory.Add("firmament_elixir", 1);
+            const ItemDef* elixir = items.Get("firmament_elixir");
+            Check(p.Consume(slot("firmament_elixir"), why), "the Firmament Elixir can be drunk");
+            bool lifted = elixir && elixir->boosts.size() == 5;
+            if (elixir)
+                for (const auto& b : elixir->boosts)
+                    lifted &= p.skills.Current(b.first) == p.skills.Level(b.first) + ItemDef::BoostGain(b.second, p.skills.Level(b.first));
+            Check(lifted, "and lifts all five ways of fighting by four and a tenth");
+            for (int f = 0; f < 120; ++f) frames(w, 1);
+            p.inventory.Add("primordium_ward", 1);
+            Check(p.Consume(slot("primordium_ward"), why), "the Primordium Ward can be drunk (" + why + ")");
+            bool warded = true;
+            for (Status s : {Status::Burn, Status::Wet, Status::Chill, Status::Frozen, Status::Electrified,
+                             Status::Concussed, Status::Poison, Status::Bleed})
+                warded &= p.Warded(s) && p.WardLeft(s) > 9.0f * 60.0f;
+            Check(warded, "and for ten minutes no fire, frost, water, lightning, poison, bleeding or stunning takes");
+            Check(p.Afflict(Status::Electrified, 40, statuses, p.x, p.y) == Status::COUNT &&
+                      !p.statuses.Has(Status::Electrified),
+                  "a bolt of lightning finds nothing to take hold of");
+        }
+    }
+}
+
+// The trees past 70: three rows more in every branch, at 78, 86 and 94 -- a
+// passive of two, a point that grows the branch's own ability, and a second
+// capstone. Each growth is held against the same character a row short.
+static void TestLateTreeRows(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    Section("the trees past 70: three rows more, and what grows the abilities");
+
+    Input input;
+    std::mt19937 rng(7878);
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+    ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.statuses = &statuses; ctx.input = &input;       ctx.rng = &rng;
+    const float dt = 1.0f / 60.0f;
+    const auto field = [&](World& w, const char* who, const string& weapon, int skill) {
+        w.player.Init(ctx, who);
+        if (!w.LoadMap("overworld", "start", ctx)) return false;
+        w.enemies.clear();
+        w.clock.Set(1, 12.0f);
+        LevelUp lu;
+        w.player.skills.AddXp(skill, XpForLevel(99), lu);
+        w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(70), lu);
+        w.player.SyncHitpoints();
+        w.player.hp = w.player.max_hp;
+        w.player.SyncMana();
+        w.player.RestoreMana();
+        w.player.equipment.Unequip(SLOT_SHIELD);
+        w.player.equipment.Equip(SLOT_WEAPON, weapon);
+        w.player.facing = FACE_RIGHT;
+        w.player.sprite.facing = FACE_RIGHT;
+        return true;
+    };
+    // A branch learned from the top down to `row`, and its ability on slot 0.
+    const auto down_to = [&](World& w, AttackStyle style, int branch, int row, const char* ability) {
+        const TalentTree& t = trees.Tree(style);
+        bool ok = true;
+        for (int r = 0; r <= row; ++r)
+            if (const TalentNode* n = t.At(branch, r)) ok &= w.player.talents.Learn(n->id, w.player.skills);
+        if (ability) ok &= w.player.talents.SetAbility(0, ability);
+        return ok;
+    };
+    const auto sturdy = [&](World& w, float dx) -> Enemy* {
+        const EnemyDef* stats = enemy_db.Get("boar");
+        if (!stats) return nullptr;
+        EnemySpawnDef def;
+        def.type = "boar"; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+        def.x = w.player.x + dx; def.y = w.player.y;
+        auto e = std::make_unique<Enemy>();
+        e->Init(stats, def, ctx);
+        e->max_hp = 60000;
+        e->hp = e->max_hp;
+        Enemy* raw = e.get();
+        w.enemies.push_back(std::move(e));
+        return raw;
+    };
+    const int CAP = SkillTrees::CAPSTONE_ROW;
+
+    // --- the rows are there, every one a milestone eight levels on -------------------------------------
+    {
+        bool rows_ok = true;
+        for (int st = 0; st < 3; ++st) {
+            const TalentTree& t = trees.Tree(static_cast<AttackStyle>(st));
+            for (int b = 0; b < 3; ++b)
+                for (int r = CAP + 1; r < SkillTrees::ROWS; ++r) {
+                    const TalentNode* n = t.At(b, r);
+                    const TalentNode* above = t.At(b, r - 1);
+                    if (!n || !above || n->level != above->level + 8 || n->effects.empty()) rows_ok = false;
+                }
+        }
+        Check(rows_ok, "every branch of every tree goes on past its capstone: rows at 78, 86 and 94, each eight levels "
+                       "after the last, where 70 was the end");
+    }
+
+    // --- the hero: Bloodrush, Rallying Roar, Immovable -----------------------------------------------------
+    {
+        World a, b;
+        if (field(a, "player_hero", "iron_sword", SKILL_ATTACK) && field(b, "player_hero", "iron_sword", SKILL_ATTACK)) {
+            const bool learned = down_to(a, AttackStyle::Melee, 0, CAP + 1, "frenzy") &&
+                                 down_to(b, AttackStyle::Melee, 0, CAP + 2, "frenzy");
+            const float slow_a = a.player.WeaponSpeed(), slow_b = b.player.WeaponSpeed();
+            const bool went = a.player.TryAbility(0, a) && b.player.TryAbility(0, b);
+            const float time_a = a.player.BuffLeft(Player::BUFF_FRENZY), time_b = b.player.BuffLeft(Player::BUFF_FRENZY);
+            const float fast_a = a.player.WeaponSpeed() / slow_a, fast_b = b.player.WeaponSpeed() / slow_b;
+            Check(learned && went && fabsf(time_a - Player::FRENZY_TIME) < 0.01f && fabsf(time_b - time_a - 3.0f) < 0.01f &&
+                      fabsf(fast_a - (1.0f - Player::FRENZY_SPEED)) < 0.01f && fabsf(fast_b - (1.0f - Player::FRENZY_SPEED - 0.1f)) < 0.01f,
+                  "Bloodrush: Frenzy runs three seconds longer, and a tenth quicker again");
+        }
+    }
+    {
+        World a, b;
+        if (field(a, "player_hero", "iron_sword", SKILL_ATTACK) && field(b, "player_hero", "iron_sword", SKILL_ATTACK)) {
+            const bool learned = down_to(a, AttackStyle::Melee, 1, CAP + 1, "war_cry") &&
+                                 down_to(b, AttackStyle::Melee, 1, CAP + 2, "war_cry");
+            const float plain_a = a.player.TalentDamage(AttackStyle::Melee, AttackType::Light);
+            const float plain_b = b.player.TalentDamage(AttackStyle::Melee, AttackType::Light);
+            const bool went = a.player.TryAbility(0, a) && b.player.TryAbility(0, b);
+            const float lift_a = a.player.TalentDamage(AttackStyle::Melee, AttackType::Light) - plain_a;
+            const float lift_b = b.player.TalentDamage(AttackStyle::Melee, AttackType::Light) - plain_b;
+            Check(learned && went && fabsf(lift_a - Player::WAR_CRY_DAMAGE) < 0.01f && fabsf(lift_b - lift_a - 0.15f) < 0.01f &&
+                      fabsf(b.player.BuffLeft(Player::BUFF_WAR_CRY) - a.player.BuffLeft(Player::BUFF_WAR_CRY) - 4.0f) < 0.01f,
+                  "Rallying Roar: War Cry lifts blows 15% more, for four seconds longer");
+        }
+    }
+    {
+        World a, b;
+        if (field(a, "player_hero", "iron_sword", SKILL_ATTACK) && field(b, "player_hero", "iron_sword", SKILL_ATTACK)) {
+            const bool learned = down_to(a, AttackStyle::Melee, 2, CAP + 1, "stand_fast") &&
+                                 down_to(b, AttackStyle::Melee, 2, CAP + 2, "stand_fast");
+            const bool went = a.player.TryAbility(0, a) && b.player.TryAbility(0, b);
+            const int hit_a = a.GroundHitPlayer(40, false), hit_b = b.GroundHitPlayer(40, false);
+            Check(learned && went && fabsf(a.player.StandFastShare() - Player::STAND_FAST_SHARE) < 0.001f &&
+                      fabsf(b.player.StandFastShare() - 0.5f) < 0.001f && hit_b < hit_a &&
+                      fabsf(b.player.BuffLeft(Player::BUFF_STAND_FAST) - a.player.BuffLeft(Player::BUFF_STAND_FAST) - 3.0f) < 0.01f,
+                  "Immovable: Stand Fast holds three seconds longer and lets through half of a blow (" +
+                      std::to_string(hit_b) + " of what was " + std::to_string(hit_a) + ")");
+        }
+    }
+
+    // --- the warden: Deadly Mark, Arrow Storm, Iron Jaws -----------------------------------------------
+    {
+        World a, b;
+        if (field(a, "player_warden", "oak_shortbow", SKILL_RANGED) && field(b, "player_warden", "oak_shortbow", SKILL_RANGED)) {
+            const bool learned = down_to(a, AttackStyle::Ranged, 0, CAP + 1, "hunters_mark") &&
+                                 down_to(b, AttackStyle::Ranged, 0, CAP + 2, "hunters_mark");
+            Enemy* boar_a = sturdy(a, 120.0f);
+            Enemy* boar_b = sturdy(b, 120.0f);
+            const bool went = boar_a && boar_b && a.player.TryAbility(0, a) && b.player.TryAbility(0, b);
+            a.Update(dt, ctx);
+            b.Update(dt, ctx);
+            const bool marked = boar_a && boar_b && boar_a->Marked() && boar_b->Marked();
+            // Fourteen seconds on: past the plain mark's twelve, inside the deadly one's seventeen.
+            for (int f = 0; f < 14 * 60; ++f) {
+                if (boar_a) boar_a->Stagger(1.0f, true);
+                if (boar_b) boar_b->Stagger(1.0f, true);
+                a.player.hp = a.player.max_hp;
+                b.player.hp = b.player.max_hp;
+                a.Update(dt, ctx);
+                b.Update(dt, ctx);
+            }
+            Check(learned && went && marked && !boar_a->Marked() && boar_b->Marked() &&
+                      fabsf(b.player.talents.Global("mark_bonus") - 0.15f) < 0.001f,
+                  "Deadly Mark: the Mark lasts five seconds longer, and what it marks takes 15% more from the warden");
+        }
+    }
+    {
+        World a, b;
+        if (field(a, "player_warden", "oak_shortbow", SKILL_RANGED) && field(b, "player_warden", "oak_shortbow", SKILL_RANGED)) {
+            const bool learned = down_to(a, AttackStyle::Ranged, 1, CAP + 1, "rapid_fire") &&
+                                 down_to(b, AttackStyle::Ranged, 1, CAP + 2, "rapid_fire");
+            const bool went = a.player.TryAbility(0, a) && b.player.TryAbility(0, b);
+            Check(learned && went &&
+                      fabsf(a.player.BuffLeft(Player::BUFF_RAPID_FIRE) - Player::RAPID_TIME) < 0.01f &&
+                      fabsf(b.player.BuffLeft(Player::BUFF_RAPID_FIRE) - Player::RAPID_TIME - 3.0f) < 0.01f,
+                  "Arrow Storm: Rapid Fire lasts three seconds longer");
+        }
+    }
+    {
+        World a, b;
+        if (field(a, "player_warden", "oak_shortbow", SKILL_RANGED) && field(b, "player_warden", "oak_shortbow", SKILL_RANGED)) {
+            const bool learned = down_to(a, AttackStyle::Ranged, 2, CAP + 1, "snare") &&
+                                 down_to(b, AttackStyle::Ranged, 2, CAP + 2, "snare");
+            const bool went = a.player.TryAbility(0, a) && b.player.TryAbility(0, b);
+            a.Update(dt, ctx);
+            b.Update(dt, ctx);
+            float hold_a = 0.0f, hold_b = 0.0f;
+            for (const GroundEffect& g : a.ground_effects) if (g.once) hold_a = g.stagger;
+            for (const GroundEffect& g : b.ground_effects) if (g.once) hold_b = g.stagger;
+            Check(learned && went && fabsf(hold_a - 3.0f) < 0.01f && fabsf(hold_b - 5.0f) < 0.01f,
+                  "Iron Jaws: a Snare holds what it catches two seconds longer");
+        }
+    }
+
+    // --- the wayfarer: Overcharge, Deep Invocation, Bastion ---------------------------------------------
+    {
+        World a, b;
+        if (field(a, "player_wayfarer", "iron_staff", SKILL_MAGIC) && field(b, "player_wayfarer", "iron_staff", SKILL_MAGIC)) {
+            const bool learned = down_to(a, AttackStyle::Magic, 0, CAP + 1, "overload") &&
+                                 down_to(b, AttackStyle::Magic, 0, CAP + 2, "overload");
+            Check(learned && fabsf(a.player.OverloadDamage() - Player::OVERLOAD_DAMAGE) < 0.001f &&
+                      fabsf(b.player.OverloadDamage() - 2.5f) < 0.001f,
+                  "Overcharge: the spell an Overload pays for hits two and a half times as hard");
+        }
+    }
+    {
+        World a, b;
+        if (field(a, "player_wayfarer", "iron_staff", SKILL_MAGIC) && field(b, "player_wayfarer", "iron_staff", SKILL_MAGIC)) {
+            const bool learned = down_to(a, AttackStyle::Magic, 1, CAP + 1, "invoke") &&
+                                 down_to(b, AttackStyle::Magic, 1, CAP + 2, "invoke");
+            a.player.SpendMana(a.player.Mana());
+            b.player.SpendMana(b.player.Mana());
+            const bool went = a.player.TryAbility(0, a) && b.player.TryAbility(0, b);
+            for (int f = 0; f < 5 * 60; ++f) {
+                a.Update(dt, ctx);
+                b.Update(dt, ctx);
+            }
+            // The same regeneration in both, so what is between them is the Invoke's.
+            const float more = static_cast<float>(b.player.Mana() - a.player.Mana()) / static_cast<float>(b.player.MaxMana());
+            Check(learned && went && more > 0.2f && more < 0.3f,
+                  "Deep Invocation: Invoke draws back three quarters of all the mana where it drew half (" +
+                      std::to_string(static_cast<int>(more * 100.0f + 0.5f)) + "% more of it)");
+        }
+    }
+    {
+        World a, b;
+        if (field(a, "player_wayfarer", "iron_staff", SKILL_MAGIC) && field(b, "player_wayfarer", "iron_staff", SKILL_MAGIC)) {
+            const bool learned = down_to(a, AttackStyle::Magic, 2, CAP + 1, "mana_shield") &&
+                                 down_to(b, AttackStyle::Magic, 2, CAP + 2, "mana_shield");
+            const bool went = a.player.TryAbility(0, a) && b.player.TryAbility(0, b);
+            Check(learned && went && fabsf(a.player.ManaShieldLeft() - Player::MANA_SHIELD_TIME) < 0.01f &&
+                      fabsf(b.player.ManaShieldLeft() - Player::MANA_SHIELD_TIME - 5.0f) < 0.01f,
+                  "Bastion: the Mana Shield holds five seconds longer");
+        }
+    }
+}
+
 int main(int argc, char** argv) {
     // Unbuffered (Windows has no line buffering), so a crash does not take what
     // was printed before it with it.
@@ -8064,11 +8826,11 @@ int main(int argc, char** argv) {
         bool ranks_ok = true, gaps = true, effects_known = true;
         for (int st = 0; st < 3; ++st) {
             const TalentTree& t = trees.Tree(static_cast<AttackStyle>(st));
-            // Three full branches eight deep. The melee tree also has Footwork,
+            // Three full branches eleven deep. The melee tree also has Footwork,
             // a fourth branch for moves made on the run, which is not counted.
             size_t core = 0;
             for (const TalentNode& n : t.nodes) core += n.branch < 3 ? 1 : 0;
-            if (core != 24 || t.branches.size() < 3) shape = false;
+            if (core != 3 * SkillTrees::ROWS || SkillTrees::ROWS != 11 || t.branches.size() < 3) shape = false;
             int tech = 0;
             int abilities = 0;
             for (int b = 0; b < 3; ++b)
@@ -8086,6 +8848,11 @@ int main(int argc, char** argv) {
                     if ((r == 4 || r == 6) && !n->Passive()) ranks_ok = false;
                     if (!n->Passive() && n->ranks != 1) ranks_ok = false;
                     if (r == SkillTrees::ROWS - 1 && (n->ranks != 1 || !n->Passive())) ranks_ok = false;
+                    // Past the capstone: a passive of two, one point that grows
+                    // the branch's ability, and a second capstone.
+                    if (r == SkillTrees::CAPSTONE_ROW && (n->ranks != 1 || !n->Passive())) ranks_ok = false;
+                    if (r == SkillTrees::CAPSTONE_ROW + 1 && (n->ranks != 2 || !n->Passive())) ranks_ok = false;
+                    if (r == SkillTrees::CAPSTONE_ROW + 2 && (n->ranks != 1 || !n->Passive())) ranks_ok = false;
                     // A passive where an ability would be is one point, like
                     // the ability it stands in for.
                     if ((r == 3 || r == 5) && n->Passive() && n->ranks != 1) ranks_ok = false;
@@ -8101,7 +8868,7 @@ int main(int argc, char** argv) {
             // The three full branches' ranks; Footwork's are its own.
             int total = 0;
             for (const TalentNode& n : t.nodes) total += n.branch < 3 ? n.ranks : 0;
-            if (total != 42) ranks_ok = false;
+            if (total != 54) ranks_ok = false;
             // Levels come slower the higher they are, so the rows come closer:
             // nothing past the first ability is more than eight levels on.
             for (int r = 4; r < SkillTrees::ROWS; ++r)
@@ -8113,13 +8880,19 @@ int main(int argc, char** argv) {
                 "projectile_speed", "long_shot", "move_speed", "hit_run", "pierce", "stamina", "first_blood", "mana_cost",
                 "attunement", "mana_regen", "crit_mana", "homing", "elemental",
                 "bleed", "punish", "block_cost", "weak_point", "evade", "echo", "max_mana", "hurt_mana", "counter",
-                "follow_through", "magic_block", "mirror"};
+                "follow_through", "magic_block", "mirror",
+                // The late rows: what grows the abilities, and what they share with the boons.
+                "max_health", "defence_share", "war_cry_bonus", "war_cry_time", "frenzy_time", "frenzy_speed",
+                "stand_fast_time", "stand_fast_share", "mark_time", "mark_bonus", "rapid_time", "snare_time",
+                "overload_damage", "invoke_share", "shield_time"};
             for (const TalentNode& n : t.nodes)
                 for (const auto& [effect, amount] : n.effects)
                     if (!known.count(effect)) { effects_known = false; SDL_Log("  unknown effect '%s' on %s", effect.c_str(), n.id.c_str()); }
         }
-        Check(shape, "each style has a tree of three branches eight nodes deep");
-        Check(ranks_ok, "two passives of three ranks, a technique, an ability, a passive of two, a second ability, a second passive of two and a capstone: forty-two ranks a tree");
+        Check(shape, "each style has a tree of three branches eleven nodes deep");
+        Check(ranks_ok, "two passives of three ranks, a technique, an ability, a passive of two, a second ability, a second "
+                        "passive of two and a capstone -- and past it a passive of two, a point that grows the branch's "
+                        "ability, and a second capstone: fifty-four ranks a tree");
         Check(99 / SkillTrees::LEVELS_PER_POINT == 33, "against thirty-three points by level 99: a build, not a checklist");
         Check(gaps, "past the first ability no row is more than eight levels after the one before");
         Check(effects_known, "every effect a node names is one the game reads");
@@ -14773,7 +15546,7 @@ int main(int argc, char** argv) {
             static const std::set<string> kShapes = {
                 "bolt", "darts", "rays", "rain", "ring", "spray", "rebuke", "claw", "blades",
                 "cone", "fire_ring", "wall", "wave", "whirlpool", "turbulence", "tornado",
-                "slab", "stone_rain", "burst"};
+                "slab", "stone_rain", "burst", "starfall"};
             bool known = true;
             for (const string& sh : shapes) known &= kShapes.count(sh) > 0;
             Check(known && shapes.size() >= 6,
@@ -22955,6 +23728,9 @@ int main(int argc, char** argv) {
     TestFogOfWar(db);
     TestCombatFixes(db);
     TestBalanceFixes(db);
+    TestLateSpells(db);
+    TestLateTreeRows(db);
+    TestLateGathering(db);
 
     Section("the Brimstone Palace, and its king");
     {

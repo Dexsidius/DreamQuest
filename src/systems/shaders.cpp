@@ -404,7 +404,8 @@ const Art& ArtOf(const string& path) {
     // What is lit from inside and should shine through the dark: every lit
     // window, every fire and light, and a few things that glow of themselves.
     a.glows = a.kind == PROP_WINDOWS || a.halo || a.kind == PROP_PULSE ||
-              any({"herb_glowcap", "herb_moonpetal", "herb_emberbloom", "spell_circle", "demon_throne",
+              any({"herb_glowcap", "herb_moonpetal", "herb_emberbloom", "herb_cinderwort", "herb_aetherbell",
+                   "herb_rimebloom", "spell_circle", "demon_throne",
                    "throne_door", "ice_spire", "enchanting_table", "totem_cinder_king", "totem_cerberus", "steam_vent",
                    "totem_hex_priest", "fetish_pole", "hex_altar", "poto_mitan", "bottle_tree",
                    "cinder_heap", "obsidian_spire", "crystal_cluster", "monolith", "stone_well", "fulgurite_spire",

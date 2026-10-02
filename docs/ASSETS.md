@@ -238,6 +238,41 @@ among:
 .\tools\make_manifest.ps1
 ```
 
+## The late gathering: fish, dishes, herbs and brews past 60
+
+The three late fish are `FISH` entries in `tools/blender_tiers.py`, drawn by
+`build_fish` raw and cooked like the rest: the **frostfin** pale ice-blue with
+navy spots, the **cindergill** charcoal with two ember slits for gills
+(`cindergill_glow`), the **deepgleam** dark teal with a lit lure on a stalk off
+its brow that goes on shining on the plate (`deepgleam_glow`). `fish_icons`
+renders the fish alone, without every tier's icons. The four dishes are
+`build_dish` branches: the **chowder** a crock of cream with blue flakes of
+fish, the **skewers** dark cuts on an iron skewer still glowing at their edges,
+the **broth** a dark clear bowl with the fish's light in it and moonpetal
+floating on top, and the **feast** a dark board with a roast frostfin across
+the front and a joint behind it (rendered level, where the rest lean 18
+degrees). The four herbs are `build_herb` branches -- **rimebloom** the
+emberbloom's pointed petals in ice blue, **cinderwort** dark leaves each laid
+on a larger leaf of ember so the glow is a rim, **tidecress** a clump of round
+sea-green leaves with a drop of water, **aetherbell** three lit bells on an
+arching stem -- and the nine brews are `POTIONS` entries, the four wards in the
+ward's bottle.
+
+In the world, `herb_rimebloom`, `herb_cinderwort`, `herb_tidecress` and
+`herb_aetherbell` (40, each with its `_picked`) are builders in
+`tools/blender_props.py`, each growing out of its own land's ground: a drift of
+snow, a scorch of ash, a patch of wet sand, a tuft on the clouds' stone. The
+rimebloom's petals are cones turned out 68 degrees about the vertical (`rot=(0,
+tilt, a)`, Blender's XYZ order), a saturated blue so they hold on snow.
+
+```powershell
+.\tools\make_tiers.ps1 -What fish -Names raw_frostfin,cooked_frostfin,raw_cindergill,cooked_cindergill,raw_deepgleam,cooked_deepgleam
+.\tools\make_tiers.ps1 -What food -Names frostfin_chowder,cindergill_skewers,deepgleam_broth,hollowmarch_feast
+.\tools\make_tiers.ps1 -What brewing -Names rimebloom,cinderwort,tidecress,aetherbell,rimebloom_tonic,glacier_ward,draught_of_fury,ashen_ward,hawkeye_draught,tidemind_draught,storm_ward,firmament_elixir,primordium_ward
+.\tools\make_props.ps1 -Only herb_rimebloom,herb_rimebloom_picked,herb_cinderwort,herb_cinderwort_picked,herb_tidecress,herb_tidecress_picked,herb_aetherbell,herb_aetherbell_picked
+.\tools\make_manifest.ps1
+```
+
 ## How the import works
 
 The CraftPix tilesets are packed autotile sheets, and LevelEdit-Plus works with

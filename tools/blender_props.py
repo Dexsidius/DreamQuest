@@ -3108,6 +3108,129 @@ def herb_starlily(picked):
     return (HERB_SPAN, HERB_ELEVATION)
 
 
+# The late herbs, each growing out of the ground of its own land: a drift of
+# snow, a scorch of ash, wet sand, a tuft on the clouds' stone.
+PALETTE.update({
+    "rimebloom_petal":   (0.420, 0.690, 1.000),
+    "rimebloom_core":    (0.957, 0.988, 1.000),
+    "rimebloom_leaf":    (0.384, 0.502, 0.580),
+    "rimebloom_snow":    (0.902, 0.933, 0.965),
+    "cinderwort_leaf":   (0.239, 0.208, 0.208),
+    "cinderwort_ember":  (1.000, 0.494, 0.141),
+    "cinderwort_spark":  (1.000, 0.808, 0.400),
+    "tidecress_leaf":    (0.165, 0.553, 0.514),
+    "tidecress_leaf_lt": (0.400, 0.816, 0.718),
+    "tidecress_wet":     (0.180, 0.302, 0.322),
+    "tidecress_drop":    (0.820, 0.961, 1.000),
+    "aetherbell_bell":   (0.769, 0.710, 1.000),
+    "aetherbell_glow":   (1.000, 0.949, 0.761),
+    "aetherbell_leaf":   (0.459, 0.580, 0.702),
+})
+
+
+def herb_rimebloom(picked):
+    """A blue flower of ice in a drift of snow: its petals pointed like a frost
+    crystal's, where the moonpetal's are round, and paler."""
+    import random
+    rng = random.Random(23)
+    cyl("drift", 0.16, 0.03, (0, 0, 0.015), "rimebloom_snow", verts=18)
+    ground_tuft(rng, 6, 0.18, "rimebloom_leaf", 0.16, 0.05, z=0.04)
+    if picked:
+        stubs(rng, 3, 0.1, 0.08, "rimebloom_leaf")
+        return (HERB_SPAN, HERB_ELEVATION)
+    tilt = math.radians(68)
+    for i, (x, y, h) in enumerate(((-0.08, 0.03, 0.32), (0.11, -0.03, 0.25), (0.0, 0.12, 0.20))):
+        top = stem("stem_%d" % i, h, (x, y, 0.0), "rimebloom_leaf", 0.016)
+        for k in range(6):
+            a = k / 6 * math.tau + 0.3 * i
+            d = (math.sin(tilt) * math.cos(a), math.sin(tilt) * math.sin(a), math.cos(tilt))
+            reach = 0.03 + 0.07
+            cone("petal_%d_%d" % (i, k), 0.042, 0.15,
+                 (top[0] + d[0] * reach, top[1] + d[1] * reach, top[2] + d[2] * reach), "rimebloom_petal",
+                 rot=(0.0, tilt, a), verts=4, emit=0.25)
+        sphere("core_%d" % i, 0.04, (top[0], top[1], top[2] + 0.02), "rimebloom_core", emit=0.8)
+    return (HERB_SPAN, HERB_ELEVATION)
+
+
+def herb_cinderwort(picked):
+    """Charred leaves smouldering at their edges, on the ash at the lava's
+    edge: each leaf a dark one laid on a larger one of ember, so the glow is a
+    rim round the black -- and sparks going up off it."""
+    import random
+    rng = random.Random(24)
+    cyl("ash", 0.19, 0.015, (0, 0, 0.008), "ash", verts=16)
+    if picked:
+        stubs(rng, 3, 0.1, 0.07, "cinderwort_leaf")
+        sphere("ember", 0.026, (0.03, -0.02, 0.03), "cinderwort_ember", emit=1.2)
+        return (HERB_SPAN, HERB_ELEVATION)
+    for i in range(7):
+        a = i / 7 * math.tau + rng.random() * 0.3
+        r = 0.05 + 0.03 * (i % 2)
+        pitch = 28 + 10 * (i % 3)
+        at = (math.cos(a) * r, math.sin(a) * r, 0.06 + 0.02 * (i % 3))
+        glow = leaf("rim_%d" % i, 0.27, 0.13, (at[0], at[1], at[2] - 0.014), math.degrees(a), pitch,
+                    "cinderwort_ember")
+        glow.data.materials[0] = material("rim_%d" % i, "cinderwort_ember", 0.6, 0.0, 1.0)
+        leaf("leaf_%d" % i, 0.23, 0.09, at, math.degrees(a), pitch, "cinderwort_leaf")
+    top = stem("stem", 0.20, (0.0, 0.0, 0.0), "cinderwort_leaf", 0.022)
+    for k, yaw in enumerate((40, 220)):
+        glow = leaf("crown_rim_%d" % k, 0.20, 0.10, (top[0], top[1], top[2] - 0.012), yaw, 62, "cinderwort_ember")
+        glow.data.materials[0] = material("crown_rim_%d" % k, "cinderwort_ember", 0.6, 0.0, 1.0)
+        leaf("crown_%d" % k, 0.17, 0.07, top, yaw, 62, "cinderwort_leaf")
+    for k, (x, y, z) in enumerate(((-0.07, 0.02, 0.36), (0.06, -0.03, 0.42), (0.0, 0.05, 0.49))):
+        sphere("spark_%d" % k, 0.022, (x, y, z), "cinderwort_spark", emit=1.5)
+    return (HERB_SPAN, HERB_ELEVATION)
+
+
+def herb_tidecress(picked):
+    """A clump of small round leaves, glossy and wet, on a dark patch of wet
+    sand, with drops of the sea caught in it."""
+    import random
+    rng = random.Random(25)
+    cyl("wet", 0.21, 0.012, (0, 0, 0.006), "tidecress_wet", verts=18)
+    if picked:
+        stubs(rng, 4, 0.1, 0.06, "tidecress_leaf")
+        return (HERB_SPAN, HERB_ELEVATION)
+    for i in range(14):
+        a = rng.random() * math.tau
+        r = 0.16 * math.sqrt(rng.random())
+        h = 0.06 + 0.17 * (1.0 - r / 0.16) * (0.6 + 0.4 * rng.random())
+        x, y = math.cos(a) * r, math.sin(a) * r
+        cyl("stalk_%d" % i, 0.01, h, (x, y, h / 2), "tidecress_leaf", verts=6)
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.052, location=(x, y, h), segments=12, ring_count=6)
+        lf = bpy.context.active_object
+        lf.name = "leaf_%d" % i
+        lf.scale = (1.0, 1.0, 0.42)
+        lf.data.materials.append(material("leaf_%d" % i, "tidecress_leaf_lt" if i % 3 == 0 else "tidecress_leaf",
+                                          0.35))
+    for k, (x, y, z) in enumerate(((0.05, -0.06, 0.21), (-0.07, 0.02, 0.17))):
+        sphere("drop_%d" % k, 0.024, (x, y, z), "tidecress_drop", rough=0.2, emit=0.6)
+    return (HERB_SPAN, HERB_ELEVATION)
+
+
+def herb_aetherbell(picked):
+    """Pale bells hanging from leaning stems, lit from inside: the flower of a
+    land that is all sky."""
+    import random
+    rng = random.Random(26)
+    ground_tuft(rng, 6, 0.18, "aetherbell_leaf", 0.18, 0.06)
+    if picked:
+        stubs(rng, 2, 0.06, 0.10, "aetherbell_leaf")
+        return (HERB_SPAN, HERB_ELEVATION)
+    for i, (x, y, h, lean) in enumerate(((-0.08, 0.04, 0.44, (0.36, -0.12)), (0.09, -0.02, 0.36, (-0.40, -0.16)))):
+        top = stem("stem_%d" % i, h, (x, y, 0.0), "aetherbell_leaf", 0.016, lean=lean)
+        for k, t in enumerate((1.0, 0.70)):
+            px = x + (top[0] - x) * t + lean[0] * 0.05
+            py = y + (top[1] - y) * t + lean[1] * 0.05
+            pz = top[2] * t
+            cyl("hang_%d_%d" % (i, k), 0.007, 0.05, (px, py, pz - 0.025), "aetherbell_leaf", verts=6)
+            sc = 1.0 - 0.18 * k
+            cone("bell_%d_%d" % (i, k), 0.085 * sc, 0.13 * sc, (px, py, pz - 0.05 - 0.065 * sc), "aetherbell_bell",
+                 verts=14, emit=0.15)
+            sphere("light_%d_%d" % (i, k), 0.042 * sc, (px, py, pz - 0.05 - 0.12 * sc), "aetherbell_glow", emit=1.2)
+    return (HERB_SPAN, HERB_ELEVATION)
+
+
 def prop_cauldron():
     """An iron pot on three legs over a small fire, full to near the brim with
     something green. The green is the whole identity: without it, a pot."""
@@ -3140,7 +3263,7 @@ def prop_cauldron():
 
 
 HERBS = ("marigold", "brookmint", "nettle", "bogbean", "mountain_sage", "glowcap",
-         "emberbloom", "moonpetal", "starlily", "flax")
+         "emberbloom", "moonpetal", "starlily", "flax", "rimebloom", "cinderwort", "tidecress", "aetherbell")
 HERB_PROPS = {"cauldron": (prop_cauldron, 48)}
 for _name in HERBS:
     _builder = globals()["herb_" + _name]

@@ -312,6 +312,14 @@ public:
     static constexpr float INVOKE_SHARE    = 0.5f;     // of all the mana there is
     static constexpr int   WEAK_POINT_MAX  = 4;
     static constexpr int   BLEED_CHAIN     = 3;        // hits into a chain before wounds stay open
+    // The trees' late rows grow the abilities above them (Bloodrush, Rallying
+    // Roar, Immovable, Bastion...): each number is the constant and what the
+    // tree adds to it, asked here and nowhere else.
+    float WarCryDamage() const    { return WAR_CRY_DAMAGE + talents.Global("war_cry_bonus"); }
+    float FrenzySpeed() const     { return std::min(0.6f, FRENZY_SPEED + talents.Global("frenzy_speed")); }
+    float StandFastShare() const  { return std::clamp(STAND_FAST_SHARE - talents.Global("stand_fast_share"), 0.2f, 1.0f); }
+    float StandFastTime() const   { return STAND_FAST_TIME + talents.Global("stand_fast_time"); }
+    float OverloadDamage() const  { return OVERLOAD_DAMAGE + talents.Global("overload_damage"); }
     bool  TryAbility(int slot, World& world);
     // The ability's own: it goes with the ability wherever it is carried. It
     // was the slot's, and moving Stand Fast to another slot on the Skills page

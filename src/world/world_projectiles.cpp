@@ -811,7 +811,10 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
             const float was_base = casting_base;
             casting = q.cast;
             casting_base = q.base;
-            SpawnProjectile(q.projectile, muzzle.x + cosf(a) * 12.0f, muzzle.y + sinf(a) * 12.0f, cosf(a), sinf(a),
+            // Abreast of the line, for a crest of a wave: to the right of the
+            // aim is its own direction turned a quarter.
+            SpawnProjectile(q.projectile, muzzle.x + cosf(a) * 12.0f - aim.y * q.side,
+                            muzzle.y + sinf(a) * 12.0f + aim.x * q.side, cosf(a), sinf(a),
                             player.Profile(), AttackStyle::Magic, q.mult, true, ctx);
             casting = was;
             casting_base = was_base;

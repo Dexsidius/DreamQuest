@@ -1090,10 +1090,10 @@ static bool QuietAround(const MapBuilder& m, int x, int y) {
 // behind the scenery (a swallowtail was put down behind a bush on the
 // Whisperwood's verge, and all that showed of it was its feelers). The spot is
 // a little off the cell's middle, by the same hash, so they do not line up.
-// Returns how many went down.
-static int PlaceBugs(MapBuilder& m, const string& bug, int want, int CELL, int cx0, int cy0, int cx1, int cy1,
-                     uint32_t salt, float apart, const std::function<bool(int, int)>& fits, int& index,
-                     vector<std::pair<int, int>>* taken = nullptr) {
+// Returns how many went down. The late herbs go down the same way (PlaceHerbs).
+static int Spread(MapBuilder& m, int want, int CELL, int cx0, int cy0, int cx1, int cy1, uint32_t salt, float apart,
+                  const std::function<bool(int, int)>& fits, const std::function<void(int, int)>& place,
+                  vector<std::pair<int, int>>* taken = nullptr) {
     struct Spot { float rank; int cx, cy; };
     vector<Spot> spots;
     for (int cy = cy0; cy < cy1; ++cy)
@@ -1115,11 +1115,29 @@ static int PlaceBugs(MapBuilder& m, const string& bug, int want, int CELL, int c
         const int x = s.cx * CELL + 8 + static_cast<int>(Hash2(s.cx, s.cy, static_cast<int>(salt) + 1) * 16.0f);
         const int y = s.cy * CELL + 12 + static_cast<int>(Hash2(s.cx, s.cy, static_cast<int>(salt) + 2) * 14.0f);
         if (!m.Clear(x, y) || m.OnHazard(x, y) || !QuietAround(m, x, y) || m.Covered(x, y)) continue;
-        PlaceBug(m, bug, x, y, index);
+        place(x, y);
         mine.push_back({s.cx, s.cy});
         ++placed;
     }
     return placed;
+}
+static int PlaceBugs(MapBuilder& m, const string& bug, int want, int CELL, int cx0, int cy0, int cx1, int cy1,
+                     uint32_t salt, float apart, const std::function<bool(int, int)>& fits, int& index,
+                     vector<std::pair<int, int>>* taken = nullptr) {
+    return Spread(m, want, CELL, cx0, cy0, cx1, cy1, salt, apart, fits,
+                  [&](int x, int y) { PlaceBug(m, bug, x, y, index); }, taken);
+}
+
+// The late herbs -- rimebloom in the Frostreach, and cinderwort, tidecress and
+// aetherbell each in its own land of the Primordium -- grow nowhere earlier,
+// and go down as the bugs do: a few cells apart, on open ground nothing else
+// stands on or is used from. Says how many went down, as the bugs do.
+static int PlaceHerbs(MapBuilder& m, const string& herb, int want, int CELL, int cx0, int cy0, int cx1, int cy1,
+                      uint32_t salt, float apart, const std::function<bool(int, int)>& fits, int& index) {
+    const int got = Spread(m, want, CELL, cx0, cy0, cx1, cy1, salt, apart, fits,
+                           [&](int x, int y) { PlaceHerb(m, herb, x, y, index); });
+    std::printf("  %s: %d %s\n", m.Id().c_str(), got, herb.c_str());
+    return got;
 }
 
 // A hive to take honey from: its picture, a band of collision at its foot, and
@@ -5066,6 +5084,19 @@ static void BuildAshenPath() {
     m.Enemy("demon", 52 * CELL + 16, 20 * CELL + 16, 12, 60.0f, 220.0f);
     m.Enemy("imp", 88 * CELL + 16, 20 * CELL + 16, 16, 60.0f, 220.0f);
     m.Enemy("imp", 86 * CELL + 16, 36 * CELL + 16, 15, 60.0f, 220.0f);
+
+    // --- the moat, fished ------------------------------------------------------------------------
+    // Something lives in the molten rock round the palace: the cindergill
+    // (Fishing 78). Cast for from the outer banks of the moat's two arms, a
+    // little way into the lava -- before the firebugs are let out, so they
+    // keep their distance from where a line goes in.
+    for (int i = 0; i < 2; ++i) {
+        const int row = i == 0 ? 18 : 23;
+        PlaceFishingSpot(m, "fish_moat_w" + std::to_string(i), (MOAT_W - 1) * CELL + 8, row * CELL + 16,
+                         "lava moat", {"raw_cindergill"}, 78);
+        PlaceFishingSpot(m, "fish_moat_e" + std::to_string(i), (MOAT_E + 1) * CELL + CELL - 8, row * CELL + 16,
+                         "lava moat", {"raw_cindergill"}, 78);
+    }
 
     // --- firebugs, where the lava runs --------------------------------------------------------
     // On the banks two or three cells off molten rock -- never on it, never on
@@ -10850,6 +10881,18 @@ static void Beetles(MapBuilder& m, const vector<vector<plat::Pt>>& roads, uint32
     }, bug_i);
     std::printf("  %s: %d rime beetles\n", m.Id().c_str(), got);
 }
+
+// Rimebloom (Foraging 74), the Frostreach's own herb: on the same open ground
+// as its beetles, a little nearer the roads, kept off the beetles' spots by
+// QuietAround -- so it goes down after them.
+static void Rimebloom(MapBuilder& m, const vector<vector<plat::Pt>>& roads, uint32_t salt, int want,
+                      const std::function<bool(int, int)>& fits, float far = 10.0f) {
+    int herb_i = 0;
+    PlaceHerbs(m, "rimebloom", want, CELL, 4, 4, W - 4, H - 4, salt, 6.0f, [&](int cx, int cy) {
+        const float gap = wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy));
+        return gap >= 2.0f && gap <= far && fits(cx, cy);
+    }, herb_i);
+}
 }   // namespace frost
 
 // --- the Draugr Barrows: the heath of the dead -------------------------------------------
@@ -10913,10 +10956,13 @@ static void BuildFrostBarrows() {
         return {};
     });
     // Rime beetles on the frozen turf between the mounds.
-    Beetles(m, roads, 7401u, 6, [&](int cx, int cy) {
+    const auto turf = [&](int cx, int cy) {
         for (const auto& b : mounds) if (abs(cx - b[0]) < 5 && abs(cy - b[1]) < 4) return false;
         return !(abs(cx - 16) < 6 && abs(cy - 26) < 5) && !(abs(cx - 56) < 6 && abs(cy - 26) < 5);
-    });
+    };
+    Beetles(m, roads, 7401u, 6, turf);
+    // And rimebloom in the same frozen turf.
+    Rimebloom(m, roads, 7501u, 4, turf);
     PlaceRoamers(m);
     PlaceNightVisitors(m, kNights, 7, [&](int cx, int cy) -> bool {
         return wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy)) > 4.0f;
@@ -10985,9 +11031,17 @@ static void BuildFrostMere() {
     m.Spawn("from_cabin", hx, hy + 22);
     Solid(m, "woodpile", hx + 100, hy - 30, 55, 5, 14);
     Solid(m, "pelt_rack", hx - 104, hy - 34, 61, 5, 4);
-    // The trapper's holes in the ice round it, where the fish were.
-    for (const auto& h : {std::pair<int, int>{-190, 60}, {170, 80}, {40, 150}, {-80, 190}})
-        Solid(m, "ice_hole", hx + h.first, hy + h.second, 30, 8, 26);
+    // The trapper's holes in the ice round it, where the fish were -- and are:
+    // a line let down through any of them takes the frostfin (Fishing 68), from
+    // the ice beside it. The spot is the open water in the hole.
+    {
+        int hole = 0;
+        for (const auto& h : {std::pair<int, int>{-190, 60}, {170, 80}, {40, 150}, {-80, 190}}) {
+            Solid(m, "ice_hole", hx + h.first, hy + h.second, 30, 8, 26);
+            PlaceFishingSpot(m, "fish_ice_hole_" + std::to_string(hole++), hx + h.first, hy + h.second - 20,
+                             "ice hole", {"raw_frostfin"}, 68);
+        }
+    }
 
     // --- the hunters' camp on the west shore, long left ----------------------------------------
     const int campx = 4 * CELL, campy = 12 * CELL;
@@ -11038,13 +11092,16 @@ static void BuildFrostMere() {
     // not out on it, where somebody stooping after one is somebody standing
     // still on thin ice. All the way round: the shore is the way round here,
     // roads or none.
-    Beetles(m, roads, 7411u, 7, [&](int cx, int cy) {
+    const auto shore = [&](int cx, int cy) {
         if (lake(cx, cy) || islet(cx, cy) || (cx < 16 && cy > 4 && cy < 22)) return false;
         for (int dy = -3; dy <= 3; ++dy)
             for (int dx = -3; dx <= 3; ++dx)
                 if (lake(cx + dx, cy + dy)) return true;
         return false;
-    }, 40.0f);
+    };
+    Beetles(m, roads, 7411u, 7, shore, 40.0f);
+    // Rimebloom on the same shore, where the snow lies over the turf.
+    Rimebloom(m, roads, 7511u, 4, shore, 40.0f);
     // The rare thing that walks round the lake, some days: on the shore, all the way round.
     {
         vector<std::array<int, 2>> loop;
@@ -11132,6 +11189,13 @@ static void BuildFrostGlacier() {
             for (int ox = -1; ox <= 1; ++ox) if (crevasse(cx + ox, cy + oy)) return false;
         if (abs(cx - dx) < 8 && abs(cy - dy) < 7) return false;
         return Fbm(cx * 0.2f, cy * 0.2f, 10273) <= 0.64f;       // glacier ice, not the snow on it
+    });
+    // Rimebloom where the beetles are not: in the snow lying on the glacier,
+    // as clear of the crevasses and the snowmen's ring.
+    Rimebloom(m, roads, 7521u, 4, [&](int cx, int cy) {
+        for (int oy = -1; oy <= 1; ++oy)
+            for (int ox = -1; ox <= 1; ++ox) if (crevasse(cx + ox, cy + oy)) return false;
+        return !(abs(cx - dx) < 8 && abs(cy - dy) < 7);
     });
     // The ladder, filled in where it had nothing, or one kind of thing (see Fill).
     Fill(m, "frostback_troll", 0, "frostback_troll", 72);
@@ -11230,11 +11294,13 @@ static void BuildFrostHowe() {
         return {};
     });
     // Rime beetles on the frost-bitten stone about the barrows, out of the Howe's yard.
-    Beetles(m, roads, 7431u, 6, [&](int cx, int cy) {
+    const auto stone = [&](int cx, int cy) {
         if (abs(cx - 36) < 11 && cy < 30) return false;
         for (const auto& b : mounds) if (abs(cx - b[0]) < 5 && abs(cy - b[1]) < 4) return false;
         return true;
-    });
+    };
+    Beetles(m, roads, 7431u, 6, stone);
+    Rimebloom(m, roads, 7531u, 4, stone);
     PlaceRoamers(m);
     PlaceNightVisitors(m, kNights, 7, [&](int cx, int cy) -> bool {
         return !(abs(cx - 36) < 10 && cy < 29) && wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy)) > 4.0f;
@@ -11590,6 +11656,19 @@ static void BuildPrimKiln() {
         if (lava(cx, cy)) return {};
         return FromBands(bands, Progress(in, on, cx, cy), r, 0.18f);
     });
+    // Cinderwort (Foraging 81), the Kiln's herb: on the scorched ground a cell
+    // to three from the lava, clear of the rift and the wellspring.
+    {
+        int herb_i = 0;
+        PlaceHerbs(m, "cinderwort", 14, CELL, 4, 4, W - 4, H - 4, 9161u, 5.0f, [&](int cx, int cy) {
+            if (lava(cx, cy) || lava(cx, cy + 1) || by(cx, cy, rift_cx, rift_cy, 7, 6) || by(cx, cy, 56, 13, 7, 5))
+                return false;
+            for (int dy = -3; dy <= 3; ++dy)
+                for (int dx = -3; dx <= 3; ++dx)
+                    if (lava(cx + dx, cy + dy)) return true;
+            return false;
+        }, herb_i);
+    }
     Cover(m, bands, in, on);
     m.Write("maps");
 }
@@ -11704,6 +11783,17 @@ static void BuildPrimDeeps() {
     // its north end.
     Well(m, "tide_well", 52 * CELL, 38 * CELL);
     PlaceChest(m, "chest_deeps", 44 * CELL, 36 * CELL, "chest_primordium");
+    // What swims at the bottom of the sea: the deepgleam (Fishing 90), cast for
+    // from the sand at the edge of four of the pools -- before the kelp is
+    // scattered, so none of it stands where a line goes in.
+    {
+        struct Cast { const char* id; int cx, cy; bool east; };
+        const Cast casts[] = {{"fish_deep_nw", 23, 12, true}, {"fish_deep_sw", 20, 44, true},
+                              {"fish_deep_se", 43, 44, false}, {"fish_deep_ne", 52, 14, false}};
+        for (const Cast& c : casts)
+            PlaceFishingSpot(m, c.id, c.cx * CELL + (c.east ? CELL - 8 : 8), c.cy * CELL + 16, "deep pool",
+                             {"raw_deepgleam"}, 90);
+    }
     const auto by = [&](int cx, int cy, int x0, int y0, int rx, int ry) { return abs(cx - x0) <= rx && abs(cy - y0) <= ry; };
     plat::Scatter(roads, 9341u, 2.6f, [&](int cx, int cy, int x, int y, float r, float gap) {
         (void)gap;
@@ -11726,6 +11816,18 @@ static void BuildPrimDeeps() {
         if (pool(cx, cy)) return {};
         return FromBands(bands, Progress(in, on, cx, cy), r, 0.18f);
     });
+    // Tidecress (Foraging 88), the Deeps' herb: on the sand a cell to three from
+    // the pools, clear of the wellspring.
+    {
+        int herb_i = 0;
+        PlaceHerbs(m, "tidecress", 14, CELL, 4, 4, W - 4, H - 4, 9361u, 5.0f, [&](int cx, int cy) {
+            if (pool(cx, cy) || pool(cx, cy + 1) || by(cx, cy, 52, 36, 7, 4)) return false;
+            for (int dy = -3; dy <= 3; ++dy)
+                for (int dx = -3; dx <= 3; ++dx)
+                    if (pool(cx + dx, cy + dy)) return true;
+            return false;
+        }, herb_i);
+    }
     Cover(m, bands, in, on);
     m.Write("maps");
 }
@@ -11813,6 +11915,19 @@ static void BuildPrimFirmament() {
         if (!island(cx, cy) || !joined[cy * W + cx]) return {};
         return FromBands(bands, Progress(in, on, cx, cy), r, 0.18f);
     });
+    // Aetherbell (Foraging 95), the Firmament's herb: on the islands the ways
+    // join up, a cell in from their edges -- never on one that drifts alone,
+    // which nobody can reach.
+    {
+        int herb_i = 0;
+        PlaceHerbs(m, "aetherbell", 14, CELL, 4, 4, W - 4, H - 4, 9461u, 5.0f, [&](int cx, int cy) {
+            if (!joined[cy * W + cx] || by(cx, cy, wx, wy, 5, 4)) return false;
+            for (int dy = -1; dy <= 1; ++dy)
+                for (int dx = -1; dx <= 1; ++dx)
+                    if (!island(cx + dx, cy + dy)) return false;
+            return true;
+        }, herb_i);
+    }
     Cover(m, bands, in, on);
     m.Write("maps");
 }

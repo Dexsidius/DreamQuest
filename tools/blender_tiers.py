@@ -650,7 +650,14 @@ FISH = {
     "pike":   ((0.30, 0.48, 0.30), (0.84, 0.86, 0.62), (0.72, 0.80, 0.50), 0.40, 0.09),
     "salmon": ((0.66, 0.70, 0.78), (0.96, 0.62, 0.56), (0.40, 0.44, 0.56), 0.38, 0.12),
     "eel":    ((0.34, 0.28, 0.18), (0.60, 0.52, 0.34), None,               0.46, 0.085),
+    # The late three: pale as the Mere's ice, charred with live gills, and dark
+    # with a light of its own.
+    "frostfin":   ((0.66, 0.80, 0.92), (0.95, 0.98, 1.00), (0.30, 0.46, 0.72), 0.36, 0.11),
+    "cindergill": ((0.22, 0.19, 0.19), (0.62, 0.30, 0.16), (0.40, 0.30, 0.26), 0.38, 0.12),
+    "deepgleam":  ((0.10, 0.34, 0.42), (0.30, 0.62, 0.64), (0.20, 0.50, 0.56), 0.40, 0.12),
 }
+bc.PALETTE["cindergill_glow"] = (1.00, 0.56, 0.18)
+bc.PALETTE["deepgleam_glow"] = (0.62, 1.00, 0.92)
 for _name, (_body, _belly, _marks, _l, _d) in FISH.items():
     bc.PALETTE["fish_%s_body" % _name] = _body
     bc.PALETTE["fish_%s_belly" % _name] = _belly
@@ -697,7 +704,33 @@ def build_fish(name, parent, cooked=False):
         for k in range(3):
             parts.append(bc.part("grill", mesh_box(0.018, 0.02, depth * 1.6), "cooked_char", parent,
                                  loc=(-length * 0.4 + k * length * 0.35, -depth * 0.6, 0)))
+    if name == "cindergill" and not cooked:
+        # Gills still burning: two ember slits behind the eye.
+        for k in range(2):
+            parts.append(bc.part("gill", bc.mesh_ellipsoid(0.016, 0.014, depth * 0.6), "cindergill_glow", parent,
+                                 loc=(-length * 0.50 + k * 0.045, -depth * 0.52, 0.0)))
+    if name == "deepgleam":
+        # Its own light, on a stalk off its brow -- and it goes on shining
+        # on the plate.
+        parts.append(bc.spike("lure", (-length * 0.62, 0, depth * 0.8), (-length * 1.02, 0, depth * 2.0),
+                              0.022, ("cooked_%s_body" if cooked else "fish_%s_body") % name, parent, r_tip=0.016))
+        parts.append(bc.part("light", bc.mesh_ellipsoid(0.04, 0.035, 0.04), "deepgleam_glow", parent,
+                             loc=(-length * 1.05, -0.01, depth * 2.1)))
     return parts
+
+
+def fish_icons(only=None):
+    """Every fish raw and cooked: with the full set of icons, or by itself
+    (`fish`, with --names raw_frostfin,cooked_frostfin)."""
+    count = 0
+    for name in FISH:
+        for icon, cooked in (("raw_" + name, False), ("cooked_" + name, True)):
+            if only and icon not in only:
+                continue
+            render_icon(icon, lambda t, p, n=name, c=cooked: build_fish(n, p, cooked=c), "wood", 0, 0, 0.94)
+            count += 1
+    print("icons %d fish" % count)
+    return count
 
 
 # --- the armoury ----------------------------------------------------------------------
@@ -1578,11 +1611,7 @@ def all_icons(only_tiers):
     # full set.
     if len(only_tiers) == len(TIERS) and not ARMOURY_ONLY["on"]:
         render_icon("fishing_rod", build_rod, "wood", -135, 0, 1.0)
-        count += 1
-        for name in FISH:
-            render_icon("raw_" + name, lambda t, p, n=name: build_fish(n, p), "wood", 0, 0, 0.94)
-            render_icon("cooked_" + name, lambda t, p, n=name: build_fish(n, p, cooked=True), "wood", 0, 0, 0.94)
-            count += 2
+        count += 1 + fish_icons()
     print("icons %d" % count)
 
 
@@ -1601,6 +1630,14 @@ bc.PALETTE.update({
     "ember_petal": (0.93, 0.24, 0.10), "ember_glow": (1.00, 0.78, 0.26), "ember_stalk": (0.28, 0.16, 0.14),
     "moon_petal": (0.44, 0.58, 0.96), "moon_glow": (0.90, 0.94, 1.00), "moon_stalk": (0.36, 0.42, 0.60),
     "star_petal": (1.00, 0.97, 0.88), "star_glow": (1.00, 0.84, 0.36), "star_stalk": (0.52, 0.74, 0.74),
+    # The late four: an ice flower, a smouldering leaf, sea cress and a sky bell.
+    "rimebloom_petal": (0.66, 0.86, 1.00), "rimebloom_glow": (0.95, 0.99, 1.00),
+    "rimebloom_stalk": (0.38, 0.52, 0.62),
+    "cinder_leaf": (0.26, 0.22, 0.22), "cinder_stalk": (0.20, 0.16, 0.15), "cinder_glow": (1.00, 0.50, 0.14),
+    "cinder_spark_glow": (1.00, 0.82, 0.40),
+    "tide_leaf": (0.16, 0.56, 0.52), "tide_leaf_lt": (0.40, 0.82, 0.72), "tide_stalk": (0.20, 0.42, 0.40),
+    "tide_drop_glow": (0.82, 0.96, 1.00),
+    "aether_bell": (0.86, 0.84, 1.00), "aether_glow": (1.00, 0.95, 0.76), "aether_stalk": (0.46, 0.58, 0.70),
     "glass": (0.76, 0.86, 0.90), "glass_shine": (0.97, 0.99, 1.00), "cork": (0.66, 0.48, 0.30),
     "parchment": (0.90, 0.83, 0.64), "parchment_dk": (0.72, 0.62, 0.44), "rod_wood": (0.40, 0.26, 0.16),
     "seal": (0.72, 0.14, 0.14), "ink": (0.26, 0.20, 0.18),
@@ -1685,18 +1722,57 @@ def build_herb(name, parent):
                                  loc=(x, 0, -0.20 + h)))
             parts.append(bc.part("cap", bc.mesh_ellipsoid(r, r * 0.9, r * 0.55), "cap_glow", parent,
                                  loc=(x, 0, -0.20 + h)))
+    elif name == "cinderwort":
+        # Charred leaves smouldering at the edges -- each a dark leaf on a
+        # larger one of ember -- and sparks going up off them.
+        _sprig(parent, parts, (0, 0, -0.24), (0.0, 0, 0.14), "cinder_stalk", 0.018)
+        for z, size, ang in ((-0.15, 0.19, 200), (-0.15, 0.19, -20), (-0.03, 0.16, 155), (-0.03, 0.16, 25),
+                             (0.08, 0.12, 120), (0.08, 0.12, 60)):
+            parts.append(_leaf(parent, "rim", (0, 0.014, z), size * 1.14, 0.11, ang, "cinder_glow"))
+            parts.append(_leaf(parent, "cl", (0, 0, z), size, 0.08, ang, "cinder_leaf"))
+        for x, z in ((-0.09, 0.20), (0.08, 0.24), (-0.01, 0.30)):
+            parts.append(bc.part("spark", bc.mesh_ellipsoid(0.02, 0.02, 0.02), "cinder_spark_glow", parent,
+                                 loc=(x, -0.02, z)))
+    elif name == "tidecress":
+        # A clump of small round leaves on wet stems, and a drop of the sea on one.
+        for k, (top, n) in enumerate((((-0.11, 0, 0.08), 3), ((0.0, 0, 0.18), 4), ((0.11, 0, 0.06), 3))):
+            _sprig(parent, parts, (0, 0, -0.24), top, "tide_stalk", 0.012)
+            for j in range(n):
+                t = (j + 1) / (n + 0.5)
+                x, z = top[0] * t, -0.24 + (top[2] + 0.24) * t
+                side = -1 if j % 2 else 1
+                parts.append(bc.part("leaf", bc.mesh_ellipsoid(0.05, 0.02, 0.042),
+                                     "tide_leaf" if (j + k) % 2 else "tide_leaf_lt", parent,
+                                     loc=(x + side * 0.05, -0.005, z)))
+            parts.append(bc.part("crown", bc.mesh_ellipsoid(0.055, 0.022, 0.048), "tide_leaf_lt", parent, loc=top))
+        parts.append(bc.part("drop", bc.mesh_ellipsoid(0.03, 0.02, 0.042), "tide_drop_glow", parent,
+                             loc=(0.06, -0.03, 0.0)))
+    elif name == "aetherbell":
+        # An arching stem with three pale bells hanging from it, lit inside.
+        pts = [(-0.14, 0, -0.24), (-0.10, 0, 0.10), (0.04, 0, 0.22), (0.17, 0, 0.16)]
+        for i in range(3):
+            parts.append(bc.spike("stem", pts[i], pts[i + 1], 0.016, "aether_stalk", parent, r_tip=0.013))
+        parts.append(_leaf(parent, "leaf", (-0.12, 0, -0.12), 0.13, 0.055, 20, "aether_stalk"))
+        for x, z, k in ((-0.09, 0.07, 1.0), (0.04, 0.17, 1.1), (0.16, 0.11, 0.95)):
+            parts.append(bc.spike("hang", (x, 0, z + 0.05), (x, 0, z), 0.008, "aether_stalk", parent, r_tip=0.007))
+            parts.append(bc.part("bell", bc.mesh_frustum(0.026 * k, 0.075 * k, 0.12 * k, squash_y=0.8), "aether_bell",
+                                 parent, loc=(x, 0, z)))
+            parts.append(bc.part("light", bc.mesh_ellipsoid(0.04 * k, 0.02, 0.022), "aether_glow", parent,
+                                 loc=(x, -0.02, z - 0.11 * k)))
     else:
         petal, glow, stalk, count, length = {
             "emberbloom": ("ember_petal", "ember_glow", "ember_stalk", 6, 0.12),
             "moonpetal":  ("moon_petal", "moon_glow", "moon_stalk", 6, 0.12),
             "starlily":   ("star_petal", "star_glow", "star_stalk", 6, 0.15),
+            # Pointed like a frost crystal, where the moonpetal's are round.
+            "rimebloom":  ("rimebloom_petal", "rimebloom_glow", "rimebloom_stalk", 6, 0.15),
         }[name]
         centre = (0.0, 0.0, 0.06)
         _sprig(parent, parts, (0, 0, -0.24), centre, stalk)
         parts.append(_leaf(parent, "leaf", (0, 0, -0.14), 0.12, 0.05, 150, stalk))
         for k in range(count):
             ang = 90 + k * 360.0 / count
-            if name == "emberbloom":
+            if name in ("emberbloom", "rimebloom"):
                 a = math.radians(ang)
                 parts.append(bc.spike("petal", centre, (math.cos(a) * length, 0, centre[2] + math.sin(a) * length),
                                       0.04, petal, parent, r_tip=0.006))
@@ -1726,6 +1802,17 @@ POTIONS = {
     "skimmer_tonic":       ((0.16, 0.62, 0.70), False, "tall"),
     "cinderbug_ward":      ((0.96, 0.34, 0.10), True,  "ward"),
     "rimeshell_ward":      ((0.62, 0.86, 1.00), True,  "ward"),
+    # Brewed from the late herbs: each a colour none of the earlier ones has,
+    # the wards in the ward's bottle.
+    "rimebloom_tonic":     ((0.56, 0.80, 1.00), False, "tall"),
+    "glacier_ward":        ((0.30, 0.56, 0.94), True,  "ward"),
+    "draught_of_fury":     ((0.84, 0.08, 0.10), True,  "flask"),
+    "ashen_ward":          ((0.58, 0.54, 0.52), False, "ward"),
+    "hawkeye_draught":     ((0.96, 0.84, 0.26), True,  "tall"),
+    "tidemind_draught":    ((0.10, 0.48, 0.58), True,  "flask"),
+    "storm_ward":          ((0.64, 0.50, 0.98), True,  "ward"),
+    "firmament_elixir":    ((0.78, 0.90, 1.00), True,  "star"),
+    "primordium_ward":     ((0.90, 0.46, 0.90), True,  "ward"),
 }
 bc.PALETTE.update({"ward_band": (0.70, 0.54, 0.24), "ward_band_lt": (0.88, 0.74, 0.40)})
 for _name, (_rgb, _glow, _shape) in POTIONS.items():
@@ -2009,7 +2096,7 @@ def build_enchant_scroll(parent):
 
 
 HERB_ICONS = ["marigold", "brookmint", "nettle", "bogbean", "mountain_sage", "glowcap",
-              "emberbloom", "moonpetal", "starlily"]
+              "emberbloom", "moonpetal", "starlily", "rimebloom", "cinderwort", "tidecress", "aetherbell"]
 
 
 # --- bugs, caught for brewing -----------------------------------------------------------------------
@@ -2128,6 +2215,10 @@ bc.PALETTE.update({
     "skewer":     (0.66, 0.50, 0.30), "frog_leg":  (0.74, 0.62, 0.42),
     "honey":      (0.88, 0.62, 0.18), "honey_lt":  (0.98, 0.80, 0.36),
     "jar_cloth":  (0.88, 0.82, 0.68), "jar_cloth_dk": (0.66, 0.56, 0.42),
+    # The late dishes.
+    "chowder":    (0.93, 0.89, 0.76), "frostfin_flake": (0.62, 0.80, 0.96),
+    "cindergill_cut": (0.32, 0.24, 0.22), "deep_broth": (0.12, 0.36, 0.42),
+    "feast_board": (0.40, 0.26, 0.16), "feast_board_dk": (0.26, 0.16, 0.10),
 })
 
 
@@ -2186,6 +2277,46 @@ def build_dish(name, parent):
                                   0.035, "frog_leg", parent, r_tip=0.02))
             add("char_%d" % side, bc.mesh_ellipsoid(0.05, 0.04, 0.02), "crust_dk", parent,
                 loc=(side * 0.11, -0.06, 0.10))
+    elif name == "frostfin_chowder":
+        # Cream, with pale blue frostfin in it and a fleck of mint.
+        _bowl(parts, parent, "chowder")
+        for k, (x, y) in enumerate(((-0.11, -0.04), (0.09, 0.03), (0.02, -0.09))):
+            add("fish_%d" % k, bc.mesh_ellipsoid(0.075, 0.05, 0.045), "frostfin_flake", parent, loc=(x, y, 0.16))
+        add("herb", bc.mesh_ellipsoid(0.045, 0.03, 0.02), "greens_lt", parent, loc=(-0.02, 0.08, 0.17))
+    elif name == "cindergill_skewers":
+        # An iron skewer, not a stick, and the fish on it dark and still
+        # glowing at the edges.
+        add("stick", bc.mesh_capsule(0.018, 0.018, 0.62), "lamp_iron_lt", parent, loc=(0, 0, 0.30),
+            rot=(0, math.radians(28), 0))
+        for k, z in enumerate((0.16, -0.02, -0.20)):
+            add("cut_%d" % k, bc.mesh_ellipsoid(0.095, 0.085, 0.075), "cindergill_cut", parent,
+                loc=(-z * 0.52, 0, z))
+            add("ember_%d" % k, bc.mesh_ellipsoid(0.05, 0.05, 0.022), "cindergill_glow", parent,
+                loc=(-z * 0.52, -0.07, z + 0.05))
+    elif name == "deepgleam_broth":
+        # A dark, clear broth with the fish's light at the bottom of it and
+        # moonpetal floating on top.
+        _bowl(parts, parent, "deep_broth")
+        add("light", bc.mesh_ellipsoid(0.08, 0.055, 0.02), "deepgleam_glow", parent, loc=(0.0, 0.0, 0.165))
+        for k, (x, y, a) in enumerate(((-0.14, -0.03, 20), (0.13, 0.04, 140), (-0.02, 0.10, 80))):
+            add("petal_%d" % k, bc.mesh_ellipsoid(0.055, 0.03, 0.02), "moon_petal", parent, loc=(x, y, 0.17),
+                rot=(0, 0, math.radians(a)))
+    elif name == "hollowmarch_feast":
+        # A board, loaded: a whole roast frostfin across the front, a joint of
+        # beef behind it, and cindergill and a glowing piece of deepgleam
+        # beside them.
+        add("edge", bc.mesh_ellipsoid(0.46, 0.28, 0.05), "feast_board_dk", parent, loc=(0, 0.02, -0.17))
+        add("board", bc.mesh_ellipsoid(0.44, 0.26, 0.05), "feast_board", parent, loc=(0, 0, -0.14))
+        add("roast", bc.mesh_ellipsoid(0.17, 0.13, 0.13), "meat_done", parent, loc=(0.06, 0.12, 0.0))
+        add("crust", bc.mesh_ellipsoid(0.11, 0.07, 0.04), "crust_dk", parent, loc=(0.06, 0.04, 0.10))
+        fish = bc.empty("fish", (-0.04, -0.14, -0.02), parent)
+        parts.extend(build_fish("frostfin", fish, cooked=True))
+        add("cinder", bc.mesh_ellipsoid(0.07, 0.06, 0.05), "cindergill_cut", parent, loc=(0.30, -0.08, -0.03))
+        add("cinder_ember", bc.mesh_ellipsoid(0.035, 0.03, 0.015), "cindergill_glow", parent,
+            loc=(0.30, -0.13, 0.0))
+        add("deep", bc.mesh_ellipsoid(0.06, 0.05, 0.045), "cooked_deepgleam_body", parent, loc=(-0.30, 0.10, -0.04))
+        add("deep_light", bc.mesh_ellipsoid(0.03, 0.025, 0.02), "deepgleam_glow", parent, loc=(-0.30, 0.05, 0.0))
+        add("herb", bc.mesh_ellipsoid(0.05, 0.035, 0.02), "greens_lt", parent, loc=(0.24, 0.12, -0.04))
     elif name == "egg":
         add("egg", bc.mesh_ellipsoid(0.15, 0.15, 0.20), "shell", parent, loc=(0, 0, 0.0))
         add("shade", bc.mesh_ellipsoid(0.10, 0.10, 0.13), "shell_dk", parent, loc=(0.05, 0.05, -0.04))
@@ -2211,7 +2342,8 @@ def build_dish(name, parent):
 
 
 FOOD_ICONS = ["hearty_stew", "fishermans_broth", "hunters_skewers", "travellers_pie", "moonpetal_tea",
-              "honeyed_oats", "frog_legs", "egg", "milk", "wool", "honey"]
+              "honeyed_oats", "frog_legs", "egg", "milk", "wool", "honey",
+              "frostfin_chowder", "cindergill_skewers", "deepgleam_broth", "hollowmarch_feast"]
 
 
 def food_icons(only=None):
@@ -2219,7 +2351,9 @@ def food_icons(only=None):
     for name in FOOD_ICONS:
         if only and name not in only:
             continue
-        render_icon(name, lambda t, p, n=name: build_dish(n, p), "wood", 18, 0, 0.9)
+        # A board is laid level; everything else leans a little.
+        tilt = 0 if name == "hollowmarch_feast" else 18
+        render_icon(name, lambda t, p, n=name: build_dish(n, p), "wood", tilt, 0, 0.9)
         count += 1
     print("icons %d food" % count)
 
@@ -2824,6 +2958,9 @@ def main():
             brewing_icons(set(names) if names else None)
     if "food" in wanted:
         food_icons(set(names) if names else None)
+    # `fish`: the fish alone, raw and cooked, without every tier's icons.
+    if "fish" in wanted:
+        fish_icons(set(names) if names else None)
     # The rings and amulets: with every icon, or by themselves.
     if "jewellery" in wanted or ("icons" in wanted and not ARMOURY_ONLY["on"]):
         jewellery_icons(tiers, set(names) if names else None)
