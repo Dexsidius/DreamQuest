@@ -127,6 +127,10 @@ struct CombatProfile {
     int attack_bonus = 0, strength_bonus = 0, defence_bonus = 0;
     int ranged_level = 1, magic_level = 1;
     int ranged_bonus = 0, magic_bonus = 0;
+    // A share of whichever level aims the blow, for the hit chance only: a
+    // concussed or arcing hand shakes, and the weight behind the blow is the
+    // same (Player::Profile).
+    float accuracy = 1.0f;
 };
 
 // Which of the three styles an attack is resolved as. Ranged and magic use

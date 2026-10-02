@@ -424,7 +424,10 @@ CombatProfile Player::Profile() const {
         default:                  p.attack_bonus += AFFINITY_BONUS; break;
     }
     // What is on them: a concussed or poisoned player guards worse, a
-    // concussed or arcing one swings worse, as a monster would.
+    // concussed or arcing one aims worse, as a monster would. Aims: the
+    // Ranged and Magic levels set a shot's weight as well as its aim, and
+    // cutting them cut a bow's and a staff's top hit where a sword's -- from
+    // Strength -- was never touched. Now every style loses only its aim.
     if (status_db && statuses.Any()) {
         float attack = 1.0f, defence = 1.0f;
         for (int i = 0; i < STATUS_COUNT; ++i) {
@@ -433,11 +436,8 @@ CombatProfile Player::Profile() const {
             attack *= d->attack;
             defence *= d->defence;
         }
-        const auto scale = [](int level, float k) { return std::max(1, static_cast<int>(std::lround(level * k))); };
-        p.attack_level  = scale(p.attack_level, attack);
-        p.ranged_level  = scale(p.ranged_level, attack);
-        p.magic_level   = scale(p.magic_level, attack);
-        p.defence_level = scale(p.defence_level, defence);
+        p.accuracy = attack;
+        p.defence_level = std::max(1, static_cast<int>(std::lround(p.defence_level * defence)));
     }
     return p;
 }
@@ -996,9 +996,12 @@ void Player::FireStrong(bool charged, float ratio, const World& world) {
     attack.rate    = speed;
     attack.damage_mult = charged ? ChargeMultiplier(ratio) : attack.profile.damage_mult;
     // A greataxe held and let go is a chop, not a bigger sweep: longer down
-    // the line of it, half as wide, and harder.
+    // the line of it, half as wide, and harder -- the plain charged blow only.
+    // With a technique chosen the charge comes out as that, and the Ground
+    // Slam and the Lunge were taking the chop's reach and weight as well.
     const ItemDef* held = equipment.Weapon();
-    const bool own_charge = charged && held && !held->charge_clip.empty() && Style() == AttackStyle::Melee;
+    const bool own_charge = charged && held && !held->charge_clip.empty() && Style() == AttackStyle::Melee &&
+                            ActiveTechnique().empty();
     if (own_charge) {
         attack.profile.reach     *= held->charge_reach;
         attack.profile.width     *= held->charge_sweep;
@@ -1598,13 +1601,18 @@ bool Player::TryAbility(int slot, World& world) {
     const TalentNode* node = talents.Ability(slot);
     if (!node || slot < 0 || slot >= SkillTrees::ABILITY_SLOTS) return false;
     // Nor mid-roll: the roll has the body until they are up.
-    if (dead || jumping || resting || roll_timer > 0.0f || ability_cd[slot] > 0.0f) return false;
+    if (dead || jumping || resting || roll_timer > 0.0f || AbilityCooldown(slot) > 0.0f) return false;
     // Not out of a swing: an ability is a decision, not a cancel. The blink is
     // the exception -- getting out is what it is for.
     const bool escape = node->ability == "blink";
     if (!escape && (attack.Active() || charging)) return false;
     if (node->stamina_cost > 0 && (winded || stamina < static_cast<float>(node->stamina_cost))) return false;
     if (node->mana_cost > 0 && mana < node->mana_cost) return false;
+    // Sunder and Hunter's Mark land on something, or are not let go: with
+    // nothing in reach nothing is spent, as a Blink with nowhere to go spends
+    // nothing. They took the stamina and the cooldown and said so.
+    if (node->ability == "sunder" && !world.AbilityTarget(World::SUNDER_REACH)) return false;
+    if (node->ability == "hunters_mark" && !world.AbilityTarget(World::MARK_REACH)) return false;
 
     // Which way: where the stick is pushed, or failing that the facing.
     float dx = move_axis.x, dy = move_axis.y;
@@ -1683,7 +1691,7 @@ bool Player::TryAbility(int slot, World& world) {
         stamina_delay = STAMINA_DELAY;
     }
     if (node->mana_cost > 0) SpendMana(node->mana_cost);
-    ability_cd[slot] = node->cooldown;
+    ability_cd[node->id] = node->cooldown;
     pending_ability = node->ability;
     Audio::Play(node->mana_cost > 0 ? Sfx::SpellCast : Sfx::SwingHeavy, 0.9f, 0.8f);
     return true;
@@ -1836,7 +1844,11 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
         const ItemDef* held = equipment.Weapon();
         if (!held || held->reload <= 0.0f) reload_left = 0.0f;
     }
-    for (float& cd : ability_cd) cd = std::max(0.0f, cd - dt);
+    for (auto it = ability_cd.begin(); it != ability_cd.end();) {
+        it->second -= dt;
+        if (it->second <= 0.0f) it = ability_cd.erase(it);
+        else ++it;
+    }
     // The roll, and then getting up from it. Follow Through's window runs
     // across both; a quick shot pressed for and never loosed -- the hands were
     // taken by a panel, say -- goes with it.

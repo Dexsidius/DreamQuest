@@ -195,6 +195,7 @@ float HitChanceFor(const CombatProfile& attacker, const CombatProfile& defender,
     int level = attacker.attack_level, bonus = attacker.attack_bonus;
     if (style == AttackStyle::Ranged) { level = attacker.ranged_level; bonus = attacker.ranged_bonus; }
     else if (style == AttackStyle::Magic) { level = attacker.magic_level; bonus = attacker.magic_bonus; }
+    if (attacker.accuracy < 1.0f) level = std::max(1, static_cast<int>(std::lround(level * attacker.accuracy)));
 
     const float att = Effective(level) * (bonus + 64.0f);
     const float def = Effective(defender.defence_level) * (defender.defence_bonus + 64.0f);
@@ -233,12 +234,9 @@ DamageResult RollAttack(const CombatProfile& attacker, const CombatProfile& defe
     return r;
 }
 
+// A melee blow's: see HitChanceFor, which every blow goes through.
 float HitChance(const CombatProfile& attacker, const CombatProfile& defender) {
-    const float att = Effective(attacker.attack_level) * (attacker.attack_bonus + 64.0f);
-    const float def = Effective(defender.defence_level) * (defender.defence_bonus + 64.0f);
-
-    if (att > def) return 1.0f - (def + 2.0f) / (2.0f * (att + 1.0f));
-    return att / (2.0f * (def + 1.0f));
+    return HitChanceFor(attacker, defender, AttackStyle::Melee);
 }
 
 // --- a monster's blow on the player -----------------------------------------------------

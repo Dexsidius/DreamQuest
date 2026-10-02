@@ -298,7 +298,11 @@ Status Enemy::Afflict(Status kind, int blow, const StatusDatabase& db) {
         statuses.rate[i] = total / seconds;
     }
     statuses.left[i] = std::max(statuses.left[i], seconds);
-    if (d->holds)              Stagger(seconds);
+    // A hold holds: frozen in the middle of winding up a heavy blow, it does
+    // not land the blow. A stagger leaves a heavy alone, and so the monster
+    // swung out of the ice and chased at full pace, drawn frozen. (The great
+    // ones are never frozen: see above.)
+    if (d->holds)              Stagger(seconds, true);
     else if (d->stagger > 0.0f) Stagger(d->stagger);
     return kind;
 }

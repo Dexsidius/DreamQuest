@@ -650,7 +650,7 @@ right rests on `J` `K` `L` for the fight, with the panels on the row above.
 | Heavy / charged attack | `K` (hold to charge) | Y (north) |
 | Lock on / next target | `L` | Right trigger |
 | Block (hold, with a shield) | `H` | B (east) |
-| Abilities, once learned in the skill tree | `H`+`J`, `H`+`K`, `H`+`L` | B + X, B + Y, B + right trigger |
+| Abilities, once learned in the skill tree | `H`+`J`, `H`+`K`, `H`+`L` | RB + X, RB + Y, RB + right trigger |
 | Sprint (hold) | `Shift` | Left trigger |
 | Jump / climb | `Space` | Left stick click |
 | Interact | `E` | A (south) |
@@ -1092,7 +1092,7 @@ the same dozen fields off every weapon (`ItemDef`, "the armoury").
 | **Dagger** | one, or **one in each** | 0.72 | Short, quick, and all point: **a third of a target's Defence does nothing against it** (`armour_pierce`). Strikes with the thrust. [A second goes in the other hand](#a-dagger-in-each-hand). |
 | **Mace** | one | 1.12 | The hardest one-handed blow, and one in five **concusses**. Its own overhead `bash`. |
 | **Greatsword** | two | 1.45 | Half again a sword's reach and sixty per cent wider: the two-handed `sweep`, which is mostly wind-up and recovery, because that is what heavy looks like. 28% **bleed**. |
-| **Greataxe** | two | 1.6 | The slowest and the hardest. The same sweep -- and **held and let go it is a chop** (`hew`): longer down the line, half as wide, a third harder. 32% **bleed**. |
+| **Greataxe** | two | 1.6 | The slowest and the hardest. The same sweep -- and **held and let go it is a chop** (`hew`): longer down the line, half as wide, a third harder -- the plain charged blow only; a technique let go from the charge is the technique, and the Ground Slam and the Lunge were taking the chop's reach and weight as well. 32% **bleed**. |
 | **Crossbow** | two | 0.55 | **It goes off the moment it is asked** -- no draw -- at 2.7 times the tier's power where a bow is 2.0, and the bolt goes through two bodies and past 40% of their Defence. Then it is **spanned again** for a second and a bit (`reload`), and nothing can be let off until it is. No combos: nothing chains off a weapon that has to be reloaded -- a crossbow opens no combo window, and the both-buttons Cross Cut does nothing with one. It had been said and not kept: a combo bolt skipped its reload, because the reload guard sat below the combos in `FirePlayerProjectile`. It is above them now. |
 | **Throwing knives** | one | 0.6 | A shield on the other arm. Quick and close: a light throw is one knife, a **heavy one a fan of three** -- and a charged one with a technique chosen [throws the technique, in knives](#skill-trees). |
 | **Wand** | one | 0.66 | Half again as many casts as a staff, each worth 0.72: about even over time, and much hungrier for mana. |
@@ -1313,7 +1313,7 @@ can be swung or dropped:
 | --- | --- |
 | **Light** | A **twenty-pixel** square torn up and swung through an arc in front of you -- half a character's height. |
 | **Heavy** | The same swing with a **thirty-two-pixel** one: further, wider, harder -- and a heavy's own slowness is the price. |
-| **Heavy, held** | The big one is carried over whoever you are fighting and **dropped on them**, where it lands for a third again and **breaks into chunks on top of them**. |
+| **Heavy, held** | The big one is carried over whoever you are fighting and **dropped on them**, where it lands for a third again and **breaks into chunks on top of them** -- and can concuss them, as the swung ones can (the ground it becomes carries the status now; it never did). |
 
 Both sizes are `SLAB_LIGHT` and `SLAB_HEAVY` in `src/world/world.h`, and
 everything the drawing does is worked out from them -- how thick the sod on top
@@ -1650,6 +1650,14 @@ button does instead of adding another thing to remember.
 | **Earth** | Lands heavy and bursts a moment later, after a visible wind-up | Slow, high commitment |
 | **Air** | Very fast, long range, and it carries what it hits backwards | Kiting |
 
+The ground a bolt leaves -- fire's burning patch, earth's burst, a Cloud of
+Daggers' knives -- is worth what the bolt was beyond its spell: the talents, the
+weapon in hand (a wand's 0.72), Sorcery, an Overload, a combo. It used to be the
+spell's bare numbers whatever threw it, so a Cloud of Daggers' ground dealt
+twenty full rolls and a wand's 0.72 never touched it (`Projectile::spell_base`).
+And it is its thrower's: a friend's Pyre patch is a friend's, experience and
+kills and all.
+
 There is a fifth on `5` that does not work like any of them: see
 [the lightning](#the-lightning-and-the-battery).
 
@@ -1667,7 +1675,7 @@ not lightning.
 | **Zap** (Magic 12) | One thread to one thing: whatever is locked on, or the nearest thing in front | **+5%** on every hit |
 | **Discharge** (Magic 20) | The whole battery at once, in every direction | **all of it**, and needs 10% to go at all |
 | **Electrocute** (Magic 32) | Three rays in a thirty-degree cone; anything standing in it takes all three as one blow | **10%** |
-| **Electro-Node** (Magic 44) | A translucent orb set down where your quarry stands, that chains to whatever is near it for five seconds and does not care whether your quarry is still there | **10%**; a charged one 18%, and it stands longer and reaches one more |
+| **Electro-Node** (Magic 44) | A translucent orb set down where your quarry stands, that chains to whatever is near it for five seconds and does not care whether your quarry is still there. Its first arc to land pays the spell's experience (the cast was forgotten before it, and never paid) | **10%**; a charged one 18%, and it stands longer and reaches one more |
 | **Call of Thunder** (Magic 58) | A bolt out of the sky, that breaks the ground round where it lands and takes everything standing beside your quarry with it | **30%**; a charged one **50%**, for half again the ground |
 
 **Discharge is worth what was in the bar.** An empty one is worth a third of
@@ -1918,11 +1926,11 @@ what throws it says how likely (`"status": {"id", "chance"}` on a projectile in
 | --- | --- | --- |
 | **Burning** | Ember 30%, Pyre 40%; standing in what they leave burning, a third of that a tick; the Ember Blade 25%; Hellish Rebuke always | Half the blow again, over three seconds. Water puts it out, and nothing soaked can be set burning. |
 | **Soaked** | Spray 40%, Torrent 55% | Six seconds. It cannot burn, the wind and [the lightning](#the-lightning-and-the-battery) bite it a quarter harder, it is twice as easy to leave arcing -- and an Ice Touch freezes it. |
-| **Concussed** | Shardshot 20%, Upheaval 30%, and the same again when the stone bursts | It reels as it takes it, and for four seconds its Attack and its Defence are down a quarter and it is a little slow. |
+| **Concussed** | Shardshot 20%, Upheaval 30%, and the same again when the stone bursts | It reels as it takes it, and for four seconds its Attack and its Defence are down a quarter and it is a little slow. On a player the Attack is the aim of every style -- a bow's and a staff's as a sword's -- and never how hard the blow lands: it used to cut the Ranged and Magic levels, which set a shot's weight too (`CombatProfile::accuracy`). The same for Arcing. |
 | **Bleeding** | any sword, 18% a cut (and Open Wounds, as before) | Half the blow again over four seconds. A second wound adds to the first. |
 | **Poisoned** | Acid Spray, 35% a gout | Four fifths of the blow again over six seconds, and its Defence is down a fifth: its hide gives way. |
 | **Chilled** | Ice Touch, always | Four seconds at six tenths of its pace and a third longer between its swings. |
-| **Frozen** | a chill on something soaked | Held fast for a second and a half; then it thaws into a chill, and is dry. |
+| **Frozen** | a chill on something soaked | Held fast for a second and a half -- in the middle of winding up a heavy blow too, which it no longer lands; then it thaws into a chill, and is dry. |
 | **Arcing** | any of the lightning: a Zap 22%, an Electro-Node's chain 30%, a Call of Thunder 45% -- and twice that on anything soaked | Four seconds. A third of the blow again over them, its Attack down a sixth and a fifth longer between its swings, and it reels the moment it takes. |
 
 **The wind leaves nothing.** A gust's thing is that it throws what it hits --
@@ -2588,9 +2596,16 @@ machine's business, not something this one guesses at.
 teaches six abilities -- the bow's five, since
 [its roll is the guard button's](#the-wardens-roll) -- and **three are carried at once**: slot one on guard +
 light (`H`+`J`), slot two on guard + heavy (`H`+`K`), slot three on guard +
-lock on (`H`+`L`, or B + the right trigger). The guard button is the shift key
-whether or not there is a shield to raise, and the press is the ability's: not
-a swing, and with an ability in the third slot not a change of target either.
+lock on (`H`+`L`, or RB + the right trigger). On the keys the guard button is the
+shift key whether or not there is a shield to raise; on a pad the shift is RB,
+and B with the trigger only locks on. The press is the ability's: not a swing,
+and with an ability in the third slot not a change of target either -- RB with
+the trigger used to move the lock before the third ability went, and B with it
+did nothing at all. **An ability's cooldown is the ability's own**, wherever it
+is carried: it was the slot's, and moving Stand Fast to another slot had it
+ready again at once. And **Sunder and Hunter's Mark are not let go with nothing
+in reach** -- no stamina, no cooldown -- as a Blink with nowhere to go spends
+nothing.
 Each has a cooldown and a cost, shown on the HUD at the bottom left with a bar
 that refills as it comes back, and what is running -- a frenzy, a held breath,
 an overload -- is named beside them. A newly learned ability goes straight
@@ -2613,7 +2628,7 @@ build.
 | Warden | **Take Aim** (Marksman) | 18 s | 15 stamina | Your next shot within six seconds always strikes critically and hits half as hard again -- every arrow of it, if it is a Volley |
 | Warden | **Rapid Fire** (Skirmisher) | 25 s | 20 stamina | For five seconds the bow is 40% faster |
 | Warden | **Snare** (Hunter) | 22 s | 15 stamina | A trap at your feet for twenty seconds. The first thing to step in it is held for three seconds, and hurt; then it is sprung |
-| Wayfarer | **Arcane Pulse** (Evoker) | 14 s | 8 mana | Ten bolts of your chosen element, thrown outward in a ring |
+| Wayfarer | **Arcane Pulse** (Evoker) | 14 s | 8 mana | Ten bolts of your chosen element, thrown outward in a ring -- with the lightning chosen, ten arcs, each to the nearest thing along its way (its spells' bolts are stand-ins that fly nowhere, and it used to throw ten of those) |
 | Wayfarer | **Blink** (Channeler) | 8 s | 5 mana | A short step through the air, past anything that is not a wall. With nowhere to land it does not happen and costs nothing |
 | Wayfarer | **Mana Shield** (Warden) | 25 s | 6 mana | For ten seconds half of every blow is paid in mana instead of blood, two mana a point |
 | Wayfarer | **Overload** (Evoker) | 20 s | 4 mana | Your next spell within six seconds costs nothing and hits twice as hard -- a Meteor included |
@@ -2746,8 +2761,9 @@ Rushing Strike above it, and it is for daggers and greatswords: it works on
 what a [parry](#parrying) catches.
 
 - **First rank: an opening.** A parried monster reels 0.8 seconds longer. For
-  the next two and a half seconds, your next blow on *that* monster lands 30%
-  harder, and "Opening!" rises off it.
+  the next two and a half seconds, your next blow to land on *that* monster
+  lands 30% harder, and "Opening!" rises off it. A miss leaves the opening for
+  the next; it used to spend it.
 - **Second rank: the riposte.** For one second after a parry, an attack
   becomes a **riposte**, even with the guard still up. You lunge up to 40 pixels
   at whoever you parried (or your target, or straight ahead) and **always
@@ -3535,7 +3551,7 @@ of code:
 | Sorcery | spells 5 / 7 / 9 / 11 / 13 / 15% harder | staffs (the four elements' too), wands, grimoires, orbs | the College Copying Room |
 | Quickdraw | reloads 10 / 20 / 30 / 40 / 50 / 60% quicker | crossbows | Ivo's Bows and Hides, Havenbrook |
 | Multishot | +1 / 2 / 3 / 4 / 5 arrows with every shot (I to V) | bows and crossbows, not throwing knives | Ivo's Bows and Hides |
-| Vampiric | 1 / 2 / 3 / 4 / 5 / 6% of the damage dealt comes back as health | any weapon | the Curios of the Deep Dream |
+| Vampiric | 1 / 2 / 3 / 4 / 5 / 6% of the damage dealt comes back as health -- what there is a wound for: at full health nothing is kept for later, where it used to store every blow and heal a 20-of-99 fighter whole with the next | any weapon | the Curios of the Deep Dream |
 | Ferocity | critical blows 10 / 20 / 30 / 40 / 50 / 60% harder | any weapon | Halda's Forge, Havenbrook |
 | Brand of Bleeding | 8 / 12 / 16 / 20 / 24 / 28% chance to leave a bleeding wound | a weapon whose blows leave nothing today: spears, daggers, bows, crossbows, throwing knives | Hale's Packs, the Brackenwood |
 | Brand of Venom | the same chances, of poison | the same | the Night Market, the Reverie |
@@ -8189,7 +8205,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **71719 checks** covering:
+and checks all of it — currently **71737 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -8230,6 +8246,18 @@ and checks all of it — currently **71719 checks** covering:
   is a greater one, and leaves something; the cores are worth having; and the
   Quintessence is a boss at 99 that throws all five, in the Conflux with its
   chest, with its relic and its totem
+- a fight, as the report found it: an ability's cooldown goes with it to another
+  slot; on a pad RB and the trigger is the third ability and the lock stays, and
+  B with the trigger locks on; forty blows at full health and one at 20 heals what
+  that one is worth; Arcane Pulse with the lightning chosen is ten arcs, one into
+  what is near, and no stand-in sparks; a monster frozen in its heavy wind-up does
+  not land it; an Electro-Node keeps its cast owed until its first arc lands and
+  pays it; a held Slabstrike's drop can concuss; concussed, nothing that sets a
+  blow's weight is cut and every style aims worse; a bolt's patch is worth what the
+  bolt was beyond its spell, and a friend's is a friend's; Sunder with nothing in
+  reach spends nothing; an opening is spent by the blow that lands, never by a
+  miss; a greataxe's charged chop narrows the swing and a technique's charge does
+  not
 - co-op, what the report found, put right: a quest's chest, lever, stone, page
   or voice each character's own and nothing else, every quest's thing to use on
   a map; the key's chest opened by the host and by a friend, each their own key

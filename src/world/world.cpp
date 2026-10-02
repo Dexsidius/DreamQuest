@@ -992,9 +992,12 @@ void World::UpdateSeat(float dt, const GameContext& ctx) {
     // Targeting first, so a swing or a shot starting this frame knows who it
     // is for.
     {
-        // With the guard held and an ability carried there, lock on is that
-        // ability's button and the target stays who it was.
-        const bool third = player.hands.Down(PlayerInput::Block) &&
+        // With the abilities' shift held and an ability carried there, lock
+        // on is that ability's button and the target stays who it was. The
+        // shift, not the guard: on a pad the shift is RB, and RB with the
+        // trigger moved the lock before the third ability went, while B with
+        // it -- the guard, on a pad nothing more -- did nothing at all.
+        const bool third = player.hands.Down(PlayerInput::Ability) &&
                            player.talents.Ability(SkillTrees::ABILITY_SLOTS - 1) != nullptr;
         const bool cycle = !player.input_locked && !third && player.hands.Pressed(PlayerInput::Target);
         switch (targeting.Update(player, enemies, map, cycle)) {

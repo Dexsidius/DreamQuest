@@ -308,7 +308,15 @@ public:
     static constexpr int   WEAK_POINT_MAX  = 4;
     static constexpr int   BLEED_CHAIN     = 3;        // hits into a chain before wounds stay open
     bool  TryAbility(int slot, World& world);
-    float AbilityCooldown(int slot) const { return ability_cd[std::clamp(slot, 0, SkillTrees::ABILITY_SLOTS - 1)]; }
+    // The ability's own: it goes with the ability wherever it is carried. It
+    // was the slot's, and moving Stand Fast to another slot on the Skills page
+    // had it ready again at once.
+    float AbilityCooldown(int slot) const {
+        const TalentNode* node = talents.Ability(slot);
+        if (!node) return 0.0f;
+        const auto it = ability_cd.find(node->id);
+        return it == ability_cd.end() ? 0.0f : it->second;
+    }
     // The ability begun this step, once, for the world to finish.
     string TakeAbility() { string a; a.swap(pending_ability); return a; }
     bool  Untouchable() const { return roll_timer > 0.0f; }
@@ -836,7 +844,7 @@ private:
 
     vector<string> bags;          // bag items put on, in the order they were
     void  SizeBag();              // makes the inventory as big as `bags` says
-    float ability_cd[SkillTrees::ABILITY_SLOTS] = {};
+    std::map<string, float> ability_cd;          // by node id: see AbilityCooldown
     string pending_ability;
     SDL_FPoint ability_from{0.0f, 0.0f};
     // An ability's pose: a clip the character already has -- the Crushing

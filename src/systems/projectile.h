@@ -154,6 +154,12 @@ struct Projectile {
     // Which cast let it go, so the cast can be paid for when this lands on
     // something -- see World::OpenCast. Nothing, for an arrow or a monster's.
     uint32_t cast_id = 0;
+    // That cast's spell's own multiplier, for the burning patch or the
+    // eruption it leaves: what the bolt is worth beyond it -- the talents, the
+    // weapon, Sorcery, an Overload, a combo -- goes into the ground as well.
+    // The ground was the spell's bare numbers whatever threw it. Nothing, for
+    // what no spell let go.
+    float spell_base = 0.0f;
     int   pierce_left = 0;
     int   bounces_left = 0;
     bool  finished = false;

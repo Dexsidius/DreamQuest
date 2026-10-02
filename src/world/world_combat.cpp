@@ -43,8 +43,9 @@ Vec2 World::PlayerAim() const {
 // at the active frame is different.
 void World::FirePlayerProjectile(const GameContext& ctx) {
     // Whatever is spawned between here and the way out belongs to one cast.
-    struct CastScope { uint32_t& open; ~CastScope() { open = 0; } } cast_scope{casting};
+    struct CastScope { uint32_t& open; float& base; ~CastScope() { open = 0; base = 0.0f; } } cast_scope{casting, casting_base};
     casting = 0;
+    casting_base = 0.0f;
     const AttackState& atk = player.Attack();
     const AttackStyle style = player.Style();
     const Vec2 aim = PlayerAim();
@@ -133,6 +134,7 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         battery_gain = spell->battery_gain;
         projectile_id = spell->projectile;
         damage_mult *= spell->damage_mult;
+        casting_base = spell->damage_mult;    // what a bolt is worth beyond it goes into its ground
         element = spell->element;
         player.NoteCast(spell->element);      // Attunement: the same element, again
         shape = spell->shape;
@@ -600,6 +602,7 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
             n.status = leaves;
             n.from_player = true;
             n.mine = !visiting;
+            n.cast_id = casting;               // its arcs pay the cast, as a bolt's landing does
             AddNode(n);
         } else if (shape == "thunder") {
             // Down out of the sky on the target, and into the ground round it:
@@ -765,9 +768,12 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
         const StatusProc leaves = stone ? StatusProc{stone->status.kind, 0.4f} : StatusProc{};
         if (atk.type == AttackType::Charged) {
             const SDL_FPoint at = strike_point();
-            proc_next = leaves;
+            // What it breaks on is struck by the ground it becomes, which the
+            // status has to go into: set for the next blow, it was gone before
+            // the slab came down, and the held one never concussed.
+            const size_t before = ground_effects.size();
             strike(26.0f, World::SLAB_DROP_TIME * World::SLAB_DROP_FALL, damage_mult * 1.35f, element, true);
-            proc_next = {};
+            if (ground_effects.size() > before) ground_effects.back().status = leaves;
             AddSlabDrop(at.x, at.y + 8.0f, World::SLAB_HEAVY, LiftAt(at.x, at.y));
             Audio::PlayAt(Sfx::SwingHeavy, player.x, player.y, 1.0f, 0.62f);
         } else {
@@ -971,6 +977,20 @@ bool World::MeleeTechnique(const string& technique, const GameContext& ctx) {
     return false;
 }
 
+Enemy* World::AbilityTarget(float reach) {
+    Enemy* target = targeting.Current();
+    if (target && Targeting::Targetable(*target) && Length(target->x - player.x, target->y - player.y) <= reach)
+        return target;
+    target = nullptr;
+    float best = reach;
+    for (auto& e : enemies) {
+        if (!Targeting::Targetable(*e)) continue;
+        const float d = Length(e->x - player.x, e->y - player.y);
+        if (d < best) { best = d; target = e.get(); }
+    }
+    return target;
+}
+
 void World::ApplyPlayerAbility(const GameContext& ctx) {
     const string ability = player.TakeAbility();
     if (ability.empty()) return;
@@ -979,17 +999,8 @@ void World::ApplyPlayerAbility(const GameContext& ctx) {
 
     if (ability == "sunder" || ability == "hunters_mark") {
         // On what is being fought; failing that, the nearest thing in reach.
-        Enemy* target = targeting.Current();
-        const float reach = ability == "sunder" ? 78.0f : 520.0f;
-        if (!target || Length(target->x - px, target->y - py) > reach) {
-            target = nullptr;
-            float best = reach;
-            for (auto& e : enemies) {
-                if (!Targeting::Targetable(*e)) continue;
-                const float d = Length(e->x - px, e->y - py);
-                if (d < best) { best = d; target = e.get(); }
-            }
-        }
+        // (Player::TryAbility asked the same before anything was spent.)
+        Enemy* target = AbilityTarget(ability == "sunder" ? SUNDER_REACH : MARK_REACH);
         if (!target) { say("Nothing in reach", {200, 200, 210, 255}); return; }
         if (ability == "sunder") {
             target->Sunder(10.0f);
@@ -1041,16 +1052,55 @@ void World::ApplyPlayerAbility(const GameContext& ctx) {
         AbilityFx(ability, Element::None, nullptr);
     } else if (ability == "arcane_pulse") {
         // Ten bolts of the chosen element, in a ring.
-        const SpellDef* spell = ctx.spells
-            ? ctx.spells->BestFor(player.SelectedElement() == Element::Arcane ? Element::Fire : player.SelectedElement(),
-                                  player.skills.Level(SKILL_MAGIC))
-            : nullptr;
+        const Element chosen = player.SelectedElement() == Element::Arcane ? Element::Fire : player.SelectedElement();
+        const SpellDef* spell = ctx.spells ? ctx.spells->BestFor(chosen, player.skills.Level(SKILL_MAGIC)) : nullptr;
         if (!spell) return;
         const float mult = 0.7f * spell->damage_mult * player.TalentDamage(AttackStyle::Magic, AttackType::Light);
-        for (int i = 0; i < 10; ++i) {
-            const float a = 6.2831853f * (static_cast<float>(i) / 10.0f);
-            SpawnProjectile(spell->projectile, px, py - 14.0f, cosf(a), sinf(a), player.Profile(),
-                            AttackStyle::Magic, mult, true, ctx);
+        if (spell->element == Element::Electric) {
+            // The lightning's projectiles are stand-ins that fly nowhere (see
+            // FirePlayerProjectile), and ten of them sat at the hand for a
+            // tenth of a second and were gone: eight mana and a cooldown for
+            // nothing. Ten arcs instead, the same ten ways, each to the
+            // nearest thing it can reach along its way that no other has.
+            constexpr float PULSE_REACH = 200.0f, PULSE_SPREAD = 0.32f;    // 18 degrees either side
+            const ProjectileDef* def = ctx.projectiles ? ctx.projectiles->Get(spell->projectile) : nullptr;
+            const SDL_FPoint hand = Targeting::Muzzle(player);
+            vector<const Enemy*> struck;
+            for (int i = 0; i < 10; ++i) {
+                const float a = 6.2831853f * (static_cast<float>(i) / 10.0f);
+                Enemy* at = nullptr;
+                float best = 0.0f;
+                for (auto& e : enemies) {
+                    if (!Strikeable(*e) || std::find(struck.begin(), struck.end(), e.get()) != struck.end()) continue;
+                    const SDL_FPoint g = e->GroundCentre();
+                    const float dx = g.x - px, dy = g.y - py, far = Length(dx, dy);
+                    if (far > PULSE_REACH + e->GroundRadius()) continue;
+                    float off = atan2f(dy, dx) - a;
+                    while (off > 3.14159265f)  off -= 6.2831853f;
+                    while (off < -3.14159265f) off += 6.2831853f;
+                    if (far > 24.0f && fabsf(off) > PULSE_SPREAD) continue;
+                    if (!at || far < best) { at = e.get(); best = far; }
+                }
+                if (at) {
+                    struck.push_back(at);
+                    const SDL_FPoint g = at->GroundCentre();
+                    AddArc(hand.x, hand.y, g.x, g.y - 22.0f, 0);
+                    proc_next = def ? def->status : StatusProc{};
+                    HitEnemy(*at, player.Profile(), AttackStyle::Magic, Element::Electric, mult, 14.0f, px, py, ctx);
+                    proc_next = {};
+                } else {
+                    AddArc(hand.x, hand.y, px + cosf(a) * 120.0f, py + sinf(a) * 120.0f - 18.0f, 0);
+                }
+            }
+            Audio::Play(Sfx::SpellCast, 1.0f, 1.75f);
+        } else {
+            casting_base = spell->damage_mult;     // its bolts' ground is worth what they are
+            for (int i = 0; i < 10; ++i) {
+                const float a = 6.2831853f * (static_cast<float>(i) / 10.0f);
+                SpawnProjectile(spell->projectile, px, py - 14.0f, cosf(a), sinf(a), player.Profile(),
+                                AttackStyle::Magic, mult, true, ctx);
+            }
+            casting_base = 0.0f;
         }
         player.NoteCast(spell->element);
         AbilityFx(ability, spell->element, nullptr);
@@ -1258,12 +1308,10 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
     if (crit_next) crit = true;             // loosed with Take Aim
     // A riposte, the lunge a parry owes: it always lands critically.
     if (style == AttackStyle::Melee && player.Attack().riposte) crit = true;
-    // What a parry left open (Counter) takes the next blow harder.
-    if (player.Opened(&e)) {
-        damage_mult *= 1.0f + Player::OPENING_BONUS;
-        player.SpendOpening();
-        AddText("Opening!", e.x, e.y - 72.0f, {255, 214, 140, 255}, 0.8f);
-    }
+    // What a parry left open (Counter) takes the next blow harder -- the next
+    // that lands: a miss used to spend it.
+    const bool opening = player.Opened(&e);
+    if (opening) damage_mult *= 1.0f + Player::OPENING_BONUS;
     // Executioner: what is nearly down is always struck critically.
     const float execute = player.talents.Effect("execute", style);
     if (execute > 0.0f && e.HealthFraction() < execute) crit = true;
@@ -1327,6 +1375,10 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
         // makes a sound, so a swing's is left as it was: see knife_next.
         if (knife_next) Audio::PlayAt(Sfx::Whiff, e.x, e.y);
         return;
+    }
+    if (opening) {
+        player.SpendOpening();
+        AddText("Opening!", e.x, e.y - 72.0f, {255, 214, 140, 255}, 0.8f);
     }
 
     // Elements only matter when both sides have one -- and what is on it can
@@ -1407,12 +1459,21 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
     const float steal = player.talents.Effect("lifesteal", style) + leech_next +
                         player.equipment.Leech();
     if (steal > 0.0f && !player.IsDead()) {
-        lifesteal_bank += damage * steal;
-        const int whole = static_cast<int>(lifesteal_bank);
-        if (whole > 0 && player.hp < player.max_hp) {
-            lifesteal_bank -= whole;
-            player.Heal(whole);
-            player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
+        // Only what there is a wound for. The store grew on every blow and was
+        // only drawn on below full health, so a field cleared at full health
+        // and the next blow landed at 20 of 99 healed it whole. At full health
+        // nothing is kept, and what is more than the wound goes with it.
+        if (player.hp >= player.max_hp) {
+            lifesteal_bank = 0.0f;
+        } else {
+            lifesteal_bank += damage * steal;
+            const int whole = static_cast<int>(lifesteal_bank);
+            if (whole > 0) {
+                lifesteal_bank -= static_cast<float>(whole);
+                player.Heal(std::min(whole, player.max_hp - player.hp));
+                player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
+                if (player.hp >= player.max_hp) lifesteal_bank = 0.0f;
+            }
         }
     }
 

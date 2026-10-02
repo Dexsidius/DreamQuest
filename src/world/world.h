@@ -725,11 +725,12 @@ public:
     struct QueuedShot {
         float in = 0; string projectile; float mult = 1; float spread = 0; uint32_t cast = 0; float life = 1;
         bool owner_local = true; uint8_t owner_seat = 0;
+        float base = 0.0f;                 // the spell's own multiplier: see Projectile::spell_base
     };
     vector<QueuedShot> queued_shots;
-    // Owed by whoever `player` is now.
+    // Owed by whoever `player` is now, of the cast being let go of.
     void QueueShot(float in, const string& projectile, float mult, float spread, uint32_t cast, float life = 1.0f) {
-        queued_shots.push_back({in, projectile, mult, spread, cast, life, player.local, player.seat});
+        queued_shots.push_back({in, projectile, mult, spread, cast, life, player.local, player.seat, casting_base});
     }
     // A square of the ground torn up and thrown about: the Slabstrike. Swung
     // through an arc in front of the caster -- a small one on a light, a bigger
@@ -940,6 +941,7 @@ public:
         CombatProfile owner;
         StatusProc status;
         uint32_t told_id = 0;
+        uint32_t cast_id = 0;            // the cast it came of: its first arc to land pays it (PayCast)
         float told = 0.0f;
         float Progress() const { return 1.0f - std::clamp(life / std::max(0.01f, max_life), 0.0f, 1.0f); }
     };
@@ -953,6 +955,12 @@ public:
     // says so over its head if it takes: see systems/status.h. Nothing is
     // rolled, and nothing left, without the statuses loaded.
     void TryAfflict(Enemy& e, const StatusProc& proc, int blow, const GameContext& ctx);
+
+    // What Sunder or Hunter's Mark lands on, from where `player` stands: what
+    // is being fought, if it is in reach, or else the nearest thing that is.
+    // Null for nothing, and then the ability is not let go (Player::TryAbility).
+    static constexpr float SUNDER_REACH = 78.0f, MARK_REACH = 520.0f;
+    Enemy* AbilityTarget(float reach);
 
 private:
     // The frame, in two parts: what is done for one seat, and what is done
@@ -1142,6 +1150,7 @@ private:
     vector<OwedCast> owed_casts;
     uint32_t next_cast_id = 1;
     uint32_t casting = 0;         // the cast being let go of: what is spawned now carries it
+    float casting_base = 0.0f;    // and its spell's own multiplier (Projectile::spell_base)
     uint32_t cast_next = 0;       // the cast the next HitEnemy came of, set as crit_next is
     // What the next HitEnemy can leave on what it strikes, and what of it
     // comes back as health: a projectile's, or the ground's. Set as crit_next

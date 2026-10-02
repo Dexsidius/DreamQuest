@@ -47,6 +47,7 @@ Projectile* World::SpawnProjectile(const string& def_id, float x, float y,
     p.owner_local = player.local;
     p.owner_seat = player.seat;
     p.cast_id = from_player ? casting : 0;
+    p.spell_base = from_player ? casting_base : 0.0f;
     p.net_id = next_net_id++;
     p.pierce_left  = def->pierce;
     p.bounces_left = def->bounces;
@@ -166,6 +167,11 @@ void World::ForgetSpentCasts() {
     owed_casts.erase(std::remove_if(owed_casts.begin(), owed_casts.end(), [&](const OwedCast& c) {
         for (const Projectile& p : projectiles) if (!p.finished && p.cast_id == c.id) return false;
         for (const GroundEffect& g : ground_effects) if (!g.finished && g.cast_id == c.id) return false;
+        // A node still standing, and a shot still owed, may land yet: the
+        // Electro-Node's cast was forgotten before its first arc, and never
+        // paid its experience.
+        for (const Node& n : nodes) if (n.mine && n.life > 0.0f && n.cast_id == c.id) return false;
+        for (const QueuedShot& q : queued_shots) if (q.cast == c.id) return false;
         return true;
     }), owed_casts.end());
 }
@@ -387,6 +393,19 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                     ey -= p.vy / len * back;
                 }
             }
+            // What the bolt was worth beyond its spell -- the talents, the
+            // weapon, Sorcery, an Overload, a combo -- its ground is worth too:
+            // a burning patch and an eruption were the spell's bare numbers,
+            // a Cloud of Daggers' twenty full rolls, a wand's 0.72 nowhere.
+            const float share = (p.from_player && p.spell_base > 0.0f) ? p.damage_mult / p.spell_base : 1.0f;
+            // And it is the thrower's ground, not whoever this world is: a
+            // friend's Pyre patch paid the host its experience and its kills.
+            const auto theirs = [&](float base) {
+                GroundEffect& g = ground_effects.back();
+                g.owner_local = p.owner_local;
+                g.owner_seat = p.owner_seat;
+                if (p.from_player) g.hit_mult = 0.5f * base * share;
+            };
             if (p.def->patch_time > 0.0f) {
                 GroundEffect g;
                 g.x = ex;
@@ -407,6 +426,7 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                 g.status = p.def->status;
                 g.status.chance *= 0.35f;
                 AddGroundEffect(g);
+                theirs(static_cast<float>(p.def->patch_damage));
             }
             if (p.def->erupts) {
                 GroundEffect g;
@@ -423,6 +443,7 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                 g.status = p.def->status;
                 g.burst = true;
                 AddGroundEffect(g);
+                theirs(static_cast<float>(p.def->erupt_damage));
             }
         }
     }
@@ -697,8 +718,10 @@ void World::UpdateNodes(float dt, const GameContext& ctx) {
                 const SDL_FPoint at = e->GroundCentre();
                 AddArc(n.x, n.y - n.lift - 10.0f, at.x, at.y - 22.0f, 0);
                 proc_next = n.status;
+                cast_next = n.cast_id;
                 HitEnemy(*e, n.owner, AttackStyle::Magic, Element::Electric, n.hit_mult, 8.0f,
                          n.x, n.y, ctx);
+                cast_next = 0;
                 proc_next = {};
             }
         });
@@ -725,10 +748,13 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
             const SDL_FPoint muzzle = Targeting::Muzzle(player);
             const size_t before = projectiles.size();
             const uint32_t was = casting;
+            const float was_base = casting_base;
             casting = q.cast;
+            casting_base = q.base;
             SpawnProjectile(q.projectile, muzzle.x + cosf(a) * 12.0f, muzzle.y + sinf(a) * 12.0f, cosf(a), sinf(a),
                             player.Profile(), AttackStyle::Magic, q.mult, true, ctx);
             casting = was;
+            casting_base = was_base;
             if (projectiles.size() > before) {
                 projectiles.back().target = targeting.Current();
                 projectiles.back().life *= q.life;

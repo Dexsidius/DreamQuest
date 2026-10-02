@@ -3697,6 +3697,389 @@ static void TestFogOfWar(const Databases& db) {
     }
 }
 
+// What the report found wrong in a fight, put right: an ability's cooldown
+// is its own, the pad's shift is RB with the trigger too, lifesteal only
+// mends a wound, Arcane Pulse with the lightning chosen strikes, a freeze
+// holds a heavy wind-up, an Electro-Node pays its cast, a held Slabstrike
+// concusses, a shaken hand aims worse without hitting softer, a bolt's ground
+// is worth what the bolt was and is its thrower's, Sunder with nothing in reach
+// spends nothing, Counter's opening waits for a blow that lands, and the
+// greataxe's chop is the plain charged blow's alone.
+static void TestCombatFixes(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    Section("a fight, as the report found it: cooldowns, the pad's shift, lifesteal, lightning, ice, a node, a slab, aim, a bolt's ground");
+
+    Input input;
+    std::mt19937 rng(5150);
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+    ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.statuses = &statuses; ctx.input = &input;       ctx.rng = &rng;
+    const float dt = 1.0f / 60.0f;
+    const auto key = [&](SDL_Keycode k, bool down) {
+        SDL_Event e{};
+        e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+        e.key.key = k;
+        input.HandleEvent(e);
+    };
+    const auto frames = [&](World& w, int n) {
+        for (int f = 0; f < n; ++f) { input.Update(dt); w.Update(dt, ctx); }
+    };
+    // A character at a skill's level, Hitpoints 50, with a weapon, out on the
+    // road with nothing else on it.
+    const auto field = [&](World& w, const char* who, const string& weapon, int skill, int level) {
+        w.player.Init(ctx, who);
+        if (!w.LoadMap("overworld", "start", ctx)) return false;
+        w.enemies.clear();
+        w.clock.Set(1, 12.0f);
+        LevelUp lu;
+        w.player.skills.AddXp(skill, XpForLevel(level), lu);
+        w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(50), lu);
+        w.player.SyncHitpoints();
+        w.player.hp = w.player.max_hp;
+        w.player.SyncMana();
+        w.player.RestoreMana();
+        w.player.equipment.Unequip(SLOT_SHIELD);
+        w.player.equipment.Equip(SLOT_WEAPON, weapon);
+        w.player.facing = FACE_RIGHT;
+        w.player.sprite.facing = FACE_RIGHT;
+        return true;
+    };
+    // Something that takes a beating without going down.
+    const auto sturdy = [&](World& w, const string& type, float dx, float dy) -> Enemy* {
+        const EnemyDef* stats = enemy_db.Get(type);
+        if (!stats) return nullptr;
+        EnemySpawnDef def;
+        def.type = type; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+        def.x = w.player.x + dx; def.y = w.player.y + dy;
+        auto e = std::make_unique<Enemy>();
+        e->Init(stats, def, ctx);
+        e->max_hp = 60000;
+        e->hp = e->max_hp;
+        Enemy* raw = e.get();
+        w.enemies.push_back(std::move(e));
+        return raw;
+    };
+    // One blow from the ground at what stands there, as the player's: a
+    // burst, like a meteor's, that lands once.
+    const auto blow = [&](World& w, Enemy& at, AttackStyle style, float mult) {
+        GroundEffect g;
+        g.x = at.x;
+        g.y = at.y;
+        g.radius = 40.0f;
+        g.burst = true;
+        g.from_player = true;
+        g.owner = w.player.Profile();
+        g.style = style;
+        g.hit_mult = mult;
+        g.knockback = 0.0f;
+        g.life = g.max_life = 0.35f;
+        w.AddGroundEffect(g);
+        const int before = at.hp;
+        w.Update(dt, ctx);
+        return before - at.hp;
+    };
+    const char* kHero[] = {"thick_skin", "second_wind", "lunge", "bash", "keen_edge", "flurry", "whirlwind", "sunder"};
+
+    // --- an ability's cooldown is its own -------------------------------------------------------------------
+    {
+        World w;
+        if (field(w, "player_hero", "iron_sword", SKILL_ATTACK, 60)) {
+            for (const char* id : kHero) w.player.talents.Learn(id, w.player.skills);
+            w.player.talents.SetAbility(0, "bash");
+            const bool went = w.player.TryAbility(0, w);
+            const float cd = w.player.AbilityCooldown(0);
+            w.player.talents.SetAbility(2, "bash");                    // moved, on the Skills page
+            Check(went && cd > 1.0f && w.player.talents.SlotOf("bash") == 2 && w.player.AbilityCooldown(2) == cd &&
+                  w.player.AbilityCooldown(0) == 0.0f && !w.player.TryAbility(2, w),
+                  "an ability's cooldown goes with it: moved to another slot it is still cooling, and cannot be used again (" +
+                  std::to_string(cd).substr(0, 4) + " s)");
+        }
+    }
+
+    // --- on a pad the shift is RB, with the trigger too -------------------------------------------------------
+    {
+        World w;
+        if (field(w, "player_hero", "iron_sword", SKILL_ATTACK, 60)) {
+            for (const char* id : kHero) w.player.talents.Learn(id, w.player.skills);
+            w.player.talents.SetAbility(2, "bash");
+            Enemy* boar = sturdy(w, "boar", 120.0f, 0.0f);
+            w.player.hands_external = true;
+            PlayerInput rb;
+            rb.down = PlayerInput::Ability | PlayerInput::Target;
+            rb.pressed = PlayerInput::Target;
+            w.player.hands = rb;
+            w.Update(dt, ctx);
+            Check(boar && w.targeting.Current() == nullptr && w.player.AbilityCooldown(2) > 0.0f,
+                  "on a pad, RB and the trigger is the third ability, and the lock stays where it was");
+            w.player.hands = PlayerInput{};
+            w.Update(dt, ctx);
+            PlayerInput b;
+            b.down = PlayerInput::Block | PlayerInput::Target;
+            b.pressed = PlayerInput::Target;
+            w.player.hands = b;
+            w.Update(dt, ctx);
+            Check(boar && w.targeting.Current() == boar,
+                  "and B with the trigger locks on, as the trigger does by itself: on a pad B is only the guard");
+        }
+    }
+
+    // --- lifesteal mends a wound, and keeps nothing for later ---------------------------------------------------------
+    {
+        World w;
+        if (field(w, "player_hero", "iron_sword", SKILL_ATTACK, 99)) {
+            w.player.equipment.Equip(SLOT_RING, "ashcroft_signet");
+            const float leech = w.player.equipment.Leech();
+            Enemy* boar = sturdy(w, "boar", 300.0f, 0.0f);
+            int dealt = 0;
+            for (int i = 0; i < 40 && boar; ++i) {
+                boar->Stagger(5.0f, true);                   // it does not get to answer
+                w.player.hp = w.player.max_hp;
+                dealt += blow(w, *boar, AttackStyle::Melee, 2.0f);
+            }
+            w.player.hp = 20;
+            w.player.skills.SetCurrent(SKILL_HITPOINTS, 20);
+            if (boar) boar->Stagger(5.0f, true);
+            const int one = boar ? blow(w, *boar, AttackStyle::Melee, 2.0f) : 0;
+            const int healed = w.player.hp - 20;
+            Check(leech > 0.0f && dealt > 0 && one > 0 && healed <= static_cast<int>(one * leech) + 1,
+                  "forty blows at full health and then one at 20: that one heals what it is worth (" + std::to_string(healed) +
+                  " of " + std::to_string(one) + " dealt), not what forty were");
+        }
+    }
+
+    // --- Arcane Pulse with the lightning chosen -----------------------------------------------------------------
+    {
+        World w;
+        if (field(w, "player_wayfarer", "iron_staff", SKILL_MAGIC, 99)) {
+            for (const char* id : {"flow", "swift_casting", "barrage", "blink", "potency", "focus", "nova", "arcane_pulse"})
+                w.player.talents.Learn(id, w.player.skills);
+            w.player.talents.SetAbility(0, "arcane_pulse");
+            w.player.SelectElement(Element::Electric);
+            Enemy* boar = sturdy(w, "boar", 110.0f, 0.0f);
+            w.arcs.clear();
+            const bool went = w.player.TryAbility(0, w);
+            w.Update(dt, ctx);
+            bool stand_ins = false, at_it = false;
+            for (const Projectile& p : w.projectiles) stand_ins |= p.def && p.def->id.rfind("arc_", 0) == 0;
+            if (boar)
+                for (const World::Arc& a : w.arcs) {
+                    const float ex = a.x + cosf(a.facing) * a.reach, ey = a.y + sinf(a.facing) * a.reach;
+                    const SDL_FPoint g = boar->GroundCentre();
+                    at_it |= Length(ex - g.x, ey - (g.y - 22.0f)) < 12.0f;
+                }
+            Check(went && at_it && !stand_ins && w.arcs.size() >= 10,
+                  "Arcane Pulse with the lightning chosen goes out as ten arcs, one of them into what is near -- not ten "
+                  "sparks that sit at the hand and are gone (" + std::to_string(w.arcs.size()) + " arcs)");
+        }
+    }
+
+    // --- a freeze holds a heavy wind-up ---------------------------------------------------------------------------
+    {
+        World w;
+        if (field(w, "player_hero", "iron_sword", SKILL_ATTACK, 60)) {
+            Enemy* brute = nullptr;
+            string which;
+            for (const auto& kv : enemy_db.All()) {
+                if (!kv.second.heavy.enabled || kv.second.is_boss) continue;
+                World probe;
+                if (!field(probe, "player_hero", "iron_sword", SKILL_ATTACK, 60)) break;
+                Enemy* e = sturdy(probe, kv.first, 50.0f, 0.0f);
+                if (e && e->Afflict(Status::Frozen, 10, statuses) == Status::Frozen) { which = kv.first; break; }
+            }
+            if (!which.empty()) brute = sturdy(w, which, 50.0f, 0.0f);
+            bool winding = false;
+            for (int f = 0; f < 900 && brute && !winding; ++f) {
+                w.player.hp = w.player.max_hp;
+                w.Update(dt, ctx);
+                winding = brute->CurrentState() == Enemy::State::Heavy;
+            }
+            Check(winding, "a " + which + " winds up its heavy blow");
+            if (brute && winding) {
+                const int hp = w.player.hp;
+                brute->Afflict(Status::Frozen, 10, statuses);
+                bool landed = false;
+                for (int f = 0; f < 60; ++f) {
+                    w.Update(dt, ctx);
+                    landed |= brute->CurrentState() == Enemy::State::Heavy || w.player.hp < hp;
+                }
+                Check(!landed && brute->Afflicted(Status::Frozen),
+                      "frozen in the wind-up, it is held: the heavy blow does not land, and it does not go on with it");
+            }
+        }
+    }
+
+    // --- an Electro-Node pays its cast ------------------------------------------------------------------------------
+    {
+        World w;
+        const SpellDef* node_spell = spells.Get("electro_node");
+        // Magic 70: at 99 there is no more experience to be had, paid or not.
+        if (node_spell && field(w, "player_wayfarer", "iron_staff", SKILL_MAGIC, 70)) {
+            w.player.SetElectricSpell("electro_node");
+            w.player.SelectElement(Element::Electric);
+            w.player.AddBattery(1.0f);
+            input.Update(dt); key(SDLK_J, true); w.Update(dt, ctx);
+            input.Update(dt); key(SDLK_J, false); w.Update(dt, ctx);
+            for (int f = 0; f < 60 && w.nodes.empty(); ++f) frames(w, 1);
+            Check(!w.nodes.empty() && w.OwedCasts() == 1,
+                  "an Electro-Node with nothing near it yet keeps its cast owed: it was forgotten before its first arc");
+            if (!w.nodes.empty()) {
+                const World::Node& n = w.nodes.front();
+                Enemy* boar = sturdy(w, "boar", n.x - w.player.x, n.y - w.player.y - 8.0f);
+                const int magic = w.player.skills.Xp(SKILL_MAGIC);
+                for (int f = 0; f < 300 && w.OwedCasts() > 0; ++f) frames(w, 1);
+                Check(boar && w.OwedCasts() == 0 && w.player.skills.Xp(SKILL_MAGIC) - magic >= node_spell->xp,
+                      "and its first arc to land pays the spell's experience (" +
+                      std::to_string(w.player.skills.Xp(SKILL_MAGIC) - magic) + ", the spell's " +
+                      std::to_string(node_spell->xp) + ")");
+            }
+        }
+    }
+
+    // --- a held Slabstrike concusses --------------------------------------------------------------------------------
+    {
+        World w;
+        if (field(w, "player_wayfarer", "iron_staff", SKILL_MAGIC, 60)) {
+            w.player.SelectElement(Element::Earth);
+            w.player.HoldSpell(Element::Earth, "slabstrike");
+            sturdy(w, "boar", 90.0f, 0.0f);
+            input.Update(dt); key(SDLK_K, true); w.Update(dt, ctx);
+            frames(w, 90);                                       // held to the full
+            input.Update(dt); key(SDLK_K, false); w.Update(dt, ctx);
+            bool slab = false;
+            for (int f = 0; f < 40 && !slab; ++f) {
+                frames(w, 1);
+                for (const GroundEffect& g : w.ground_effects)
+                    slab |= g.quiet && g.burst && g.from_player && g.status.kind == Status::Concussed && g.status.chance > 0.0f;
+            }
+            Check(slab, "a held Slabstrike dropped on its quarry can concuss it, as the swung ones can");
+        }
+    }
+
+    // --- a shaken hand aims worse, and hits as hard ---------------------------------------------------------------
+    {
+        Player p;
+        p.Init(ctx, "player_warden");
+        LevelUp lu;
+        p.skills.AddXp(SKILL_RANGED, XpForLevel(80), lu);
+        p.skills.AddXp(SKILL_ATTACK, XpForLevel(60), lu);
+        p.skills.AddXp(SKILL_HITPOINTS, XpForLevel(40), lu);
+        p.SyncHitpoints();
+        p.hp = p.max_hp;
+        const CombatProfile clear = p.Profile();
+        p.Afflict(Status::Concussed, 10, statuses, p.x, p.y);
+        const CombatProfile shaken = p.Profile();
+        CombatProfile guard;
+        guard.defence_level = 60;
+        guard.defence_bonus = 40;
+        Check(p.Afflicted(Status::Concussed) && shaken.accuracy < 1.0f && shaken.ranged_level == clear.ranged_level &&
+              shaken.magic_level == clear.magic_level && shaken.strength_level == clear.strength_level,
+              "concussed, nothing that sets how hard a blow lands is touched: a bow's top hit stays where a sword's does");
+        Check(HitChanceFor(shaken, guard, AttackStyle::Ranged) < HitChanceFor(clear, guard, AttackStyle::Ranged) &&
+              HitChanceFor(shaken, guard, AttackStyle::Melee) < HitChanceFor(clear, guard, AttackStyle::Melee),
+              "and every style aims worse for it, a bow's as a sword's");
+    }
+
+    // --- a bolt's ground is worth what the bolt was, and is its thrower's -----------------------------------------
+    {
+        World w;
+        const ProjectileDef* fire = projectiles.Get("bolt_fire");
+        if (fire && field(w, "player_wayfarer", "iron_staff", SKILL_MAGIC, 60)) {
+            Player* friend_ = w.AddGuest(1, "Oona", "player_wayfarer", ctx);
+            const auto patch_of = [&](bool hers) -> const GroundEffect* {
+                w.ground_effects.clear();
+                const auto let_go = [&] {
+                    if (Projectile* p = w.SpawnProjectile("bolt_fire", w.player.x + 30.0f, w.player.y, 1.0f, 0.0f,
+                                                          w.player.Profile(), AttackStyle::Magic, 2.5f, true, ctx)) {
+                        p->spell_base = 1.25f;                   // twice what its spell is worth by itself
+                        p->life = 0.01f;
+                    }
+                };
+                if (hers && friend_) w.AsSeat(*friend_, ctx, [&](const GameContext&) { let_go(); });
+                else let_go();
+                frames(w, 2);
+                for (const GroundEffect& g : w.ground_effects)
+                    if (g.from_player && !g.burst && g.tick_interval > 0.0f) return &g;
+                return nullptr;
+            };
+            const GroundEffect* mine = patch_of(false);
+            Check(mine && std::fabs(mine->hit_mult - 0.5f * fire->patch_damage * 2.0f) < 0.001f,
+                  "the burning patch a bolt leaves is worth what the bolt was beyond its spell -- twice, here -- where it "
+                  "was the spell's bare numbers whatever threw it");
+            const GroundEffect* hers = patch_of(true);
+            Check(friend_ && hers && !hers->owner_local && hers->owner_seat == 1,
+                  "and a friend's bolt leaves a friend's patch: its experience and its kills are hers, not the host's");
+        }
+    }
+
+    // --- Sunder with nothing in reach spends nothing -------------------------------------------------------------
+    {
+        World w;
+        if (field(w, "player_hero", "iron_sword", SKILL_ATTACK, 60)) {
+            for (const char* id : kHero) w.player.talents.Learn(id, w.player.skills);
+            w.player.talents.SetAbility(1, "sunder");
+            const float stamina = w.player.Stamina();
+            Check(!w.player.TryAbility(1, w) && w.player.Stamina() == stamina && w.player.AbilityCooldown(1) == 0.0f,
+                  "Sunder with nothing in reach is not let go: no stamina spent and no cooldown, as a Blink with nowhere to go");
+            sturdy(w, "boar", 50.0f, 0.0f);
+            Check(w.player.TryAbility(1, w) && w.player.AbilityCooldown(1) > 0.0f, "and with something to sunder, it is");
+        }
+    }
+
+    // --- Counter's opening waits for a blow that lands ----------------------------------------------------------------
+    {
+        World w;
+        if (field(w, "player_hero", "iron_dagger", SKILL_ATTACK, 60)) {
+            w.player.talents.Learn("rushing_strike", w.player.skills);
+            w.player.talents.Learn("counter", w.player.skills);
+            Enemy* knight = sturdy(w, enemy_db.Get("bone_knight") ? "bone_knight" : "orc2", 300.0f, 0.0f);
+            int kept = 0, spent = 0, wrong = 0;
+            for (int i = 0; i < 80 && knight && w.player.CounterRank() >= 1; ++i) {
+                w.player.NoteParry(knight);
+                knight->Stagger(5.0f, true);
+                const bool hit = blow(w, *knight, AttackStyle::Melee, 1.0f) > 0;
+                const bool open = w.player.Opened(knight);
+                if (hit && !open) ++spent;
+                else if (!hit && open) ++kept;
+                else ++wrong;
+            }
+            Check(knight && w.player.CounterRank() >= 1 && wrong == 0 && kept > 0 && spent > 0,
+                  "an opening is spent by the blow that lands on it, not by a miss (" + std::to_string(kept) +
+                  " misses kept it, " + std::to_string(spent) + " hits spent it)");
+        }
+    }
+
+    // --- the greataxe's chop is the plain charged blow's -----------------------------------------------------------
+    {
+        // How far round the charged blow goes either side, in degrees, at its
+        // own reach: what is struck asks the same. -1 when nothing was let go.
+        const auto charged_angle = [&](bool lunge) {
+            World w;
+            if (!field(w, "player_hero", "iron_greataxe", SKILL_ATTACK, 60)) return -1.0f;
+            for (const char* id : kHero) w.player.talents.Learn(id, w.player.skills);
+            if (lunge) w.player.talents.SetTechnique(AttackStyle::Melee, "lunge");
+            input.Update(dt); key(SDLK_K, true); w.Update(dt, ctx);
+            frames(w, 90);
+            input.Update(dt); key(SDLK_K, false); w.Update(dt, ctx);
+            for (int f = 0; f < 10; ++f) {
+                const AttackProfile& p = w.player.Attack().profile;
+                if (w.player.Attack().Active() && w.player.Attack().type == AttackType::Charged)
+                    return p.HalfAngle(p.reach) * 180.0f / 3.14159265f;
+                frames(w, 1);
+            }
+            return -1.0f;
+        };
+        const float chop = charged_angle(false), lunge = charged_angle(true);
+        Check(chop > 0.0f && lunge > chop,
+              "a greataxe's charged chop narrows the swing; a technique let go from the same charge does not take the "
+              "chop's shape (" + std::to_string(chop).substr(0, 5) + " against " + std::to_string(lunge).substr(0, 5) + " degrees)");
+    }
+}
+
 int main(int argc, char** argv) {
     // Unbuffered (Windows has no line buffering), so a crash does not take what
     // was printed before it with it.
@@ -21060,8 +21443,17 @@ int main(int argc, char** argv) {
                 p.talents.SetAbility(0, "sunder");
                 p.talents.SetAbility(1, "frenzy");
                 Check(learned && p.Buffs() == 0, "the blade's branch learned, and nothing running yet");
+                // Something to sunder: with nothing in reach it is not let go.
+                {
+                    EnemySpawnDef def;
+                    def.type = "boar"; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+                    def.x = p.x + 40.0f; def.y = p.y;
+                    w.enemies.push_back(std::make_unique<Enemy>());
+                    w.enemies.back()->Init(enemy_db.Get("boar"), def, ctx);
+                }
                 Check(p.TryAbility(0, w) && p.Clip() == "crush",
                       "a Sunder comes down from overhead: the Crushing Blow's clip (" + p.Clip() + ")");
+                w.enemies.clear();                      // nothing to answer it while the pose is watched
                 for (int f = 0; f < 60; ++f) w.Update(kFrame, ctx);
                 Check(p.Clip() == "idle", "and then they stand as they were");
                 Check(p.TryAbility(1, w) && p.Clip() == "spin" && (p.Buffs() & Player::BUFF_FRENZY),
@@ -22030,6 +22422,7 @@ int main(int argc, char** argv) {
     TestReportFixes(db);
     TestCoopFixes(db);
     TestFogOfWar(db);
+    TestCombatFixes(db);
 
     Section("the Brimstone Palace, and its king");
     {
