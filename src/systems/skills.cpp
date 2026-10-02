@@ -36,7 +36,7 @@ const char* SkillBlurb(int skill) {
         case SKILL_MAGIC:       return "Trained by landing spells with a staff, a wand, a grimoire or an orb.";
         case SKILL_WOODCUTTING: return "Trained by chopping trees, with an axe.";
         case SKILL_MINING:      return "Trained by working ore seams, with a pickaxe.";
-        case SKILL_CRAFTING:    return "Trained at a workbench: the wooden tier, bows, a rod, a dreamcatcher.";
+        case SKILL_CRAFTING:    return "Trained at a workbench: the wooden tier, bows, a rod, a dreamcatcher, and rings and amulets.";
         case SKILL_COOKING:     return "Trained at a fire, with something raw in your pack.";
         case SKILL_FISHING:     return "Trained by fishing ponds, streams and lakes, with a rod.";
         case SKILL_SMITHING:    return "Trained by smelting bars and smithing metal at an anvil.";

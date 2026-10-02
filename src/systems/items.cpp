@@ -340,7 +340,12 @@ bool ItemDatabase::LoadTiers(const string& path) {
                                     // The armoury: see README.
                                     "dagger", "mace", "greatsword", "greataxe", "crossbow", "knives",
                                     "wand", "grimoire", "orb",
-                                    "fire_staff", "water_staff", "earth_staff", "air_staff"};
+                                    "fire_staff", "water_staff", "earth_staff", "air_staff",
+                                    // Jewellery: a ring and an amulet for each way of
+                                    // fighting, worked at the bench -- Crafting's,
+                                    // from bronze at 1 to enchanted at 95.
+                                    "ring_blade", "ring_bow", "ring_staff",
+                                    "amulet_blade", "amulet_bow", "amulet_staff"};
     const json& pieces = root["pieces"];
 
     const auto icon_for = [](const string& file) { return "assets/icons/tiers/" + file + ".png"; };
@@ -414,6 +419,9 @@ bool ItemDatabase::LoadTiers(const string& path) {
             if (!pieces.contains(piece_name)) continue;
             const json& pj = pieces[piece_name];
             const string piece = piece_name;
+            // A ring is not carved from a log: what is worked only in metal
+            // has no wooden one.
+            if (t.wood && pj.value("metal_only", false)) continue;
 
             ItemDef d;
             d.id = (tj.contains("ids") && tj["ids"].contains(piece))
@@ -515,9 +523,13 @@ bool ItemDatabase::LoadTiers(const string& path) {
                     for (auto i = pj["extra"].begin(); i != pj["extra"].end(); ++i)
                         inputs[i.key() == "logs" ? t.timber : i.key()] += i.value().get<int>();
             }
-            if (!inputs.empty())
+            if (!inputs.empty()) {
                 add_recipe(d.id, t.wood ? t.level + pj.value("craft_offset", 0) : t.level,
                            (12 + index * 14) * std::max(1, amount), inputs);
+                // Where it is made, when that is not the anvil its bars would
+                // send it to: the jewellery is the bench's (StationFor).
+                recipes.back().craft_at = pj.value("craft_at", string(""));
+            }
         }
 
         // --- the sets that are not metal -----------------------------------------

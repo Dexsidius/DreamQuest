@@ -417,11 +417,12 @@ CombatProfile Player::Profile() const {
     p.defence_bonus  = static_cast<int>(std::lround(defence * (1.0f + talents.Global("defence_share"))));
     p.ranged_bonus   = equipment.RangedBonus();
     p.magic_bonus    = equipment.MagicBonus();
-    // The affinity: a little more accuracy with the character's own style.
+    // The affinity: a little more accuracy with the character's own style --
+    // accuracy alone, for all three (see CombatProfile::melee_aim).
     switch (Affinity()) {
-        case AttackStyle::Ranged: p.ranged_bonus += AFFINITY_BONUS; break;
-        case AttackStyle::Magic:  p.magic_bonus  += AFFINITY_BONUS; break;
-        default:                  p.attack_bonus += AFFINITY_BONUS; break;
+        case AttackStyle::Ranged: p.ranged_aim = AFFINITY_BONUS; break;
+        case AttackStyle::Magic:  p.magic_aim  = AFFINITY_BONUS; break;
+        default:                  p.melee_aim  = AFFINITY_BONUS; break;
     }
     // What is on them: a concussed or poisoned player guards worse, a
     // concussed or arcing one aims worse, as a monster would. Aims: the
@@ -670,8 +671,53 @@ const ItemDef* Player::Shield() const {
 }
 
 bool Player::CanBlock() const {
-    return Shield() && !dead && !jumping && !attack.Active() && !charging && !strong_armed &&
+    return (Shield() || WardStyle()) && !dead && !jumping && !attack.Active() && !charging && !strong_armed &&
            !guard_broken && stamina > 0.0f && gather_clip.empty();
+}
+
+bool Player::WardStyle() const {
+    return !Shield() && Style() == AttackStyle::Magic &&
+           talents.Effect("magic_block", AttackStyle::Magic) > 0.0f;
+}
+
+Player::GuardShare Player::WardGuard() const {
+    // The shield of the best tier the Magic level reaches -- a draught's lift
+    // and all -- read from the tiers themselves, so a shield retuned is a ward
+    // retuned.
+    GuardShare ward;
+    if (!item_db) return ward;
+    const int magic = skills.Current(SKILL_MAGIC);
+    for (const TierDef& t : item_db->Tiers()) {
+        if (t.level > magic) continue;
+        if (const ItemDef* s = item_db->Get(item_db->TierPiece(t.id, "shield")))
+            if (s->block > ward.block || (s->block == ward.block && s->block_stamina < ward.stamina)) {
+                ward.block = s->block;
+                ward.stamina = s->block_stamina;
+            }
+    }
+    return ward;
+}
+
+bool Player::Mirroring() const {
+    return Warding() && talents.Effect("mirror", AttackStyle::Magic) > 0.0f;
+}
+
+bool Player::TryDeflect(int damage, int attacker_level, float from_x, float from_y) {
+    if (!Mirroring() || !InFrontOf(facing, from_x - x, from_y - y)) return false;
+    // What blocking it would have cost, all of it: without the breath for
+    // that, it comes on to the ward as any blow does, and the ward breaks.
+    const float cost = BlockCost(std::max(1, damage), attacker_level, WardGuard().stamina) *
+                       std::max(0.2f, 1.0f - talents.Global("block_cost"));
+    if (stamina < cost) return false;
+    stamina -= cost;
+    stamina_delay = STAMINA_DELAY;
+    ward_struck = 0.0f;
+    return true;
+}
+
+bool Player::WardShown() const {
+    if (Warding()) return true;
+    return puppet && guard_shown && !Shield() && Style() == AttackStyle::Magic;
 }
 
 bool Player::ParryStyle() const {
@@ -817,7 +863,7 @@ bool Player::StartRiposte(const World& world) {
 }
 
 bool Player::GuardFacing(float from_x, float from_y) const {
-    return blocking && Shield() && InFrontOf(facing, from_x - x, from_y - y);
+    return blocking && (Shield() || WardStyle()) && InFrontOf(facing, from_x - x, from_y - y);
 }
 
 void Player::ShatterGuard() {
@@ -834,13 +880,23 @@ BlockOutcome Player::TryBlock(int damage, int attacker_level, float from_x, floa
     BlockOutcome none;
     none.taken = std::max(0, damage);
     const ItemDef* shield = Shield();
-    if (!blocking || !shield || damage <= 0) return none;
+    if (!blocking || damage <= 0 || (!shield && !WardStyle())) return none;
     // Only what comes at the shield. A blow from behind finds the back.
     if (!InFrontOf(facing, from_x - x, from_y - y)) return none;
 
+    // The shield's share and its breath -- or the ward's, which are a shield's
+    // of the Magic level's tier.
+    GuardShare guard;
+    if (shield) {
+        guard.block = shield->block;
+        guard.stamina = shield->block_stamina;
+    } else {
+        guard = WardGuard();
+        ward_struck = 0.0f;
+    }
     // Bulwark: the shield arm learns, and a caught blow costs less breath.
-    const float cost = shield->block_stamina * std::max(0.2f, 1.0f - talents.Global("block_cost"));
-    BlockOutcome out = ResolveBlock(damage, attacker_level, shield->block, cost, stamina);
+    const float cost = guard.stamina * std::max(0.2f, 1.0f - talents.Global("block_cost"));
+    BlockOutcome out = ResolveBlock(damage, attacker_level, guard.block, cost, stamina);
     stamina = std::max(0.0f, stamina - out.stamina);
     stamina_delay = STAMINA_DELAY;
     if (out.broke) {
@@ -1014,7 +1070,7 @@ void Player::FireStrong(bool charged, float ratio, const World& world) {
     attack.timer    = 0.0f;
     attack.consumed = false;
     TurnToTarget(world);
-    sprite.speed_scale = 1.0f / std::clamp(speed, 0.35f, 3.0f);
+    sprite.speed_scale = 1.0f / std::clamp(speed, SWING_SPEED_MIN, SWING_SPEED_MAX);
     string clip = own_charge && sprite.Def() && sprite.Def()->Find(held->charge_clip) ? held->charge_clip : AttackClip();
     // Two of the techniques are other moves than a bigger swing, and play the
     // clip the character has for that move: the Ground Slam brought down from
@@ -1050,7 +1106,7 @@ void Player::StartWhirl(float ratio, const World& world) {
     attack.turns       = turns;
     attack.turns_begun = 0;
     // The same slowing ScaleForSpeed gave the rest of it.
-    attack.turn        = WHIRL_TURN * std::clamp(speed, 0.35f, 3.0f);
+    attack.turn        = WHIRL_TURN * std::clamp(speed, SWING_SPEED_MIN, SWING_SPEED_MAX);
     TurnToTarget(world);
     // The Cross Cut's turn on the spot, the blade held out level, over and
     // over: its frames are chosen as it goes (ShowWhirlFrame), not played.
@@ -1118,7 +1174,7 @@ void Player::StartCombo(ComboMove move, AttackType type, const World& world) {
     TurnToTarget(world);
     combo_window = 0.0f;
     after_strong = false;
-    sprite.speed_scale = 1.0f / std::clamp(speed, 0.35f, 3.0f);
+    sprite.speed_scale = 1.0f / std::clamp(speed, SWING_SPEED_MIN, SWING_SPEED_MAX);
     sprite.Play(ComboClip(move), true);
     FitSwing();                                       // a wand's combo is a wand's flick
     if (Style() != AttackStyle::Melee) return;
@@ -1297,7 +1353,7 @@ void Player::HandleAttackInput(const PlayerInput& in, float dt, const World& wor
             attack.timer       = 0.0f;
             attack.consumed    = false;
             TurnToTarget(world);
-            sprite.speed_scale = 1.0f / std::clamp(speed, 0.35f, 3.0f);
+            sprite.speed_scale = 1.0f / std::clamp(speed, SWING_SPEED_MIN, SWING_SPEED_MAX);
             // A pair of daggers strikes hand after hand: right, left, right.
             const ItemDef* held = equipment.Weapon();
             const bool pair = held && equipment.DualWielding() && !held->offhand_clip.empty() &&
@@ -1728,7 +1784,7 @@ float Player::WeaponSpeed() const {
     float time = base * (1.0f - talents.Effect("speed", Style()));
     if (frenzy_timer > 0.0f && Style() == AttackStyle::Melee) time *= 1.0f - FRENZY_SPEED;
     if (rapid_timer > 0.0f && Style() == AttackStyle::Ranged) time *= 1.0f - RAPID_SPEED;
-    return std::max(0.3f, time);
+    return std::clamp(time, SWING_SPEED_MIN, SWING_SPEED_MAX);
 }
 
 void Player::StrikePose(const string& clip, float seconds, float hold) {
@@ -1858,6 +1914,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     if (follow_left <= 0.0f && roll_timer <= 0.0f) follow_queued = false;
     war_cry_timer     = std::max(0.0f, war_cry_timer - dt);
     mana_shield_timer = std::max(0.0f, mana_shield_timer - dt);
+    ward_struck = std::min(1.0f, ward_struck + dt);
     shield_struck     = std::min(99.0f, shield_struck + dt);
     riposte_timer     = std::max(0.0f, riposte_timer - dt);
     if (parrying) parry_age += dt;

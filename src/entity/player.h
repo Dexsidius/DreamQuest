@@ -43,7 +43,12 @@ public:
     bool Attacking() const { return attack.Active(); }
     const AttackState& Attack() const { return attack; }
     // The world applies a swing's hitbox once, then marks it spent.
-    bool AttackPending() const { return attack.InActiveWindow() && !attack.consumed; }
+    // Due from the end of the wind-up until it has landed: not only inside the
+    // active window, which at the quickest a swing goes is shorter than a slow
+    // frame, and a frame that stepped over it lost the blow.
+    bool AttackPending() const {
+        return attack.Active() && attack.timer >= attack.profile.windup && !attack.consumed && !attack.Finished();
+    }
     void MarkAttackConsumed() { attack.consumed = true; }
 
     // 0..1 while the strong button is held past the threshold; 0 otherwise.
@@ -597,6 +602,33 @@ public:
     // broken, and a longer wait before stamina starts coming back.
     void  ShatterGuard();
 
+    // --- the wayfarer's ward: Magic Block and Mirror Deflect (the magic tree's Aegis) ---
+    // Every shield past bronze asks Attack, which the wayfarer never trains.
+    // With Magic Block learned, no shield on the arm and magic in hand, the
+    // guard raises a ward of light instead, which blocks as a shield does --
+    // as well as the shield of the best tier the Magic level reaches: a
+    // bronze one's to 9, an iron one's from 10, and on to an enchanted one's
+    // at 95 (WardGuard). Everything else a raised shield is, the ward is: the
+    // guarded step, the breath a blow costs, a heavy blow shattering it. With
+    // Mirror Deflect, a shot that strikes it is turned back at whoever loosed
+    // it as the wayfarer's own magic (World::TurnShot), for the breath a block
+    // of it would have cost -- harder back the higher the Magic.
+    struct GuardShare { float block = 0.5f, stamina = 1.0f; };
+    static constexpr float MIRROR_DAMAGE = 1.0f;       // a turned shot, as a spell of this weight
+    bool  WardStyle() const;                            // the guard would raise the ward
+    GuardShare WardGuard() const;                       // what it is worth at this Magic level
+    bool  Warding() const { return blocking && !Shield() && WardStyle(); }
+    bool  Mirroring() const;
+    // A shot of `damage` about to strike, loosed by something of that level
+    // from (from_x, from_y): turned back, if the mirror is up and faces it and
+    // there is the breath to pay for it. The breath is spent.
+    bool  TryDeflect(int damage, int attacker_level, float from_x, float from_y);
+    // A friend's character, whose talents this window does not keep: their
+    // guard is up (net::PlayerState::Blocking) with no shield and magic in hand.
+    bool  guard_shown = false;
+    bool  WardShown() const;
+    float WardStruck() const { return ward_struck; }    // seconds since a blow last met it
+
     // --- parrying ---------------------------------------------------------------
     // A dagger has no shield behind it, and a greatsword takes both hands: B
     // raises either to parry instead. The first moment of the stance catches a
@@ -822,6 +854,7 @@ private:
 
     bool  sprinting = false;
     bool  blocking = false;
+    float ward_struck = 1.0f;
     bool  parrying = false;
     float parry_age = 0.0f, parry_rest = 0.0f;
     float opening_timer = 0.0f, riposte_owed = 0.0f;

@@ -63,6 +63,7 @@ vector<Game::SkillMilestone> Game::MilestonesFor(int skill) const {
         if (!d.tool.empty()) return d.tool == "pickaxe" ? "pickaxes" : d.tool + "s";
         if (d.piece == "bar") return "bars";
         if (d.slot == SLOT_SHIELD) return "shields";
+        if (d.slot == SLOT_RING || d.slot == SLOT_AMULET) return "jewellery";
         if (d.slot == SLOT_WEAPON) {
             if (skill == SKILL_RANGED) return "bows";
             if (skill == SKILL_MAGIC)  return "staves";

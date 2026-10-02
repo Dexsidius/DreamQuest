@@ -165,6 +165,25 @@ public:
     static constexpr float HEAVY_BLOCK_PUNISH = 1.5f;
     int HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x, float knock_y,
                        const StatusProc& leaves = {}, class Enemy* by = nullptr);
+    // A monster's burning ground, or anything it leaves lying that hurts, a
+    // tick of it on whoever is standing in it. What any blow answers to, it
+    // answers to: the roll goes through it, Stand Fast and what is worn take
+    // their share (as of a heavy blow: nothing rolled to hit), a ward against
+    // burning or the Drowned King's boots halve a fire's, and the Mana Shield
+    // and Resolve are as they are for a blow. It was a bare number off the
+    // health bar, whatever they had on. Returns what was taken. Acting as them.
+    int GroundHitPlayer(int damage, bool fire);
+    // Mirror Deflect: a monster's shot met by `player`'s mirror, turned back at
+    // whoever loosed it -- the nearest thing to where it came from -- as
+    // `player`'s own magic (Player::MIRROR_DAMAGE, on their Magic level and
+    // bonus), keeping what it was: an arrow, a fire bolt that still burns.
+    // Acting as them.
+    void TurnShot(Projectile& p);
+    // What got past everything else, paid: half of it in mana under the Mana
+    // Shield while there is mana, the rest in blood, and Resolve's mana for the
+    // hurt -- the same for a blow, a heavy blow and the ground. `colour` and
+    // `size` are the number's. Returns what was paid in blood.
+    int PayHurt(int taken, SDL_Color colour, float size = 1.0f);
     // A blow that was coming for the player and found nobody there: a swing
     // stepped out of, a heavy's line left, a shot let by, any of them rolled
     // through or slipped. `say` goes up over them -- a word, not experience:

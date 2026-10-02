@@ -1453,6 +1453,12 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
                     second.chance += charm_proc;
                     TryAfflict(e, second, damage, ctx);
                 }
+        // Grave Chill: the barrow's cold, on every way of fighting, rolled for
+        // on its own -- whatever else the blow leaves.
+        if (e.hp > 0) {
+            const float chill = player.talents.Effect("chill", style);
+            if (chill > 0.0f) TryAfflict(e, {Status::Chill, chill}, damage, ctx);
+        }
     }
 
     // The Vampiric Touch's share comes back with the talent's.
@@ -1573,19 +1579,7 @@ int World::HitPlayer(int damage, const CombatProfile& attacker, float from_x, fl
     if (b.broke)
         AddText("Guard broken!", player.x, player.y - 72.0f, {255, 176, 96, 255}, 1.6f);
     if (b.taken > 0) player.BreakChain();
-    if (b.taken > 0) {
-        // A mana shield pays half of it in mana, while there is mana to pay.
-        const int in_blood = player.AbsorbWithMana(b.taken);
-        if (in_blood < b.taken)
-            AddText("-" + std::to_string((b.taken - in_blood) * Player::MANA_PER_HP) + " mana", player.x, player.y - 58.0f,
-                    {130, 170, 255, 255});
-        player.Damage(in_blood);
-        player.NoteHurt();
-        player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
-        AddText(std::to_string(in_blood), player.x, player.y - 44.0f, {235, 70, 70, 255});
-        // Resolve: pain is a kind of fuel.
-        if (in_blood > 0 && !player.IsDead()) player.GainMana(static_cast<int>(player.talents.Global("hurt_mana")));
-    }
+    if (b.taken > 0) PayHurt(b.taken, {235, 70, 70, 255});
     // A blow on the shield still shoves, only less.
     const float push = b.taken > 0 ? 1.0f : 0.35f;
     player.knock_x += knock_x * push;
@@ -1614,6 +1608,16 @@ int World::HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x,
         Parried(by, from_x, from_y, true);
         return 0;
     }
+    // Slippery, as against any blow: on the move, some of them simply miss.
+    // A heavy blow was the one thing the evade never turned.
+    if (damage > 0 && !player.IsDead()) {
+        const float evade = player.talents.Global("evade");
+        if (evade > 0.0f && player.Moving() && !player.Blocking() &&
+            std::uniform_real_distribution<float>(0.0f, 1.0f)(evade_dice) < evade) {
+            Dodged("slipped");
+            return 0;
+        }
+    }
     player.BreakChain();
     if (damage <= 0 || player.IsDead()) return 0;
     // What is worn takes its share first: see HeavySoak. Before the guard is
@@ -1637,10 +1641,9 @@ int World::HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x,
         AddText("Guard shattered!", player.x, player.y - 72.0f, {255, 120, 80, 255}, 1.8f);
         Audio::PlayAt(Sfx::Block, player.x, player.y, 1.0f, 0.6f);
     }
-    player.Damage(damage);
-    player.NoteHurt();
-    player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
-    AddText(std::to_string(damage), player.x, player.y - 44.0f, {255, 60, 40, 255}, 1.2f);
+    // The Mana Shield takes its half of this too, and Resolve feeds on it:
+    // both answered every blow but the one most likely to kill.
+    PayHurt(damage, {255, 60, 40, 255}, 1.2f);
     player.knock_x += knock_x * push;
     player.knock_y += knock_y * push;
     if (damage > 0 && !player.IsDead()) {
@@ -1648,4 +1651,41 @@ int World::HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x,
         AfflictPlayer(leaves, damage, from_x, from_y);
     }
     return damage;
+}
+
+int World::PayHurt(int taken, SDL_Color colour, float size) {
+    if (taken <= 0 || player.IsDead()) return 0;
+    // A mana shield pays half of it in mana, while there is mana to pay.
+    const int in_blood = player.AbsorbWithMana(taken);
+    if (in_blood < taken)
+        AddText("-" + std::to_string((taken - in_blood) * Player::MANA_PER_HP) + " mana", player.x, player.y - 58.0f,
+                {130, 170, 255, 255});
+    player.Damage(in_blood);
+    player.NoteHurt();
+    player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
+    AddText(std::to_string(in_blood), player.x, player.y - 44.0f, colour, size);
+    // Resolve: pain is a kind of fuel.
+    if (in_blood > 0 && !player.IsDead()) player.GainMana(static_cast<int>(player.talents.Global("hurt_mana")));
+    return in_blood;
+}
+
+int World::GroundHitPlayer(int damage, bool fire) {
+    if (damage <= 0 || player.IsDead() || player.resting) return 0;
+    // Rolled through it: nothing. (No "dodged": a patch is not a blow.)
+    if (player.Untouchable()) return 0;
+    // Feet set: less of it, as of a blow.
+    if (player.StandingFast()) damage = std::max(1, static_cast<int>(std::lround(damage * Player::STAND_FAST_SHARE)));
+    // What is worn takes its share, as it does of a heavy blow -- nothing rolls
+    // to hit here either.
+    {
+        const CombatProfile mine = player.Profile();
+        damage = SoakHeavy(damage, mine.defence_level, mine.defence_bonus);
+    }
+    // Half, in the Drowned King's boots, or of a fire on anyone warded against
+    // burning -- as the lava is (World::Update's hazards). The two do not add
+    // up to nothing.
+    if ((fire && player.Warded(Status::Burn)) || player.Passive(Player::PASSIVE_MARSHSTRIDE))
+        damage = std::max(1, static_cast<int>(std::lround(damage * std::min(0.5f, Player::FIRE_WARD_GROUND))));
+    player.BreakChain();
+    return PayHurt(damage, {235, 90, 70, 255});
 }

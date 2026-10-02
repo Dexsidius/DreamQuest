@@ -1360,6 +1360,103 @@ def build_bar(tier, parent):
     return parts
 
 
+# --- jewellery (icons only) ---------------------------------------------------------------
+# A ring and an amulet for each way of fighting, in every metal tier: the band
+# or the pendant in the tier's metal, and a stone that says whose it is -- red
+# for the blade, green for the bow, blue for the staff -- cut three ways so the
+# shape says it too where the colour is lost: square for the blade, a long leaf
+# for the bow, a round cabochon for the staff. At thirty-two pixels the stone
+# is what reads, so it is big for a ring's.
+
+STYLE_STONES = {"blade": (0.90, 0.16, 0.20), "bow": (0.22, 0.76, 0.34), "staff": (0.28, 0.48, 1.00)}
+for _style, _rgb in STYLE_STONES.items():
+    bc.PALETTE["stone_" + _style] = _rgb
+    bc.PALETTE["stone_%s_lt" % _style] = tuple(min(1.0, c * 0.45 + 0.58) for c in _rgb)
+
+
+def _stone(style, parts, parent, at, size):
+    """The style's stone, facing the camera, with a glint on it."""
+    add = lambda *a, **k: parts.append(bc.part(*a, **k))
+    colour, light = "stone_" + style, "stone_%s_lt" % style
+    x, y, z = at
+    if style == "blade":     # square-cut
+        add("stone", mesh_gem(size, size * 0.7, size, sides=4), colour, parent, loc=at, rot=(0, math.radians(45), 0))
+    elif style == "bow":     # a long leaf, lying across
+        add("stone", mesh_gem(size * 1.45, size * 0.6, size * 0.7, sides=6), colour, parent, loc=at)
+    else:                    # a round cabochon
+        add("stone", bc.mesh_ellipsoid(size, size * 0.65, size), colour, parent, loc=at)
+    add("glint", bc.mesh_ellipsoid(size * 0.32, size * 0.2, size * 0.32), light, parent,
+        loc=(x - size * 0.35, y - size * 0.55, z + size * 0.35))
+
+
+def _ring(style):
+    def build(tier, parent):
+        parts = []
+        add = lambda *a, **k: parts.append(bc.part(*a, **k))
+        i = TIERS.index(tier)
+        band, thick = 0.25, 0.042 + 0.003 * i        # heavier the higher the tier
+        lean = math.radians(64)                     # stood up, and leant back: a ring, not a hoop
+        add("band", bc.mesh_torus(band, thick), P(tier, "main"), parent, rot=(lean, 0, 0))
+        add("shine", bc.mesh_torus(band + thick * 0.45, thick * 0.32), P(tier, "light"), parent,
+            rot=(lean, 0, 0), loc=(0, -0.012, 0.012))
+        # The setting on the top of the band, and the stone in it.
+        top = (0.0, band * math.cos(lean) - 0.02, band * math.sin(lean) + thick * 0.6)
+        add("setting", bc.mesh_ellipsoid(0.10, 0.07, 0.06), P(tier, "dark"), parent, loc=top)
+        _stone(style, parts, parent, (top[0], top[1] - 0.05, top[2] + 0.07), 0.10)
+        if PALETTES[tier]["glow"]:
+            for side in (-1, 1):
+                add("spark", mesh_gem(0.026, 0.02, 0.026, sides=4), P(tier, "glow"), parent,
+                    loc=(side * 0.13, top[1] - 0.04, top[2] - 0.01))
+        return parts
+    return build
+
+
+def _amulet(style):
+    def build(tier, parent):
+        parts = []
+        add = lambda *a, **k: parts.append(bc.part(*a, **k))
+        i = TIERS.index(tier)
+        # The cord: a loop above the pendant, in the tier's dark metal as a
+        # chain would be, facing the camera.
+        add("cord", bc.mesh_torus(0.25, 0.016), P(tier, "dark"), parent, loc=(0, 0.02, 0.17),
+            rot=(math.radians(90), 0, 0))
+        # The pendant: a disc of the tier's metal with a rim, a little bigger
+        # the higher the tier, and the stone in the middle of it.
+        r = 0.135 + 0.004 * i
+        at = (0.0, -0.01, -0.13)
+        add("bail", bc.mesh_torus(0.04, 0.014), P(tier, "light"), parent, loc=(0, 0.0, at[2] + r + 0.03),
+            rot=(0, math.radians(90), 0))
+        add("disc", bc.mesh_ellipsoid(r, 0.04, r * 1.1), P(tier, "main"), parent, loc=at)
+        add("rim", bc.mesh_torus(r, 0.022), P(tier, "light"), parent, loc=(at[0], at[1] - 0.012, at[2]),
+            rot=(math.radians(90), 0, 0))
+        _stone(style, parts, parent, (at[0], at[1] - 0.05, at[2]), 0.075)
+        if PALETTES[tier]["glow"]:
+            add("halo", bc.mesh_torus(r * 0.62, 0.010), P(tier, "glow"), parent, loc=(at[0], at[1] - 0.04, at[2]),
+                rot=(math.radians(90), 0, 0))
+        return parts
+    return build
+
+
+JEWELLERY = [("ring_blade", _ring("blade")), ("ring_bow", _ring("bow")), ("ring_staff", _ring("staff")),
+             ("amulet_blade", _amulet("blade")), ("amulet_bow", _amulet("bow")), ("amulet_staff", _amulet("staff"))]
+
+
+def jewellery_icons(tiers, only=None):
+    """Every metal tier's six pieces -- or only those named, as ring_bow_iron."""
+    ICON_MODE["on"] = True
+    count = 0
+    for tier in tiers:
+        if tier == "wood":
+            continue
+        for key, builder in JEWELLERY:
+            name = "%s_%s" % (key, tier)
+            if only and name not in only:
+                continue
+            render_icon(name, builder, tier, 0, 0, 0.86)
+            count += 1
+    print("icons %d" % count)
+
+
 # --- icons ------------------------------------------------------------------------------
 
 def icon_camera(ortho):
@@ -2727,6 +2824,9 @@ def main():
             brewing_icons(set(names) if names else None)
     if "food" in wanted:
         food_icons(set(names) if names else None)
+    # The rings and amulets: with every icon, or by themselves.
+    if "jewellery" in wanted or ("icons" in wanted and not ARMOURY_ONLY["on"]):
+        jewellery_icons(tiers, set(names) if names else None)
     if "sets" in wanted:
         set_icons(tiers, set(names) if names else None)
     # `hands` and `feet`: just the gloves and the boots of every kind.

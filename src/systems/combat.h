@@ -131,6 +131,12 @@ struct CombatProfile {
     // concussed or arcing hand shakes, and the weight behind the blow is the
     // same (Player::Profile).
     float accuracy = 1.0f;
+    // Points of accuracy for one style alone, for the hit chance only: the
+    // affinity's (Player::Profile). They were added to the style's bonus, and
+    // the Ranged and Magic bonuses set a shot's weight as well as its aim, so
+    // the warden's and the wayfarer's hit harder for it where the hero's --
+    // whose blade's weight is Strength's -- only aimed better.
+    int melee_aim = 0, ranged_aim = 0, magic_aim = 0;
 };
 
 // Which of the three styles an attack is resolved as. Ranged and magic use
@@ -307,6 +313,13 @@ SDL_FRect AttackHitbox(float x, float y, Facing facing, const AttackProfile& p,
 // it you can see. Reach, width and knockback are deliberately untouched --
 // they are properties of the weapon's shape, not of how quickly it moves.
 AttackProfile ScaleForSpeed(const AttackProfile& p, float speed);
+// The fastest and slowest a swing goes, as a speed: four times as fast as a
+// sword at the most. Everything that asks how fast a swing is -- its timings,
+// its clip, the character panel -- asks this one pair. It was 0.35 for the
+// swing and 0.30 for the panel, and a pair of daggers, at 0.36 before
+// anything, was already at the floor: speed did almost nothing for them, and
+// the panel said 3.33x of swings that ran at 2.86x.
+static constexpr float SWING_SPEED_MIN = 0.25f, SWING_SPEED_MAX = 3.0f;
 
 // One in-flight swing, owned by whoever is attacking.
 struct AttackState {

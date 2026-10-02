@@ -1321,8 +1321,10 @@ static void TestCharacterPanel(const Databases& db) {
                   value(CharacterAttributes(warden), "Guard") == "Roll",
               "the hero's guard is the shield's block; the warden's, with a bow in both hands, the roll");
         const AttributeLine* att = line(a, "Attack");
-        Check(att && att->value == std::to_string(c.attack_level) && att->extra == "+" + std::to_string(c.attack_bonus) &&
-                  c.attack_bonus >= Player::AFFINITY_BONUS,
+        // The affinity is aim alone now (CombatProfile::melee_aim), and the
+        // line is the accuracy the fight adds: what is worn and the aim.
+        Check(att && att->value == std::to_string(c.attack_level) &&
+                  att->extra == "+" + std::to_string(c.attack_bonus + c.melee_aim) && c.melee_aim == Player::AFFINITY_BONUS,
               "a style says its level, and beside it the accuracy the fight adds -- the hero's affinity among it");
 
         // A draught lights a level; one drained is red.
@@ -4080,6 +4082,515 @@ static void TestCombatFixes(const Databases& db) {
     }
 }
 
+// The report's "Balance and design" group (the Almanac, chapter 07), as the
+// user decided it: what a heavy blow and a monster's ground answer to, the
+// affinity as aim, a pair's speed, effects that were each other, the
+// wayfarer's ward in place of a shield, and jewellery that carries Crafting.
+static void TestBalanceFixes(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    Section("balance, as the report found it: heavy blows and burning ground, aim, a pair's speed, effects twice over, "
+            "the wayfarer's ward, jewellery");
+
+    Input input;
+    std::mt19937 rng(9091);
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+    ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.statuses = &statuses; ctx.input = &input;       ctx.rng = &rng;
+    const float dt = 1.0f / 60.0f;
+    const auto key = [&](SDL_Keycode k, bool down) {
+        SDL_Event e{};
+        e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+        e.key.key = k;
+        input.HandleEvent(e);
+    };
+    const auto field = [&](World& w, const char* who, const string& weapon, int skill, int level) {
+        w.player.Init(ctx, who);
+        if (!w.LoadMap("overworld", "start", ctx)) return false;
+        w.enemies.clear();
+        w.clock.Set(1, 12.0f);
+        LevelUp lu;
+        w.player.skills.AddXp(skill, XpForLevel(level), lu);
+        w.player.skills.AddXp(SKILL_HITPOINTS, XpForLevel(60), lu);
+        w.player.SyncHitpoints();
+        w.player.hp = w.player.max_hp;
+        w.player.SyncMana();
+        w.player.RestoreMana();
+        w.player.equipment.Unequip(SLOT_SHIELD);
+        w.player.equipment.Equip(SLOT_WEAPON, weapon);
+        w.player.facing = FACE_RIGHT;
+        w.player.sprite.facing = FACE_RIGHT;
+        return true;
+    };
+    const auto sturdy = [&](World& w, const string& type, float dx, float dy) -> Enemy* {
+        const EnemyDef* stats = enemy_db.Get(type);
+        if (!stats) return nullptr;
+        EnemySpawnDef def;
+        def.type = type; def.level = 1; def.leash = 400.0f; def.respawn = 0.0f;
+        def.x = w.player.x + dx; def.y = w.player.y + dy;
+        auto e = std::make_unique<Enemy>();
+        e->Init(stats, def, ctx);
+        e->max_hp = 60000;
+        e->hp = e->max_hp;
+        Enemy* raw = e.get();
+        w.enemies.push_back(std::move(e));
+        return raw;
+    };
+    const auto learn = [&](World& w, std::initializer_list<const char*> ids) {
+        bool all = true;
+        for (const char* id : ids) all &= w.player.talents.Learn(id, w.player.skills);
+        return all;
+    };
+    // A monster's patch of ground under them, one tick of it: what it took.
+    const auto patch = [&](World& w, int damage, Element element) {
+        GroundEffect g;
+        g.x = w.player.x;
+        g.y = w.player.y;
+        g.radius = 30.0f;
+        g.damage = damage;
+        g.element = element;
+        g.from_player = false;
+        g.tick_interval = 0.5f;
+        g.life = g.max_life = 0.4f;
+        w.ground_effects.clear();
+        w.AddGroundEffect(g);
+        const int hp = w.player.hp;
+        w.Update(dt, ctx);
+        w.ground_effects.clear();
+        return hp - w.player.hp;
+    };
+    const char* kMagicWarden[] = {"ward", "seeker", "meteor", "mana_shield", "siphon", "repulse", "resolve"};
+
+    // --- a heavy blow answers to the Mana Shield and to Resolve ------------------------------------
+    {
+        World w;
+        if (field(w, "player_wayfarer", "iron_staff", SKILL_MAGIC, 70)) {
+            for (const char* id : kMagicWarden) w.player.talents.Learn(id, w.player.skills);
+            w.player.talents.SetAbility(0, "mana_shield");
+            const bool up = w.player.TryAbility(0, w) && w.player.ManaShield();
+            const int hp = w.player.hp, mana = w.player.Mana();
+            const int took = w.HeavyHitPlayer(40, w.player.x + 50.0f, w.player.y, 0.0f, 0.0f);
+            Check(up && took > 1 && hp - w.player.hp < took && w.player.Mana() < mana,
+                  "under the Mana Shield a heavy blow is half paid in mana, as any blow is (" + std::to_string(took) +
+                  " came through, " + std::to_string(hp - w.player.hp) + " of it in blood)");
+        }
+    }
+    {
+        World w;
+        if (field(w, "player_wayfarer", "iron_staff", SKILL_MAGIC, 70)) {
+            for (const char* id : kMagicWarden) w.player.talents.Learn(id, w.player.skills);
+            w.player.SpendMana(w.player.Mana() / 2);
+            const int mana = w.player.Mana();
+            const int took = w.HeavyHitPlayer(30, w.player.x + 50.0f, w.player.y, 0.0f, 0.0f);
+            Check(w.player.talents.Has("resolve") && took > 0 &&
+                      w.player.Mana() - mana == static_cast<int>(w.player.talents.Global("hurt_mana")),
+                  "and Resolve is fed by one, as by any blow");
+        }
+    }
+
+    // --- and the evade: on the move, some of them simply miss --------------------------------------
+    {
+        World w;
+        if (field(w, "player_warden", "oak_shortbow", SKILL_RANGED, 70)) {
+            learn(w, {"quick_draw", "fleet_foot", "volley", "follow_through", "hit_and_run", "rapid_fire", "slippery", "slippery"});
+            const int day = w.clock.QuestDay();
+            w.player.talents.SetToday(day);
+            w.player.talents.PlaceTotem("totem_well_warden", day);             // Deep Water: evade
+            const float evade = w.player.talents.Global("evade");
+            const auto heavies = [&](bool moving) {
+                w.player.hands_external = true;
+                PlayerInput h;
+                if (moving) h.move = {0.0f, 1.0f};
+                w.player.hands = h;
+                w.Update(dt, ctx);
+                int slipped = 0;
+                for (int i = 0; i < 200; ++i) {
+                    w.player.hp = w.player.max_hp;
+                    if (w.HeavyHitPlayer(20, w.player.x + 50.0f, w.player.y, 0.0f, 0.0f) == 0) ++slipped;
+                }
+                return slipped;
+            };
+            const int on_the_move = heavies(true), standing = heavies(false);
+            Check(evade > 0.1f && on_the_move > 10 && on_the_move < 190 && standing == 0,
+                  "on the move, some heavy blows slip by as other blows do -- " + std::to_string(on_the_move) +
+                  " of 200 at " + std::to_string(static_cast<int>(evade * 100.0f + 0.5f)) + "% -- and none standing still");
+        }
+    }
+
+    // --- a monster's burning ground answers to everything a blow does --------------------------------
+    {
+        World w;
+        if (field(w, "player_hero", "iron_sword", SKILL_ATTACK, 60)) {
+            // Exact, by the tick itself (World::GroundHitPlayer); and then the
+            // same off a patch lying under them, give or take a point of
+            // health come back in the frame. In iron, with the Defence their
+            // combat level makes: a level set by experience alone leaves it
+            // where a new character's is, and so little soaks twelve to twelve.
+            w.player.SyncDefence(false);
+            for (const char* piece : {"helm", "body", "legs"})
+                if (const ItemDef* d = items.Get(items.TierPiece("iron", piece))) w.player.equipment.Equip(d->slot, d->id);
+            const CombatProfile mine = w.player.Profile();
+            const int bare = w.GroundHitPlayer(12, true);
+            w.player.hp = w.player.max_hp;
+            const int laid = patch(w, 12, Element::Fire);
+            Check(bare > 0 && bare < 12 && bare == SoakHeavy(12, mine.defence_level, mine.defence_bonus) && std::abs(laid - bare) <= 1,
+                  "a monster's burning ground is soaked by what is worn and the Defence level, as a heavy blow is (" +
+                  std::to_string(bare) + " of 12), where it was the bare number whatever they had on");
+            w.player.hp = w.player.max_hp;
+            w.player.SetWard(Status::Burn, 60.0f);
+            const int warded = w.GroundHitPlayer(12, true);
+            const int earth_warded = w.GroundHitPlayer(12, false);
+            w.player.hp = w.player.max_hp;
+            const int fire_laid = patch(w, 12, Element::Fire);
+            w.player.hp = w.player.max_hp;
+            const int earth_laid = patch(w, 12, Element::Earth);
+            w.player.ClearWards();
+            const int half = std::max(1, static_cast<int>(std::lround(bare * Player::FIRE_WARD_GROUND)));
+            Check(warded == half && earth_warded == bare && std::abs(fire_laid - half) <= 1 && std::abs(earth_laid - bare) <= 1,
+                  "warded against burning, a fire's is halved -- and an eruption of earth is not");
+            w.player.equipment.Equip(SLOT_FEET, "drowned_king_boots");
+            const bool marshy = w.player.Passive(Player::PASSIVE_MARSHSTRIDE);
+            const CombatProfile booted = w.player.Profile();
+            w.player.hp = w.player.max_hp;
+            const int marsh = w.GroundHitPlayer(12, false);
+            w.player.equipment.Unequip(SLOT_FEET);
+            Check(marshy &&
+                      marsh == std::max(1, static_cast<int>(std::lround(SoakHeavy(12, booted.defence_level, booted.defence_bonus) * 0.5f))),
+                  "and in the Drowned King's boots any of it is halved, as the lava is");
+        }
+    }
+    {
+        World w;
+        if (field(w, "player_hero", "iron_sword", SKILL_ATTACK, 60)) {
+            learn(w, {"thick_skin", "second_wind", "lunge", "bash", "riposte", "stand_fast"});
+            w.player.talents.SetAbility(1, "stand_fast");
+            const int bare = patch(w, 30, Element::Fire);
+            w.player.hp = w.player.max_hp;
+            const bool set = w.player.TryAbility(1, w) && w.player.StandingFast();
+            const int fast = patch(w, 30, Element::Fire);
+            Check(set && fast < bare, "Stand Fast takes its share of the ground as of a blow (" + std::to_string(fast) +
+                                         " against " + std::to_string(bare) + ")");
+        }
+    }
+    {
+        World w;
+        if (field(w, "player_warden", "oak_shortbow", SKILL_RANGED, 40)) {
+            const bool rolled = w.player.TryRoll() && w.player.Untouchable();
+            Check(rolled && w.GroundHitPlayer(12, true) == 0 && patch(w, 12, Element::Fire) <= 0,
+                  "and rolled through, it does nothing at all");
+        }
+    }
+    {
+        World w;
+        if (field(w, "player_wayfarer", "iron_staff", SKILL_MAGIC, 70)) {
+            for (const char* id : kMagicWarden) w.player.talents.Learn(id, w.player.skills);
+            w.player.talents.SetAbility(0, "mana_shield");
+            const int bare = patch(w, 40, Element::Fire);
+            w.player.hp = w.player.max_hp;
+            w.player.RestoreMana();
+            const int mana = w.player.Mana();
+            const bool up = w.player.TryAbility(0, w);
+            const int spent = mana - w.player.Mana();
+            const int shielded = patch(w, 40, Element::Fire);
+            Check(up && bare > 1 && shielded < bare && w.player.Mana() < mana - spent,
+                  "and the Mana Shield pays half of it in mana, as it does of a blow");
+        }
+    }
+
+    // --- the affinity is aim, for all three ---------------------------------------------------------
+    {
+        CombatProfile guard;
+        guard.defence_level = 50;
+        guard.defence_bonus = 30;
+        const auto check_aim = [&](const char* who, const string& weapon, int skill, AttackStyle style) {
+            Player p;
+            p.Init(ctx, who);
+            LevelUp lu;
+            p.skills.AddXp(skill, XpForLevel(50), lu);
+            p.equipment.Equip(SLOT_WEAPON, weapon);
+            const CombatProfile c = p.Profile();
+            CombatProfile no = c;
+            no.melee_aim = no.ranged_aim = no.magic_aim = 0;
+            const int worn = style == AttackStyle::Ranged ? p.equipment.RangedBonus()
+                           : style == AttackStyle::Magic  ? p.equipment.MagicBonus() : p.equipment.AttackBonus();
+            const int bonus = style == AttackStyle::Ranged ? c.ranged_bonus : style == AttackStyle::Magic ? c.magic_bonus : c.attack_bonus;
+            const int aim = style == AttackStyle::Ranged ? c.ranged_aim : style == AttackStyle::Magic ? c.magic_aim : c.melee_aim;
+            return bonus == worn && aim == Player::AFFINITY_BONUS &&
+                   HitChanceFor(c, guard, style) > HitChanceFor(no, guard, style) &&
+                   MaxHitFor(c, style, 1.0f) == MaxHitFor(no, style, 1.0f);
+        };
+        Check(check_aim("player_hero", "iron_sword", SKILL_ATTACK, AttackStyle::Melee) &&
+                  check_aim("player_warden", "oak_shortbow", SKILL_RANGED, AttackStyle::Ranged) &&
+                  check_aim("player_wayfarer", "iron_staff", SKILL_MAGIC, AttackStyle::Magic),
+              "each character's affinity is eight points of aim and nothing else: the warden's and the wayfarer's no "
+              "longer hit harder for it where the hero's never did");
+    }
+
+    // --- a pair of daggers is quicker for speed, and the panel says how quick -----------------------
+    {
+        World w;
+        const string dagger = items.TierPiece("iron", "dagger");
+        if (field(w, "player_hero", dagger, SKILL_ATTACK, 60)) {
+            w.player.equipment.Equip(SLOT_SHIELD, dagger);
+            const float bare = w.player.WeaponSpeed();
+            learn(w, {"keen_edge", "flurry", "flurry", "flurry"});
+            const float quick = w.player.WeaponSpeed();
+            string shown;
+            for (const AttributeLine& a : CharacterAttributes(w.player))
+                if (a.label == "Attack speed") shown = a.value;
+            char want[16];
+            SDL_snprintf(want, sizeof(want), "%.2fx", 1.0f / quick);
+            Check(w.player.equipment.DualWielding() && bare < 0.37f && quick < bare * 0.92f && quick >= SWING_SPEED_MIN && shown == want,
+                  "a pair is quicker for all of Flurry -- " + std::to_string(bare).substr(0, 5) + " to " +
+                  std::to_string(quick).substr(0, 5) + " -- where it was at the floor already, and the panel says " + shown);
+            // The swing is that quick too, and a slow frame does not step over it.
+            Enemy* boar = sturdy(w, "boar", 24.0f, 0.0f);
+            const float slow = 0.05f;
+            const int hp0 = boar ? boar->hp : 0;
+            float windup = 1.0f;
+            for (int i = 0; i < 6 && boar; ++i) {
+                boar->Stagger(5.0f, true);
+                input.Update(slow); key(SDLK_J, true); w.Update(slow, ctx);
+                if (w.player.Attack().Active()) windup = std::min(windup, w.player.Attack().profile.windup);
+                input.Update(slow); key(SDLK_J, false); w.Update(slow, ctx);
+                for (int f = 0; f < 4; ++f) { input.Update(slow); w.Update(slow, ctx); }
+            }
+            Check(boar && windup < ProfileFor(AttackType::Light, 0).windup * 0.35f - 1e-4f && boar->hp < hp0,
+                  "and its blows run that quick -- past the old floor -- and land at twenty frames a second, where the "
+                  "moment a stab was live had been shorter than the frame");
+        }
+    }
+
+    // --- no two effects are the same, and no charm's tier is beaten by one far below it --------------
+    {
+        bool boons_apart = true, totems_apart = true;
+        const auto& bs = trees.Boons();
+        for (size_t i = 0; i < bs.size(); ++i)
+            for (size_t j = i + 1; j < bs.size(); ++j)
+                if (bs[i].effects == bs[j].effects) { boons_apart = false; SDL_Log("  %s and %s", bs[i].id.c_str(), bs[j].id.c_str()); }
+        const auto& ts = trees.Totems();
+        for (size_t i = 0; i < ts.size(); ++i)
+            for (size_t j = i + 1; j < ts.size(); ++j)
+                if (ts[i].effects == ts[j].effects) { totems_apart = false; SDL_Log("  %s and %s", ts[i].item.c_str(), ts[j].item.c_str()); }
+        Check(boons_apart, "no two boons do the same thing: Threefold is a little of three things, not Swift Hands again");
+        Check(totems_apart, "and no two totems: Grave Chill chills, and the Red Thirst alone drinks");
+
+        // A worn charm's tier against every other charm's on a slot both fit,
+        // for each number they share: one opened more than twenty levels
+        // below never does better.
+        bool ordered = true;
+        const auto stats = [](const EnchantDef::Tier& t) {
+            return vector<float>{static_cast<float>(t.attack_bonus), static_cast<float>(t.strength_bonus),
+                                 static_cast<float>(t.defence_bonus), static_cast<float>(t.ranged_bonus),
+                                 static_cast<float>(t.magic_bonus), t.move_speed};
+        };
+        const vector<const EnchantDef*> charms = items.Enchantments();
+        for (const EnchantDef* a : charms)
+            for (const EnchantDef* b : charms) {
+                if (a == b || a->ForWeapon() || b->ForWeapon()) continue;
+                bool share = false;
+                for (EquipSlot s : a->slots) share |= std::find(b->slots.begin(), b->slots.end(), s) != b->slots.end();
+                if (!share) continue;
+                for (const EnchantDef::Tier& ta : a->tiers)
+                    for (const EnchantDef::Tier& tb : b->tiers) {
+                        if (ta.level <= tb.level + 20) continue;
+                        const auto sa = stats(ta), sb = stats(tb);
+                        for (int k = 0; k < 6; ++k)
+                            if (sa[k] > 0.0f && sb[k] > 0.0f && sb[k] > sa[k] + 1e-4f) {
+                                ordered = false;
+                                SDL_Log("  %s at %d beaten by %s at %d", a->name.c_str(), ta.level, b->name.c_str(), tb.level);
+                            }
+                    }
+            }
+        Check(ordered, "no worn charm's tier is beaten by another's opened more than twenty levels below it: Swiftness V "
+                       "against the Wind, Warding V against Fortitude");
+    }
+    // Grave Chill, in play.
+    {
+        const auto chills = [&](bool totem) {
+            World w;
+            if (!field(w, "player_hero", "iron_sword", SKILL_ATTACK, 99)) return -1;
+            if (totem) {
+                const int day = w.clock.QuestDay();
+                w.player.talents.SetToday(day);
+                w.player.talents.PlaceTotem("totem_barrow_wight", day);
+            }
+            Enemy* boar = sturdy(w, "boar", 300.0f, 0.0f);
+            int n = 0;
+            for (int i = 0; i < 200 && boar; ++i) {
+                boar->Stagger(5.0f, true);
+                GroundEffect g;
+                g.x = boar->x; g.y = boar->y; g.radius = 40.0f; g.burst = true; g.from_player = true;
+                g.owner = w.player.Profile(); g.style = AttackStyle::Melee; g.hit_mult = 1.0f; g.knockback = 0.0f;
+                g.life = g.max_life = 0.35f;
+                w.AddGroundEffect(g);
+                w.Update(dt, ctx);
+                if (boar->Afflicted(Status::Chill)) { ++n; boar->statuses.End(Status::Chill); }
+            }
+            return n;
+        };
+        const int with = chills(true), without = chills(false);
+        Check(with >= 8 && with <= 40 && without == 0,
+              "Grave Chill leaves about one blow in ten chilled (" + std::to_string(with) + " of 200), and nothing else does here");
+    }
+
+    // --- the wayfarer's ward: Magic Block, and Mirror Deflect -----------------------------------------
+    {
+        World w;
+        if (field(w, "player_wayfarer", "iron_staff", SKILL_MAGIC, 16)) {
+            const auto guard_up = [&] {
+                w.player.hands_external = true;
+                PlayerInput h;
+                h.down = PlayerInput::Block;
+                w.player.hands = h;
+                w.player.facing = FACE_RIGHT;
+                w.Update(dt, ctx);
+                w.player.facing = FACE_RIGHT;
+            };
+            guard_up();
+            const bool bare = !w.player.Blocking();
+            Check(bare && w.player.talents.CanLearn("mirror_deflect", w.player.skills) == Talents::Why::Prerequisite,
+                  "with no shield and no Magic Block the guard raises nothing, and Mirror Deflect asks for Magic Block first");
+            learn(w, {"magic_block"});
+            guard_up();
+            const ItemDef* iron_shield = items.Get(items.TierPiece("iron", "shield"));
+            const bool warding = w.player.Blocking() && w.player.Warding() && iron_shield &&
+                                 fabsf(w.player.WardGuard().block - iron_shield->block) < 1e-4f;
+            CombatProfile orc;
+            orc.attack_level = orc.strength_level = 30;
+            const int hp = w.player.hp;
+            const int taken = w.HitPlayer(20, orc, w.player.x + 40.0f, w.player.y, 0.0f, 0.0f);
+            string shown;
+            for (const AttributeLine& a : CharacterAttributes(w.player))
+                if (a.label == "Guard") shown = a.value;
+            Check(warding && taken < 20 && hp - w.player.hp == taken && shown.rfind("Ward ", 0) == 0,
+                  "with it, the guard raises a ward that blocks as an iron shield does at Magic 16 -- " + std::to_string(taken) +
+                  " of 20 through -- and the panel's guard says " + shown);
+            LevelUp lu;
+            w.player.skills.AddXp(SKILL_MAGIC, XpForLevel(60) - w.player.skills.Xp(SKILL_MAGIC), lu);
+            const ItemDef* diamond_shield = items.Get(items.TierPiece("diamond", "shield"));
+            Check(diamond_shield && fabsf(w.player.WardGuard().block - diamond_shield->block) < 1e-4f,
+                  "and as a diamond one at Magic 60: it grows with Magic");
+            // Breath back, and the guard with it: that blow cost more than the
+            // bar holds, and a guard paid for in part breaks until it refills.
+            const auto rested = [&] {
+                w.player.hands = PlayerInput{};
+                w.player.GainStamina(Player::MAX_STAMINA * 2.0f);
+                w.Update(dt, ctx);
+            };
+            rested();
+            // A shield on the arm is the shield's to block with.
+            w.player.equipment.Equip(SLOT_SHIELD, "wooden_shield");
+            guard_up();
+            Check(w.player.Blocking() && !w.player.Warding(), "a shield carried is the guard, and no ward comes up");
+            w.player.equipment.Unequip(SLOT_SHIELD);
+            rested();
+            guard_up();
+            // A heavy blow on it breaks it, as it breaks a shield.
+            const bool whole = w.player.Warding() && !w.player.GuardBroken();
+            w.player.hp = w.player.max_hp;
+            w.HeavyHitPlayer(30, w.player.x + 40.0f, w.player.y, 0.0f, 0.0f);
+            Check(whole && w.player.GuardBroken(), "and a heavy blow met with it shatters it, as it shatters a shield");
+        }
+    }
+    {
+        // A shot at the ward, from a boar's place to the right.
+        const auto shoot = [&](bool mirror, int& back_on_it, bool& turned) {
+            World w;
+            back_on_it = 0;
+            turned = false;
+            if (!field(w, "player_wayfarer", "iron_staff", SKILL_MAGIC, 99)) return -1;
+            learn(w, mirror ? std::initializer_list<const char*>{"magic_block", "mirror_deflect"}
+                            : std::initializer_list<const char*>{"magic_block"});
+            Enemy* boar = sturdy(w, "boar", 130.0f, 0.0f);
+            w.player.hands_external = true;
+            PlayerInput h;
+            h.down = PlayerInput::Block;
+            w.player.hands = h;
+            w.Update(dt, ctx);
+            const int hp = w.player.hp, boar_hp = boar ? boar->hp : 0;
+            CombatProfile archer;
+            archer.ranged_level = 40;
+            for (int shot = 0; shot < 4 && boar; ++shot) {
+                boar->Stagger(5.0f, true);
+                w.player.facing = FACE_RIGHT;
+                Projectile* p = w.SpawnProjectile("arrow", boar->x - 16.0f, w.player.y - 18.0f, -1.0f, 0.0f, archer,
+                                                  AttackStyle::Ranged, 1.0f, false, ctx);
+                if (!p) return -1;
+                p->from_x = boar->x;
+                p->from_y = boar->y;
+                for (int f = 0; f < 90; ++f) {
+                    boar->Stagger(5.0f, true);
+                    w.player.facing = FACE_RIGHT;
+                    w.Update(dt, ctx);
+                    for (const Projectile& q : w.projectiles) turned |= q.from_player && q.def && q.def->id == "arrow" && q.vx > 0.0f;
+                }
+            }
+            back_on_it = boar ? boar_hp - boar->hp : 0;
+            return hp - w.player.hp;
+        };
+        int struck_plain = 0, struck_mirror = 0;
+        bool turned_plain = false, turned_mirror = false;
+        const int plain = shoot(false, struck_plain, turned_plain);
+        const int mirror = shoot(true, struck_mirror, turned_mirror);
+        Check(plain >= 0 && !turned_plain && struck_plain == 0,
+              "a shot at the ward alone is blocked as by a shield, and goes no further");
+        Check(mirror == 0 && turned_mirror && struck_mirror > 0,
+              "with Mirror Deflect it is turned back at whoever loosed it, as the wayfarer's magic: nothing of it on them, "
+              "and " + std::to_string(struck_mirror) + " on the archer");
+    }
+
+    // --- jewellery: a ring and an amulet for each way of fighting, at the bench ------------------------
+    {
+        static const char* kJewels[] = {"ring_blade", "ring_bow", "ring_staff", "amulet_blade", "amulet_bow", "amulet_staff"};
+        static const int kSkill[] = {SKILL_ATTACK, SKILL_RANGED, SKILL_MAGIC, SKILL_ATTACK, SKILL_RANGED, SKILL_MAGIC};
+        bool all = true, no_wood = true, art = true, bench = true;
+        std::set<int> levels;
+        int made = 0;
+        for (const TierDef& t : items.Tiers()) {
+            for (int i = 0; i < 6; ++i) {
+                const string id = items.TierPiece(t.id, kJewels[i]);
+                if (t.wood) { if (!id.empty()) no_wood = false; continue; }
+                const ItemDef* d = items.Get(id);
+                if (!d) { all = false; SDL_Log("  no %s in %s", kJewels[i], t.id.c_str()); continue; }
+                ++made;
+                const int own = kSkill[i] == SKILL_ATTACK ? d->attack_bonus : kSkill[i] == SKILL_RANGED ? d->ranged_bonus : d->magic_bonus;
+                const auto req = d->requirements.find(kSkill[i]);
+                if (d->slot != (i < 3 ? SLOT_RING : SLOT_AMULET) || own <= 0 ||
+                    (t.level > 1 && (req == d->requirements.end() || req->second != t.level)))
+                    all = false;
+                if (!fs::exists(d->icon)) { art = false; SDL_Log("  no icon %s", d->icon.c_str()); }
+                const ItemDef* r = nullptr;
+                for (const ItemDef* rec : items.Recipes())
+                    if (rec->craft_result == id) r = rec;
+                if (!r || items.StationFor(*r) != CraftStation::Workbench || CraftSkill(items.StationFor(*r)) != SKILL_CRAFTING ||
+                    r->craft_level != t.level || !r->craft_inputs.count(t.bar))
+                    bench = false;
+                else
+                    levels.insert(r->craft_level);
+            }
+        }
+        Check(all && made == 66, "every metal tier has a Knight's, a Ranger's and a Mage's ring and amulet, each asking "
+                                 "the tier's level in its own style and adding to it -- the bow has a ring at last");
+        Check(no_wood, "and none in wood");
+        Check(art, "each with an icon of its own");
+        int last = 0;
+        bool close = true;
+        for (int lv : levels) { close &= lv - last <= 10; last = lv; }
+        Check(bench && close && last >= 95,
+              "each made at the bench, by Crafting, at its tier's level, from its tier's bar: Crafting opens something "
+              "every ten levels to 95, where it had nothing past 5");
+        const ItemDef* conflux = items.Get("conflux_heart");
+        const ItemDef* demonite = items.Get(items.TierPiece("demonite", "amulet_staff"));
+        Check(conflux && demonite && conflux->magic_bonus >= demonite->magic_bonus,
+              "and the Quintessence's heart is still the better amulet at its level");
+    }
+}
+
 int main(int argc, char** argv) {
     // Unbuffered (Windows has no line buffering), so a crash does not take what
     // was printed before it with it.
@@ -5326,6 +5837,13 @@ int main(int argc, char** argv) {
             Check(at_fire == (r->craft_at == "range"),
                   r->craft_result + (at_fire ? " is cooked at a fire, because it says so" : " is not cooked"));
             if (at_fire) continue;
+            // And the jewellery is worked at the bench, with Crafting, metal and
+            // all, because it says so (tiers.json, "craft_at").
+            if (r->craft_at == "bench") {
+                Check(std::find(bench.begin(), bench.end(), r) != bench.end(),
+                      r->craft_result + " is worked at the bench, because it says so");
+                continue;
+            }
             const bool at_cauldron = std::find(cauldron.begin(), cauldron.end(), r) != cauldron.end();
             Check(brewed == at_cauldron, r->craft_result + (brewed ? " is brewed at a cauldron" : " is not brewed"));
             if (brewed) continue;
@@ -7595,7 +8113,7 @@ int main(int argc, char** argv) {
                 "projectile_speed", "long_shot", "move_speed", "hit_run", "pierce", "stamina", "first_blood", "mana_cost",
                 "attunement", "mana_regen", "crit_mana", "homing", "elemental",
                 "bleed", "punish", "block_cost", "weak_point", "evade", "echo", "max_mana", "hurt_mana", "counter",
-                "follow_through"};
+                "follow_through", "magic_block", "mirror"};
             for (const TalentNode& n : t.nodes)
                 for (const auto& [effect, amount] : n.effects)
                     if (!known.count(effect)) { effects_known = false; SDL_Log("  unknown effect '%s' on %s", effect.c_str(), n.id.c_str()); }
@@ -7616,8 +8134,17 @@ int main(int argc, char** argv) {
             Check(counter && counter->id == "counter" && counter->ranks == 2 && counter->level == 30 &&
                       counter->effects.count("counter"),
                   "and Counter beside it, at Attack 30, in two ranks: the opening, then the riposte");
-            Check(trees.Tree(AttackStyle::Ranged).BranchCount() == 3 && trees.Tree(AttackStyle::Magic).BranchCount() == 3,
-                  "the ranged and magic trees keep their three");
+            Check(trees.Tree(AttackStyle::Ranged).BranchCount() == 3, "the ranged tree keeps its three");
+            // The magic tree has a fourth too: Aegis, the wayfarer's way round a
+            // shield (every shield past bronze asks Attack).
+            const TalentTree& magic = trees.Tree(AttackStyle::Magic);
+            const TalentNode* block = magic.At(3, 0);
+            const TalentNode* mirror = magic.At(3, 1);
+            Check(magic.BranchCount() == 4 && magic.branches.size() == 4 && magic.branches[3] == "Aegis" &&
+                      block && block->id == "magic_block" && block->level == 5 && block->ranks == 1 &&
+                      block->effects.count("magic_block") && mirror && mirror->id == "mirror_deflect" &&
+                      mirror->level == 15 && mirror->ranks == 1 && mirror->effects.count("mirror") && !magic.At(3, 2),
+                  "the magic tree has a fourth branch, Aegis: Magic Block at Magic 5, and Mirror Deflect under it at 15");
         }
         Check(milestones, "every row is one milestone level, rising down the tree");
         Check(techniques, "each tree teaches three techniques and six abilities -- five for the bow, whose roll is the guard button's and "
@@ -12845,7 +13372,7 @@ int main(int argc, char** argv) {
             Check(no_later, "and nothing opens later than it did when the table asked Magic");
             Check(rising, "each tier later, stronger, dearer and better paid than the one before");
             const EnchantDef* warding = items.Enchantment("warding");
-            Check(warding && warding->NameAt(3) == "Warding III" && warding->EffectAt(3) == "Defence +12" &&
+            Check(warding && warding->NameAt(3) == "Warding III" && warding->EffectAt(3) == "Defence +14" &&
                       warding->TierFor(warding->LevelAt(2) - 1) == 1 && warding->TierFor(warding->LevelAt(2)) == 2,
                   "a worn piece's charm is named and told by its tier, and reached by level (" +
                       (warding ? warding->EffectAt(3) : string("?")) + ")");
@@ -12938,8 +13465,8 @@ int main(int argc, char** argv) {
                   warded->armour_layer == helm->armour_layer && warded->tint.r == helm->tint.r,
                   "an iron helm takes Warding, for eight more Defence, and is drawn as the same helm");
             const ItemDef* warded3 = helm ? items.Get(helm->id + "+warding_3") : nullptr;
-            Check(warded3 && warded3->defence_bonus == helm->defence_bonus + 12 && warded3->passive_text.find("Warding III") != string::npos,
-                  "and Warding III, twelve more, says so in the bag");
+            Check(warded3 && warded3->defence_bonus == helm->defence_bonus + 14 && warded3->passive_text.find("Warding III") != string::npos,
+                  "and Warding III, fourteen more, says so in the bag");
             const ItemDef* shield = items.Get(items.TierPiece("wood", "shield"));
             const ItemDef* lantern = items.Get("lantern");
             const EnchantDef* fortitude = items.Enchantment("fortitude");
@@ -14153,8 +14680,11 @@ int main(int argc, char** argv) {
                   "the hero's swings hit a tenth harder than the wayfarer's");
             Check(wayfarer.TalentDamage(AttackStyle::Magic, AttackType::Light) >
                   hero.TalentDamage(AttackStyle::Magic, AttackType::Light), "and the wayfarer's casts than the hero's");
-            Check(hero.Profile().attack_bonus == wayfarer.Profile().attack_bonus + Player::AFFINITY_BONUS &&
-                  wayfarer.Profile().magic_bonus == hero.Profile().magic_bonus + Player::AFFINITY_BONUS,
+            // Aim alone: see CombatProfile::melee_aim, and TestBalanceFixes for
+            // what it does to a blow.
+            Check(hero.Profile().melee_aim == Player::AFFINITY_BONUS && wayfarer.Profile().melee_aim == 0 &&
+                  wayfarer.Profile().magic_aim == Player::AFFINITY_BONUS && hero.Profile().magic_aim == 0 &&
+                  hero.Profile().ranged_aim == 0 && wayfarer.Profile().ranged_aim == 0,
                   "each carries a little more accuracy with their own style");
 
             // And each sets out with the weapon of it, in the wood tier, and
@@ -18760,8 +19290,9 @@ int main(int argc, char** argv) {
         constexpr float kFrame = 1.0f / 60.0f;
 
         // --- one for every boss, and each a real thing ----------------------------------------------
+        // "chill": Grave Chill's, rolled for on every blow (World::HitEnemy).
         const std::set<string> read = {"max_health", "defence", "stamina", "stamina_regen", "move_speed", "crit", "crit_damage",
-                                       "damage", "lifesteal", "evade", "speed", "charged_damage"};
+                                       "damage", "lifesteal", "evade", "speed", "charged_damage", "chill"};
         int bosses = 0;
         {
             std::ifstream in("data/enemies.json");
@@ -22423,6 +22954,7 @@ int main(int argc, char** argv) {
     TestCoopFixes(db);
     TestFogOfWar(db);
     TestCombatFixes(db);
+    TestBalanceFixes(db);
 
     Section("the Brimstone Palace, and its king");
     {

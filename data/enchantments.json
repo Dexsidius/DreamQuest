@@ -23,7 +23,7 @@
      "level": 22,
      "xp": 340,
      "value": 460,
-     "move_speed": 0.14,
+     "move_speed": 0.15,
      "inputs": {
       "dream_shard": 2,
       "bogbean": 2
@@ -33,7 +33,7 @@
      "level": 43,
      "xp": 600,
      "value": 880,
-     "move_speed": 0.155,
+     "move_speed": 0.18,
      "inputs": {
       "dream_shard": 5,
       "glowcap": 2
@@ -43,7 +43,7 @@
      "level": 64,
      "xp": 940,
      "value": 1560,
-     "move_speed": 0.17,
+     "move_speed": 0.205,
      "inputs": {
       "dream_shard": 7,
       "emberbloom": 2
@@ -53,7 +53,7 @@
      "level": 86,
      "xp": 1430,
      "value": 2660,
-     "move_speed": 0.185,
+     "move_speed": 0.23,
      "inputs": {
       "dream_shard": 10,
       "starlily": 2
@@ -91,7 +91,7 @@
      "xp": 380,
      "value": 500,
      "bonus": {
-      "defence": 10
+      "defence": 11
      },
      "inputs": {
       "dream_shard": 2,
@@ -103,7 +103,7 @@
      "xp": 650,
      "value": 960,
      "bonus": {
-      "defence": 12
+      "defence": 14
      },
      "inputs": {
       "dream_shard": 5,
@@ -115,7 +115,7 @@
      "xp": 1000,
      "value": 1680,
      "bonus": {
-      "defence": 14
+      "defence": 17
      },
      "inputs": {
       "dream_shard": 7,
@@ -127,7 +127,7 @@
      "xp": 1490,
      "value": 2770,
      "bonus": {
-      "defence": 16
+      "defence": 20
      },
      "inputs": {
       "dream_shard": 12,

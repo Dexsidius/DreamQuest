@@ -63,17 +63,21 @@ vector<AttributeLine> CharacterAttributes(const Player& p) {
     if (const ItemDef* shield = p.Shield()) guard = "Block " + Percent(shield->block);
     else if (p.ParryStyle())               guard = "Parry";
     else if (p.RollsOnGuard())             guard = "Roll";
+    else if (p.WardStyle())                // Magic Block, and Mirror Deflect (Player::WardGuard)
+        guard = string(p.talents.Effect("mirror", AttackStyle::Magic) > 0.0f ? "Mirror " : "Ward ") +
+                Percent(p.WardGuard().block);
     out.push_back({"Guard", guard, "", 0});
 
     // --- what they fight with -----------------------------------------------------------
-    // Each style's level, and what is worn adds to its accuracy.
+    // Each style's level, and what is worn adds to its accuracy -- with the
+    // affinity's eight, which is aim alone (CombatProfile::melee_aim).
     const auto level = [&](const char* name, int now, int skill, int bonus) {
         out.push_back({name, std::to_string(now), Signed(bonus), ToneOf(now, s.Level(skill))});
     };
-    level("Attack",   c.attack_level,   SKILL_ATTACK,   c.attack_bonus);
+    level("Attack",   c.attack_level,   SKILL_ATTACK,   c.attack_bonus + c.melee_aim);
     level("Strength", c.strength_level, SKILL_STRENGTH, c.strength_bonus);
-    level("Ranged",   c.ranged_level,   SKILL_RANGED,   c.ranged_bonus);
-    level("Magic",    c.magic_level,    SKILL_MAGIC,    c.magic_bonus);
+    level("Ranged",   c.ranged_level,   SKILL_RANGED,   c.ranged_bonus + c.ranged_aim);
+    level("Magic",    c.magic_level,    SKILL_MAGIC,    c.magic_bonus + c.magic_aim);
     // A blow's chance of striking critically with what is in hand: the tree's
     // and a boon's, and the charm on the weapon -- both blades', with a pair
     // (World::HitEnemy).

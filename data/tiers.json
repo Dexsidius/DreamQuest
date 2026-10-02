@@ -781,6 +781,104 @@
     "logs": 5
    },
    "desc": "A staff given over to one element. It casts nothing else -- and 1 to 4 are air's four spells, where any other staff has only the first of them."
+  },
+  "ring_blade": {
+   "slot": "ring",
+   "skill": "Attack",
+   "noun": "Knight's Ring",
+   "power": "weapon",
+   "bonus": {
+    "attack": 0.12,
+    "strength": 0.06
+   },
+   "value": 30,
+   "bars": 1,
+   "craft_at": "bench",
+   "metal_only": true,
+   "desc": "A heavy band set with a red stone, worn on the sword hand. It steadies a blade's aim."
+  },
+  "ring_bow": {
+   "slot": "ring",
+   "skill": "Ranged",
+   "noun": "Ranger's Ring",
+   "power": "weapon",
+   "bonus": {
+    "ranged": 0.16
+   },
+   "value": 30,
+   "bars": 1,
+   "craft_at": "bench",
+   "metal_only": true,
+   "desc": "A band set with a green stone, worn on the drawing hand. It steadies a bow, and sends a shot home harder."
+  },
+  "ring_staff": {
+   "slot": "ring",
+   "skill": "Magic",
+   "noun": "Mage's Ring",
+   "power": "weapon",
+   "bonus": {
+    "magic": 0.16
+   },
+   "value": 30,
+   "bars": 1,
+   "craft_at": "bench",
+   "metal_only": true,
+   "desc": "A band set with a blue stone, cold to the touch. It sharpens a spell, aim and weight alike."
+  },
+  "amulet_blade": {
+   "slot": "amulet",
+   "skill": "Attack",
+   "noun": "Knight's Amulet",
+   "power": "weapon",
+   "bonus": {
+    "strength": 0.12,
+    "attack": 0.06,
+    "defence": 0.05
+   },
+   "value": 40,
+   "bars": 2,
+   "extra": {
+    "thread": 1
+   },
+   "craft_at": "bench",
+   "metal_only": true,
+   "desc": "A pendant set with a red stone, on a waxed cord. It puts weight behind a blade, and turns a little of what comes back."
+  },
+  "amulet_bow": {
+   "slot": "amulet",
+   "skill": "Ranged",
+   "noun": "Ranger's Amulet",
+   "power": "weapon",
+   "bonus": {
+    "ranged": 0.16,
+    "defence": 0.05
+   },
+   "value": 40,
+   "bars": 2,
+   "extra": {
+    "thread": 1
+   },
+   "craft_at": "bench",
+   "metal_only": true,
+   "desc": "A pendant set with a green stone, on a waxed cord. It sends a shot home harder, and turns a little of what comes back."
+  },
+  "amulet_staff": {
+   "slot": "amulet",
+   "skill": "Magic",
+   "noun": "Mage's Amulet",
+   "power": "weapon",
+   "bonus": {
+    "magic": 0.16,
+    "defence": 0.05
+   },
+   "value": 40,
+   "bars": 2,
+   "extra": {
+    "thread": 1
+   },
+   "craft_at": "bench",
+   "metal_only": true,
+   "desc": "A pendant set with a blue stone, on a waxed cord. It sharpens a spell, and turns a little of what comes back."
   }
  },
  "tiers": [

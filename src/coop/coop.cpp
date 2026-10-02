@@ -1845,6 +1845,7 @@ void Guest::PosePuppets(float dt, net::Client& client, World& world, const GameC
         g->hp = a.state.hp;
         g->max_hp = std::max<int>(1, a.state.max_hp);
         g->shield_shown = (a.state.flags & net::PlayerState::Shielded) != 0;
+        g->guard_shown = (a.state.flags & net::PlayerState::Blocking) != 0;
         g->buffs_shown = a.state.buffs;
         g->under_ice = (a.state.flags & net::PlayerState::Under) != 0;
         g->ClearBattery();

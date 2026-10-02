@@ -5,6 +5,8 @@
 #      .\tools\make_tiers.ps1 -What icons           # just the inventory icons
 #      .\tools\make_tiers.ps1 -What sets            # the hide and robe sets, their hides and dyes
 #      .\tools\make_tiers.ps1 -What hands,feet      # only the gloves and boots, plate, hide and robe
+#      .\tools\make_tiers.ps1 -What jewellery       # the rings and amulets of every metal tier
+#      .\tools\make_tiers.ps1 -What jewellery -Names ring_bow_iron
 #      .\tools\make_tiers.ps1 -What feet -Tiers iron -Names boots_iron
 #      .\tools\make_tiers.ps1 -What layers -Only attack -Models sword_iron
 #

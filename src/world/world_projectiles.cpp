@@ -138,6 +138,57 @@ void World::AddGroundEffect(const GroundEffect& effect) {
     if (ground_effects.back().cast_id == 0 && effect.from_player) ground_effects.back().cast_id = casting;
 }
 
+void World::TurnShot(Projectile& p) {
+    // Back at whoever loosed it: the nearest thing to where it came from,
+    // still standing. With nothing there now, straight back along its way.
+    const Enemy* back_at = nullptr;
+    float best = 80.0f;
+    for (const auto& e : enemies) {
+        if (e->Dead() || e->CurrentState() == Enemy::State::Dead || e->Hidden()) continue;
+        const float d = Length(e->x - p.from_x, e->y - p.from_y);
+        if (d < best) { best = d; back_at = e.get(); }
+    }
+    const float speed = std::max(60.0f, Length(p.vx, p.vy));
+    float dx = -p.vx, dy = -p.vy;
+    if (back_at) {
+        const SDL_FPoint at = Targeting::AimPoint(*back_at);
+        dx = at.x - p.x;
+        dy = at.y - p.y;
+    }
+    const float len = std::max(0.001f, Length(dx, dy));
+    p.vx = dx / len * speed;
+    p.vy = dy / len * speed;
+    p.angle = atan2f(p.vy, p.vx);
+    // Off the ward first, so it is not met again on its way out.
+    p.x += p.vx / speed * 12.0f;
+    p.y += p.vy / speed * 12.0f;
+    // Theirs now, as their own magic: their Magic level and bonus set how hard
+    // it lands, so it comes back the harder the higher their Magic.
+    p.from_player = true;
+    p.owner = player.Profile();
+    p.style = AttackStyle::Magic;
+    p.damage_mult = Player::MIRROR_DAMAGE;
+    p.owner_local = player.local;
+    p.owner_seat = player.seat;
+    p.target = back_at;
+    p.from_x = player.x;
+    p.from_y = player.y;
+    p.already_hit.clear();
+    p.aim = false;
+    p.cast_id = 0;
+    p.spell_base = 0.0f;
+    p.combo = ComboMove::None;
+    p.technique_fx = 0;
+    p.sure_crit = false;
+    // Enough left of it to get back.
+    if (p.def) p.life = std::max(p.life, p.def->life);
+    // A flash off the ward where it was met, and a word.
+    const float mx = player.x + (p.x - player.x) * 0.6f, my = player.y - 22.0f + (p.y - player.y + 22.0f) * 0.4f;
+    Burst(mx, my, 14.0f, {226, 236, 255, 255}, 10);
+    AddText("Deflected!", player.x, player.y - 58.0f, {214, 232, 255, 255}, 1.0f);
+    Audio::PlayAt(Sfx::Block, player.x, player.y, 0.9f, 1.75f);
+}
+
 uint32_t World::OpenCast(int skill, int xp) {
     if (xp <= 0) return 0;
     OwedCast c;
@@ -355,21 +406,30 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
                     if (struck == ShotTarget(p)) p.aim = false;
                     else                         WatchDodge(p, true);
                 }
+                bool turned = false;
                 ActAs(*struck, [&] {
                     // A shot that reaches them lands, as a swing does: see
                     // RollMonsterBlow. Where it came from is back along its
                     // flight; what it leaves draws them to where it was loosed.
                     const DamageResult r = RollMonsterBlow(p.owner, player.Profile(), p.style,
                                                            p.damage_mult, *ctx.rng);
+                    // Met by a wayfarer's mirror, it goes back the way it came.
+                    if (r.damage > 0 && player.TryDeflect(r.damage, CombatLevelOf(p.owner), p.x - p.vx, p.y - p.vy)) {
+                        TurnShot(p);
+                        turned = true;
+                        return;
+                    }
                     HitPlayer(r.damage, p.owner, p.x - p.vx, p.y - p.vy, 0.0f, 0.0f,
                               p.def->status, p.from_x, p.from_y);
                 });
-                {
-                    const float speed = std::max(1.0f, Length(p.vx, p.vy));
-                    BurstOf(p.def->shed, p.x, p.y, p.lift >= 0.0f ? p.lift : LiftAt(p.x, p.y),
-                            std::max(0.75f, p.def->radius / 6.0f), -p.vx / speed, -p.vy / speed);
+                if (!turned) {
+                    {
+                        const float speed = std::max(1.0f, Length(p.vx, p.vy));
+                        BurstOf(p.def->shed, p.x, p.y, p.lift >= 0.0f ? p.lift : LiftAt(p.x, p.y),
+                                std::max(0.75f, p.def->radius / 6.0f), -p.vx / speed, -p.vy / speed);
+                    }
+                    p.finished = true;
                 }
-                p.finished = true;
             } else if (p.aim) {
                 WatchDodge(p, false);
             }
@@ -884,15 +944,12 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
             // volley has it and the rest are arrows.
             if (g.rain) g.sure_crit = false;
         } else {
-            // Everyone standing in it, not only the first.
+            // Everyone standing in it, not only the first -- each as anything
+            // that hurts would find them: see GroundHitPlayer.
+            const bool fire = g.element == Element::Fire || g.status.kind == Status::Burn;
             for (Player* who : Players()) {
                 if (who->IsDead() || who->puppet || who->resting || !inside(*who)) continue;
-                ActAs(*who, [&] {
-                    player.Damage(std::max(1, g.damage));
-                    player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
-                    AddText(std::to_string(g.damage), player.x, player.y - 44.0f,
-                            {235, 90, 70, 255});
-                });
+                ActAs(*who, [&] { GroundHitPlayer(std::max(1, g.damage), fire); });
             }
         }
     }

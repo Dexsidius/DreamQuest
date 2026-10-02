@@ -1172,6 +1172,16 @@ All of it is one block on the piece in `data/tiers.json`:
 `"dual": {"speed": 0.5, "damage": 0.75, "clip": "offstab"}` -- set `damage` to 1
 and a pair is simply two daggers' worth.
 
+**Speed counts for a pair as for anything.** No swing goes quicker than a
+quarter of a sword's time (`SWING_SPEED_MIN`, 0.25: everything that asks how
+fast a swing is -- its timings, its clip, the character panel -- asks it). It
+was 0.35, and a pair, at 0.36 before anything, was already there: Flurry,
+Frenzy and the speed boons did three in a hundred for it at the most, and the
+panel, which floored at 0.30, said 3.33x of swings that ran at 2.86x. A blow is
+due from the end of its wind-up until it lands, not only inside its active
+moment, which at the quickest is shorter than a slow frame
+(`Player::AttackPending`).
+
 - **Hand after hand.** Light attacks go right, left, right: `thrust`, then
   `offstab` -- the thrust mirrored (`mirrored()` in
   `tools/blender_character.py`) -- then `thrust`. Combos, the charged heavy and
@@ -2107,7 +2117,7 @@ trained and is on the [character panel](#the-character-panel) instead:
 | **Forging** | Smithing | Smelting and smithing at the anvils in Halda's forge and Mossvale |
 | | Tanning | Tanning racks: hide armour, boots, bags and bedrolls; Nessa's order book |
 | | Clothier | Looms: cloth from any fibre, and the robes; Wynn's order book |
-| | Crafting | Workbenches in Havenbrook and Mossvale: wood and bows |
+| | Crafting | Workbenches in Havenbrook and Mossvale: wood and bows, and every metal tier's rings and amulets |
 | **Combat** | Hitpoints | All damage dealt |
 | | Ranged | Landing arrows with a bow equipped |
 | | Magic | Landing spells with a staff equipped -- [a wall teaches nothing](#a-wall-teaches-nothing) |
@@ -2275,7 +2285,7 @@ day and cannot be forgotten:
 | what a piece asks to be held or worn | `40 Damascus bows and hides` |
 | what a station asks to make it | `40 Smith Damascus gear`, `24 Cook Traveller's Pie` |
 | a spell | `40 Mana Shield` |
-| every tier of every charm | `4 Work Warding into a piece`, `25 Warding II: Defence +10` |
+| every tier of every charm | `4 Work Warding into a piece`, `25 Warding II: Defence +11` |
 | an ore seam, a fish, a herb | `40 Mine Damascus Ore`, `45 Catch Raw Salmon` |
 | the chance of a second and a third fish | `40 Two fish in a cast, 20% of the time` |
 
@@ -2374,7 +2384,7 @@ and loses the rest.
 | --- | --- | --- | --- |
 | Melee | the hero | Attack | Blade, Brawn, Guard, and Footwork |
 | Ranged | the warden | Ranged | Marksman, Skirmisher, Hunter |
-| Magic | the wayfarer | Magic | Evoker, Channeler, Warden |
+| Magic | the wayfarer | Magic | Evoker, Channeler, Warden, and Aegis |
 
 A tree is three branches, eight rows deep, and every branch has the same shape:
 
@@ -2397,7 +2407,7 @@ first ability no row is more than eight levels after the one before.
 **Every third level of the tree's skill is a point**, a rank costs one, and a
 node needs at least one rank of the node above it. That is **thirty-three
 points by level 99 against forty-two ranks a tree** (forty-five for the hero,
-with Rushing Strike and Counter): two branches to the bottom and a little of the third, or
+with Rushing Strike and Counter; forty-four for the wayfarer, with the Aegis): two branches to the bottom and a little of the third, or
 all three most of the way. A build, not a checklist. `J` on a
 node buys its next rank; `L` twice unlearns the whole tree and gives every point
 back, for anyone who wants to fight another way -- at **sixty coins a point
@@ -2786,6 +2796,36 @@ next hit 30% harder for three seconds after a block) also counts a parry as a
 block. The rules are `Player::NoteParry` and `StartRiposte`, and the damage is in
 `World::HitEnemy`.
 
+#### The Aegis: the wayfarer's ward
+
+Every shield past bronze asks Attack, which the wayfarer never trains -- and
+the wayfarer sets out with a wooden one, since a staff is held in one hand. The
+magic tree has a fourth branch for it, the **Aegis**, of two nodes, one point
+each:
+
+- **Magic Block** (Magic 5). With no shield on the arm and a staff, wand,
+  grimoire or orb in hand, the guard raises a **ward** -- an upright pane of
+  light a step in front, edge-on from the side. It blocks as a shield does, and
+  **as well as the shield the Magic level would carry**: a bronze one's to 9,
+  an iron one's from 10, and so on to an enchanted one's at 95, its share and
+  its breath read from the tiers themselves (`Player::WardGuard`). Everything
+  else a raised shield is, the ward is: the guarded step, the breath a blow
+  costs, Bulwark's saving, and a leader's heavy blow shattering it. A shield on
+  the arm is the guard instead, so the wooden one can be carried until the ward
+  is learned. The character panel's *Guard* line says *Ward 58%* -- *Mirror 58%* with the
+  mirror.
+- **Mirror Deflect** (Magic 15, after Magic Block). The ward is a mirror: **a
+  shot that strikes it is turned back at whoever loosed it, as the wayfarer's
+  own magic** -- their Magic level and bonus, at the weight of a plain spell, so
+  it comes back the harder the higher their Magic -- for the breath a block of
+  it would have cost (`Player::TryDeflect`, `World::TurnShot`). It keeps what
+  it was: an arrow flies back an arrow, and a fire bolt still burns what it
+  hits. Without the breath, it comes on to the ward as any blow does. The ward
+  goes silver, with a glint across it, and flares when it is struck.
+
+A friend's ward is drawn on every window from their raised guard, with no
+shield and magic in hand; their mirror's silver only on their own.
+
 
 ---
 
@@ -2986,6 +3026,37 @@ own "craft" (one bar makes seven things) are kept alongside the items, and the
 crafting panel scrolls, with icons, now that the anvil alone makes sixty-odd
 things. There is a second anvil in Mossvale.
 
+### Jewellery
+
+Every metal tier, bronze to enchanted, makes **a ring and an amulet for each way
+of fighting** -- the Knight's (Attack and Strength), the Ranger's (Ranged) and
+the Mage's (Magic) -- sixty-six pieces in all, and **the bow has a ring at
+last**: there had been six pieces of jewellery in the game, none tiered, and no
+Ranged ring. Each asks the tier's level in its own style to wear, and is
+**worked at the bench, with Crafting**, at the tier's level: a ring from one of
+the tier's bars, an amulet from two and a waxed thread for the cord. **Crafting
+opens something every ten levels to 95**, where it had nothing past 5.
+
+| Piece | Adds, times the tier's weapon power | From |
+| --- | --- | --- |
+| Knight's Ring | Attack 0.12, Strength 0.06 | a bar |
+| Ranger's Ring | Ranged 0.16 | a bar |
+| Mage's Ring | Magic 0.16 | a bar |
+| Knight's Amulet | Strength 0.12, Attack 0.06, Defence 0.05 | two bars, a thread |
+| Ranger's Amulet | Ranged 0.16, Defence 0.05 | two bars, a thread |
+| Mage's Amulet | Magic 0.16, Defence 0.05 | two bars, a thread |
+
+A ring is about what a helm adds to its style, and an amulet a little more with
+some Defence. They are pitched under the jewellery the bosses leave at their
+level -- Ashcroft's Signet, the Heart of Cinders, the Heart of the Conflux stay
+the prizes -- and the Copper Ring is about an azuryte one. The charms that fit
+a ring or an amulet (Keenness, Might, Hawk's Eye, Insight) fit these. The
+pieces are six more keys in `data/tiers.json`'s `pieces`, with `metal_only` (no
+wooden ring) and `craft_at`; the icons are `tools/blender_tiers.py`'s
+`_ring`/`_amulet`, a band or a pendant in the tier's metal with a stone for its
+style -- a square ruby for the blade, a long emerald for the bow, a round
+sapphire for the staff (`make_tiers.ps1 -What jewellery`).
+
 ### Every ore is its own rock
 
 Every seam and outcrop in the realm used to be **the same grey boulder**, told
@@ -3085,16 +3156,19 @@ Each recipe is made at one station, decided by its materials, and trains that
 station's skill. **Anything brewed -- anything with a herb or a vial in it -- is
 brewed at a cauldron**, with Brewing. **Anything that
 needs metal is smithed at an anvil**, with Smithing -- in Halda's forge in Havenbrook, or
-beside the workbench in Mossvale: every bar, every metal tier's pieces, and the
-Copper Ring. **Cloth is woven at a loom and leather cut on a tanning rack** (see below), and
+beside the workbench in Mossvale: every bar, every metal tier's weapons and
+armour, and the Copper Ring. **Cloth is woven at a loom and leather cut on a tanning rack** (see below), and
 **everything else is made at a workbench**, in Havenbrook or
-Mossvale, with Crafting: the wooden tier, the bows, the Fishing Rod and the Dreamcatcher.
+Mossvale, with Crafting: the wooden tier, the bows, the Fishing Rod and the Dreamcatcher --
+and [the jewellery](#jewellery) of every metal tier, which says so.
 The two used to share one list, so a village workbench could smith an iron
 shield.
 
-Nothing declares its station. Materials carry `"metal": true` -- every ore and
+Hardly anything declares its station. Materials carry `"metal": true` -- every ore and
 bar made by `data/tiers.json` does -- and a recipe with any metal input
-belongs at the anvil, so a new recipe cannot be filed in the wrong place. A
+belongs at the anvil, so a new recipe cannot be filed in the wrong place. What
+is cooked says so (`"craft_at": "range"`), and so do the rings and amulets
+(`"craft_at": "bench"` on the piece): a jeweller's work, not a smith's. A
 crafting object in a map names the station it is with `"station"`; the
 self-test checks every recipe against its materials, and that every station in
 the world is drawn as what it works as. Each station's screen says what is made
@@ -3492,14 +3566,24 @@ a dialogue line teaches one the same way.
 
 | Charm | Enchanting, tier I to V | Fits | Does, tier I to V | Tier I costs | Scroll from |
 | --- | --- | --- | --- | --- | --- |
-| Swiftness | 1 / 22 / 43 / 64 / 86 | boots | walk 12½ / 14 / 15½ / 17 / 18½% quicker | 1 dream shard, 2 brookmint | Mira teaches it |
-| Warding | 4 / 25 / 46 / 67 / 88 | helm, body, gloves, legs, boots | Defence +8 / 10 / 12 / 14 / 16 | 1 dream shard, 2 nettle | Oona |
+| Swiftness | 1 / 22 / 43 / 64 / 86 | boots | walk 12½ / 15 / 18 / 20½ / 23% quicker | 1 dream shard, 2 brookmint | Mira teaches it |
+| Warding | 4 / 25 / 46 / 67 / 88 | helm, body, gloves, legs, boots | Defence +8 / 11 / 14 / 17 / 20 | 1 dream shard, 2 nettle | Oona |
 | Keenness | 6 / 27 / 48 / 69 / 90 | ring, amulet | Attack +8 / 10 / 12 / 14 / 16 | 2 dream shards, glowcap | Tobin's General Store |
 | Might | 8 / 29 / 50 / 71 / 92 | ring, amulet, gloves | Strength +8 / 10 / 12 / 14 / 16 | 2 dream shards, 2 nettle | Garrow's Smithy |
 | Hawk's Eye | 14 / 34 / 54 / 74 / 94 | amulet, gloves, helm | Ranged +10 / 13 / 16 / 19 / 22 | 2 dream shards, 2 glowcap | Ivo's Bows and Hides |
 | Insight | 18 / 37 / 57 / 76 / 96 | ring, amulet, helm | Magic +10 / 13 / 16 / 19 / 22 | 3 dream shards, moonpetal | the Night Pedlar |
 | Fortitude | 30 / 47 / 64 / 81 / 98 | body, legs, shield | Defence +14 / 17 / 20 / 23 / 26 | 3 dream shards, 2 mountain sage | the Collector |
 | Wind | 42 / 56 / 70 / 84 / 99 | boots | walk 20 / 21½ / 23 / 24½ / 26% quicker | 4 dream shards, starlily | the Collector, after Lights on the Pond |
+
+**No charm is beaten by one far below it.** The Wind and Fortitude are the
+dearer lines -- a scroll from the Collector, rarer herbs -- and stay a dozen or
+so levels ahead of Swiftness and Warding on the same piece. But the Wind's
+first tier, at 42, used to walk quicker than Swiftness's fifth at 86, and
+Fortitude's first, at 30, gave a cuirass as much as Warding's fourth at 67: the
+cheap line's last two tiers were things nobody would work. Swiftness now runs
+to 23% and Warding to +20, and the self-test holds every worn charm to it -- no
+tier is beaten, on a slot both fit, by another charm's tier opened more than
+twenty levels below it.
 
 Tier I is the charm as it was when it had only the one strength, at or below
 the level it used to ask, and costs what it did; the tiers above it cost more
@@ -3762,7 +3846,7 @@ indoors.)
 
 | Station | Trains | What is made there |
 | --- | --- | --- |
-| Workbench | Crafting | Wood: the wooden tier, bows, the fishing rod, the dreamcatcher |
+| Workbench | Crafting | Wood: the wooden tier, bows, the fishing rod, the dreamcatcher; and the metal tiers' jewellery |
 | **Tanning rack** | **Tanning** | **Everything of leather: all 60 pieces of the ranger's hides, the Leather Jerkin, Hide Boots, the four bags, the bedroll** |
 | Loom | Clothier | Cloth from any fibre, and all 60 pieces of the mage's sets |
 | Anvil | Smithing | Anything with metal in it |
@@ -3925,6 +4009,24 @@ armour is the Defence level plus the worn bonus -- little in a beginner's
 leathers, a real share by the middle tiers, and never all of it. It is still
 the blow to step out of. Blocking is re-priced with it -- see
 [Blocking](#blocking).
+
+**A heavy blow answers to everything an ordinary blow does.** It used to get
+past the Mana Shield, the evade and Resolve, the three things built to answer
+blows: under the shield it was all blood, on the move it never slipped by, and
+it fed no mana. Now the evade rolls for it (after a parry's moment, which still
+catches it outright), the Mana Shield pays half of it, and Resolve is fed by it
+(`World::HeavyHitPlayer`, through `World::PayHurt`, which every blow pays by).
+
+**So does a monster's burning ground**, and its eruptions: a drake's or a
+Conjure's flames, Cerberus's. Each tick was a bare number off the health bar
+whatever was worn -- no armour, no roll, no ward against burning, no
+Marshstride, no Stand Fast, no Mana Shield. Now (`World::GroundHitPlayer`)
+rolled through it is nothing; Stand Fast takes its share, and armour and the
+Defence level soak it as they soak a heavy blow (nothing rolls to hit either);
+a ward against burning halves a fire's, and the Drowned King's boots halve any
+of it, as the lava is halved; and the Mana Shield and Resolve are as they are
+for a blow. **Ordinary blows are as they were**: the calibration of
+25 September stands (see [When a monster strikes](#when-a-monster-strikes)).
 
 **Skilling curves.**
 
@@ -4384,7 +4486,14 @@ backwards.
 Each of the three characters favours one way of fighting, and says so on the
 card at character select: **the hero the blade, the warden the bow, the
 wayfarer the staff.** Attacks of that style hit a tenth harder and carry eight
-points more accuracy, from the first swing and for good. It is who they are
+points more accuracy, from the first swing and for good. **The eight is aim
+alone, for all three** (`CombatProfile::melee_aim`, `ranged_aim`, `magic_aim`,
+read by `HitChanceFor` and nothing else). It used to be added to the style's
+bonus, and a bow's or a staff's bonus is its weight as well as its aim, so the
+warden and the wayfarer also hit about a tenth harder for it early on (seven in
+a hundred with mid-game gear) where the hero -- whose blade's weight is
+Strength's -- only aimed better. The character panel still shows the eight on
+each style's accuracy. It is who they are
 rather than something learned, so it sits under the skill trees and the
 equipment rather than among them (`Player::Affinity`, `AFFINITY_DAMAGE`,
 `AFFINITY_BONUS`). It is also **which skill tree is theirs**: the
@@ -7821,7 +7930,7 @@ them two things -- the one for good, the other for a day:
 | Might | +3% damage, with anything | Wellspring *(wayfarer)* | mana returns 12% faster |
 | The Leech's Gift | 2% of damage dealt returns as health | Hexward *(wayfarer)* | +8% maximum mana |
 | Ironhide | +6% of all your Defence | Quickstep | on the move, 4% of blows miss you |
-| Cinderheart | +4% damage | Threefold | attacks 2% faster |
+| Cinderheart | +4% damage | Threefold | +1% damage, attacks 1% faster, walk 1% quicker |
 | Thick Fur | +6% maximum health | Primal Spark | +2% damage and +2% critical chance |
 
 Each is about one rank of a talent, of a kind any path can use -- and maximum
@@ -7832,6 +7941,10 @@ and Stoneblood together (`defence_share`). It was written as `"defence": 0.06`
 it got a line on the Boons tab and not one point of Defence. **Hexward is the
 wayfarer's**, as Deep Reserves and Wellspring are: it is mana, and it was
 written for nobody in particular, so a hero or a warden could be handed it.
+**Threefold is a little of three things** -- damage, speed and the walk, a
+point of each: it was Swift Hands again under another name, two in a hundred
+quicker, and the self-test now holds every boon, and every totem, to doing
+something no other one does.
 **Once each:** a boss is back the next
 dawn and leaves its loot again, but this is kept count of by who it was, and
 killing it again does not bring its boon back -- the lasting thing a boss
@@ -7892,7 +8005,7 @@ out altogether.
 | --- | --- | --- | --- | --- |
 | the Broodmother | walk 8% quicker | | Hoarfang | +12 Defence and +12% maximum health |
 | the Lizardman Chief | breath returns 30% faster | | the Unwaking | +8% damage, charged attacks +15% more |
-| the Hollowrest Wight | 5% of damage dealt returns as health | | Lord Ashcroft | 5% of damage dealt returns as health |
+| the Hollowrest Wight | one blow in ten leaves its quarry chilled | | Lord Ashcroft | 5% of damage dealt returns as health |
 | the Warchief | +10% damage, with anything | | the Fen | walk 10% quicker |
 | the Thing in the Spring | on the move, 8% of blows miss you | | the Cinder King | +10% damage and +10% health |
 | the Den Mother | +15 Defence, whatever you wear | | Cerberus | 8% quicker on your feet, 4% of damage dealt returns as health |
@@ -7905,6 +8018,13 @@ because it is one at a time, for a day, earned over a fortnight, and has to be
 gone home for -- which is what the waystone at your own door is for. It is on top
 of the boons, not instead of them. The self-test holds every totem to being
 more than any boon of the same kind.
+
+**Grave Chill** (the Wight's) was the Red Thirst (Lord Ashcroft's) twice over,
+a twentieth of the damage back as health. It is the barrow's cold now: one blow
+in ten, whatever the way of fighting, leaves what it strikes chilled -- slower
+on its feet and slower to swing -- and a chill on something soaked freezes it,
+as the water spells and the Ice Touch do (`chill` in its effects,
+`World::HitEnemy`). The Red Thirst alone drinks.
 
 How: the count, the totem in the ring and the day it was last touched are in
 `Talents` with the boons (`boss_kills`, `totem`, `totem_day`), so they go where
@@ -8205,7 +8325,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **71737 checks** covering:
+and checks all of it — currently **73169 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -8258,6 +8378,21 @@ and checks all of it — currently **71737 checks** covering:
   reach spends nothing; an opening is spent by the blow that lands, never by a
   miss; a greataxe's charged chop narrows the swing and a technique's charge does
   not
+- balance, as the report found it: under the Mana Shield a heavy blow is half
+  paid in mana, Resolve is fed by one, and on the move some slip by (none
+  standing still); a monster's burning ground is soaked by armour and Defence,
+  halved for a fire by a burn ward and for any by the Drowned King's boots,
+  less under Stand Fast and the Mana Shield, and nothing rolled through; each
+  affinity is eight points of aim and no weight; a pair of daggers is quicker
+  for all of Flurry, the panel says the speed the swings run at, and a slow
+  frame no longer steps over a stab; no two boons and no two totems do the same
+  thing, and no worn charm's tier is beaten by one opened twenty levels below
+  it; Grave Chill chills about one blow in ten; the wayfarer's Magic Block
+  blocks as the shield of their Magic level (iron at 16, diamond at 60), gives
+  way to a shield carried and shatters under a heavy blow, and Mirror Deflect
+  turns a shot back on the archer; every metal tier has its six pieces of
+  jewellery, made at the bench with Crafting, so Crafting opens something every
+  ten levels to 95
 - co-op, what the report found, put right: a quest's chest, lever, stone, page
   or voice each character's own and nothing else, every quest's thing to use on
   a map; the key's chest opened by the host and by a friend, each their own key
@@ -8582,7 +8717,7 @@ and checks all of it — currently **71737 checks** covering:
   before; the Copper Ring of Keenness I keeps the id it had and is the ring's
   bonuses plus the charm's and worth both, can be raised or given another charm,
   and is drawn as the ring, and its fifth tier is a ring of its own; Warding III
-  on an iron helm is twelve more Defence and says so; a shield takes Fortitude
+  on an iron helm is fourteen more Defence and says so; a shield takes Fortitude
   and a lantern does not; every enchanted twin is neither recipe nor scroll and
   has the id its tier should; working a charm takes the materials and the piece
   and gives the enchanted piece back, refuses a tier the piece has, refuses

@@ -106,7 +106,7 @@ const AttackProfile& ProfileFor(AttackType type, int combo_index) {
 AttackProfile ScaleForSpeed(const AttackProfile& p, float speed) {
     // Clamped because this comes from data. A weapon claiming a speed of zero
     // would otherwise swing in no time at all and hit every frame.
-    const float s = std::clamp(speed, 0.35f, 3.0f);
+    const float s = std::clamp(speed, SWING_SPEED_MIN, SWING_SPEED_MAX);
     AttackProfile out = p;
     out.windup   *= s;
     out.active   *= s;
@@ -192,9 +192,9 @@ int MaxHitFor(const CombatProfile& p, AttackStyle style, float damage_mult) {
 
 float HitChanceFor(const CombatProfile& attacker, const CombatProfile& defender,
                    AttackStyle style) {
-    int level = attacker.attack_level, bonus = attacker.attack_bonus;
-    if (style == AttackStyle::Ranged) { level = attacker.ranged_level; bonus = attacker.ranged_bonus; }
-    else if (style == AttackStyle::Magic) { level = attacker.magic_level; bonus = attacker.magic_bonus; }
+    int level = attacker.attack_level, bonus = attacker.attack_bonus + attacker.melee_aim;
+    if (style == AttackStyle::Ranged) { level = attacker.ranged_level; bonus = attacker.ranged_bonus + attacker.ranged_aim; }
+    else if (style == AttackStyle::Magic) { level = attacker.magic_level; bonus = attacker.magic_bonus + attacker.magic_aim; }
     if (attacker.accuracy < 1.0f) level = std::max(1, static_cast<int>(std::lround(level * attacker.accuracy)));
 
     const float att = Effective(level) * (bonus + 64.0f);

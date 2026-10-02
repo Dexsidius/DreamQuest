@@ -1786,6 +1786,68 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
         }
     }
 
+    // The wayfarer's ward (Magic Block), in front of whoever has it up: an
+    // upright pane of light about their height, a step ahead of them -- seen
+    // edge-on from the side -- and a mirror's silver, with a glint going
+    // across it, with Mirror Deflect. It flares for a moment when a blow or a
+    // shot meets it. Faint from behind, so the back it covers still reads.
+    {
+        const float now = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+        vector<const Player*> everyone{&player};
+        for (const auto& g : guests) everyone.push_back(g.get());
+        for (const Player* who : everyone) {
+            if (!who || !who->WardShown()) continue;
+            const float z = camera.zoom;
+            const bool mirror = who->Mirroring();
+            const float flare = std::max(0.0f, 1.0f - who->WardStruck() / 0.3f);
+            const float fx = who->facing == FACE_LEFT ? -1.0f : who->facing == FACE_RIGHT ? 1.0f : 0.0f;
+            const float fy = who->facing == FACE_UP ? -1.0f : who->facing == FACE_DOWN ? 1.0f : 0.0f;
+            const bool side = fx != 0.0f;
+            const float away = who->facing == FACE_UP ? 0.45f : 1.0f;      // behind them, from here
+            const SDL_FPoint c = camera.ToScreen(who->x + fx * 11.0f, who->y - who->draw_lift - 18.0f + fy * 6.0f);
+            const float half_w = (side ? 4.0f : 15.0f) * z, half_h = 17.0f * z;
+            const SDL_Color body = mirror ? SDL_Color{208, 222, 246, 255} : SDL_Color{140, 180, 255, 255};
+            const SDL_Color rim  = mirror ? SDL_Color{250, 252, 255, 255} : SDL_Color{204, 222, 255, 255};
+            const float shimmer = 0.85f + 0.15f * sinf(now * 5.0f + who->x * 0.05f);
+            const float fill_a = std::min(255.0f, (50.0f + 90.0f * flare) * shimmer * away);
+            const float rim_a  = std::min(255.0f, (140.0f + 115.0f * flare) * away);
+            const int rows = std::max(8, static_cast<int>(half_h * 2.0f / z));
+            const float row_h = half_h * 2.0f / rows;
+            for (int i = 0; i < rows; ++i) {
+                const float t = (i + 0.5f) / rows * 2.0f - 1.0f;            // -1 at the top, 1 at the foot
+                const float half = half_w * sqrtf(std::max(0.0f, 1.0f - t * t));
+                const float yy = roundf((c.y + t * half_h - row_h * 0.5f) / z) * z;
+                const float x0 = roundf((c.x - half) / z) * z, x1 = roundf((c.x + half) / z) * z;
+                SDL_SetRenderDrawColor(r, body.r, body.g, body.b, static_cast<Uint8>(fill_a));
+                const SDL_FRect band = {x0, yy, std::max(z, x1 - x0), row_h + 1.0f};
+                SDL_RenderFillRect(r, &band);
+                SDL_SetRenderDrawColor(r, rim.r, rim.g, rim.b, static_cast<Uint8>(rim_a));
+                const SDL_FRect lip_l = {x0, yy, z, row_h + 1.0f};
+                const SDL_FRect lip_r = {x1 - z, yy, z, row_h + 1.0f};
+                SDL_RenderFillRect(r, &lip_l);
+                SDL_RenderFillRect(r, &lip_r);
+            }
+            // The mirror's glint: a bright stroke that sweeps across the pane
+            // every second or so, leaning as a reflection does.
+            if (mirror && !side) {
+                const float sweep = fmodf(now * 0.9f + who->x * 0.013f, 1.7f) - 0.35f;   // -0.35 .. 1.35
+                if (sweep > -0.25f && sweep < 1.25f) {
+                    const float gx = c.x - half_w + sweep * half_w * 2.0f;
+                    for (int k = -6; k <= 6; ++k) {
+                        const float yy = c.y + k * (half_h / 7.0f);
+                        const float xx = gx - k * z * 0.9f;
+                        const float tt = (yy - c.y) / half_h, inside = half_w * sqrtf(std::max(0.0f, 1.0f - tt * tt));
+                        if (fabsf(xx - c.x) > inside - z) continue;
+                        SDL_SetRenderDrawColor(r, 255, 255, 255, static_cast<Uint8>(170 * away));
+                        const SDL_FRect g = {roundf(xx / z) * z, roundf(yy / z) * z, z, half_h / 7.0f + 1.0f};
+                        SDL_RenderFillRect(r, &g);
+                    }
+                }
+            }
+        }
+    }
+
     // The poppet on a witch table while its ritual burns, over the table and
     // under the flames.
     DrawRitual(r, cache);
