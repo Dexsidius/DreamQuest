@@ -168,12 +168,7 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
             const float cy = p->rect.y + p->rect.h / 2.0f;
             // Say so at the door when what is inside outclasses the player; the
             // mine used to be found out about by dying in its first room.
-            string label = p->label;
-            if (p->min_combat > player.skills.CombatLevel())
-                label += "  -  needs Combat " + std::to_string(p->min_combat);
-            else if (p->danger_level > player.skills.CombatLevel())
-                label += "  -  dangerous: Combat " + std::to_string(p->danger_level) + " advised";
-            consider(InteractTarget::PortalDoor, 0, label, cx, cy);
+            consider(InteractTarget::PortalDoor, 0, p->label + p->Warning(player.skills.CombatLevel()), cx, cy);
         }
 
     player.interact = best;

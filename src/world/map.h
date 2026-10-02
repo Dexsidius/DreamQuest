@@ -71,6 +71,11 @@ struct Portal {
     // Spire and the way to the pit are closed to a character who would only
     // die there.
     int    min_combat = 0;
+
+    // What it says of what lies beyond it to somebody at `combat_level`, to
+    // go after its label: that it is shut to them, or dangerous, or nothing.
+    // A door's prompt and the label at a walk-through exit both say it.
+    string Warning(int combat_level) const;
 };
 
 // Ground that hurts to stand on: lava vents, burning ash. Damage per second

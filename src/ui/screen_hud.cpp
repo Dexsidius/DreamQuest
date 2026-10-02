@@ -752,15 +752,20 @@ void Game::DrawHud() {
             if (d > 260.0f) continue;
             const float fade = std::clamp((260.0f - d) / 100.0f, 0.0f, 1.0f);
 
-            // Which edge the exit is on decides the arrow.
+            // Which edge the exit is on decides the arrow. What is beyond it
+            // is said as a door says it: the Primordium's 84 to 96, and the
+            // way out of town into the Westwold, were only ever seen in the
+            // data, since a way walked through has no prompt to put it on.
             const float to_l = px, to_r = mp.Width() - px, to_t = py, to_b = mp.Height() - py;
             const float nearest = std::min({to_l, to_r, to_t, to_b});
+            const string warning = portal.Warning(p.skills.CombatLevel());
+            const string name = portal.label + warning;
             string text;
             float nx = 0.0f, ny = 0.0f;
-            if (nearest == to_l)      { text = "< " + portal.label; nx = -1.0f; }
-            else if (nearest == to_r) { text = portal.label + " >"; nx =  1.0f; }
-            else if (nearest == to_t) { text = "^ " + portal.label; ny = -1.0f; }
-            else                      { text = "v " + portal.label; ny =  1.0f; }
+            if (nearest == to_l)      { text = "< " + name; nx = -1.0f; }
+            else if (nearest == to_r) { text = name + " >"; nx =  1.0f; }
+            else if (nearest == to_t) { text = "^ " + name; ny = -1.0f; }
+            else                      { text = "v " + name; ny =  1.0f; }
 
             SDL_FPoint s = UiPoint(px, py);
             const SDL_FPoint size = ui.Measure(text, TextSize::Small);
@@ -775,7 +780,8 @@ void Game::DrawHud() {
 
             ui.Fill({roundf(s.x - size.x / 2.0f - 8.0f), roundf(s.y - 4.0f), size.x + 16.0f, size.y + 8.0f},
                     {14, 11, 9, static_cast<Uint8>(170.0f * fade)});
-            SDL_Color c = Palette::Highlight;
+            // In the red of a warning when there is one.
+            SDL_Color c = warning.empty() ? Palette::Highlight : SDL_Color{236, 118, 96, 255};
             c.a = static_cast<Uint8>(255.0f * fade);
             ui.TextShadowed(text, s.x, s.y, TextSize::Small, c, Align::Center);
         }

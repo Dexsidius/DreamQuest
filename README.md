@@ -5133,7 +5133,7 @@ plateau leads to, there is **a ladder down**.
 | --- | --- | --- | --- | --- |
 | 1 | `dreamworld` | **The Reverie** -- 9 islands, 11 bridges | -- | the Nightmare Brute |
 | 2 | `dreamworld_2` | **The Deep Reverie** -- 11 islands, 16 bridges | Combat 25 | the Sleepless |
-| 3 | `dreamworld_3` | **The Dreaming Dark** -- 13 islands, 20 bridges | Combat 50 | the Unwaking |
+| 3 | `dreamworld_3` | **The Dreaming Dark** -- 13 islands, 20 bridges | Combat 56 (it said 50, under the least of what is down there, 53) | the Unwaking |
 
 Each is bigger than the one above it, darker -- the violet goes out of the
 light a ladder at a time, and the cloud underfoot goes from snow to storm --
@@ -6499,7 +6499,13 @@ Mossvale and Fernhollow each have their own people, dialogue and quests: a
 five-quest woodland chain (clear the trail, carry word to Fernhollow, hides for
 Mossvale, the trail wardens, and an offering at the shrine), with kill stages
 tied to the map they belong on so a wolf in the Mire does not count toward the
-Whisperwood.
+Whisperwood. Clear the Trail asks for six boar of it, and the dice on the
+verges gave the trail one, so a sounder of them is posted along the verges --
+each four cells from anything else and six from where anybody arrives -- until
+there are six. The self-test holds every kill stage to asking no more of a
+thing than are posted where it sends you: the Westwold's bridge had two of the
+four highwaymen the Toll at the Bridge asks for, since both of the west end's
+spots had a stone on them and were left out rather than moved a cell.
 
 ### People with somewhere to be
 
@@ -6906,11 +6912,38 @@ move that will not fit moves what fits and says so.
   than sliding across the screen.
 - **Exit markers.** Near the edge of an outdoor map, each way out is labelled
   with an arrow and its destination -- "To the Whisperwood >" -- so the edges
-  of a zone are signposted rather than discovered by walking into them.
+  of a zone are signposted rather than discovered by walking into them. One
+  that leads among things stronger than the player says so as a door does,
+  in red: "To the Ashen Path - dangerous: Combat 45 advised >". A way walked
+  through has no prompt to put it on, so the Primordium's warnings at 84 to 96,
+  and every other walk-through one, were only ever in the data.
 - **Warnings at dangerous doors.** A portal can carry the Combat level its
   far side is meant for. Below it, the door prompt says so -- "Enter the
   Emberfell mine - dangerous: Combat 6 advised" -- where a new character used
-  to find out by dying in the first room.
+  to find out by dying in the first room. The stairs down to a deeper floor
+  carry one too now: the crypt's to its second floor (47) and third (68),
+  Emberfell's to its lower workings (27) and the Well's to the Deep Cut (30)
+  said nothing, and were found out about at the bottom of them. The door
+  prompt and the exit label both ask `Portal::Warning`, and the self-test holds
+  every door down -- into a dungeon or a building, or deeper into the dream --
+  among things more than five levels stronger, and 20 or more, to saying so,
+  at no less than the least of them.
+- **Nobody arrives on a monster, and none stands rooted.** A dungeon floor's
+  posts were dropped on random cells of their rooms with nothing to keep them
+  apart: two of the Vaults' dead stood eight pixels from where climbing up out
+  of the Ossuary comes out, two pairs of orcs shared a spot, and a Blood Thrall
+  stood on Lord Ashcroft himself. They keep the dice's rooms -- so nothing
+  else on a floor moves -- and are then settled: five cells from every
+  arrival, two from each other, three off the boss and off the chests, in
+  their own room if it has the space and the nearest room to it if not.
+  And a post's feet are its own: placement asked whether a *player's* feet
+  were clear, a monster's are wider for most, and four stood with theirs in
+  something solid and never moved -- a Bone Knight in a palace nightstand,
+  two dream-pool posts in tree trunks and a deer in the Whisperwood's sign
+  stone. Every map's posts are looked at with the feet of every kind that may
+  keep them before the map is written (`MapBuilder::SettlePosts`, against
+  everything the game will make solid of it), and one that would start stuck
+  goes to the nearest clear spot.
 - **Legible banners.** The zone name sits on a feathered dark band; gold text
   over the foothills' sand was close to unreadable.
 - **Clear streets.** Trees and tall fungus are drawn up from their base, so the
@@ -7091,6 +7124,14 @@ used the full mushroom set, including the 128px ones -- tree-sized, and a player
 standing behind one in a map where the player is the light source simply
 disappears. Only the small fungus grows down there.
 
+And the Deep Cut's standing water was laid wherever the noise ran high, with
+collision -- straight across two of the corridors, so two chambers, a chest and
+27 seams of coal behind them could not be reached. It is still laid by the
+noise, and then drained wherever it cut floor off from the stairs, along the
+way through the least of it (a search that crosses floor for nothing and water
+a cell at a time). The self-test floods every dungeon floor from its way in and
+holds every chest, seam, lever and post to being somewhere the flood gets.
+
 ### The lizardmen
 
 The first ones were built at a townsfolk's proportions and read as something a
@@ -7210,6 +7251,12 @@ the gate always said to shut the gate.
 | **The Vaults** | Grave Ghouls, Bone Archers, Cryptbound | 26-34 |
 | **The Ossuary** | Bone Knights, Plague Corpses, Tomb Shades, Grave Hounds | 39-47 |
 | **The Black Vault** | Blood Thralls, Bone Colossi, Nosferatu, a Crypt Warden -- and **Lord Ashcroft** | 52-71 |
+
+The Ossuary always keeps **six Tomb Shades**, which is what Shut the Crypt asks
+for there: the dice that fill its rooms gave it one, and the quest could not be
+done without waiting on it to come back five times. The floor's Grave Hounds
+give way to shades until there are six -- the hounds, because nothing counts
+them, where the Tongueless Bell asks six of the floor's dead.
 
 Each floor's chests are better than the floor above's, and behind Lord Ashcroft
 is his own: **Ashcroft's Signet**, a ring that gives back 8% of what a blow takes.
@@ -8441,7 +8488,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **74129 checks** covering:
+and checks all of it — currently **74176 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -8522,6 +8569,16 @@ and checks all of it — currently **74129 checks** covering:
   levels apart; Bloodrush, Rallying Roar, Immovable, Deadly Mark, Arrow Storm,
   Iron Jaws, Overcharge, Deep Invocation and Bastion each measurably grow their
   branch's ability, fought and cast with and without the node
+- maps and monsters: no post on any map starts with its feet (its own kind's,
+  every kind of a pool) in something solid; nobody arrives within five cells
+  of a monster on a dungeon floor or two anywhere else, no two stand on one
+  spot, and nothing stands on a boss; every chest, seam, lever and post on
+  every dungeon floor can be walked to from its way in; every door down --
+  into a dungeon or a building, or deeper into the dream -- among things 20
+  and more, and more than five levels stronger, warns of them, at no less than
+  the least of them: the crypt's, Emberfell's and the Well's stairs among them,
+  and the dream's last ladder at 56, not 50; a walk-through exit says it as a
+  door does; no kill stage asks for more than are posted where it sends you
 - the late gathering: every fish bites later, pays more and heals more than the
   one before, up to the deepgleam at 90; frostfin, cindergill and deepgleam are
   fished only at their own water, at their own level, which says so to anyone

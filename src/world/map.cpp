@@ -893,6 +893,12 @@ bool Map::RingCrossed(float from_x, float from_y, float to_x, float to_y) const 
     return inside(from_x, from_y) != inside(to_x, to_y);
 }
 
+string Portal::Warning(int combat_level) const {
+    if (min_combat > combat_level) return "  -  needs Combat " + std::to_string(min_combat);
+    if (danger_level > combat_level) return "  -  dangerous: Combat " + std::to_string(danger_level) + " advised";
+    return string();
+}
+
 bool Map::Blocked(const SDL_FRect& box, bool swims) const {
     if (!loaded) return false;
 

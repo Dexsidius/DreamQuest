@@ -29,6 +29,9 @@
 #include <set>
 #include <filesystem>
 #include <random>
+#include <deque>
+#include <climits>
+#include <cstdint>
 
 #include "../src/json.hpp"
 
@@ -235,6 +238,8 @@ struct TileGroup {
     int    layer = 0;
     vector<std::array<int, 4>> locations;   // cx, cy, w, h
 };
+
+static const json& EnemyData();   // data/enemies.json; see ShownOf
 
 class MapBuilder {
 public:
@@ -655,7 +660,101 @@ public:
         dq["background"] = json::array({r, g, b, 255});
     }
 
-    void Write(const string& dir) const {
+    // A rectangle, in the map's own pixels.
+    struct Box { float x, y, w, h; };
+
+    // Everything the game will make solid of this map when it loads it
+    // (Map::Load): the collision boxes, the water -- which a swimmer may pass
+    // -- every object's solid box, and every tile of a group that is solid
+    // throughout or has a solid box of its own inside it.
+    void Solids(vector<Box>& walls, vector<Box>& water) const {
+        const auto add = [](vector<Box>& to, const json& c) {
+            if (c.is_array() && c.size() >= 4)
+                to.push_back({c[0].get<float>(), c[1].get<float>(), c[2].get<float>(), c[3].get<float>()});
+        };
+        if (dq.contains("collision")) for (const auto& c : dq["collision"]) add(walls, c);
+        if (dq.contains("water")) for (const auto& c : dq["water"]) add(water, c);
+        if (dq.contains("objects"))
+            for (const auto& o : dq["objects"]) if (o.contains("solid")) add(walls, o["solid"]);
+        std::set<string> solid;
+        if (dq.contains("solid")) for (const auto& n : dq["solid"]) solid.insert(n.get<string>());
+        for (const auto& [name, g] : groups) {
+            const bool boxed = dq.contains("solid_box") && dq["solid_box"].contains(name);
+            if (!boxed && !solid.count(name)) continue;
+            for (const auto& l : g.locations) {
+                const float left = l[0] - l[2] / 2.0f, top = l[1] - l[3] / 2.0f;
+                if (boxed) {
+                    const json& b = dq["solid_box"][name];
+                    walls.push_back({left + b[0].get<float>(), top + b[1].get<float>(), b[2].get<float>(), b[3].get<float>()});
+                } else {
+                    walls.push_back({left, top, static_cast<float>(l[2]), static_cast<float>(l[3])});
+                }
+            }
+        }
+    }
+
+    // A monster whose feet start inside something solid -- a nightstand, a
+    // trunk, a sign stone -- never moves: every step it takes out of it is a
+    // step through a collider, and Map::MoveWithCollision refuses them all.
+    // Posts were put where a player's feet would be clear (Clear), and a
+    // monster's are its own (EnemyDef::foot_box), and wider for most. So
+    // before a map is written each post is looked at with the feet of every
+    // kind that may keep it, and one that would start stuck goes to the
+    // nearest point, ring by ring out to 96 px, where every one of them
+    // stands clear.
+    void SettlePosts() {
+        if (!dq.contains("enemies") || dq["enemies"].empty()) return;
+        vector<Box> walls, water;
+        Solids(walls, water);
+        const float bw = dq["bounds"][0].get<float>(), bh = dq["bounds"][1].get<float>();
+        struct Feet { Box box; bool swims; };
+        const auto feet_of = [](const string& type) {
+            Feet f{{-9.0f, -12.0f, 18.0f, 12.0f}, false};
+            const json& all = EnemyData();
+            if (!all.contains(type)) return f;
+            const json& d = all[type];
+            if (d.contains("foot_box") && d["foot_box"].is_array() && d["foot_box"].size() >= 4)
+                f.box = {d["foot_box"][0].get<float>(), d["foot_box"][1].get<float>(),
+                         d["foot_box"][2].get<float>(), d["foot_box"][3].get<float>()};
+            f.swims = d.value("swims", false);
+            return f;
+        };
+        const auto overlaps = [](const Box& a, const Box& b) {
+            return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+        };
+        const auto stuck = [&](const vector<Feet>& kinds, float x, float y) {
+            for (const Feet& f : kinds) {
+                const Box b{x + f.box.x, y + f.box.y, f.box.w, f.box.h};
+                if (b.x < 0.0f || b.y < 0.0f || b.x + b.w > bw || b.y + b.h > bh) return true;
+                for (const Box& w : walls) if (overlaps(b, w)) return true;
+                if (!f.swims) for (const Box& w : water) if (overlaps(b, w)) return true;
+            }
+            return false;
+        };
+        for (auto& e : dq["enemies"]) {
+            vector<Feet> kinds;
+            if (e.contains("pool")) for (const auto& k : e["pool"]) kinds.push_back(feet_of(k.get<string>()));
+            if (kinds.empty()) kinds.push_back(feet_of(e["type"].get<string>()));
+            const float x = e["x"].get<float>(), y = e["y"].get<float>();
+            if (!stuck(kinds, x, y)) continue;
+            bool moved = false;
+            for (int r = 4; r <= 96 && !moved; r += 4)
+                for (int k = 0; k < 32 && !moved; ++k) {
+                    const float a = k * 6.2831853f / 32.0f;
+                    const int nx = static_cast<int>(lroundf(x + cosf(a) * r)), ny = static_cast<int>(lroundf(y + sinf(a) * r));
+                    if (stuck(kinds, static_cast<float>(nx), static_cast<float>(ny))) continue;
+                    e["x"] = nx;
+                    e["y"] = ny;
+                    moved = true;
+                }
+            if (!moved)
+                std::fprintf(stderr, "genmaps: %s: a %s at (%.0f, %.0f) is stuck, and nowhere near it is clear\n",
+                             id.c_str(), e["type"].get<string>().c_str(), x, y);
+        }
+    }
+
+    void Write(const string& dir) {
+        SettlePosts();
         json root;
         root["name"] = display;
 
@@ -4028,6 +4127,25 @@ struct Room { int x, y, w, h; };   // in cells
 
 // Carves rooms joined by L-shaped corridors, then walls in everything that was
 // not carved. Simple, readable, and it always produces a connected floor.
+// The Combat level the stairs down into a floor warn of, as a dungeon's front
+// door does (MapBuilder::Danger): the level the strongest of its ordinary
+// monsters shows. Stairs that led deeper said nothing, so the crypt's second
+// and third floors, Emberfell's lower workings and the Well's Deep Cut were
+// found out about at the bottom of them.
+static const std::map<string, int> kFloorDanger = {
+    {"crypt_2", 47}, {"crypt_3", 68}, {"dungeon_emberfell_2", 27}, {"well_deep", 30},
+};
+
+// At least so many of a kind on a floor, for a quest that sends somebody down
+// to put that many of them down: the dice gave the Ossuary one shade, and Shut
+// the Crypt asks for six. Posts of `from` give way to it, the last first,
+// until there are enough -- a kind no quest is counting on, since the
+// Tongueless Bell asks six of the floor's dead.
+struct FloorQuota { const char* kind; int want; const char* from; };
+static const std::map<string, vector<FloorQuota>> kFloorQuota = {
+    {"crypt_2", {{"tomb_shade", 6, "grave_hound"}}},
+};
+
 static void BuildDungeon(const string& id, const string& display,
                          unsigned seed, int cols, int rows, int room_count,
                          const string& floor_tile, const string& wall_tile,
@@ -4169,10 +4287,14 @@ static void BuildDungeon(const string& id, const string& display,
         m.SortLift("dungeon_stairs_down", 40);
         m.Portal(dx - 24, dy - 44, 48, 40, deeper_map, "entrance",
                  "Descend", true, deeper_lock);
+        if (const auto it = kFloorDanger.find(deeper_map); it != kFloorDanger.end()) m.Danger(it->second);
     }
 
-    // Monsters everywhere but the room you walk in through.
-    int placed = 0;
+    // Monsters everywhere but the room you walk in through. Where in its room
+    // each stands is the dice's for now, and settled once everything else in
+    // the rooms is down (below).
+    struct Post { size_t index, room; };
+    vector<Post> posts;
     for (size_t i = 1; i < rooms.size(); ++i) {
         const Room& r = rooms[i];
         const int count = 1 + static_cast<int>(rng() % 3);
@@ -4183,10 +4305,25 @@ static void BuildDungeon(const string& id, const string& display,
             // Not stood in a vent.
             if (vents.count({x / CELL, y / CELL})) { x = (r.x + r.w / 2) * CELL + 16; y = (r.y + r.h / 2) * CELL + 16; }
             m.Enemy(mon.first, x, y, mon.second, 40.0f, 320.0f);
-            ++placed;
+            posts.push_back({m.dq["enemies"].size() - 1, i});
         }
     }
-    (void)placed;
+    if (const auto quota = kFloorQuota.find(id); quota != kFloorQuota.end())
+        for (const FloorQuota& q : quota->second) {
+            int level = 1;
+            for (const auto& mon : monsters) if (mon.first == q.kind) level = mon.second;
+            int have = 0;
+            for (const Post& p : posts) have += m.dq["enemies"][p.index]["type"] == q.kind;
+            for (auto p = posts.rbegin(); p != posts.rend() && have < q.want; ++p) {
+                json& e = m.dq["enemies"][p->index];
+                if (e["type"] != q.from) continue;
+                e["type"] = q.kind;
+                e["level"] = level;
+                ++have;
+            }
+            if (have < q.want)
+                std::fprintf(stderr, "genmaps: %s has %d %s of the %d it is meant to\n", id.c_str(), have, q.kind, q.want);
+        }
 
     for (int i = 0; i < chest_count && rooms.size() > 1; ++i) {
         const Room& r = rooms[1 + (rng() % (rooms.size() - 1))];
@@ -4255,6 +4392,76 @@ static void BuildDungeon(const string& id, const string& display,
         for (const auto& t : kTry)
             if (m.Clear(dx + t[0], dy + t[1])) { sx = dx + t[0]; sy = dy + t[1]; break; }
         m.Spawn("from_below", sx, sy);
+    }
+
+    // The posts, settled now everything else is down. The dice put them
+    // anywhere in their rooms with nothing to keep them apart: two of the
+    // Vaults' dead stood eight pixels from where climbing up out of the
+    // Ossuary comes out, two pairs of orcs stood on one spot, and a Blood
+    // Thrall stood on Lord Ashcroft. Each keeps its spot if it may, and if not
+    // goes to the nearest cell of its room -- or failing that of the nearest
+    // room to it -- that is clear, out of the vents, 160 px from every
+    // arrival, 96 from the boss, 64 from every post already settled and off
+    // the chests. What stands in the boss's room stays there, as the boss's
+    // company, kept off the boss.
+    {
+        vector<std::pair<float, float>> arrivals, things, settled;
+        for (auto it = m.dq["spawns"].begin(); it != m.dq["spawns"].end(); ++it)
+            arrivals.push_back({it.value()[0].get<float>() - m.ox, it.value()[1].get<float>()});
+        for (const auto& o : m.dq["objects"]) things.push_back({o["x"].get<float>() - m.ox, o["y"].get<float>()});
+        const bool boss = !boss_type.empty();
+        const Room& last = rooms.back();
+        const float bx = (last.x + last.w / 2) * CELL + 16.0f, by = (last.y + last.h / 2) * CELL + 16.0f;
+        for (const Post& p : posts) {
+            json& e = m.dq["enemies"][p.index];
+            const float ox0 = e["x"].get<float>() - m.ox, oy0 = e["y"].get<float>();
+            // How well a spot keeps its distances: the least margin it keeps
+            // over all of them, so a spot that keeps every one is >= 0.
+            const auto margin = [&](float x, float y) {
+                float worst = 1e9f;
+                for (const auto& a : arrivals) worst = std::min(worst, std::hypot(x - a.first, y - a.second) - 160.0f);
+                if (boss) worst = std::min(worst, std::hypot(x - bx, y - by) - 96.0f);
+                for (const auto& q : settled) worst = std::min(worst, std::hypot(x - q.first, y - q.second) - 64.0f);
+                for (const auto& t : things) worst = std::min(worst, std::hypot(x - t.first, y - t.second) - 28.0f);
+                return worst;
+            };
+            // Its own room first, then the others, nearest first; within a
+            // room, the cells nearest where it was.
+            vector<size_t> order;
+            for (size_t j = 1; j < rooms.size(); ++j) order.push_back(j);
+            std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+                const auto d = [&](size_t j) { return j == p.room ? -1 : std::abs(static_cast<int>(j) - static_cast<int>(p.room)); };
+                return d(a) < d(b);
+            });
+            float best_x = ox0, best_y = oy0, best = -1e9f;
+            bool done = false;
+            for (size_t j : order) {
+                const Room& r = rooms[j];
+                vector<std::pair<int, int>> cells;
+                for (int cy = r.y + 1; cy < r.y + r.h - 1; ++cy)
+                    for (int cx = r.x + 1; cx < r.x + r.w - 1; ++cx) cells.push_back({cx, cy});
+                const float fx = j == p.room ? ox0 : (r.x + r.w / 2) * CELL + 16.0f;
+                const float fy = j == p.room ? oy0 : (r.y + r.h / 2) * CELL + 16.0f;
+                std::stable_sort(cells.begin(), cells.end(), [&](const auto& a, const auto& b) {
+                    return std::hypot(a.first * CELL + 16.0f - fx, a.second * CELL + 16.0f - fy) <
+                           std::hypot(b.first * CELL + 16.0f - fx, b.second * CELL + 16.0f - fy);
+                });
+                // Where the dice put it, first, if that is in its own room.
+                if (j == p.room) cells.insert(cells.begin(), std::make_pair(static_cast<int>(ox0) / CELL, static_cast<int>(oy0) / CELL));
+                for (const auto& [cx, cy] : cells) {
+                    const bool own = j == p.room && cx == static_cast<int>(ox0) / CELL && cy == static_cast<int>(oy0) / CELL;
+                    const float x = own ? ox0 : cx * CELL + 16.0f, y = own ? oy0 : cy * CELL + 16.0f;
+                    if (vents.count({cx, cy}) || !m.Clear(static_cast<int>(x), static_cast<int>(y))) continue;
+                    const float g = margin(x, y);
+                    if (g > best) { best = g; best_x = x; best_y = y; }
+                    if (g >= 0.0f) { done = true; break; }
+                }
+                if (done) break;
+            }
+            e["x"] = static_cast<int>(best_x) + m.ox;
+            e["y"] = static_cast<int>(best_y);
+            settled.push_back({best_x, best_y});
+        }
     }
 
     PlaceCurios(m);
@@ -4340,6 +4547,46 @@ static void BuildWellFloor(const string& id, const string& display, const string
         return false;
     };
 
+    // Standing water in the deep cut: it is a well, after all. It lies where
+    // the noise runs high -- and then, wherever it cut floor off from the
+    // stairs, it is drained again along the cheapest way through: the first
+    // cut laid it straight across two of the corridors, and two chambers, a
+    // chest and the coal beyond them were sealed off behind it. A search from
+    // the stairs that crosses floor for nothing and water a cell at a time
+    // finds, for every cell, the way to it through the least water; the
+    // water on each of those ways is what goes.
+    const auto at = [&](int cx, int cy) { return static_cast<size_t>(cy) * cols + cx; };
+    vector<char> water(static_cast<size_t>(cols) * rows, 0);
+    if (deep) {
+        for (int cy = 0; cy < rows; ++cy)
+            for (int cx = 0; cx < cols; ++cx)
+                if (open(cx, cy) && Fbm(cx * 0.3f, cy * 0.3f, static_cast<int>(seed) + 11) > 0.72f) water[at(cx, cy)] = 1;
+        const int sx = hx, sy = hy - 2;                 // at the foot of the stairs up
+        water[at(sx, sy)] = 0;
+        vector<int> cost(water.size(), INT_MAX);
+        vector<size_t> back(water.size(), SIZE_MAX);
+        std::deque<std::pair<int, int>> todo;
+        cost[at(sx, sy)] = 0;
+        todo.push_back({sx, sy});
+        while (!todo.empty()) {
+            const auto [cx, cy] = todo.front();
+            todo.pop_front();
+            for (const auto& d : {std::pair<int, int>{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                const int nx = cx + d.first, ny = cy + d.second;
+                if (!open(nx, ny)) continue;
+                const int c = cost[at(cx, cy)] + water[at(nx, ny)];
+                if (c >= cost[at(nx, ny)]) continue;
+                cost[at(nx, ny)] = c;
+                back[at(nx, ny)] = at(cx, cy);
+                if (water[at(nx, ny)]) todo.push_back({nx, ny}); else todo.push_front({nx, ny});
+            }
+        }
+        for (int cy = 0; cy < rows; ++cy)
+            for (int cx = 0; cx < cols; ++cx)
+                if (open(cx, cy) && !water[at(cx, cy)] && cost[at(cx, cy)] > 0)
+                    for (size_t i = at(cx, cy); i != SIZE_MAX; i = back[i]) water[i] = 0;
+    }
+
     for (int cy = 0; cy < rows; ++cy)
         for (int cx = 0; cx < cols; ++cx) {
             if (!open(cx, cy)) {
@@ -4348,8 +4595,7 @@ static void BuildWellFloor(const string& id, const string& display, const string
                 continue;
             }
             const float v = Fbm(cx * 0.3f, cy * 0.3f, static_cast<int>(seed) + 11);
-            // Standing water in the deep cut: it is a well, after all.
-            if (deep && v > 0.72f) {
+            if (water[at(cx, cy)]) {
                 m.Ground(VariantOf("bog_water", cx, cy), cx * CELL, cy * CELL, CELL);
                 m.Collision(cx * CELL, cy * CELL, CELL, CELL);
             } else {
@@ -4395,6 +4641,7 @@ static void BuildWellFloor(const string& id, const string& display, const string
         m.Prop("props", "dungeon_stairs_down", dx2, dy2 + 26);
         m.SortLift("dungeon_stairs_down", 40);
         m.Portal(dx2 - 24, dy2 - 16, 48, 40, down_map, "from_above", "Go deeper", true);
+        if (const auto it = kFloorDanger.find(down_map); it != kFloorDanger.end()) m.Danger(it->second);
         // Climbing back up puts you beside these stairs, not at the shaft you
         // came in by, which is half the hub away.
         m.Spawn("from_below", dx2, dy2 + 44);
@@ -5913,6 +6160,37 @@ static void BuildWhisperwood() {
             }
     }
 
+    // --- a sounder of boar ----------------------------------------------------------
+    // Clear the Trail asks for six boar of the trail, and the dice on the
+    // verges gave it one. More go down on the verges until there are six,
+    // taken in the order of their own hash, each four cells from anything else
+    // posted and six from where anybody arrives.
+    {
+        int boars = 0;
+        for (const auto& e : m.dq["enemies"]) boars += e["type"] == "boar";
+        vector<std::pair<float, std::pair<int, int>>> spots;
+        for (int cy = 2; cy < H - 2; ++cy)
+            for (int cx = 10; cx < W - 6; ++cx) {
+                const float gap = TrailGap(cx, cy);
+                if (gap < 1.6f || gap > 3.4f || Stream(cx, cy) || in_camp(cx, cy) || on_camp_path(cx, cy)) continue;
+                spots.push_back({Hash2(cx, cy, 3151), {cx, cy}});
+            }
+        std::sort(spots.begin(), spots.end());
+        for (const auto& sp : spots) {
+            if (boars >= 6) break;
+            const int x = sp.second.first * CELL + 16, y = sp.second.second * CELL + 16;
+            if (!m.Clear(x, y)) continue;
+            bool room = true;
+            for (const auto& e : m.dq["enemies"])
+                if (std::hypot(e["x"].get<float>() - (x + m.ox), e["y"].get<float>() - y) < 128.0f) room = false;
+            for (auto it = m.dq["spawns"].begin(); it != m.dq["spawns"].end(); ++it)
+                if (std::hypot(it.value()[0].get<float>() - (x + m.ox), it.value()[1].get<float>() - y) < 192.0f) room = false;
+            if (!room) continue;
+            m.Enemy("boar", x, y, 4);
+            ++boars;
+        }
+    }
+
     // --- the ways out -------------------------------------------------------------
     const int wy = static_cast<int>(TrailY(0.0f) * CELL) + 16;
     m.Portal(0, wy - 72, 24, 144, "overworld", "from_whisperwood", "To the Hollowmarch", false);
@@ -6309,14 +6587,28 @@ static void BuildWestwold() {
                 else if (r < 0.55f && cx < 96) m.Enemy("wolf", x, y, 1, 35.0f, 300.0f);
             }
         }
-    // Highwaymen either end of the bridge, where a cart has to slow.
+    // Highwaymen either end of the bridge, where a cart has to slow: four,
+    // which is what the Toll at the Bridge asks for. Both of the west end's
+    // spots had a stone on them and were left out, so the bridge had two;
+    // where the spot is taken, the nearest clear one a cell or two off it.
     {
         int n = 0;
         for (int lx : {66, 76})
             for (int side : {-1, 1}) {
                 const int cy = (lx == 66 ? 55 : 52) + side * 3;
-                if (!m.Clear(lx * CELL + 16, cy * CELL + 16)) continue;
-                m.Enemy("highwayman", lx * CELL + 16, cy * CELL + 16, 3 + (n++ % 3), 45.0f, 180.0f);
+                int px = lx * CELL + 16, py = cy * CELL + 16;
+                bool found = m.Clear(px, py);
+                for (int r = 1; r <= 2 && !found; ++r)
+                    for (int dy = -r; dy <= r && !found; ++dy)
+                        for (int dx = -r; dx <= r && !found; ++dx) {
+                            if (std::max(abs(dx), abs(dy)) != r || river(lx + dx, cy + dy)) continue;
+                            if (!m.Clear((lx + dx) * CELL + 16, (cy + dy) * CELL + 16)) continue;
+                            px = (lx + dx) * CELL + 16;
+                            py = (cy + dy) * CELL + 16;
+                            found = true;
+                        }
+                if (!found) continue;
+                m.Enemy("highwayman", px, py, 3 + (n++ % 3), 45.0f, 180.0f);
             }
     }
 
@@ -9654,8 +9946,10 @@ static void BuildDreamDeep() {
     }
 
     // --- and the ladder behind it ---------------------------------------------------------------
+    // Advised at what most of the bottom shows: it said 50, and the least of
+    // what is down there shows 53.
     PlaceLadderDown(m, px(isles[9].cx + 1.5f), px(isles[9].cy + 0.5f), "dreamworld_3",
-                    "Climb down, to the bottom of the dream", 50, "from_below");
+                    "Climb down, to the bottom of the dream", 56, "from_below");
 
     m.Write("maps");
 }

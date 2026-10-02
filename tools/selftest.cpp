@@ -4789,6 +4789,241 @@ static void TestLateSpells(const Databases& db) {
     }
 }
 
+// --- maps and monsters: what the Almanac found -----------------------------------------------------
+// Nothing posted stuck in something solid, or on top of another or of where
+// anybody arrives; nothing on a dungeon floor sealed off; every way down that
+// leads among stronger things says so, and a walk-through exit says it as a
+// door does; and no quest asks for more of a thing than lives where it sends
+// you.
+static void TestMapsAndMonsters(const Databases& db) {
+    EnemyDatabase& enemy_db = db.enemy_db;
+    QuestLog& quests = db.quests;
+    Section("maps and monsters: nothing stuck, stacked or sealed off, and every way down says what is below");
+
+    // --- every post's own feet start clear -------------------------------------------------
+    {
+        int stuck = 0;
+        string first;
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            for (const EnemySpawnDef& s : m.Enemies()) {
+                const vector<string> kinds = s.pool.empty() ? vector<string>{s.type} : s.pool;
+                for (const string& k : kinds) {
+                    const EnemyDef* d = enemy_db.Get(k);
+                    if (!d) continue;
+                    const SDL_FRect feet{s.x + d->foot_box.x, s.y + d->foot_box.y, d->foot_box.w, d->foot_box.h};
+                    if (!m.Blocked(feet, d->swims)) continue;
+                    if (first.empty()) first = string(id) + "'s " + k;
+                    ++stuck;
+                }
+            }
+        }
+        Check(stuck == 0, "no monster starts with its feet in something solid, so none stands rooted (" +
+                              std::to_string(stuck) + (first.empty() ? string() : ", " + first) + ")");
+    }
+
+    // --- nothing on top of anything --------------------------------------------------------
+    // A post that fights: not a night visitor, a roamer or a ritual's wave, and
+    // not livestock, whose pens are one spot for the lot.
+    const auto fights = [&](const EnemySpawnDef& s) {
+        const EnemyDef* d = enemy_db.Get(s.type);
+        return d && !s.night && s.route.empty() && s.ritual.empty() && d->aggro_range > 0.0f;
+    };
+    const char* kFloors[] = {"crypt_1", "crypt_2", "crypt_3", "dungeon_emberfell_1", "dungeon_emberfell_2",
+                             "dungeon_barrow", "dungeon_infernal", "well_shallow", "well_deep"};
+    {
+        int stacked = 0, by_door = 0, on_boss = 0;
+        string what;
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            std::ifstream in(string("maps/") + id + ".mx");
+            json authored;
+            in >> authored;
+            vector<SDL_FPoint> arrivals;
+            for (auto it = authored["dreamquest"]["spawns"].begin(); it != authored["dreamquest"]["spawns"].end(); ++it)
+                arrivals.push_back({it.value()[0].get<float>(), it.value()[1].get<float>()});
+            bool floor = false;
+            for (const char* f : kFloors) floor |= string(id) == f;
+            // On a dungeon floor, where somebody comes in is five cells clear
+            // of anything that would come for them; anywhere else, two.
+            const float clear = floor ? 160.0f : 64.0f;
+            const vector<EnemySpawnDef>& es = m.Enemies();
+            for (size_t i = 0; i < es.size(); ++i) {
+                if (!fights(es[i])) continue;
+                const EnemyDef* d = enemy_db.Get(es[i].type);
+                for (const SDL_FPoint& a : arrivals)
+                    if (!d->is_boss && Length(es[i].x - a.x, es[i].y - a.y) < clear) {
+                        ++by_door;
+                        what = string(id) + ": a " + es[i].type + " by an arrival";
+                    }
+                for (size_t j = i + 1; j < es.size(); ++j) {
+                    if (!fights(es[j])) continue;
+                    const float gap = Length(es[i].x - es[j].x, es[i].y - es[j].y);
+                    // A boss's nest elsewhere -- the Broodmother's cellar,
+                    // the matriarch's eyrie -- is meant to be close about it.
+                    const bool boss = d->is_boss || enemy_db.Get(es[j].type)->is_boss;
+                    if (boss && gap < (floor ? 96.0f : 24.0f)) { ++on_boss; what = string(id) + ": something on its boss"; }
+                    else if (gap < (floor ? 64.0f : 24.0f)) { ++stacked; what = string(id) + ": " + es[i].type + " on " + es[j].type; }
+                }
+            }
+        }
+        Check(by_door == 0, "nobody arrives on top of a monster: five cells clear on a dungeon floor, two anywhere else" +
+                                (what.empty() ? string() : " (" + what + ")"));
+        Check(stacked == 0, "no two monsters stand on one spot, and on a dungeon floor none within two cells of another");
+        Check(on_boss == 0, "nothing stands on a boss: a Blood Thrall stood on Lord Ashcroft");
+    }
+
+    // --- nothing on a dungeon floor is sealed off ----------------------------------------------
+    // Flooded from where the floor is come into at the size of the player's
+    // feet, as the routes are checked in towns and buildings: every chest, seam
+    // and lever within reach of somewhere the flood got to, and every post on
+    // floor it got to. The Deep Cut's standing water ran across two corridors
+    // and sealed off two chambers, a chest and 27 seams of coal.
+    for (const char* id : kFloors) {
+        Map room;
+        if (!room.Load(string("maps/") + id + ".mx")) { Check(false, string(id) + " loads"); continue; }
+        constexpr float STEP = 8.0f, REACH = 58.0f;
+        const int cols = static_cast<int>(room.Width() / STEP), rows = static_cast<int>(room.Height() / STEP);
+        const Player walker;
+        const auto feet = [&](float x, float y) {
+            return SDL_FRect{x + walker.foot_box.x, y + walker.foot_box.y, walker.foot_box.w, walker.foot_box.h};
+        };
+        vector<char> seen(static_cast<size_t>(cols) * rows, 0);
+        vector<pair<int, int>> todo;
+        const SDL_FPoint sp = room.DefaultSpawn();
+        todo.push_back({static_cast<int>(sp.x / STEP), static_cast<int>(sp.y / STEP)});
+        seen[static_cast<size_t>(todo.back().second) * cols + todo.back().first] = 1;
+        while (!todo.empty()) {
+            const auto [cx, cy] = todo.back();
+            todo.pop_back();
+            static const int kDir[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+            for (const auto& d : kDir) {
+                const int nx = cx + d[0], ny = cy + d[1];
+                if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+                char& f = seen[static_cast<size_t>(ny) * cols + nx];
+                if (f || room.Blocked(feet(nx * STEP, ny * STEP))) continue;
+                const SDL_FPoint moved = room.MoveWithCollision(feet(cx * STEP, cy * STEP), d[0] * STEP, d[1] * STEP);
+                const SDL_FRect goal = feet(nx * STEP, ny * STEP);
+                if (fabsf(moved.x - goal.x) > 0.1f || fabsf(moved.y - goal.y) > 0.1f) continue;
+                f = 1;
+                todo.push_back({nx, ny});
+            }
+        }
+        const auto reached = [&](float x, float y, float reach) {
+            const int r = static_cast<int>(reach / STEP) + 1;
+            for (int cy = std::max(0, static_cast<int>(y / STEP) - r); cy <= std::min(rows - 1, static_cast<int>(y / STEP) + r); ++cy)
+                for (int cx = std::max(0, static_cast<int>(x / STEP) - r); cx <= std::min(cols - 1, static_cast<int>(x / STEP) + r); ++cx)
+                    if (seen[static_cast<size_t>(cy) * cols + cx] && Length(cx * STEP - x, cy * STEP - y) <= reach) return true;
+            return false;
+        };
+        int things = 0, lost = 0, posts = 0, cut_off = 0;
+        for (const MapObject& o : room.Objects()) { ++things; lost += !reached(o.x, o.y, REACH); }
+        for (const EnemySpawnDef& e : room.Enemies()) { ++posts; cut_off += !reached(e.x, e.y, 64.0f); }
+        Check(things > 0 && lost == 0 && cut_off == 0,
+              string(id) + ": all " + std::to_string(things) + " things and " + std::to_string(posts) +
+                  " posts can be walked to from the way in (" + std::to_string(lost) + " and " + std::to_string(cut_off) +
+                  " cannot)");
+    }
+
+    // --- every way down among stronger things says so ------------------------------------------
+    {
+        // The strongest and the weakest of the ordinary monsters on each map,
+        // whether it is a building or a dungeon, and how deep in the dream it
+        // is: what a door goes down into.
+        std::map<string, pair<int, int>> range;
+        std::set<string> inside;
+        std::map<string, int> depth;
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            int top = 0, low = 999;
+            for (const EnemySpawnDef& s : m.Enemies()) {
+                const EnemyDef* d = enemy_db.Get(s.type);
+                if (!d || d->is_boss || s.night || !s.route.empty()) continue;
+                const int shown = Enemy::ShownLevelOf(*d, Enemy::PostLevel(*d, s));
+                top = std::max(top, shown);
+                low = std::min(low, shown);
+            }
+            range[id] = {top, top ? low : 0};
+            if (m.IsInterior()) inside.insert(id);
+            depth[id] = m.DreamDepth();
+        }
+        int unwarned = 0;
+        string which;
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            for (const Portal& p : m.Portals()) {
+                const auto there = range.find(p.target_map);
+                const bool down = inside.count(p.target_map) || depth[p.target_map] > depth[id];
+                if (!p.requires_interact || there == range.end() || !down) continue;
+                // A door down -- into a dungeon or a building, or deeper into
+                // the dream -- among things
+                // that show 20 and more, and more than five above the strongest
+                // where you stand, says what is behind it, and says something
+                // true: no less than the least of them. (The Pit's way out to
+                // the Ashen Path is not one: it goes back up to where the palace
+                // stands, and nobody is warned of where they came from.)
+                if (there->second.first < 20 || there->second.first <= range[id].first + 5) continue;
+                if (p.danger_level < there->second.second) {
+                    ++unwarned;
+                    which = string(id) + " to " + p.target_map;
+                }
+            }
+        }
+        Check(unwarned == 0, "every door down among stronger things warns of them" +
+                                 (which.empty() ? string() : " (not " + which + ")"));
+        // The four that said nothing.
+        const auto warns = [&](const char* from, const char* to) {
+            Map m;
+            if (!m.Load(string("maps/") + from + ".mx")) return 0;
+            for (const Portal& p : m.Portals()) if (p.target_map == to) return p.danger_level;
+            return 0;
+        };
+        Check(warns("crypt_1", "crypt_2") >= 40 && warns("crypt_2", "crypt_3") >= 60 &&
+                  warns("dungeon_emberfell_1", "dungeon_emberfell_2") >= 20 && warns("well_shallow", "well_deep") >= 25,
+              "the crypt's stairs to its second and third floors, Emberfell's to its lower workings and the Well's to "
+              "the Deep Cut all warn now");
+        // And it is said the same way at a door and at the edge of a map.
+        Portal edge;
+        edge.danger_level = 84;
+        Check(edge.Warning(80).find("Combat 84") != string::npos && edge.Warning(84).empty() && edge.Warning(90).empty(),
+              "a way through warns somebody below its level, and nobody at it or past it");
+        edge.min_combat = 72;
+        Check(edge.Warning(60).find("needs Combat 72") != string::npos &&
+                  edge.Warning(75).find("Combat 84") != string::npos,
+              "and one that is shut below a level says that first");
+    }
+
+    // --- no quest asks for more than lives there --------------------------------------------------
+    {
+        int short_of = 0;
+        string which;
+        for (const auto& [qid, q] : quests.Definitions())
+            for (const QuestStage& st : q.stages) {
+                if (st.type != ObjectiveType::Kill || st.map_id.empty()) continue;
+                Map m;
+                if (!m.Load("maps/" + st.map_id + ".mx")) continue;
+                int posts = 0;
+                for (const EnemySpawnDef& s : m.Enemies()) {
+                    if (s.night || !s.ritual.empty()) continue;
+                    bool counts = false;
+                    for (const string& k : s.pool.empty() ? vector<string>{s.type} : s.pool)
+                        if (const EnemyDef* d = enemy_db.Get(k)) counts |= k == st.target || d->kill_target == st.target;
+                    posts += counts;
+                }
+                if (posts < st.count) {
+                    ++short_of;
+                    which = qid + " (" + std::to_string(st.count) + " " + st.target + ", " + std::to_string(posts) + " there)";
+                }
+            }
+        Check(short_of == 0, "no quest sends anybody to kill more of a thing than are posted where it sends them" +
+                                 (which.empty() ? string() : ": " + which));
+    }
+}
+
 // --- the late gathering: fish past Fishing 60, dishes past Cooking 60, herbs
 // past Foraging 68, and what is brewed from them ----------------------------------------------------
 static void TestLateGathering(const Databases& db) {
@@ -23731,6 +23966,7 @@ int main(int argc, char** argv) {
     TestLateSpells(db);
     TestLateTreeRows(db);
     TestLateGathering(db);
+    TestMapsAndMonsters(db);
 
     Section("the Brimstone Palace, and its king");
     {
