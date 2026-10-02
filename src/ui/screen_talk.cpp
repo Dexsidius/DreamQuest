@@ -340,14 +340,18 @@ void Game::UpdateTravel() {
 
     if ((input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) && count > 0) {
         const WaystoneDef& to = *list[travel_cursor];
+        string why;
         if (travel_from == to.id) {
             PushToast("You are standing at it.", Palette::TextDim);
             Audio::Play(Sfx::UiError);
-        } else if (!world->Flagged(to.id)) {
-            PushToast(string(to.town ? "The stone at " : "The stone on ") + to.name +
-                          " is still asleep. It has to be woken by hand.",
-                      {235, 190, 120, 255});
+        } else if (!world->CanTravel(to, travel_from, why)) {
+            PushToast(why, {235, 190, 120, 255});
             Audio::Play(Sfx::UiError);
+        } else if (world->visiting) {
+            // A friend is taken by the host, who asks the stones again.
+            SetState(GameState::Play);
+            world->AskToTravel(to.id, travel_from);
+            Audio::Play(Sfx::QuestStart);
         } else {
             SetState(GameState::Play);
             // To the spawn named for the stone: in front of it, whichever of a
@@ -404,6 +408,8 @@ void Game::DrawTravel() {
         const bool selected = (i == travel_cursor);
         const bool here = travel_from == w.id;
         const bool awake = world->Flagged(w.id);
+        // Woken, by somebody, and still beyond this character's gate.
+        const bool barred = awake && !here && world->player.skills.CombatLevel() < w.combat;
         ui.Fill(row, selected ? SDL_Color{58, 46, 28, 235} : SDL_Color{30, 24, 20, 220});
         ui.Outline(row, selected ? Palette::Highlight : Palette::BorderDim, selected ? 2.0f : 1.0f);
         // A lit or a dark eye, the way the stone itself shows it.
@@ -412,8 +418,10 @@ void Game::DrawTravel() {
         ui.Text(w.name, row.x + 44.0f, row.y + 6.0f, TextSize::Body,
                 !awake ? SDL_Color{120, 110, 100, 255} : (selected ? Palette::Highlight : Palette::Text));
         ui.Text(w.note, row.x + 44.0f, row.y + 28.0f, TextSize::Small, Palette::TextDim);
-        ui.Text(here ? "you are here" : (awake ? "awake" : "asleep"), row.x + row.w - 12.0f, row.y + 8.0f,
-                TextSize::Small, here ? Palette::Highlight : (awake ? cold : SDL_Color{150, 110, 100, 255}),
+        ui.Text(here ? "you are here" : barred ? "Combat " + std::to_string(w.combat) : (awake ? "awake" : "asleep"),
+                row.x + row.w - 12.0f, row.y + 8.0f, TextSize::Small,
+                here ? Palette::Highlight : barred ? SDL_Color{235, 150, 120, 255}
+                                                   : (awake ? cold : SDL_Color{150, 110, 100, 255}),
                 Align::Right);
         // Fading up with it: a veil of the panel over the row, thinning away.
         if (k < 1.0f)
@@ -582,10 +590,8 @@ void Game::UpdateSleepPrompt() {
             return;
         }
         SetState(GameState::Play);
-        if (world->Sleep(how, ctx) && sleep_fee > 0) {
-            sleeper.inventory.SpendCoins(sleep_fee);
-            PushToast("Paid " + std::to_string(sleep_fee) + " coins for the bed.", Palette::TextDim);
-        }
+        // Paid as they lie down, and only if they do: a friend's at the host.
+        world->Sleep(how, ctx, sleep_fee);
         sleep_fee = 0;
         return;
     }

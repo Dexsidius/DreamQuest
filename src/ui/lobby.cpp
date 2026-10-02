@@ -188,7 +188,10 @@ void Game::UpdateCoop(float dt) {
         if (state == GameState::Play) coop_host.Update(dt, offline_server, home_world, ctx, has_session);
         return;
     }
-    if (!home_world.guests.empty() && !guest_session && !session.Active()) coop_host.Reset(home_world);
+    // The door shut: everyone let go, and kept first (Host::Reset). Friends
+    // all off on maps of their own left nobody on the host's, and were let
+    // go without being kept.
+    if ((!home_world.guests.empty() || coop_host.Busy()) && !guest_session && !session.Active()) coop_host.Reset(home_world);
 
     const bool guest = session.As() == net::Session::Role::Guest;
     if (guest) {

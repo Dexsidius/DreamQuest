@@ -13,6 +13,8 @@
 #include "../systems/clock.h"
 #include "../systems/shop.h"
 
+struct WaystoneDef;   // systems/waystones.h
+
 // Things the world needs the UI layer to put on screen. The world never opens
 // a panel itself; it raises a request and Game decides what state to enter.
 struct WorldRequest {
@@ -60,8 +62,12 @@ struct SeatState {
     // Panels asked for while acting as them: theirs to open, not the host's.
     vector<WorldRequest> requests;
     // What their machine has told the host that is theirs alone: the recipes
-    // and spells they know. The world's own flags are everybody's.
+    // and spells they know, their own chests opened. The world's own flags
+    // are everybody's.
     std::set<string> private_flags;
+    // Those of them set here, while acting as them -- a chest of theirs
+    // opened at the host -- for coop::Host to tell their machine.
+    vector<string> private_log;
     // Their journal, listening only; see QuestLog::relay.
     QuestLog journal;
     // Or, for someone sitting at this machine, their real one: Player Two's
@@ -79,10 +85,17 @@ public:
     // Maps live in maps/<id>.mx. Passing an empty spawn uses the map default.
     bool LoadMap(const string& map_id, const string& spawn, const GameContext& ctx);
     // Queued from a portal; applied at the top of the next frame. False if
-    // it was not: one is already under way, or this world is a guest's window
-    // and the host leads the way.
+    // it was not: one is already under way, or this world is a friend's
+    // window, whom the host takes through (coop::Host::Doors).
     bool RequestTransition(const string& map_id, const string& spawn);
     bool TransitionPending() const { return transition_pending; }
+    // Whether `player`, at the waystone `from`, may go by it to `to`, and if
+    // not, why not: both stones awake, `from` within reach, and the way to
+    // `to` open to them (WaystoneDef::combat). Asked by the panel, and by the
+    // host of a friend's choice.
+    bool CanTravel(const WaystoneDef& to, const string& from, string& why) const;
+    // A friend's window asks the host to take them by the stone.
+    void AskToTravel(const string& to, const string& from) { visitor_acts.push_back({8, to, from, 0}); }
     // Arriving holds back the way back: every step-through portal within
     // ARRIVAL_GUARD of where the player came in waits until they have let go
     // of the movement and stepped clear of it, or walked ARRIVAL_LEFT from
@@ -194,15 +207,35 @@ public:
     // False for an object whose quest is not being done right now; such an
     // object is not drawn, not lit and cannot be used.
     bool  ObjectPresent(const MapObject& o) const;
+    // Acting as a friend, what is someone's own (PrivateFlag) is the friend's
+    // alone: the host's recipes, places and chests are not theirs.
     bool  Flagged(const string& key) const {
-        return flags.count(key) > 0 || (acting_flags && acting_flags->count(key) > 0);
+        if (acting_flags && PrivateFlag(key)) return acting_flags->count(key) > 0;
+        return flags.count(key) > 0;
     }
     void  SetFlag(const string& key) {
-        // What someone acting here learns is theirs, not the host's.
-        if (acting_flags_rw && PrivateFlag(key)) { acting_flags_rw->insert(key); return; }
+        // What someone acting here learns is theirs, not the host's -- and is
+        // written down for their machine to be told (SeatState::private_log).
+        if (acting_flags_rw && PrivateFlag(key)) {
+            if (acting_flags_rw->insert(key).second && acting_log) acting_log->push_back(key);
+            return;
+        }
         if (flags.insert(key).second && journal) flag_log.push_back(key);
     }
     const std::set<string>& Flags() const { return flags; }
+    // Every flag as whoever `player` is now sees them: the world's, and their
+    // own in place of the host's own. What a conversation asks of.
+    std::set<string> SeenFlags() const;
+    // Whether an object has been used -- a chest opened, a note read, a lever
+    // pulled -- by whoever `player` is. Most are the world's, used once for
+    // everyone; one that is a character's progress (MapObject::own) is kept
+    // as "own:<id>", each character's own. A save from before there was such
+    // a thing counts the uses it kept for its own player.
+    bool  Used(const MapObject& o) const { return o.own ? UsedOwn(o.id) : Flagged(o.id); }
+    bool  UsedOwn(const string& id) const {
+        return Flagged("own:" + id) || (!visiting && !acting && flags.count(id) > 0);
+    }
+    void  MarkUsed(const MapObject& o) { SetFlag(o.own ? "own:" + o.id : o.id); }
 
     // --- a spell is paid for when it lands --------------------------------------------
     // Casting paid its Magic experience as the bolt left the staff, "whether or
@@ -293,7 +326,7 @@ public:
     // the glows all ask before choosing a picture.
     bool  ObjectSpent(const MapObject& o) const {
         const bool regrows = o.type == "herb" || o.type == "bug" || o.type == "hive" || o.deplete > 0.0f;
-        return regrows ? Picked(o) : Flagged(o.id);
+        return regrows ? Picked(o) : Used(o);
     }
 
     // --- bugs ---------------------------------------------------------------------
@@ -328,9 +361,10 @@ public:
     Player  player;
     // Everyone else who is here. On the host these are friends' characters,
     // stepped by StepGuest with the inputs their machines send; on a client
-    // they are puppets, posed from snapshots. Kept across a map change: until
-    // the co-op plan's M4 the host leads, and everyone goes through the door
-    // together.
+    // they are puppets, posed from snapshots. Kept across a map change, put
+    // where `player` arrives -- but with coop::Host behind it each goes
+    // through doors their own way (Host::Doors), and a map left with friends
+    // on it is handed to a world of its own first (before_unload, HandOver).
     vector<std::unique_ptr<Player>> guests;
     Player* AddGuest(uint8_t seat, const string& name, const string& look, const GameContext& ctx);
     void    RemoveGuest(uint8_t seat);
@@ -351,9 +385,11 @@ public:
         acting = &who;
         acting_flags = &s.private_flags;
         acting_flags_rw = &s.private_flags;
+        acting_log = &s.private_log;
         fn();
         acting_flags = nullptr;
         acting_flags_rw = nullptr;
+        acting_log = nullptr;
         acting = nullptr;
         SwapSeat(who, s);
     }
@@ -364,10 +400,13 @@ public:
     // step this world meanwhile.
     void    BeginActing(Player& who);
     void    EndActing();
-    // Which flags are a player's own -- recipes learned, places seen -- rather
-    // than the world's.
+    // Which flags are a player's own -- recipes learned, places seen, their
+    // own chests opened (MapObject::own), a lost tool replaced, Oona's doll
+    // bound and fed today -- rather than the world's.
     static bool PrivateFlag(const string& key) {
-        return key.rfind("recipe:", 0) == 0 || key.rfind("visited:", 0) == 0 || key.rfind("starter_", 0) == 0;
+        for (const char* own : {"recipe:", "visited:", "starter_", "own:", "replaced:", "poppet_"})
+            if (key.rfind(own, 0) == 0) return true;
+        return false;
     }
     // Whoever owns a shot or a patch of burning ground.
     Player& OwnerOf(bool local, uint8_t seat);
@@ -630,8 +669,10 @@ public:
     // when the question has been asked. `title` names what is being slept on.
     bool AskToSleep(const string& title, int fee = 0);
     // Lies down, the way chosen, under the same conditions. True when the
-    // player is falling asleep.
-    bool Sleep(SleepChoice how, const GameContext& ctx);
+    // player is falling asleep. An inn's bed is `fee` coins, paid as they lie
+    // down and only then -- for a friend, at the host, if the host lets them
+    // (net::Action::Sleep carries it): they paid whatever the host said.
+    bool Sleep(SleepChoice how, const GameContext& ctx, int fee = 0);
     // Pitches the bedroll in this inventory slot as a camp in front of the
     // player. Empty on success, otherwise the reason it could not be done.
     string PitchCamp(int slot, const GameContext& ctx);
@@ -678,8 +719,18 @@ public:
     // Shots that are owed: a Mineral Burst is eight stones one after another,
     // and the seven after the first are let go from wherever the caster has
     // got to by then.
-    struct QueuedShot { float in = 0; string projectile; float mult = 1; float spread = 0; uint32_t cast = 0; float life = 1; };
+    // Whose it is (Player::local and seat, as a patch keeps them): let go from
+    // their hands, at what they are fighting. A friend's flamethrower went on
+    // from the host's.
+    struct QueuedShot {
+        float in = 0; string projectile; float mult = 1; float spread = 0; uint32_t cast = 0; float life = 1;
+        bool owner_local = true; uint8_t owner_seat = 0;
+    };
     vector<QueuedShot> queued_shots;
+    // Owed by whoever `player` is now.
+    void QueueShot(float in, const string& projectile, float mult, float spread, uint32_t cast, float life = 1.0f) {
+        queued_shots.push_back({in, projectile, mult, spread, cast, life, player.local, player.seat});
+    }
     // A square of the ground torn up and thrown about: the Slabstrike. Swung
     // through an arc in front of the caster -- a small one on a light, a bigger
     // and slower one on a heavy -- or, held and let go, carried over whoever is
@@ -803,7 +854,8 @@ public:
     static string IdolId(int knots);
     // The knots on the poppet in `bag`, or -1 when there is none in it.
     static int IdolKnots(const Inventory& bag);
-    // The world flag a day's ritual leaves: the tables answer once a day.
+    // The flag a day's ritual leaves its owner: the tables answer a poppet
+    // once a day, and each friend's doll has its own day.
     static string RitualDayFlag(int quest_day) { return "poppet_day:" + std::to_string(quest_day); }
     // Whether `player` may lay a poppet on `table` now, and if not, why not.
     bool CanStartRitual(const MapObject& table, string& why) const;
@@ -881,6 +933,9 @@ public:
         float hit_mult = 1.0f;
         int   chains = 2;                // how many it reaches on each tick
         bool  from_player = true;
+        // Whose it is, as a patch keeps it: its blows are theirs (AddNode).
+        bool  owner_local = true;
+        uint8_t owner_seat = 0;
         bool  mine = true;               // this machine resolves it
         CombatProfile owner;
         StatusProc status;
@@ -909,6 +964,7 @@ private:
     Player* acting = nullptr;                       // the guest slot holding `player`'s own data meanwhile
     const std::set<string>* acting_flags = nullptr;
     std::set<string>* acting_flags_rw = nullptr;
+    vector<string>* acting_log = nullptr;
     vector<QuestEvent> kill_log;
     class QuestLog* host_quests = nullptr;
     uint32_t next_net_id = 1;

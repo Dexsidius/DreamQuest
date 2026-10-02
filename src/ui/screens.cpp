@@ -1139,7 +1139,13 @@ void Game::UpdatePaused() {
     if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
         switch (cursor) {
             case 0: SetState(GameState::Play); break;
-            case 1: slot_purpose = SLOT_SAVE; SetState(GameState::SlotSelect); break;
+            case 1:
+                // A friend's save is their character, on this machine: there is
+                // no slot to choose, and the list warned of replacing one.
+                if (guest_session) { SaveGame(active_slot); SetState(GameState::Play); break; }
+                slot_purpose = SLOT_SAVE;
+                SetState(GameState::SlotSelect);
+                break;
             case 2: OpenMultiplayer(); break;
             case 3:
                 // A game on the single-player shelf is carried to a multiplayer

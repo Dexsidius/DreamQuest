@@ -84,6 +84,9 @@ private:
     void HandleDialogueActions(const vector<DialogueAction>& actions);
     // What dialogue conditions are judged against, right now.
     DialogueContext MakeDialogueContext() const;
+    mutable std::set<string> seen_flags;   // Player Two's, for the context above
+    // Every friend's character and place, kept beside the save (coop::Host::KeepAll).
+    void KeepFriends();
     void GrantQuestRewards(const string& quest_id);
     // Experience, coins and things, into the bag -- or, with no room, at the
     // player's feet rather than lost.

@@ -1,5 +1,6 @@
 #include "coop.h"
 #include "../systems/audio.h"
+#include "../systems/waystones.h"
 #include <filesystem>
 #include <fstream>
 
@@ -289,7 +290,18 @@ Host::~Host() {
     g_tapped = nullptr;
 }
 
+void Host::KeepAll() {
+    for (auto& [seat_no, s] : seats) {
+        if (s.local || !s.where) continue;
+        const Player* g = s.where->Guest(seat_no);
+        if (!g) continue;
+        last_place[s.name] = {s.where->MapId(), g->x, g->y};
+        Keep(s, g);
+    }
+}
+
 void Host::Reset(World& home) {
+    KeepAll();
     seats.clear();
     away.clear();
     empty_for.clear();
@@ -553,9 +565,16 @@ void Host::SyncRoster(net::Server& server, World& home, const GameContext& ctx, 
         }
         Seat& s = found->second;
         if (!in_world) {
-            // No world to be in: back to the lobby with them.
+            // No world to be in: back to the lobby with them -- kept first,
+            // where they stood, for when this world is opened again.
             if (s.where || !s.told_lobby) {
-                if (s.where) s.where->RemoveGuest(info.seat);
+                if (s.where) {
+                    if (const Player* g = s.where->Guest(info.seat)) {
+                        last_place[s.name] = {s.where->MapId(), g->x, g->y};
+                        Keep(s, g);
+                    }
+                    s.where->RemoveGuest(info.seat);
+                }
                 s.where = nullptr;
                 s.queue.clear();
                 server.SendToSeat(info.seat, net::Channel::Reliable, net::Encode(net::Enter{}));
@@ -764,9 +783,11 @@ void Host::Hear(net::Server& server, World& home, const GameContext& ctx) {
                 g->ApplySheet(j.value("player", json::object()), ctx);
                 SeatState& state = s.where->SeatOf(in.seat);
                 state.journal.relay_active.clear();
-                state.private_flags.clear();
                 if (j.contains("active") && j["active"].is_array())
                     for (const json& q : j["active"]) if (q.is_string()) state.journal.relay_active.insert(q.get<string>());
+                // Added to, never cleared: what is someone's own is never
+                // taken back, and a sheet written before their machine heard
+                // of a chest opened here would otherwise make it unopened.
                 if (j.contains("flags") && j["flags"].is_array())
                     for (const json& f : j["flags"])
                         if (f.is_string() && PrivateFlag(f.get<string>())) state.private_flags.insert(f.get<string>());
@@ -827,15 +848,42 @@ void Host::Act(uint8_t seat_no, Seat& s, const net::Action& a, const GameContext
                 state.waking = -1;           // not a waking: a getting up
             }
             break;
-        case net::Action::Sleep:
+        case net::Action::Sleep: {
+            // What the bed costs is taken here, from their copy -- and so from
+            // their bag -- only if they lie down.
+            const int fee = std::clamp(SDL_atoi(a.a.c_str()), 0, 100000);
             w.AsSeat(*g, ctx, [&](const GameContext& theirs) {
-                w.Sleep(a.n == 1 ? World::SleepChoice::Reverie : World::SleepChoice::Through, theirs);
+                w.Sleep(a.n == 1 ? World::SleepChoice::Reverie : World::SleepChoice::Through, theirs, fee);
             });
             break;
+        }
         case net::Action::ShopSold:
             // One shelf for everyone: the realm's ledger is the host's.
             if (realm_home && a.n > 0) realm_home->shops.Record(a.a, a.b, std::min(a.n, 100000));
             break;
+        case net::Action::Spill:
+            // What their pack could not take -- a quest's reward, a gift --
+            // at their feet, as it would be alone: anyone's to pick up, and
+            // there until the map is left. It was never in their bag.
+            if (a.n > 0 && ctx.items && ctx.items->Get(a.a)) {
+                const float x = g->x, y = g->y + 6.0f;
+                w.AsSeat(*g, ctx, [&](const GameContext& theirs) { w.DropItem(a.a, std::min(a.n, 100000), x, y, theirs); });
+            }
+            break;
+        case net::Action::Travel: {
+            // By a waystone, as through a door: asked of the stones again here
+            // -- the one in their hand, the one they chose, and the gate on
+            // the way to it, which is theirs to have passed -- and then the
+            // way is theirs to take, like any other (Doors, Transfer).
+            const WaystoneDef* to = WaystoneById(a.a);
+            if (!to || g->Fallen()) break;
+            w.AsSeat(*g, ctx, [&](const GameContext&) {
+                string why;
+                if (w.CanTravel(*to, a.b, why)) w.RequestTransition(to->map, to->id);
+                else w.PushRequest(Toast(why));
+            });
+            break;
+        }
         default: break;
     }
 }
@@ -1109,6 +1157,15 @@ void Host::Journals(World& home) {
                 if (s.where == w && s.tell.marks.size() < 96) s.tell.marks.push_back(out);
         }
         w->strike_log.clear();
+    }
+    // What was a friend's own -- a chest of theirs opened, a doll of theirs
+    // fed -- is theirs alone to be told. Someone at this machine has it
+    // already, where it is kept.
+    for (auto& [seat_no, s] : seats) {
+        if (!s.where || !s.where->Guest(seat_no)) continue;
+        SeatState& state = s.where->SeatOf(seat_no);
+        if (!s.local) for (string& key : state.private_log) s.tell.flags.push_back(std::move(key));
+        state.private_log.clear();
     }
     // A chest opened or a tree felled is so everywhere, for everyone.
     for (World* w : worlds) {
@@ -1436,8 +1493,10 @@ void Guest::AfterStep(World& world, net::Client& client, float quantised_dt) {
 
 string Guest::MakeSheet(const World& world, const QuestLog* journal) {
     json player = world.player.ToJson();
-    // Where they stand and how hurt they are is the host's to know.
-    for (const char* volatile_key : {"x", "y", "facing", "hp", "mana"}) player.erase(volatile_key);
+    // Where they stand and how hurt they are is the host's to know; what they
+    // have seen of the maps is only for their own minimap, and is the bulk of
+    // a character file.
+    for (const char* volatile_key : {"x", "y", "facing", "hp", "mana", "explored"}) player.erase(volatile_key);
     json flags = json::array();
     for (const string& key : world.Flags()) if (PrivateFlag(key)) flags.push_back(key);
     json active = json::array();

@@ -108,7 +108,15 @@ public:
     // is false while the host has no game running: guests wait in the lobby.
     // On the headless server `home.player.absent` is set and it is always true.
     void Update(float dt, net::Server& server, World& home, const GameContext& ctx, bool in_world);
+    // Lets everyone go, keeping each friend first (KeepAll).
     void Reset(World& home);
+    // Every friend's character and where they stand, written to kept_dir as
+    // the host has them. Kept as each leaves, and now as the world is saved,
+    // left, closed or shut down with them in it: they used to come back to
+    // wherever they last walked out, or to the host's side.
+    void KeepAll();
+    // Anyone seated, or anything of theirs still running.
+    bool Busy() const { return !seats.empty() || !away.empty() || !gone.empty(); }
     // Takes its ear out of Audio if it still has it there: the tap it leaves
     // points back at it, and a sound played after it is gone was a crash.
     ~Host();

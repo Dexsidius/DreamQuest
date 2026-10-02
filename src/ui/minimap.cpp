@@ -11,6 +11,7 @@ void Minimap::Forget() {
     if (terrain) SDL_DestroyTexture(terrain);
     terrain = nullptr;
     built_for.clear();
+    fog.Forget();
 }
 
 bool Minimap::Build(SDL_Renderer* r, TextureCache& cache, const World& world) {
@@ -61,6 +62,8 @@ void Minimap::Draw(SDL_Renderer* r, TextureCache& cache, UI& ui, const World& wo
     if (built_for != world.MapId() || !terrain) {
         if (!Build(r, cache, world)) return;
     }
+    const Map& here = world.CurrentMap();
+    const bool fogged = fog.Update(r, world.player.exploration, world.MapId(), here.Width(), here.Height());
 
     const Player& p = world.player;
     const float px = p.x / scale;          // the player, in image pixels
@@ -79,6 +82,9 @@ void Minimap::Draw(SDL_Renderer* r, TextureCache& cache, UI& ui, const World& wo
     }
 
     // Then the terrain, a row at a time: a circle is a stack of strips.
+    struct Strip { SDL_FRect src, dst; };
+    vector<Strip> strips;
+    strips.reserve(static_cast<size_t>(rad) * 2 + 1);
     for (int dy = -rad; dy <= rad; ++dy) {
         const int half = static_cast<int>(sqrtf(static_cast<float>(rad * rad - dy * dy)));
         if (half <= 0) continue;
@@ -94,14 +100,28 @@ void Minimap::Draw(SDL_Renderer* r, TextureCache& cache, UI& ui, const World& wo
         const SDL_FRect src = {sx, sy, sw, 1.0f};
         const SDL_FRect dst = {roundf(dx), cy + dy, sw, 1.0f};
         SDL_RenderTexture(r, terrain, &src, &dst);
+        strips.push_back({src, dst});
     }
 
-    // Dots for anything worth steering towards, clipped to the glass.
+    // The fog over it, strip for strip: one of its texels is a square of the
+    // exploration's grid, CELL world pixels on a side.
+    if (fogged) {
+        const float k = static_cast<float>(scale) / Exploration::CELL;
+        for (const Strip& s : strips) {
+            const SDL_FRect src = {s.src.x * k, s.src.y * k, s.src.w * k, k};
+            SDL_RenderTexture(r, fog.Texture(), &src, &s.dst);
+        }
+    }
+
+    // Dots for anything worth steering towards, clipped to the glass -- and,
+    // but for the player's own and the quest's, not under the fog: what has
+    // not been seen is not known to be there.
     const float inner = radius - 3.0f;
-    auto blip = [&](float wx, float wy, SDL_Color c, float size) {
+    auto blip = [&](float wx, float wy, SDL_Color c, float size, bool fog_hides = true) {
         const float ox = (wx - p.x) / scale;
         const float oy = (wy - p.y) / scale;
         if (ox * ox + oy * oy > inner * inner) return;
+        if (fog_hides && p.exploration.SeenAt(world.MapId(), wx, wy) < 0.5f) return;
 
         const SDL_FRect box = {roundf(cx + ox - size / 2.0f), roundf(cy + oy - size / 2.0f),
                                size, size};
@@ -145,7 +165,7 @@ void Minimap::Draw(SDL_Renderer* r, TextureCache& cache, UI& ui, const World& wo
 
     // The player last, so nothing is drawn over them, with a nose showing which
     // way they are facing.
-    blip(p.x, p.y, Palette::Highlight, 4.0f);
+    blip(p.x, p.y, Palette::Highlight, 4.0f, false);
     float nx = 0.0f, ny = 0.0f;
     switch (p.facing) {
         case FACE_UP:    ny = -1.0f; break;

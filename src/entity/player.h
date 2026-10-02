@@ -8,6 +8,7 @@
 #include "../systems/projectile.h"
 #include "../systems/spell.h"
 #include "../systems/talents.h"
+#include "../systems/exploration.h"
 
 // What the player is currently standing next to and could press Interact on.
 struct InteractTarget {
@@ -237,6 +238,9 @@ public:
     Equipment equipment;
     // Skill trees: learned nodes and chosen techniques.
     Talents   talents;
+    // What they have seen of every map: the fog on their minimap. Lifted by
+    // World::UpdateSeat round whoever is being looked through.
+    Exploration exploration;
 
     // The talents' damage multiplier for an attack of this style and type,
     // including the ones that depend on the moment (low health, a charge),

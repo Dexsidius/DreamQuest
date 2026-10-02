@@ -14,9 +14,9 @@
 //  was still standing goes back into the fen, and the waves it had got
 //  through are taken back.
 //
-//  The tables answer once a day (RitualDayFlag), and one at a time on a map:
-//  the ritual posts are the map's, not a table's, and the ritual puts them
-//  round whichever table has been lit.
+//  The tables answer a poppet once a day (RitualDayFlag, its owner's own),
+//  and one at a time on a map: the ritual posts are the map's, not a
+//  table's, and the ritual puts them round whichever table has been lit.
 //
 //  The poppet never leaves its owner's bag. What is on the table is drawn
 //  there, and a knot is added by changing which poppet is in the bag -- so a
@@ -283,7 +283,9 @@ void World::EndRitual(bool fed, const GameContext& ctx) {
             said.text = "The fire sinks into the mud as if it had never been lit. The poppet is yours again: " +
                         std::to_string(knots + 1) + " of its " + std::to_string(IDOL_KNOTS) + " knots are tight.";
         }
-        SetFlag(RitualDayFlag(clock.QuestDay()));
+        // Fed today is the poppet's owner's, not the table's: a friend's doll
+        // is fed on its own day (see PrivateFlag).
+        ActAs(*owner, [&] { SetFlag(RitualDayFlag(clock.QuestDay())); });
         AddText("The poppet is fed", ritual.x, ritual.y - 64.0f, {255, 214, 120, 255}, 3.2f);
         Burst(ritual.x, ritual.y - 12.0f, 70.0f, {255, 214, 120, 255}, 30);
         Audio::PlayAt(Sfx::QuestComplete, ritual.x, ritual.y);

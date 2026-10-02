@@ -20,6 +20,15 @@ void WorldMapPanel::Forget() {
     for (auto& kv : pages)
         if (kv.second.terrain) SDL_DestroyTexture(kv.second.terrain);
     pages.clear();
+    fog.Forget();
+}
+
+vector<const WorldMark*> WorldMapPanel::Unfogged(const vector<WorldMark>& marks, const Exploration& seen,
+                                                 const string& map_id) {
+    vector<const WorldMark*> out;
+    for (const WorldMark& m : marks)
+        if (seen.SeenAt(map_id, m.x, m.y) >= 0.5f) out.push_back(&m);
+    return out;
 }
 
 const char* WorldMapPanel::KindName(const string& kind) {
@@ -231,6 +240,7 @@ WorldMapPanel::Page& WorldMapPanel::PageOf(const string& map_id, SDL_Renderer* r
     page.world_h = m.Height();
     page.title = m.DisplayName();
     const int scale = std::max(2, static_cast<int>(ceilf(std::max(page.world_w, page.world_h) / PAGE_PIXELS)));
+    page.scale = scale;
     page.img_w = std::max(1, static_cast<int>(ceilf(page.world_w / scale)));
     page.img_h = std::max(1, static_cast<int>(ceilf(page.world_h / scale)));
 
@@ -346,6 +356,15 @@ void WorldMapPanel::Draw(SDL_Renderer* r, TextureCache& cache, UI& ui, const Wor
                            roundf(area.y + (area.h - page.img_h * fit) / 2.0f),
                            roundf(page.img_w * fit), roundf(page.img_h * fit)};
     SDL_RenderTexture(r, page.terrain, nullptr, &dst);
+    // The fog over it: the picture covers img_w * scale world pixels, and the
+    // fog's squares are CELL across, so this much of the fog covers the same.
+    const Exploration& seen = world.player.exploration;
+    if (fog.Update(r, seen, page_id, page.world_w, page.world_h)) {
+        const SDL_FRect src = {0.0f, 0.0f,
+                               std::min(static_cast<float>(fog.Width()), page.img_w * page.scale / Exploration::CELL),
+                               std::min(static_cast<float>(fog.Height()), page.img_h * page.scale / Exploration::CELL)};
+        SDL_RenderTexture(r, fog.Texture(), &src, &dst);
+    }
     ui.Outline(dst, Palette::BorderDim, 1.0f);
 
     const auto to_screen = [&](float wx, float wy) {
@@ -362,17 +381,20 @@ void WorldMapPanel::Draw(SDL_Renderer* r, TextureCache& cache, UI& ui, const Wor
         return SDL_FRect{roundf(std::clamp(p.x - 8.0f, dst.x, dst.x + dst.w - 16.0f)),
                          roundf(std::clamp(p.y - 8.0f, dst.y, dst.y + dst.h - 16.0f)), 16.0f, 16.0f};
     };
+    // Only what the fog leaves: a place not yet seen is not known to be there.
+    const vector<const WorldMark*> shown = Unfogged(page.marks, seen, page_id);
     // Every mark's tile is known before any name is written, so a name kept
     // clear of the tiles drawn before it does not run under one drawn after:
     // the Dry Well's did, over the Hollowrest Crypt's.
     vector<SDL_FRect> written;
-    for (const WorldMark& m : page.marks) written.push_back(box_of(m));
+    for (const WorldMark* m : shown) written.push_back(box_of(*m));
     const auto clashes = [&](const SDL_FRect& box) {
         for (const SDL_FRect& w : written)
             if (box.x < w.x + w.w && w.x < box.x + box.w && box.y < w.y + w.h && w.y < box.y + box.h) return true;
         return false;
     };
-    for (const WorldMark& m : page.marks) {
+    for (const WorldMark* shown_mark : shown) {
+        const WorldMark& m = *shown_mark;
         const SDL_FPoint p = to_screen(m.x, m.y);
         const SDL_Color c = KindColour(m.kind);
         const SDL_FRect box = box_of(m);
@@ -522,10 +544,10 @@ void WorldMapPanel::Draw(SDL_Renderer* r, TextureCache& cache, UI& ui, const Wor
         ui.Text("The quest you are following", lx + 24.0f, ly + 1.0f, TextSize::Small, gold);
         ly += 26.0f;
     }
-    // Only what is on this page.
+    // Only what is marked on this page.
     for (const char* kind : {"town", "door", "trader", "craft", "dungeon", "path", "grave", "camp", "landmark"}) {
         bool on_page = false;
-        for (const WorldMark& m : page.marks) on_page |= m.kind == kind;
+        for (const WorldMark* m : shown) on_page |= m->kind == kind;
         if (!on_page) continue;
         const SDL_Color c = KindColour(kind);
         const SDL_FRect box = {lx, ly, 16.0f, 16.0f};
@@ -536,10 +558,10 @@ void WorldMapPanel::Draw(SDL_Renderer* r, TextureCache& cache, UI& ui, const Wor
         ly += 22.0f;
     }
 
-    // Only the trades that are actually somewhere on this page.
+    // Only the trades that are actually marked somewhere on this page.
     vector<string> types;
-    for (const WorldMark& m : page.marks)
-        for (const string& t : m.shops)
+    for (const WorldMark* m : shown)
+        for (const string& t : m->shops)
             if (std::find(types.begin(), types.end(), t) == types.end()) types.push_back(t);
     std::sort(types.begin(), types.end());
     if (!types.empty()) {

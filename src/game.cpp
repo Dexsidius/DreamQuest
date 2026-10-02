@@ -15,6 +15,8 @@ Game::~Game() {
     if (guest_session) SaveGuestCharacter();
     ServeSeat(0);
     SavePlayerTwo();
+    // Friends in the world as it closes are kept where they stand.
+    KeepFriends();
     for (SDL_Texture*& t : view_texture) { if (t) SDL_DestroyTexture(t); t = nullptr; }
     minimap_two.Forget();
     session.Leave();
@@ -675,6 +677,7 @@ void Game::SaveOnTheWayOut() {
     if (home_world.player.IsDead()) return;
     if (WriteSlot(active_slot))
         SDL_Log("DreamQuest: saved %s on the way out", SaveSystem::Describe(active_slot).c_str());
+    KeepFriends();
 }
 
 bool Game::SaveGame(SlotRef slot) {
@@ -690,6 +693,7 @@ bool Game::SaveGame(SlotRef slot) {
         // was in it, friends and all.
         if (slot != active_slot) SaveSystem::SetFriendsAside(slot);
         active_slot = slot;
+        KeepFriends();
         PushToast("Game saved to " + SaveSystem::Describe(slot) + ".", Palette::Xp);
         return true;
     }
@@ -1166,8 +1170,20 @@ void Game::UpdatePlay(float dt) {
     }
     if (autosave_timer >= AUTOSAVE_INTERVAL) {
         autosave_timer = 0.0f;
-        if (WriteSlot(active_slot)) PushToast("Autosaved.", Palette::TextDim);
+        if (WriteSlot(active_slot)) {
+            KeepFriends();
+            PushToast("Autosaved.", Palette::TextDim);
+        }
     }
+}
+
+void Game::KeepFriends() {
+    // Beside the save, as the host has them: a friend comes back to where
+    // they stood when the world was last saved, left or closed, not to
+    // wherever they last walked out of it.
+    if (never_save || !session.Hosting()) return;
+    coop_host.kept_dir = SaveSystem::FriendsPath(active_slot);
+    coop_host.KeepAll();
 }
 
 bool Game::WriteSlot(SlotRef slot) {
@@ -1496,7 +1512,14 @@ DialogueContext Game::MakeDialogueContext() const {
     c.quests    = quests;
     c.inventory = &world->player.inventory;
     c.skills    = &world->player.skills;
-    c.flags     = &world->Flags();
+    // Player Two's own flags in place of the host's own: the recipes they
+    // know, the tool they had replaced, whether their doll is bound.
+    if (world->Acting()) {
+        seen_flags = world->SeenFlags();
+        c.flags = &seen_flags;
+    } else {
+        c.flags = &world->Flags();
+    }
     c.night     = world->clock.IsNight();
     return c;
 }

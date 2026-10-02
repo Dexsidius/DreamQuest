@@ -1,6 +1,7 @@
 #pragma once
 #include "../headers.h"
 #include "../texturecache.h"
+#include "fog.h"
 #include "ui.h"
 
 class World;
@@ -36,6 +37,13 @@ struct Waypoint;
 //
 //  A room is not given a page: inside the Barley and Bell the map is
 //  Havenbrook, with the dot on the inn's door.
+//
+//  The fog of war lies on every page as it does on the minimap: whatever the
+//  one looking has not seen of that map (Player::exploration) is under the
+//  same cloud (FogTexture), and nothing is marked under it -- not a town, a
+//  door or a trader -- and the legend lists only what is marked. Where you are,
+//  your friends, and the quest you are following are marked whatever lies on
+//  them.
 // -----------------------------------------------------------------------------
 
 struct WorldMark {
@@ -101,11 +109,16 @@ public:
     string WayFrom(const string& map_id) const;
     // What is worth marking on a map, read off the map itself.
     vector<WorldMark> MarksOf(const Map& map) const;
+    // Of `marks` on map `map_id`, those whose ground `seen` has seen: what the
+    // fog leaves marked.
+    static vector<const WorldMark*> Unfogged(const vector<WorldMark>& marks, const Exploration& seen,
+                                             const string& map_id);
 
 private:
     struct Page {
         SDL_Texture* terrain = nullptr;
         int   img_w = 0, img_h = 0;
+        int   scale = 1;                   // world pixels to one of its picture's
         float world_w = 0.0f, world_h = 0.0f;
         string title;
         vector<WorldMark> marks;
@@ -120,4 +133,5 @@ private:
     std::map<string, Page> pages;
     const ShopDatabase* shop_db = nullptr;
     const WaypointIndex* roads = nullptr;
+    FogTexture fog;                          // the page being looked at's
 };

@@ -14,6 +14,7 @@
 #include "../systems/spell.h"
 #include "../systems/audio.h"
 #include "../systems/gathering.h"
+#include "../systems/waystones.h"
 
 // Generous enough to reach anything the player can stand next to: a wide prop
 // such as the mission board keeps them ~45px from its centre, so a tighter
@@ -53,7 +54,7 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
 
         if (!ObjectPresent(o)) continue;
         if (o.type == "chest") {
-            label = Flagged(o.id) ? "" : "Open chest";
+            label = Used(o) ? "" : "Open chest";
         } else if (o.type == "storage") {
             // A chest you keep things in rather than one you loot once, so it
             // never goes quiet after the first use.
@@ -66,9 +67,9 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
         } else if (o.type == "search") {
             // Something to look under or behind. Says what it is before it is
             // searched and nothing afterwards, like a chest.
-            label = Flagged(o.id) ? "" : (o.title.empty() ? "Search" : o.title);
+            label = Used(o) ? "" : (o.title.empty() ? "Search" : o.title);
         } else if (o.type == "lever") {
-            label = Flagged(o.id) ? "" : (o.title.empty() ? "Use it" : o.title);
+            label = Used(o) ? "" : (o.title.empty() ? "Use it" : o.title);
         } else if (o.type == "note") {
             label = "Read note";
         } else if (o.type == "board") {
@@ -218,8 +219,8 @@ void World::TryInteract(const GameContext& ctx) {
             const MapObject& o = objects[t.index];
 
             if (o.type == "lever") {
-                if (Flagged(o.id) || !ObjectPresent(o)) break;
-                SetFlag(o.id);
+                if (Used(o) || !ObjectPresent(o)) break;
+                MarkUsed(o);
                 Audio::Play(Sfx::ChestOpen);
                 AddText(o.text.empty() ? "It gives." : o.text, o.x, o.y - 34.0f, {200, 235, 255, 255}, 2.4f);
                 if (ctx.quests) {
@@ -250,9 +251,9 @@ void World::TryInteract(const GameContext& ctx) {
                 break;
             }
             if (o.type == "search") {
-                if (Flagged(o.id) || !ObjectPresent(o)) break;
+                if (Used(o) || !ObjectPresent(o)) break;
                 if (!OpenInto(o, ctx)) break;
-                SetFlag(o.id);
+                MarkUsed(o);
                 Audio::Play(Sfx::ChestOpen);
                 AddText(o.text.empty() ? "There is something under it." : o.text,
                         o.x, o.y - 30.0f, {255, 225, 120, 255}, 2.4f);
@@ -266,11 +267,11 @@ void World::TryInteract(const GameContext& ctx) {
                 break;
             }
             if (o.type == "chest") {
-                if (Flagged(o.id) || !ObjectPresent(o)) break;
+                if (Used(o) || !ObjectPresent(o)) break;
                 // What a chest holds by name, which no loot table can roll, and
                 // a key or a seal its table does: into the bag (see OpenInto).
                 if (!OpenInto(o, ctx)) break;
-                SetFlag(o.id);
+                MarkUsed(o);
                 Audio::Play(Sfx::ChestOpen);
                 AddText("Opened!", o.x, o.y - 34.0f, {255, 225, 120, 255});
                 if (ctx.quests) {
@@ -402,7 +403,7 @@ void World::TryInteract(const GameContext& ctx) {
                 // A note can also leave something behind, but only once -- and
                 // the torn page under the surveyor's note goes into the bag,
                 // or waits under it until there is room (see OpenInto).
-                if (!o.loot_table.empty() && !Flagged(o.id) && !OpenInto(o, ctx)) break;
+                if (!o.loot_table.empty() && !Used(o) && !OpenInto(o, ctx)) break;
 
                 WorldRequest r;
                 r.type  = WorldRequest::Type::Note;
@@ -412,7 +413,7 @@ void World::TryInteract(const GameContext& ctx) {
                 r.list  = o.starts_quest.empty() ? vector<string>{}
                                                  : vector<string>{o.starts_quest};
                 requests.push_back(r);
-                SetFlag(o.id);
+                MarkUsed(o);
             } else if (o.type == "board") {
                 WorldRequest r;
                 r.type  = WorldRequest::Type::Board;
@@ -751,6 +752,33 @@ void World::SpawnLoot(const string& table_id, float x, float y, const GameContex
     }
 }
 
+bool World::CanTravel(const WaystoneDef& to, const string& from, string& why) const {
+    why.clear();
+    const MapObject* at = nullptr;
+    for (const MapObject& o : map.Objects())
+        if (o.type == "waystone" && o.id == from) at = &o;
+    // A little past arm's length: the panel is open, and the hands are off.
+    if (!at || !Flagged(at->id) || Length(at->x - player.x, at->y - player.y) > INTERACT_RANGE * 2.0f) {
+        why = "Put a hand on a woken waystone to go by it.";
+        return false;
+    }
+    if (from == to.id) {
+        why = "You are standing at it.";
+        return false;
+    }
+    if (!Flagged(to.id)) {
+        why = string(to.town ? "The stone at " : "The stone on ") + to.name +
+              " is still asleep. It has to be woken by hand.";
+        return false;
+    }
+    if (player.skills.CombatLevel() < to.combat) {
+        why = string("The way to ") + to.name + " asks Combat " + std::to_string(to.combat) +
+              ". The stone will not take you there yet.";
+        return false;
+    }
+    return true;
+}
+
 bool World::OpenInto(const MapObject& o, const GameContext& ctx) {
     // One of a kind -- a key, a seal, the torn page, a relic -- left at the feet
     // of somebody with a full pack was gone with the next map, its chest
@@ -800,7 +828,11 @@ void World::DropItem(const string& item_id, int qty, float x, float y,
                      const GameContext& ctx, bool by_player) {
     if (item_id.empty() || qty <= 0) return;
     if (visiting) {
-        if (by_player) visitor_acts.push_back({2, item_id, "", qty});
+        // The ground is the host's. What a friend puts down goes down there
+        // (net::Action::Drop), and so does what their pack could not take --
+        // a quest's reward, a gift -- which used to go nowhere (Spill). A
+        // friend's window rolls no loot of its own: its monsters are puppets.
+        visitor_acts.push_back({by_player ? 2 : 9, item_id, "", qty});
         return;
     }
     Pickup p;

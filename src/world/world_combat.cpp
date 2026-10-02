@@ -667,11 +667,11 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
             for (float deg : {-5.0f, 0.0f, 5.0f})
                 if (Projectile* p = loose(turned(deg).x, turned(deg).y, damage_mult * 1.25f * 0.7f, deg == 0.0f)) p->life *= 2.9f;
             for (float deg : {-2.5f, 2.5f})
-                queued_shots.push_back({0.08f, projectile_id, damage_mult * 1.25f * 0.45f, deg, casting, 2.9f});
+                QueueShot(0.08f, projectile_id, damage_mult * 1.25f * 0.45f, deg, casting, 2.9f);
         } else {
             for (float deg : {-30.0f, -15.0f, 0.0f, 15.0f, 30.0f}) loose(turned(deg).x, turned(deg).y, damage_mult * 0.64f, false);
             for (float deg : {-22.5f, -7.5f, 7.5f, 22.5f})
-                queued_shots.push_back({0.07f, projectile_id, damage_mult * 0.45f, deg, casting, 1.0f});
+                QueueShot(0.07f, projectile_id, damage_mult * 0.45f, deg, casting, 1.0f);
         }
     } else if (shape == "fire_ring" || shape == "wall") {
         // Burning ground, laid out: a ring round the caster, or a wall across
@@ -819,7 +819,7 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
     } else if (shape == "burst") {
         // Eight, one after another: the first now and the rest owed.
         loose(aim.x, aim.y, damage_mult, true);
-        for (int i = 1; i < 8; ++i) queued_shots.push_back({0.07f * i, projectile_id, damage_mult, (i % 2 ? 1.0f : -1.0f) * 2.5f * ((i + 1) / 2), casting});
+        for (int i = 1; i < 8; ++i) QueueShot(0.07f * i, projectile_id, damage_mult, (i % 2 ? 1.0f : -1.0f) * 2.5f * ((i + 1) / 2), casting);
     } else {
         loose(aim.x, aim.y, damage_mult, true);
         multishot(7.0f, damage_mult);

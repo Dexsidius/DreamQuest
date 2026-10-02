@@ -2853,6 +2853,850 @@ static void TestReportFixes(const Databases& db) {
     }
 }
 
+// What the report found wrong with playing together, put right: progress that
+// is a character's own kept as theirs (MapObject::own, PrivateFlag), friends
+// going by the waystones and the gates asked of each of them, what a friend's
+// full pack could not take put on the ground, a friend's owed shots, nodes and
+// weather theirs, an inn's bed paid for only when it is lain in, and friends
+// kept with the world whenever it is saved, left or closed.
+static void TestCoopFixes(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    Section("co-op: a character's own, the waystones, a full pack, a friend's spells, and friends kept");
+
+    Input input;
+    std::mt19937 rng(2101);
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+    ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.statuses = &statuses; ctx.input = &input;       ctx.rng = &rng;
+    constexpr float kFrame = 1.0f / 60.0f;
+
+    // --- which flags are a character's own ------------------------------------------------------------------
+    Check(World::PrivateFlag("own:chest_emberfell_key") && World::PrivateFlag("replaced:bronze_axe") &&
+          World::PrivateFlag("poppet_bound") && World::PrivateFlag(World::RitualDayFlag(4)) &&
+          !World::PrivateFlag("chest_emberfell_key") && !World::PrivateFlag("waystone_mossvale"),
+          "a chest of one's own opened, a lost tool replaced, a doll bound and fed today are a character's own; "
+          "a chest, a waystone, are the world's");
+
+    // --- everything a quest asks for is each character's own -------------------------------------------------------
+    {
+        std::set<string> targets;
+        for (const auto& kv : quests.Definitions())
+            for (const QuestStage& st : kv.second.stages)
+                if (st.type == ObjectiveType::Interact && !st.target.empty()) targets.insert(st.target);
+        vector<string> keeps;
+        for (const auto& kv : items.All()) if (kv.second.keep) keeps.push_back(kv.first);
+        string wrong, stray;
+        std::set<string> found;
+        int own = 0, shared = 0;
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            for (const MapObject& o : m.Objects()) {
+                if (targets.count(o.id)) found.insert(o.id);
+                const bool once = o.type == "chest" || o.type == "search" || o.type == "lever" ||
+                                  o.type == "note" || o.type == "sign";
+                if (!once) {
+                    if (o.own) stray += " " + string(id) + ":" + o.id;
+                    continue;
+                }
+                bool keep = false;
+                if (!o.loot_table.empty())
+                    for (const string& k : keeps) keep |= loot.ChanceOf(o.loot_table, k) > 0.0f;
+                const bool should = targets.count(o.id) > 0 || !o.loot_item.empty() || !o.needs_quest.empty() ||
+                                    !o.needs_slain.empty() || keep;
+                if (o.own != should) wrong += " " + string(id) + ":" + o.id + (should ? "(should be)" : "(should not be)");
+                (o.own ? own : shared) += 1;
+            }
+        }
+        Check(wrong.empty(), "whatever a quest asks to be used, and whatever holds a key, a seal, a relic or a named "
+                             "thing, is each character's own -- and nothing else is:" + wrong);
+        Check(stray.empty(), "and only something used once can be: no waystone, bed or herb is anyone's own:" + stray);
+        Check(own >= 10 && shared >= 20, "there are both: " + std::to_string(own) + " of a character's own, " +
+                                         std::to_string(shared) + " of the world's");
+        string lost;
+        for (const string& t : targets)
+            if (!found.count(t) && t != "witch_table" && t != "poppet_wave" && t != "poppet_ritual") lost += " " + t;
+        Check(lost.empty(), "every quest's thing to use stands on a map (the ritual's three are the ritual's):" + lost);
+    }
+
+    // --- a chest of one's own, opened by each --------------------------------------------------------------------------
+    {
+        World w;
+        w.player.Init(ctx, "player_hero");
+        w.player.inventory.SetDatabase(&items);
+        Check(w.LoadMap("dungeon_emberfell_1", "", ctx), "the upper workings load");
+        int key_at = -1, plain_at = -1;
+        const auto& objects = w.map.Objects();
+        for (size_t i = 0; i < objects.size(); ++i) {
+            if (objects[i].id == "chest_emberfell_key") key_at = static_cast<int>(i);
+            else if (objects[i].type == "chest" && !objects[i].own && plain_at < 0) plain_at = static_cast<int>(i);
+        }
+        Check(key_at >= 0 && plain_at >= 0 && objects[key_at].own,
+              "the chest with the key in it is each character's own; the mine's other chests are the world's");
+        if (key_at >= 0 && plain_at >= 0) {
+            const MapObject& key = objects[key_at];
+            const MapObject& plain = objects[plain_at];
+            Player* oona = w.AddGuest(1, "Oona", "player_warden", ctx);
+            oona->inventory.SetDatabase(&items);
+            w.player.x = key.x;        w.player.y = key.y + 30.0f;
+            oona->x = key.x + 12.0f;   oona->y = key.y + 30.0f;
+            w.InteractWith(InteractTarget::Object, key_at, ctx);
+            Check(w.player.inventory.Has("rusted_key") && w.Used(key) && w.Flagged("own:chest_emberfell_key") &&
+                  !w.Flagged("chest_emberfell_key"),
+                  "the host opens it: the key is in the host's bag, and it is open -- for the host");
+            bool shut_for_her = false, opened = false;
+            w.AsSeat(*oona, ctx, [&](const GameContext& theirs) {
+                shut_for_her = !w.Used(key) && !w.ObjectSpent(key);
+                w.InteractWith(InteractTarget::Object, key_at, theirs);
+                opened = w.Used(key) && w.ObjectSpent(key);
+            });
+            const SeatState& hers = w.SeatOf(1);
+            Check(shut_for_her, "for a friend it is still shut, and drawn shut: the host's opening was the host's");
+            Check(opened && oona->inventory.Has("rusted_key") && hers.private_flags.count("own:chest_emberfell_key") == 1 &&
+                  std::count(hers.private_log.begin(), hers.private_log.end(), string("own:chest_emberfell_key")) == 1,
+                  "she opens her own: the key in her bag, the chest open for her, and her machine to be told");
+            const int keys = oona->inventory.Count("rusted_key");
+            w.AsSeat(*oona, ctx, [&](const GameContext& theirs) { w.InteractWith(InteractTarget::Object, key_at, theirs); });
+            Check(oona->inventory.Count("rusted_key") == keys, "and she opens it only once");
+
+            // One of the world's is opened once, for everyone.
+            w.player.x = plain.x;
+            w.player.y = plain.y + 30.0f;
+            w.InteractWith(InteractTarget::Object, plain_at, ctx);
+            bool open_for_her = false;
+            w.AsSeat(*oona, ctx, [&](const GameContext&) { open_for_her = w.Used(plain); });
+            Check(w.Used(plain) && open_for_her && w.Flagged(plain.id), "one of the world's chests, opened by the host, is open for her too");
+
+            // What a conversation sees, serving her: the world's, and hers.
+            w.SetFlag("recipe:nettle_brew");
+            w.SetFlag("replaced:bronze_axe");
+            std::set<string> seen;
+            bool knows = true;
+            w.AsSeat(*oona, ctx, [&](const GameContext&) { seen = w.SeenFlags(); knows = w.KnowsRecipe("nettle_brew"); });
+            DialogueCondition axe;
+            axe.no_flag = "replaced:bronze_axe";
+            DialogueContext talk;
+            talk.flags = &seen;
+            Check(!knows && !seen.count("recipe:nettle_brew") && seen.count(plain.id) && seen.count("own:chest_emberfell_key"),
+                  "serving a friend, what is seen is the world's and hers: not the host's recipes");
+            Check(EvaluateCondition(axe, talk), "and the smith offers her an axe for the one she lost, though he replaced the host's");
+            Check(w.SeenFlags().count("recipe:nettle_brew") && w.KnowsRecipe("nettle_brew"), "the host knows what the host learned");
+        }
+
+        // A save from before: one use was everybody's, and is its own player's now.
+        World old, window;
+        old.player.Init(ctx, "player_hero");
+        window.visiting = true;
+        window.player.Init(ctx, "player_warden");
+        if (old.LoadMap("dungeon_emberfell_1", "", ctx) && window.LoadMap("dungeon_emberfell_1", "", ctx) && key_at >= 0) {
+            old.SetFlags({"chest_emberfell_key"});
+            window.SetFlags({"chest_emberfell_key"});
+            Player* f = old.AddGuest(1, "Oona", "player_warden", ctx);
+            bool hers = true;
+            old.AsSeat(*f, ctx, [&](const GameContext&) { hers = old.Used(old.map.Objects()[key_at]); });
+            Check(old.Used(old.map.Objects()[key_at]) && !hers && !window.Used(window.map.Objects()[key_at]),
+                  "a save from before counts the chest it opened for its own player; a friend, at the host or at her own "
+                  "machine, finds hers still shut");
+        }
+    }
+
+    // --- a step past is past for whoever took it ------------------------------------------------------------------
+    {
+        const QuestDef* well = quests.Definition("q_dry_well");
+        int at = -1;
+        if (well)
+            for (size_t s = 0; s < well->stages.size(); ++s)
+                if (well->stages[s].type == ObjectiveType::Interact && well->stages[s].target == "spring_well") at = static_cast<int>(s);
+        const json waiting = json{{"q_dry_well", {{"status", 1}, {"stage", at}, {"counter", 0}}}};
+        QuestLog two;
+        two.LoadDefinitions("data/quests.json");
+        two.FromJson(waiting);
+        World w;
+        w.player.Init(ctx, "player_hero");
+        Player* p2 = w.AddGuest(2, "Player Two", "player_warden", ctx);
+        w.SeatOf(2).own_journal = &two;
+        w.SetFlag("own:spring_well");                 // the host pulled it
+        GameContext theirs = ctx;
+        theirs.quests = &two;
+        w.BeginActing(*p2);
+        w.CatchUpUsedObjects(theirs);
+        w.EndActing();
+        Check(at >= 0 && two.Stage("q_dry_well") == at, "the spring the host pulled is no step past for Player Two");
+        w.SeatOf(2).private_flags.insert("own:spring_well");
+        w.BeginActing(*p2);
+        w.CatchUpUsedObjects(theirs);
+        w.EndActing();
+        Check(two.IsComplete("q_dry_well") || two.Stage("q_dry_well") > at, "the one they pulled themselves is");
+
+        // At a friend's own machine, from what is hers.
+        QuestLog mine;
+        mine.LoadDefinitions("data/quests.json");
+        mine.FromJson(waiting);
+        World window;
+        window.visiting = true;
+        window.player.Init(ctx, "player_warden");
+        GameContext at_home = ctx;
+        at_home.quests = &mine;
+        window.SetFlag("spring_well");                // told of the host's, from an old save
+        window.CatchUpUsedObjects(at_home);
+        Check(mine.Stage("q_dry_well") == at, "a friend's window takes nothing the host did for a step of hers");
+        window.SetFlag("own:spring_well");            // told of her own, by the host
+        window.CatchUpUsedObjects(at_home);
+        Check(mine.IsComplete("q_dry_well") || mine.Stage("q_dry_well") > at, "and her own pull moves her on, at her machine");
+    }
+
+    // --- a doll is fed on its own day ---------------------------------------------------------------------------------
+    {
+        World w;
+        w.player.Init(ctx, "player_hero");
+        const MapObject* table = nullptr;
+        int table_index = -1;
+        if (w.LoadMap("bayou", "", ctx)) {
+            w.clock.Set(3, 13.0f);
+            for (size_t i = 0; i < w.map.Objects().size() && !table; ++i)
+                if (w.map.Objects()[i].type == "witch_table") { table = &w.map.Objects()[i]; table_index = static_cast<int>(i); }
+        }
+        Check(table != nullptr, "a witch's table in the Bayou");
+        if (table) {
+            Player* f = w.AddGuest(1, "Oona", "player_warden", ctx);
+            f->inventory.SetDatabase(&items);
+            LevelUp up;
+            f->skills.AddXp(SKILL_HITPOINTS, XpForLevel(99), up);
+            f->SyncHitpoints();
+            f->Rest();
+            f->inventory.Add(World::IdolId(0), 1);
+            w.player.inventory.Add(World::IdolId(0), 1);
+            f->x = table->x;              f->y = table->y + 40.0f;
+            w.player.x = table->x + 30.0f; w.player.y = table->y + 46.0f;
+            w.AsSeat(*f, ctx, [&](const GameContext& theirs) { w.InteractWith(InteractTarget::Object, table_index, theirs); });
+            Check(w.ritual.active && !w.ritual.owner_host && w.ritual.owner_seat == 1, "a friend lays her poppet on the table");
+            for (float t = 0.0f; t < 200.0f && w.ritual.active; t += kFrame) {
+                w.Update(kFrame, ctx);
+                for (auto& e : w.enemies)
+                    if (e->post >= 0 && !w.map.Enemies()[e->post].ritual.empty() && !e->Dead() &&
+                        e->CurrentState() != Enemy::State::Dead)
+                        e->LieDead();
+                f->hp = f->max_hp;
+                if (!w.player.IsDead()) w.player.hp = w.player.max_hp;
+            }
+            Check(!w.ritual.active && f->inventory.Has(World::IdolId(1)), "the fen comes and is beaten back: her poppet has its first knot");
+            Check(w.SeatOf(1).private_flags.count(World::RitualDayFlag(3)) == 1 && !w.Flagged(World::RitualDayFlag(3)),
+                  "the day it was fed is hers: the host's doll has not been fed today");
+            string why;
+            Check(w.CanStartRitual(*table, why), "so the host can lay theirs on the same table, the same day");
+            bool again = true;
+            w.AsSeat(*f, ctx, [&](const GameContext&) { again = w.CanStartRitual(*table, why); });
+            Check(!again && why.find("tomorrow") != string::npos, "and hers waits for tomorrow");
+        }
+    }
+
+    // --- every stone asks what the walk there asks ----------------------------------------------------------------
+    {
+        std::map<string, vector<std::pair<string, int>>> ways;
+        for (const char* id : kMaps) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            for (const Portal& p : m.Portals()) ways[id].push_back({p.target_map, p.min_combat});
+        }
+        // The least, over every way there from Havenbrook, of the most that way asks.
+        std::map<string, int> least{{"town_havenbrook", 0}};
+        std::set<std::pair<int, string>> open{{0, "town_havenbrook"}};
+        while (!open.empty()) {
+            const auto [asked, here] = *open.begin();
+            open.erase(open.begin());
+            if (asked > least[here]) continue;
+            for (const auto& [to, gate] : ways[here]) {
+                const int now = std::max(asked, gate);
+                auto it = least.find(to);
+                if (it == least.end() || now < it->second) { least[to] = now; open.insert({now, to}); }
+            }
+        }
+        string off;
+        for (const WaystoneDef& s : Waystones()) {
+            const auto it = least.find(s.map);
+            const int walk = it == least.end() ? -1 : it->second;
+            if (walk != s.combat) off += " " + string(s.id) + " says " + std::to_string(s.combat) + ", the walk asks " + std::to_string(walk);
+        }
+        Check(off.empty(), "every waystone asks the Combat the walk to it asks at its gate:" + off);
+        const WaystoneDef* prim = WaystoneById("waystone_primordium");
+        const WaystoneDef* plateau = WaystoneById("waystone_plateau");
+        Check(prim && prim->combat == 72 && plateau && plateau->combat == 40,
+              "the Primordium's asks 72, as the rift does, and the Plateau's 40: it is up from the Ashen Path");
+    }
+    {
+        World w;
+        w.player.Init(ctx, "player_hero");
+        const MapObject* stone = nullptr;
+        if (w.LoadMap("town_havenbrook", "", ctx))
+            for (const MapObject& o : w.map.Objects()) if (o.id == "waystone_havenbrook") stone = &o;
+        Check(stone != nullptr, "Havenbrook's stone");
+        const WaystoneDef* moss = WaystoneById("waystone_mossvale");
+        const WaystoneDef* prim = WaystoneById("waystone_primordium");
+        if (stone && moss && prim) {
+            w.player.x = stone->x;
+            w.player.y = stone->y + 30.0f;
+            w.SetFlag("waystone_havenbrook");
+            w.SetFlag("waystone_primordium");
+            string why;
+            Check(!w.CanTravel(*moss, "waystone_havenbrook", why) && why.find("asleep") != string::npos,
+                  "a stone nobody has woken is not gone to");
+            w.SetFlag("waystone_mossvale");
+            Check(w.CanTravel(*moss, "waystone_havenbrook", why), "a woken stone in hand and a woken one chosen: the way is open");
+            Check(w.player.skills.CombatLevel() < 72 && !w.CanTravel(*prim, "waystone_havenbrook", why) &&
+                  why.find("Combat 72") != string::npos,
+                  "but the Primordium's, woken by somebody, asks Combat 72 of whoever goes by it (" + why + ")");
+            w.player.x += 300.0f;
+            Check(!w.CanTravel(*moss, "waystone_havenbrook", why), "and a stone is gone by from beside it, not from across the town");
+        }
+    }
+
+    // --- a friend's spells are hers ---------------------------------------------------------------------------------
+    {
+        World w;
+        w.player.Init(ctx, "player_hero");
+        if (w.LoadMap("overworld", "start", ctx)) {
+            Player* f = w.AddGuest(1, "Oona", "player_warden", ctx);
+            f->x = w.player.x + 420.0f;
+            f->y = w.player.y;
+            w.AsSeat(*f, ctx, [&](const GameContext&) { w.QueueShot(0.0f, "flame_jet", 1.0f, 0.0f, 0); });
+            w.Update(kFrame, ctx);
+            bool hers = false, the_hosts = false;
+            for (const Projectile& p : w.projectiles) {
+                hers |= !p.owner_local && p.owner_seat == 1 && Length(p.x - f->x, p.y - f->y) < 80.0f;
+                the_hosts |= Length(p.x - w.player.x, p.y - w.player.y) < 80.0f;
+            }
+            Check(hers && !the_hosts, "a friend's owed flame leaves her hands, as hers -- not the host's");
+
+            GroundEffect weather;
+            weather.follows = true;
+            weather.from_player = true;
+            weather.life = weather.max_life = 2.0f;
+            weather.radius = 40.0f;
+            weather.tick_interval = 9.0f;
+            w.AsSeat(*f, ctx, [&](const GameContext&) { w.AddGroundEffect(weather); });
+            f->x += 50.0f;
+            w.Update(kFrame, ctx);
+            const GroundEffect* hers_too = nullptr;
+            for (const GroundEffect& g : w.ground_effects) if (g.follows) hers_too = &g;
+            Check(hers_too && hers_too->x == f->x && hers_too->y == f->y, "and the weather of hers goes where she goes, not where the host does");
+
+            // A node of hers: its blows are hers.
+            Enemy* mark = nullptr;
+            for (auto& e : w.enemies)
+                if (!e->Dead() && e->Def() && !e->Def()->is_boss && !e->Hidden()) { mark = e.get(); break; }
+            Check(mark != nullptr, "something on the road to strike");
+            if (mark) {
+                mark->x = mark->home_x = f->x + 40.0f;
+                mark->y = mark->home_y = f->y;
+                // A caster who lands what she throws: at Magic 1 every arc of
+                // it can miss, and the dice are whatever this run left them.
+                LevelUp up;
+                f->skills.AddXp(SKILL_MAGIC, XpForLevel(99), up);
+                f->skills.SetCurrent(SKILL_MAGIC, f->skills.Level(SKILL_MAGIC));
+                World::Node n;
+                n.x = mark->x;
+                n.y = mark->y;
+                n.life = n.max_life = 2.0f;
+                n.hit_mult = 0.4f;
+                n.owner = f->Profile();
+                // Hitpoints experience, which every blow that lands pays, and
+                // nothing else does: her Defence catches up with her new
+                // combat level by itself (Player::SyncDefence).
+                const int hers_before = f->skills.Xp(SKILL_HITPOINTS), hosts_before = w.player.skills.Xp(SKILL_HITPOINTS);
+                const int hp_before = mark->hp;
+                w.AsSeat(*f, ctx, [&](const GameContext&) { w.AddNode(n); });
+                // Its life: an arc every NODE_EVERY, any of which can miss.
+                for (float t = 0.0f; t < n.life; t += kFrame) w.Update(kFrame, ctx);
+                Check(mark->hp < hp_before && f->skills.Xp(SKILL_HITPOINTS) > hers_before &&
+                      w.player.skills.Xp(SKILL_HITPOINTS) == hosts_before,
+                      "an Electro-Node she threw strikes for her: the experience is hers, none of it the host's");
+            }
+        }
+    }
+
+    // --- at the host, over the wire ----------------------------------------------------------------------------------
+    {
+        using namespace net;
+        std::error_code ec;
+        fs::remove_all("bin/selftest_net/coop_fixes", ec);
+        Input hin, gin;
+        std::mt19937 hrng(31), grng(32);
+        QuestLog host_quests, guest_quests;
+        host_quests.LoadDefinitions("data/quests.json");
+        guest_quests.LoadDefinitions("data/quests.json");
+        GameContext hctx = ctx;
+        hctx.quests = &host_quests; hctx.input = &hin; hctx.rng = &hrng;
+        GameContext gctx = ctx;
+        gctx.quests = &guest_quests; gctx.input = &gin; gctx.rng = &grng;
+
+        Server::Config config;
+        config.world_name = "Dada's Hollowmarch"; config.data_hash = 1; config.maps_hash = 2;
+        LoopbackHub local, wire;
+        Server server(config);
+        server.Attach(local.Server(), true);
+        server.Attach(wire.Server());
+        Client dada, oona;
+        Hello hd; hd.data_hash = 1; hd.maps_hash = 2; hd.name = "Dada"; hd.look = "player_hero";
+        Hello ho = hd; ho.name = "Oona"; ho.look = "player_warden";
+
+        World hw, gw;
+        gw.visiting = true;
+        hw.player.Init(hctx, "player_hero");
+        Check(hw.LoadMap("town_havenbrook", "", hctx), "the host is in Havenbrook");
+        hw.clock.Set(1, 13.0f);
+        for (const char* stone : {"waystone_havenbrook", "waystone_mossvale", "waystone_primordium"}) hw.SetFlag(stone);
+        coop::Host host;
+        host.kept_dir = "bin/selftest_net/coop_fixes/kept";
+        coop::Guest guest;
+        bool guest_in = false, in_world = true, made = false;
+        vector<string> toasts;
+        const float hdt = 1.0f / 60.0f;
+        const float gdt = coop::QuantiseDt(1.0f / 72.0f);
+        const auto frame = [&] {
+            hin.Update(hdt);
+            hw.Update(hdt, hctx);
+            server.Update(hdt);
+            dada.Update(hdt);
+            host.Update(hdt, server, hw, hctx, in_world);
+            oona.Update(gdt);
+            guest.Update(gdt, oona, gw, gctx);
+            if (guest.HasEnter()) {
+                const Enter e = guest.PendingEnter();
+                if (e.map.empty()) { guest_in = false; guest.Reset(gw); }
+                else {
+                    if (!made) { gw.player.Init(gctx, "player_warden"); made = true; }
+                    guest.SetTheDay(gw);
+                    guest_in = gw.LoadMap(e.map, "", gctx);
+                    gw.player.x = e.x; gw.player.y = e.y;
+                    guest.Arrived(gw);
+                }
+            }
+            if (guest_in) {
+                gin.Update(gdt);
+                guest.BeforeStep(gw, &gin);
+                gw.Update(gdt, gctx);
+                guest.AfterStep(gw, oona, gdt);
+            }
+            for (const WorldRequest& r : gw.TakeRequests()) if (r.type == WorldRequest::Type::Toast) toasts.push_back(r.text);
+        };
+        const auto frames = [&](int n) { for (int i = 0; i < n; ++i) frame(); };
+        const auto her = [&]() -> Player* { World* w = host.WorldOf(1); return w ? w->Guest(1) : nullptr; };
+        const auto stand = [&](float x, float y) {
+            if (Player* p = her()) { p->x = x; p->y = y; }
+            gw.player.x = x;
+            gw.player.y = y;
+        };
+        const auto said = [&](const string& what) {
+            for (const string& t : toasts) if (t.find(what) != string::npos) return true;
+            return false;
+        };
+
+        Check(net::PROTOCOL_VERSION >= 21 && net::Action::Travel == 8 && net::Action::Spill == 9,
+              "the line knows a friend going by a waystone and a pack too full to take a reward (protocol " +
+              std::to_string(net::PROTOCOL_VERSION) + ")");
+        dada.Start(local.Client(), "loopback", 0, hd);
+        frames(4);
+        oona.Start(wire.Client(), "dada-pc", 7777, ho);
+        frames(12);
+        Check(oona.Seated() && guest_in && her() && gw.MapId() == "town_havenbrook", "Oona is let in, beside the host");
+        gw.player.inventory.Add("coins", 100);
+        frames(12);
+
+        // By the stones.
+        const MapObject* stone = nullptr;
+        for (const MapObject& o : hw.map.Objects()) if (o.id == "waystone_havenbrook") stone = &o;
+        if (stone && her()) {
+            stand(stone->x, stone->y + 30.0f);
+            frames(4);
+            gw.AskToTravel("waystone_mossvale", "waystone_havenbrook");
+            frames(30);
+            World* there = host.WorldOf(1);
+            Check(there && there->MapId() == "mossvale" && gw.MapId() == "mossvale" && hw.MapId() == "town_havenbrook",
+                  "a friend at a woken stone goes by it to another: the host takes her, as through a door, and stays put");
+            SDL_FPoint spawn{};
+            Check(there && her() && there->CurrentMap().Spawn("waystone_mossvale", spawn) &&
+                  Length(her()->x - spawn.x, her()->y - spawn.y) < 2.0f, "and she arrives in front of Mossvale's stone");
+
+            toasts.clear();
+            gw.AskToTravel("waystone_primordium", "waystone_mossvale");
+            frames(20);
+            Check(host.WorldOf(1) && host.WorldOf(1)->MapId() == "mossvale" && said("Combat 72"),
+                  "the Primordium's stone, woken by somebody, does not take her past the rift's gate: it asks Combat 72 of her");
+        }
+
+        // What is hers is told to her alone, and what is the host's own is not told at all.
+        World* there = host.WorldOf(1);
+        int rock = -1;
+        if (there)
+            for (size_t i = 0; i < there->map.Objects().size(); ++i)
+                if (there->map.Objects()[i].id == "rock_mossvale_key") rock = static_cast<int>(i);
+        Check(rock >= 0, "the loose stone by the empty house");
+        if (there && rock >= 0 && her()) {
+            const MapObject& o = there->map.Objects()[rock];
+            stand(o.x, o.y + 26.0f);
+            frames(4);
+            gw.visitor_acts.push_back({1, std::to_string(static_cast<int>(InteractTarget::Object)), "", rock});
+            frames(20);
+            Check(gw.player.inventory.Has("mossvale_house_key") && gw.Flagged("own:rock_mossvale_key") &&
+                  there->SeatOf(1).private_flags.count("own:rock_mossvale_key") == 1 && !hw.Flagged("own:rock_mossvale_key") &&
+                  !there->Flagged("own:rock_mossvale_key"),
+                  "she looks under it at the host: the key in her bag, and the stone turned for her -- told to her machine, "
+                  "and nobody else's");
+            Check(coop::Guest::MakeSheet(gw, &guest_quests).find("own:rock_mossvale_key") != string::npos,
+                  "and it goes with her character, which she keeps");
+            hw.SetFlag("own:hosts_own_chest");
+            hw.SetFlag("chest_everyones");
+            frames(10);
+            Check(!gw.Flagged("own:hosts_own_chest") && gw.Flagged("chest_everyones"),
+                  "what is the host's own is not told her; a chest of the world's is");
+        }
+
+        // What her pack could not take goes on the ground at the host, and comes back to her.
+        if (there && her()) {
+            const int coins = gw.player.inventory.Coins();
+            gw.DropItem("coins", 40, gw.player.x, gw.player.y + 6.0f, gctx);
+            frames(6);
+            bool lying = false;
+            for (const Pickup& p : host.WorldOf(1)->pickups) lying |= p.item_id == "coins" && p.qty == 40 && !p.dropped;
+            Check(lying, "a reward her pack could not take lies at her feet, at the host: it used to go nowhere");
+            frames(60);
+            Check(gw.player.inventory.Coins() == coins + 40, "and, with room in her pack, is hers again");
+        }
+
+        // An inn's bed is paid for when it is lain in.
+        if (there && her()) {
+            const int coins = gw.player.inventory.Coins();
+            gw.Sleep(World::SleepChoice::Through, gctx, 15);
+            frames(12);
+            Check(gw.player.inventory.Coins() == coins && !her()->resting,
+                  "a bed she may not lie in yet -- it is the middle of the day -- costs her nothing");
+            hw.clock.Set(1, 22.0f);
+            frames(4);
+            gw.Sleep(World::SleepChoice::Through, gctx, 15);
+            frames(12);
+            Check(her()->resting && gw.player.inventory.Coins() == coins - 15 && said("Paid 15"),
+                  "at night she lies down, and the host takes the fifteen coins: paid once, and only for a night's sleep");
+        }
+
+        // Friends are kept with the world, not only as they walk out of it.
+        if (there && her()) {
+            her()->resting = false;
+            stand(her()->x + 20.0f, her()->y);
+            host.KeepAll();
+            json kept;
+            {
+                std::ifstream in("bin/selftest_net/coop_fixes/kept/Oona.json");
+                if (in) in >> kept;
+            }
+            Check(kept.is_object() && kept.contains("place") && kept["place"].value("map", string()) == "mossvale" &&
+                  std::fabs(kept["place"].value("x", 0.0f) - her()->x) < 1.0f,
+                  "saving keeps every friend in the world as the host has them, and where they stand");
+            const float x = her()->x + 24.0f, y = her()->y;
+            stand(x, y);
+            in_world = false;
+            frames(6);
+            json left;
+            {
+                std::ifstream in("bin/selftest_net/coop_fixes/kept/Oona.json");
+                if (in) in >> left;
+            }
+            Check(host.WorldOf(1) == nullptr && left.is_object() && std::fabs(left["place"].value("x", 0.0f) - x) < 1.0f,
+                  "the host going back to the title sends her to the lobby, kept where she stood");
+            in_world = true;
+            frames(12);
+            const Player* back = her();
+            Check(back && host.WorldOf(1) && host.WorldOf(1)->MapId() == "mossvale" &&
+                  Length(back->x - x, back->y - y) < 40.0f, "and opening the world again, she is back where she was");
+        }
+        oona.Leave();
+        frames(10);
+        host.Reset(hw);
+        fs::remove_all("bin/selftest_net/coop_fixes", ec);
+    }
+}
+
+// The fog of war on the minimap: what each character has seen of each map,
+// lifting gradually round them as they go, kept with them -- and drawn.
+static void TestFogOfWar(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    Section("the fog of war: what each of you has seen, lifting as you go");
+
+    Input input;
+    std::mt19937 rng(3301);
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+    ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.statuses = &statuses; ctx.input = &input;       ctx.rng = &rng;
+    constexpr float kFrame = 1.0f / 60.0f;
+
+    // --- the grid ------------------------------------------------------------------------------------------
+    {
+        constexpr float W = 4736.0f, H = 3968.0f;      // the Hollowmarch
+        Exploration ex;
+        Check(ex.Maps() == 0 && ex.SeenAt("overworld", 1000.0f, 1000.0f) == 0.0f, "a new character has seen nothing");
+        ex.Reveal("overworld", W, H, 1000.0f, 1000.0f, kFrame);
+        ex.Reveal("overworld", W, H, 1000.0f, 1000.0f, kFrame);
+        const Exploration::Grid* g = ex.GridFor("overworld");
+        Check(g && g->w == 148 && g->h == 124, "a map is a grid of 32-pixel squares: 148 by 124 for the Hollowmarch");
+        const auto at = [&](float x, float y) {
+            const Exploration::Grid* now = ex.GridFor("overworld");
+            return now ? static_cast<int>(now->At(static_cast<int>(x / Exploration::CELL), static_cast<int>(y / Exploration::CELL))) : -1;
+        };
+        const int first = at(1000.0f, 1000.0f);
+        Check(first > 0 && first < 32, "two frames in, the fog where you stand has only begun to lift (" + std::to_string(first) + " of 255)");
+        for (int f = 0; f < 22; ++f) ex.Reveal("overworld", W, H, 1000.0f, 1000.0f, kFrame);
+        const int part = at(1000.0f, 1000.0f);
+        Check(part > first + 60 && part < 255, "a moment on it is thinner (" + std::to_string(part) + ")");
+        for (int f = 0; f < 40; ++f) ex.Reveal("overworld", W, H, 1000.0f, 1000.0f, kFrame);
+        Check(at(1000.0f, 1000.0f) == 255 && at(1150.0f, 1000.0f) == 255,
+              "and in under a second it is clear, where you stand and a stone's throw round");
+        const int edge = at(1000.0f + 256.0f, 1000.0f);
+        Check(edge > 0 && edge < 255, "further off it is only thinned (" + std::to_string(edge) + "), so its edge is soft");
+        Check(at(1000.0f + 400.0f, 1000.0f) == 0 && at(1000.0f, 1000.0f - 400.0f) == 0, "and past what you can see, it is untouched");
+
+        for (int f = 0; f < 120; ++f) ex.Reveal("overworld", W, H, 3200.0f, 3000.0f, kFrame);
+        Check(at(1000.0f, 1000.0f) == 255 && at(3200.0f, 3000.0f) == 255, "walking away, what was seen stays seen");
+        Check(ex.SeenAt("overworld", 1000.0f, 1000.0f) > 0.99f && ex.SeenAt("overworld", 2100.0f, 1000.0f) == 0.0f &&
+              ex.SeenAt("bayou", 1000.0f, 1000.0f) == 0.0f, "asked of a point, it is seen, or not, or not on that map at all");
+
+        const json kept = ex.ToJson();
+        Exploration back;
+        back.FromJson(kept);
+        Check(back.GridFor("overworld") && g && back.GridFor("overworld")->seen == ex.GridFor("overworld")->seen,
+              "kept and read back, square for square");
+        const size_t bytes = kept.dump().size();
+        Check(bytes < 1600, "in about a kilobyte for two clearings on the largest map (" + std::to_string(bytes) + ")");
+        // A road walked down a map is the same row over and over: it keeps as
+        // the changes from one row to the next, and reads back the same.
+        Exploration road;
+        for (float y = 200.0f; y < 3800.0f; y += 2.5f) road.Reveal("overworld", W, H, 2400.0f, y, kFrame);
+        const json down = road.ToJson();
+        Exploration down_back;
+        down_back.FromJson(down);
+        Check(down["overworld"].value("rows", string()) == "changes" && down_back.GridFor("overworld") &&
+              down_back.GridFor("overworld")->seen == road.GridFor("overworld")->seen && down.dump().size() < 1000,
+              "a road walked down the whole map keeps as its changes from row to row, in under a kilobyte (" +
+              std::to_string(down.dump().size()) + "), and reads back square for square");
+        Exploration bad;
+        bad.FromJson(json{{"overworld", {{"w", 10}, {"h", 10}, {"seen", "CgA="}}}});
+        Check(bad.Maps() == 0, "a grid that does not add up is dropped, not misread");
+        ex.Reveal("overworld", W + 320.0f, H, 1000.0f, 1000.0f, kFrame);
+        Check(ex.GridFor("overworld")->w == 158 && at(1000.0f, 1000.0f) < 64,
+              "a map made bigger since is begun again rather than read crooked");
+    }
+
+    // --- yours, saved with you, and never on a sheet -------------------------------------------------------------
+    {
+        World w;
+        w.player.Init(ctx, "player_hero");
+        Check(w.LoadMap("overworld", "start", ctx), "out on the road");
+        for (int f = 0; f < 70; ++f) w.Update(kFrame, ctx);
+        Check(w.player.exploration.SeenAt("overworld", w.player.x, w.player.y) > 0.99f,
+              "standing on the road, the fog round you lifts by itself");
+        w.player.x += 900.0f;
+        for (int f = 0; f < 70; ++f) w.Update(kFrame, ctx);
+        Check(w.player.exploration.SeenAt("overworld", w.player.x, w.player.y) > 0.99f &&
+              w.player.exploration.SeenAt("overworld", w.player.x - 900.0f, w.player.y) > 0.99f,
+              "and wherever you go, keeping what you saw before");
+        Player again;
+        again.Init(ctx, "player_hero");
+        again.FromJson(w.player.ToJson(), ctx);
+        Check(again.exploration.GridFor("overworld") &&
+              again.exploration.GridFor("overworld")->seen == w.player.exploration.GridFor("overworld")->seen,
+              "it is saved with the character, and comes back with them");
+        Player fresh;
+        fresh.Init(ctx, "player_hero");
+        json old = w.player.ToJson();
+        old.erase("explored");
+        fresh.FromJson(old, ctx);
+        Check(fresh.exploration.Maps() == 0, "a save from before the fog has seen nothing yet, and lifts it as it goes");
+        const string sheet = coop::Guest::MakeSheet(w, &quests);
+        Check(sheet.find("\"explored\"") == string::npos, "and a friend's sheet does not carry it: it is only for their own minimap");
+    }
+
+    // --- each seat its own ---------------------------------------------------------------------------------------
+    {
+        World w;
+        w.player.Init(ctx, "player_hero");
+        Check(w.LoadMap("overworld", "start", ctx), "Player One, Player Two and a friend across the wire, on the road");
+        Player* two = w.AddGuest(2, "Player Two", "player_warden", ctx);
+        w.SeatOf(2).viewed = true;                     // looked through at this machine
+        Player* wire = w.AddGuest(3, "Oona", "player_wayfarer", ctx);
+        two->x = w.player.x + 1200.0f;  two->y = w.player.y;
+        wire->x = w.player.x - 1200.0f; wire->y = w.player.y;
+        for (int f = 0; f < 70; ++f) {
+            w.Update(kFrame, ctx);
+            w.StepGuest(*two, PlayerInput{}, kFrame, ctx);
+            w.StepGuest(*wire, PlayerInput{}, kFrame, ctx);
+        }
+        const Exploration& one = w.player.exploration;
+        Check(two->exploration.SeenAt("overworld", two->x, two->y) > 0.99f && one.SeenAt("overworld", two->x, two->y) == 0.0f,
+              "Player Two's travels lift Player Two's fog, and not Player One's");
+        Check(one.SeenAt("overworld", w.player.x, w.player.y) > 0.99f &&
+              two->exploration.SeenAt("overworld", w.player.x, w.player.y) == 0.0f, "and Player One's theirs");
+        Check(wire->exploration.Maps() == 0,
+              "a friend across the wire keeps no map at the host: theirs is lifted at their own machine");
+
+        // A friend's own window, from where they walk there.
+        World window;
+        window.visiting = true;
+        window.player.Init(ctx, "player_wayfarer");
+        Check(window.LoadMap("overworld", "start", ctx), "a friend's window on the road");
+        for (int f = 0; f < 70; ++f) window.Update(kFrame, ctx);
+        Check(window.player.exploration.SeenAt("overworld", window.player.x, window.player.y) > 0.99f,
+              "lifts the friend's own fog as they walk, there, to be kept in their own character file");
+    }
+
+    // --- drawn ----------------------------------------------------------------------------------------------------
+    {
+        SDL_Init(0);
+        SDL_Surface* surface = SDL_CreateSurface(1280, 720, SDL_PIXELFORMAT_RGBA32);
+        SDL_Renderer* renderer = surface ? SDL_CreateSoftwareRenderer(surface) : nullptr;
+        Check(renderer != nullptr, "a renderer to draw the minimap into");
+        if (renderer) {
+            {
+                TextureCache cache(renderer);
+                UI ui;
+                Minimap mini;
+                World w;
+                GameContext dctx = ctx;
+                dctx.renderer = renderer;
+                dctx.textures = &cache;
+                w.player.Init(dctx, "player_hero");
+                Check(w.LoadMap("overworld", "start", dctx), "the road, to draw");
+                for (int f = 0; f < 70; ++f) w.Update(kFrame, dctx);
+                const float scale = static_cast<float>(Minimap::SCALE_COARSE);
+                // A monster well out in the fog, but inside the glass.
+                Enemy* far = nullptr;
+                for (auto& e : w.enemies)
+                    if (!e->Dead() && !e->Hidden() && e->CurrentState() != Enemy::State::Dead) { far = e.get(); break; }
+                const float fx = w.player.x + 44.0f * scale, fy = w.player.y - 22.0f * scale;
+                // Nothing is stepped from here on, so it stays where it is put.
+                if (far) {
+                    far->x = far->home_x = fx;
+                    far->y = far->home_y = fy;
+                }
+                const auto draw = [&]() -> SDL_Surface* {
+                    SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
+                    SDL_RenderClear(renderer);
+                    mini.Draw(renderer, cache, ui, w, 128.0f, 128.0f, 62.0f);
+                    SDL_Surface* got = SDL_RenderReadPixels(renderer, nullptr);
+                    SDL_Surface* rgba = got ? SDL_ConvertSurface(got, SDL_PIXELFORMAT_RGBA32) : nullptr;
+                    if (got) SDL_DestroySurface(got);
+                    return rgba;
+                };
+                const auto pixel = [](SDL_Surface* s, int x, int y) {
+                    const uint8_t* p = static_cast<const uint8_t*>(s->pixels) + y * s->pitch + x * 4;
+                    return SDL_Color{p[0], p[1], p[2], p[3]};
+                };
+                const auto apart = [](SDL_Color a, SDL_Color b) { return abs(a.r - b.r) + abs(a.g - b.g) + abs(a.b - b.b); };
+                const auto red_near = [&](SDL_Surface* s, int x, int y) {
+                    for (int dy = -4; dy <= 4; ++dy)
+                        for (int dx = -4; dx <= 4; ++dx) {
+                            const SDL_Color c = pixel(s, x + dx, y + dy);
+                            if (c.r > 190 && c.g < 110 && c.b < 100) return true;
+                        }
+                    return false;
+                };
+                const int mx = 128 + 44, my = 128 - 22;            // where that monster is on the glass
+
+                SDL_Surface* seen = draw();
+                w.player.exploration.Clear();
+                SDL_Surface* blind = draw();
+                Check(seen && blind, "the minimap draws, explored and not");
+                if (seen && blind) {
+                    // A little way east, where it is clear, and well south, where nobody has been.
+                    const SDL_Color near_seen = pixel(seen, 128 + 18, 128 + 2), near_blind = pixel(blind, 128 + 18, 128 + 2);
+                    const SDL_Color far_seen = pixel(seen, 128 + 4, 128 + 52), far_blind = pixel(blind, 128 + 4, 128 + 52);
+                    const SDL_Color fog = FogTexture::Colour(0, 0);
+                    Check(apart(near_seen, near_blind) > 40,
+                          "where you have been, the ground shows; unexplored, the same spot is under the fog");
+                    Check(apart(far_seen, far_blind) < 10 && near_blind.r < 70 && near_blind.g < 70 && near_blind.b < 80,
+                          "where you have not, it is fog either way: a low dark cloud (" + std::to_string(far_seen.r) + "," +
+                          std::to_string(far_seen.g) + "," + std::to_string(far_seen.b) + ")");
+                    Check(fog.r < 60 && fog.b >= fog.r, "the cloud is a dark blue-grey");
+                    Check(far && !red_near(seen, mx, my), "a monster out in the fog is not marked");
+                }
+                if (seen) SDL_DestroySurface(seen);
+                if (blind) SDL_DestroySurface(blind);
+
+                // Walk out to it, and it is.
+                for (int f = 0; f < 70; ++f) w.player.exploration.Reveal("overworld", w.map.Width(), w.map.Height(), fx, fy, kFrame);
+                for (int f = 0; f < 70; ++f) w.player.exploration.Reveal("overworld", w.map.Width(), w.map.Height(), w.player.x, w.player.y, kFrame);
+                SDL_Surface* found = draw();
+                Check(found && far && red_near(found, mx, my), "once its ground has been seen, the monster on it is marked");
+                if (found) SDL_DestroySurface(found);
+                mini.Forget();
+
+                // --- and on the map screen ---------------------------------------------------------------------
+                ShopDatabase shops;
+                Check(shops.Load("data/shops.json"), "the traders, for the map screen's marks");
+                WorldMapPanel pages;
+                pages.Load("data/worldmap.json", shops);
+                Exploration nothing;
+                Check(!pages.Marks().empty() && WorldMapPanel::Unfogged(pages.Marks(), nothing, "overworld").empty(),
+                      "on the Hollowmarch's page, nothing is marked for a character who has seen none of it");
+                const WorldMark* town = nullptr;
+                for (const WorldMark& m : pages.Marks())
+                    if (m.kind == "town") { town = &m; break; }
+                Exploration some;
+                if (town)
+                    for (int f = 0; f < 70; ++f) some.Reveal("overworld", w.map.Width(), w.map.Height(), town->x, town->y, kFrame);
+                const vector<const WorldMark*> marked = WorldMapPanel::Unfogged(pages.Marks(), some, "overworld");
+                Check(town && std::find(marked.begin(), marked.end(), town) != marked.end() && marked.size() < pages.Marks().size(),
+                      "walk up to a town and it is marked; what is still under the fog is not (" +
+                      std::to_string(marked.size()) + " of " + std::to_string(pages.Marks().size()) + ")");
+
+                // The page itself: how much of it is cloud.
+                const auto foggy = [&]() {
+                    SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
+                    SDL_RenderClear(renderer);
+                    pages.Draw(renderer, cache, ui, w, "", "", true);
+                    SDL_Surface* got = SDL_RenderReadPixels(renderer, nullptr);
+                    SDL_Surface* rgba = got ? SDL_ConvertSurface(got, SDL_PIXELFORMAT_RGBA32) : nullptr;
+                    if (got) SDL_DestroySurface(got);
+                    long n = 0;
+                    if (rgba) {
+                        for (int y = 0; y < rgba->h; ++y)
+                            for (int x = 0; x < rgba->w; ++x) {
+                                const SDL_Color c = pixel(rgba, x, y);
+                                n += (c.r <= 62 && c.g <= 66 && c.b <= 78 && c.b >= c.r + 4) ? 1 : 0;
+                            }
+                        SDL_DestroySurface(rgba);
+                    }
+                    return n;
+                };
+                w.player.exploration.Clear();
+                const long blind_page = foggy();
+                for (int f = 0; f < 70; ++f)
+                    w.player.exploration.Reveal("overworld", w.map.Width(), w.map.Height(), w.player.x, w.player.y, kFrame);
+                const long started = foggy();
+                for (float y = 0.0f; y < w.map.Height() + 300.0f; y += 300.0f)
+                    for (float x = 0.0f; x < w.map.Width() + 300.0f; x += 300.0f)
+                        for (int f = 0; f < 60; ++f)
+                            w.player.exploration.Reveal("overworld", w.map.Width(), w.map.Height(), x, y, kFrame);
+                const long seen_all = foggy();
+                Check(blind_page > 5000 && started < blind_page && started > seen_all && seen_all * 20 < blind_page,
+                      "the map screen's page is under the same fog: all of it at first (" + std::to_string(blind_page) +
+                      " px of cloud), less once you have been out (" + std::to_string(started) + "), and next to none once "
+                      "you have been everywhere (" + std::to_string(seen_all) + ")");
+                pages.Forget();
+            }
+            SDL_DestroyRenderer(renderer);
+        }
+        if (surface) SDL_DestroySurface(surface);
+    }
+}
+
 int main(int argc, char** argv) {
     // Unbuffered (Windows has no line buffering), so a crash does not take what
     // was printed before it with it.
@@ -21184,6 +22028,8 @@ int main(int argc, char** argv) {
     TestOrderLevels(db);
     TestPrimordium(db);
     TestReportFixes(db);
+    TestCoopFixes(db);
+    TestFogOfWar(db);
 
     Section("the Brimstone Palace, and its king");
     {
@@ -22521,7 +23367,7 @@ int main(int argc, char** argv) {
               "but it has the map, and the people who live on it");
         window.clock.Set(1, 22.0f);
         Check(!window.RequestTransition("overworld", "start") && !window.TransitionPending() && window.MapId() == "town_havenbrook",
-              "a guest's window does not go through doors on its own: the host leads, until M4");
+              "a guest's window does not go through doors on its own: the host takes her through (Host::Doors)");
         window.visitor_acts.clear();
         Check(window.Sleep(World::SleepChoice::Reverie, ctx) && window.visitor_acts.size() == 1 && window.visitor_acts[0].kind == 5 &&
               window.visitor_acts[0].n == 1 && !window.TransitionPending() && window.clock.IsNight(),
@@ -25214,7 +26060,8 @@ int main(int argc, char** argv) {
             const auto& objects = hw.CurrentMap().Objects();
             int chest = -1;
             for (size_t i = 0; i < objects.size() && chest < 0; ++i)
-                if (objects[i].type == "chest" && objects[i].needs_quest.empty() && !hw.Flagged(objects[i].id)) chest = static_cast<int>(i);
+                if (objects[i].type == "chest" && objects[i].needs_quest.empty() && !objects[i].own && !hw.Flagged(objects[i].id))
+                    chest = static_cast<int>(i);
             Check(chest >= 0 && her() != nullptr, "the overworld has a chest nobody has opened");
             if (chest >= 0 && her()) {
                 const MapObject& o = objects[chest];

@@ -1,6 +1,7 @@
 #pragma once
 #include "../headers.h"
 #include "../texturecache.h"
+#include "fog.h"
 #include "ui.h"
 
 class World;
@@ -29,6 +30,12 @@ inline float MinimapClipSpan(float& src_x, float& dst_x, float width, int img_w)
 // one-pixel-tall strips, each as wide as the circle is at that height, which is
 // what makes the map round without a mask texture or a shader, and keeps it at
 // one image pixel per screen pixel so it stays crisp.
+//
+// Over it, the fog of war: whatever the one being looked through has not seen
+// (Player::exploration) is under a low, dark cloud (FogTexture), stretched over
+// the same strips, so its edge is soft and it draws back as they walk.
+// Monsters, people and ways out are not marked under it; the quest's mark
+// is.
 class Minimap {
 public:
     ~Minimap();
@@ -59,4 +66,5 @@ private:
     string built_for;               // map id the image was baked from
     int    img_w = 0, img_h = 0;
     int    scale = SCALE_COARSE;    // world pixels per dot, chosen per map
+    FogTexture fog;
 };

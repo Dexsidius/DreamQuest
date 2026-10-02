@@ -26,20 +26,25 @@ struct WaystoneDef {
     const char* name;    // what the panel calls it
     const char* note;    // and the line under that
     bool town;           // under Towns, or under the wilds
+    // The Combat level the way there on foot asks at its gate (Portal::
+    // min_combat), asked again of whoever goes by the stone: a stone is woken
+    // for the world, so one a friend woke is no way round a gate. The
+    // self-test works it out from the maps and holds this to it.
+    int combat;
 };
 
 inline const vector<WaystoneDef>& Waystones() {
     static const vector<WaystoneDef> kAll = {
-        {"waystone_havenbrook",       "town_havenbrook", "Havenbrook",          "the market town on the southern road",       true},
-        {"waystone_mossvale",         "mossvale",        "Mossvale",            "the logging village under the Whisperwood",  true},
-        {"waystone_mossvale_cottage", "mossvale",        "Your house",          "at your own door, in Mossvale",              true},
-        {"waystone_fernhollow",       "fernhollow",      "Fernhollow",          "the hamlet on still water",                  true},
-        {"waystone_ashen_path",       "ashen_path",      "The Ashen Path",      "where the palace road leaves the burnt one", false},
-        {"waystone_plateau",          "plateau_ascent",  "Purgatory's Plateau", "the Pale Ascent, at the top of the climb",   false},
-        {"waystone_bayou",            "bayou",           "The Bayou",           "on the spur, below the Hexmire's gate",      false},
-        {"waystone_ice_spire",        "ice_spire_peak",  "Ice Spire Peak",      "by the igloo at the climbers' camp",         false},
-        {"waystone_frost_cabin",      "frost_cabin",     "Old Harl's Cabin",    "in the middle of the Glass Mere",            false},
-        {"waystone_primordium",       "prim_kiln",       "The Primordium",      "in the Kiln, by the rift from the Stronghold", false},
+        {"waystone_havenbrook",       "town_havenbrook", "Havenbrook",          "the market town on the southern road",       true,   0},
+        {"waystone_mossvale",         "mossvale",        "Mossvale",            "the logging village under the Whisperwood",  true,   0},
+        {"waystone_mossvale_cottage", "mossvale",        "Your house",          "at your own door, in Mossvale",              true,   0},
+        {"waystone_fernhollow",       "fernhollow",      "Fernhollow",          "the hamlet on still water",                  true,   0},
+        {"waystone_ashen_path",       "ashen_path",      "The Ashen Path",      "where the palace road leaves the burnt one", false, 40},
+        {"waystone_plateau",          "plateau_ascent",  "Purgatory's Plateau", "the Pale Ascent, at the top of the climb",   false, 40},
+        {"waystone_bayou",            "bayou",           "The Bayou",           "on the spur, below the Hexmire's gate",      false,  0},
+        {"waystone_ice_spire",        "ice_spire_peak",  "Ice Spire Peak",      "by the igloo at the climbers' camp",         false, 30},
+        {"waystone_frost_cabin",      "frost_cabin",     "Old Harl's Cabin",    "in the middle of the Glass Mere",            false, 30},
+        {"waystone_primordium",       "prim_kiln",       "The Primordium",      "in the Kiln, by the rift from the Stronghold", false, 72},
     };
     return kAll;
 }

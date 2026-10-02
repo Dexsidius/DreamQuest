@@ -647,6 +647,8 @@ void World::AddNode(const Node& n) {
     // It arcs as it lands rather than waiting out its first interval: a thing
     // thrown at a monster should do something to the monster it was thrown at.
     nodes.back().tick = 0.0f;
+    nodes.back().owner_local = player.local;
+    nodes.back().owner_seat = player.seat;
 }
 
 void World::HearOfNode(float x, float y, float life, float max_life) {
@@ -670,30 +672,37 @@ void World::UpdateNodes(float dt, const GameContext& ctx) {
         n.tick -= dt;
         if (n.tick > 0.0f) continue;
         n.tick = NODE_EVERY;
-        // It chains: the nearest few it can reach, one arc each. The node is
-        // where the lightning comes from, so the first is not special -- a
-        // second monster walking past is chained as readily as the one it was
-        // thrown at.
-        vector<Enemy*> near;
-        for (auto& e : enemies) {
-            if (!Strikeable(*e)) continue;
-            const SDL_FPoint at = e->GroundCentre();
-            if (Length(at.x - n.x, at.y - n.y) > NODE_REACH + e->GroundRadius()) continue;
-            near.push_back(e.get());
-        }
-        std::sort(near.begin(), near.end(), [&](const Enemy* a, const Enemy* b) {
-            return Length(a->x - n.x, a->y - n.y) < Length(b->x - n.x, b->y - n.y);
+        // Its blows are its thrower's -- the experience, and who the monster
+        // turns on -- as a patch's are: a friend's node fought for the host,
+        // and looked for monsters on the host's level of ground.
+        bool struck = false;
+        ActAs(OwnerOf(n.owner_local, n.owner_seat), [&] {
+            // It chains: the nearest few it can reach, one arc each. The node
+            // is where the lightning comes from, so the first is not special
+            // -- a second monster walking past is chained as readily as the
+            // one it was thrown at.
+            vector<Enemy*> near;
+            for (auto& e : enemies) {
+                if (!Strikeable(*e)) continue;
+                const SDL_FPoint at = e->GroundCentre();
+                if (Length(at.x - n.x, at.y - n.y) > NODE_REACH + e->GroundRadius()) continue;
+                near.push_back(e.get());
+            }
+            std::sort(near.begin(), near.end(), [&](const Enemy* a, const Enemy* b) {
+                return Length(a->x - n.x, a->y - n.y) < Length(b->x - n.x, b->y - n.y);
+            });
+            if (near.size() > static_cast<size_t>(std::max(1, n.chains))) near.resize(static_cast<size_t>(n.chains));
+            struck = !near.empty();
+            for (Enemy* e : near) {
+                const SDL_FPoint at = e->GroundCentre();
+                AddArc(n.x, n.y - n.lift - 10.0f, at.x, at.y - 22.0f, 0);
+                proc_next = n.status;
+                HitEnemy(*e, n.owner, AttackStyle::Magic, Element::Electric, n.hit_mult, 8.0f,
+                         n.x, n.y, ctx);
+                proc_next = {};
+            }
         });
-        if (near.size() > static_cast<size_t>(std::max(1, n.chains))) near.resize(static_cast<size_t>(n.chains));
-        for (Enemy* e : near) {
-            const SDL_FPoint at = e->GroundCentre();
-            AddArc(n.x, n.y - n.lift - 10.0f, at.x, at.y - 22.0f, 0);
-            proc_next = n.status;
-            HitEnemy(*e, n.owner, AttackStyle::Magic, Element::Electric, n.hit_mult, 8.0f,
-                     n.x, n.y, ctx);
-            proc_next = {};
-        }
-        if (!near.empty()) Audio::PlayAt(Sfx::SpellCast, n.x, n.y, 0.35f, 1.9f);
+        if (struck) Audio::PlayAt(Sfx::SpellCast, n.x, n.y, 0.35f, 1.9f);
     }
     nodes.erase(std::remove_if(nodes.begin(), nodes.end(),
                                [](const Node& n) { return n.life <= 0.0f && n.told > 0.4f; }), nodes.end());
@@ -707,19 +716,24 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
         if (queued_shots[i].in > 0.0f) { ++i; continue; }
         const QueuedShot q = queued_shots[i];
         queued_shots.erase(queued_shots.begin() + static_cast<std::ptrdiff_t>(i));
-        const Vec2 aim = PlayerAim();
-        const float a = atan2f(aim.y, aim.x) + q.spread * 3.14159265f / 180.0f;
-        const SDL_FPoint muzzle = Targeting::Muzzle(player);
-        const size_t before = projectiles.size();
-        const uint32_t was = casting;
-        casting = q.cast;
-        SpawnProjectile(q.projectile, muzzle.x + cosf(a) * 12.0f, muzzle.y + sinf(a) * 12.0f, cosf(a), sinf(a),
-                        player.Profile(), AttackStyle::Magic, q.mult, true, ctx);
-        casting = was;
-        if (projectiles.size() > before) {
-            projectiles.back().target = targeting.Current();
-            projectiles.back().life *= q.life;
-        }
+        // From whoever owed it, while they are here and up to it.
+        Player* owner = q.owner_local ? (player.absent ? nullptr : &player) : Guest(q.owner_seat);
+        if (!owner || owner->puppet || owner->IsDead()) continue;
+        ActAs(*owner, [&] {
+            const Vec2 aim = PlayerAim();
+            const float a = atan2f(aim.y, aim.x) + q.spread * 3.14159265f / 180.0f;
+            const SDL_FPoint muzzle = Targeting::Muzzle(player);
+            const size_t before = projectiles.size();
+            const uint32_t was = casting;
+            casting = q.cast;
+            SpawnProjectile(q.projectile, muzzle.x + cosf(a) * 12.0f, muzzle.y + sinf(a) * 12.0f, cosf(a), sinf(a),
+                            player.Profile(), AttackStyle::Magic, q.mult, true, ctx);
+            casting = was;
+            if (projectiles.size() > before) {
+                projectiles.back().target = targeting.Current();
+                projectiles.back().life *= q.life;
+            }
+        });
     }
     UpdateSlabs(dt);
     UpdateFalling(dt);
@@ -736,7 +750,12 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
         if (g.Active()) {
             g.x += g.drift_x * dt;
             g.y += g.drift_y * dt;
-            if (g.follows && g.from_player) { g.x = player.x; g.y = player.y; }
+            // After its own caster, a friend's too: it followed the host.
+            if (g.follows && g.from_player) {
+                const Player& who = OwnerOf(g.owner_local, g.owner_seat);
+                g.x = who.x;
+                g.y = who.y;
+            }
             if (g.pull > 0.0f)
                 for (auto& e : enemies) {
                     if (e->Dead() || e->CurrentState() == Enemy::State::Dead || e->Hidden() || e->Def() == nullptr || e->Def()->is_boss) continue;

@@ -2670,6 +2670,9 @@ json Player::ToJson() const {
         j["meal"] = meal->id;
         j["meal_left"] = meal_left;
     }
+    // What they have seen, for the fog on the minimap. Not on a sheet: the
+    // host draws no friend's minimap (coop::Guest::MakeSheet).
+    if (exploration.Maps() > 0) j["explored"] = exploration.ToJson();
     return j;
 }
 
@@ -2773,6 +2776,8 @@ void Player::FromJson(const json& j, const GameContext& ctx) {
     if (selected_element == Element::None) selected_element = Element::Fire;
     if (selected_element == Element::Arcane && arcane_spell.empty()) selected_element = Element::Fire;
     WardsFromJson(*this, j);
+    // A save from before the fog has seen nothing yet, and lifts it as it goes.
+    exploration.FromJson(j.value("explored", json::object()));
     dead = false;
     death_timer = 0.0f;
     sprite.facing = facing;

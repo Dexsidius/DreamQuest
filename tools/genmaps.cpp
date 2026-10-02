@@ -878,13 +878,14 @@ static void PlaceRock(MapBuilder& m, std::mt19937& rng, int index,
     m.Collision(x - 14, y - 12, 28, 12);
 }
 
-static void PlaceChest(MapBuilder& m, const string& chest_id, int x, int y,
-                       const string& table) {
+static json& PlaceChest(MapBuilder& m, const string& chest_id, int x, int y,
+                        const string& table) {
     json& o = m.Object(chest_id, "chest", x, y);
     o["sprite"]      = ObjPath("chest");
     o["sprite_open"] = ObjPath("chest_open");
     o["loot"]        = table;
     m.Collision(x - 14, y - 10, 28, 10);
+    return o;
 }
 
 // A chest with one named thing in it rather than a table roll, standing in the
@@ -900,6 +901,9 @@ static void PlaceRelicChest(MapBuilder& m, const string& chest_id, int x, int y,
     o["needs_quest"] = quest;
     // In a boss's own room: there once the boss is down (World::ObjectPresent).
     if (!slain.empty()) o["needs_slain"] = slain;
+    // And one for each character: friends who went down together each
+    // open their own (MapObject::own).
+    o["own"]         = true;
     m.Collision(x - 14, y - 10, 28, 10);
 }
 
@@ -2400,6 +2404,7 @@ static void BuildOverworld() {
         o["text"]   = "Third day on the road. Counted twelve of them at the second milestone. Counted thirty at the third.\n\nThey are not raiding. They are walking north, in order, and they are all walking to the same place.\n\nI have drawn it below as best I can from the ridge. It is a mine adit. It is the Emberfell adit.";
         o["loot"]   = "page_surveyor";
         o["sprite"] = "assets/icons/note_ground.png";
+        o["own"]    = true;               // each reader's own page (MapObject::own)
     }
 
     // The Whisperwood trailhead: a signpost where the trail leaves the road,
@@ -4197,7 +4202,9 @@ static void BuildDungeon(const string& id, const string& display,
         const Room& r = rooms.back();
         const int x = (r.x + r.w / 2) * CELL + 16;
         const int y = (r.y + r.h / 2) * CELL + 48;
-        PlaceChest(m, special_id, x, y, special_table);
+        // The key or the seal the next step asks for: one for each character
+        // who comes down for it (MapObject::own).
+        PlaceChest(m, special_id, x, y, special_table)["own"] = true;
     }
 
     // The relic, in the chamber furthest in that is not the boss's: a chest
@@ -4415,6 +4422,7 @@ static void BuildWellFloor(const string& id, const string& display, const string
         json& o = m.Object("spring_well", "lever", sx, sy + 26);
         o["sprite"] = "assets/objects/rocksmall_02.png";
         o["title"]  = "The choked spring";
+        o["own"]    = true;               // each character's to pull for Bess
         // It waits beside the basin, with clear floor between it and the way
         // in, and does not leave the room: the leash is the room's width.
         m.Enemy("well_warden", sx + 104, sy + 24, 1, 0.0f, 300.0f);
@@ -7514,6 +7522,7 @@ static void BuildMossvale() {
         o["title"]  = "Look under the loose stone";
         o["item"]   = "mossvale_house_key";
         o["text"]   = "A key, wrapped in oilcloth.";
+        o["own"]    = true;               // a key under it for everyone Bess sends
         m.Collision(tx - 84 - 14, ty - 18 - 10, 28, 10);
 
         json& n = m.Object("sign_mossvale_house", "sign", tx + 74, ty - 10);
@@ -9404,6 +9413,7 @@ static void BuildDreamworld() {
         json& o = m.Object("dream_voice", "sign", ax + 64, ay - 56);
         o["sprite"] = ObjPath("rocksmall_02");
         o["title"]  = "A voice in the dream";
+        o["own"]    = true;               // heard by each dreamer: a quest's step (MapObject::own)
         o["text"]   = "You are asleep, and this is the Reverie.\n\n"
                       "It lasts as long as the night does. When dawn comes you will wake "
                       "where you lay down, rested. If you would rather wake sooner, touch "

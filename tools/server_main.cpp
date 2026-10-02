@@ -58,13 +58,16 @@ static bool FindGameRoot() {
     return false;
 }
 
-// The realm's one-shots. A character is its player's and is not here.
+// The realm's one-shots. A character is its player's and is not here. And
+// which bosses are down today: a restart stood the Pit Lord back up.
 static void SaveWorld(const string& path, const World& world) {
     json flags = json::array();
     for (const string& key : world.Flags()) if (!coop::PrivateFlag(key)) flags.push_back(key);
     json picked = json::object();
     for (const auto& kv : world.PickedHerbs()) picked[kv.first] = kv.second;
-    const json j = {{"version", 1}, {"flags", flags}, {"picked", picked},
+    json slain = json::object();
+    for (const auto& kv : world.Slain()) slain[kv.first] = kv.second;
+    const json j = {{"version", 1}, {"flags", flags}, {"picked", picked}, {"slain", slain},
                     {"clock", world.clock.ToJson()}, {"shops", world.shops.ToJson()}};
     std::error_code ec;
     fs::create_directories(fs::path(path).parent_path(), ec);
@@ -87,6 +90,11 @@ static void LoadWorld(const string& path, World& world) {
             for (auto it = j["picked"].begin(); it != j["picked"].end(); ++it)
                 if (it.value().is_number()) picked[it.key()] = it.value().get<double>();
         world.SetPickedHerbs(picked);
+        std::map<string, int> slain;
+        if (j.contains("slain") && j["slain"].is_object())
+            for (auto it = j["slain"].begin(); it != j["slain"].end(); ++it)
+                if (it.value().is_number_integer()) slain[it.key()] = it.value().get<int>();
+        world.SetSlain(slain);
         world.clock.FromJson(j.value("clock", json::object()));
         world.shops.FromJson(j.value("shops", json::object()));
         printf("world: %zu flags, day %d %s (%s)\n", flags.size(), world.clock.Day(), world.clock.TimeText().c_str(), path.c_str());
@@ -213,12 +221,14 @@ int main(int argc, char* argv[]) {
             printf("   (%zu maps running)\n", host.Worlds());
             fflush(stdout);
         }
-        if ((since_save += dt) > 120.0f) { since_save = 0.0f; SaveWorld(world_path, home); }
+        if ((since_save += dt) > 120.0f) { since_save = 0.0f; SaveWorld(world_path, home); host.KeepAll(); }
         if (run_for > 0.0f && (ran += dt) >= run_for) break;
         SDL_Delay(8);      // about 120 steps a second: well inside a frame of anyone's
     }
 
     SaveWorld(world_path, home);
+    // And everyone still here, where they stand: they come back to it.
+    host.KeepAll();
     server.Shutdown();
     printf("Saved %s. Goodbye.\n", world_path.c_str());
     return 0;

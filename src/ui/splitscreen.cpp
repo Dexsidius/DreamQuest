@@ -204,6 +204,9 @@ void Game::UpdatePlayerTwo(float dt) {
     quests_two.SetDay(home_world.clock.QuestDay());
     ServeSeat(1);
     if (serving == 1) {
+        // A step to use something of theirs they have already used is past
+        // for them as it is for the host (World::CatchUpUsedObjects).
+        world->CatchUpUsedObjects(ctx);
         HandleWorldRequests();
         SeatChores();
         // A panel of theirs stays theirs until it closes.

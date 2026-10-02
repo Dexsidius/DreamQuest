@@ -295,14 +295,20 @@ SDL_FPoint World::OpenGroundNear(float x, float y, const SDL_FRect& foot) const 
 }
 
 void World::CatchUpUsedObjects(const GameContext& ctx) {
+    // Whoever `player` is, with their own journal: alone, the host; Player
+    // Two while the game serves them; a friend at their own machine, whose
+    // journal is the real one there (a relay is only listening).
     QuestLog* log = ctx.quests;
-    if (!log || log->relay || visiting) return;
+    if (!log || log->relay) return;
     for (const string& id : log->Active()) {
         const QuestDef* d = log->Definition(id);
         const int stage = log->Stage(id);
         if (!d || stage < 0 || stage >= static_cast<int>(d->stages.size())) continue;
         const QuestStage& st = d->stages[stage];
-        if (st.type != ObjectiveType::Interact || st.target.empty() || !Flagged(st.target)) continue;
+        // Something a quest asks to be used is the character's own (the
+        // self-test holds every one to it): what they have used themselves,
+        // never what a friend has.
+        if (st.type != ObjectiveType::Interact || st.target.empty() || !UsedOwn(st.target)) continue;
         QuestEvent e;
         e.type   = ObjectiveType::Interact;
         e.target = st.target;
@@ -404,15 +410,10 @@ bool World::PastWayBack() const {
 
 bool World::RequestTransition(const string& id, const string& spawn) {
     if (transition_pending) return false;
-    if (visiting) {
-        // Until the co-op plan's M4 there is one world on the host, the
-        // host's own map: a guest cannot go where it is not.
-        if (gate_note_timer <= 0.0f) {
-            AddText("The host leads the way, for now.", player.x, player.y - 52.0f, {214, 232, 255, 255}, 2.2f);
-            gate_note_timer = 2.5f;
-        }
-        return false;
-    }
+    // A friend's window goes nowhere by itself: the host, stepping them,
+    // finds them in the doorway and takes them through (coop::Host::Doors),
+    // and a waystone's way is asked of the host (AskToTravel).
+    if (visiting) return false;
     transition_pending = true;
     next_map   = id;
     next_spawn = spawn;
@@ -529,6 +530,7 @@ void World::BeginActing(Player& who) {
     acting = &who;
     acting_flags = &s.private_flags;
     acting_flags_rw = &s.private_flags;
+    acting_log = &s.private_log;
     if (s.own_journal) quest_log = s.own_journal;
 }
 
@@ -540,8 +542,17 @@ void World::EndActing() {
     acting = nullptr;
     acting_flags = nullptr;
     acting_flags_rw = nullptr;
+    acting_log = nullptr;
     quest_log = host_quests;
     SwapSeat(who, s);
+}
+
+std::set<string> World::SeenFlags() const {
+    if (!acting_flags) return flags;
+    std::set<string> seen;
+    for (const string& key : flags) if (!PrivateFlag(key)) seen.insert(key);
+    seen.insert(acting_flags->begin(), acting_flags->end());
+    return seen;
 }
 
 void World::SwapSeat(Player& who, SeatState& s) {
@@ -692,11 +703,12 @@ bool World::AskToSleep(const string& title, int fee) {
     return true;
 }
 
-bool World::Sleep(SleepChoice how, const GameContext& ctx) {
+bool World::Sleep(SleepChoice how, const GameContext& ctx, int fee) {
     (void)ctx;
     if (visiting) {
-        // The bed is the host's: say which way, and wait to be told.
-        visitor_acts.push_back({5, "", "", how == SleepChoice::Reverie ? 1 : 0});
+        // The bed is the host's, and so is the till: say which way and what
+        // it costs, and wait to be told.
+        visitor_acts.push_back({5, std::to_string(std::max(0, fee)), "", how == SleepChoice::Reverie ? 1 : 0});
         return true;
     }
     if (InDream() || transition_pending || player.IsDead()) return false;
@@ -708,6 +720,19 @@ bool World::Sleep(SleepChoice how, const GameContext& ctx) {
         AddText(why, player.x, player.y - 54.0f, {210, 200, 240, 255}, 1.8f);
         Audio::Play(Sfx::UiError);
         return false;
+    }
+    if (fee > 0) {
+        if (player.inventory.Coins() < fee) {
+            AddText("A bed here is " + std::to_string(fee) + " coins.", player.x, player.y - 54.0f,
+                    {235, 150, 120, 255}, 1.8f);
+            Audio::Play(Sfx::UiError);
+            return false;
+        }
+        player.inventory.SpendCoins(fee);
+        WorldRequest paid;
+        paid.type = WorldRequest::Type::Toast;
+        paid.text = "Paid " + std::to_string(fee) + " coins for the bed.";
+        requests.push_back(paid);
     }
 
     player.Rest();
@@ -869,7 +894,7 @@ bool World::ObjectPresent(const MapObject& o) const {
     // The Cinder King's and the Quintessence's chests stood beside them and
     // opened in the middle of the fight; the Heart is "taken from where the
     // Quintessence fell". Now each is there once its boss is down today.
-    if (!o.needs_slain.empty() && !Flagged(o.id)) {
+    if (!o.needs_slain.empty() && !Used(o)) {
         bool down = false;
         int post = 0;
         for (const auto& e : map.Enemies()) {
@@ -993,6 +1018,12 @@ void World::UpdateSeat(float dt, const GameContext& ctx) {
         player.x = was_x;
         player.y = was_y;
     }
+
+    // The fog on the minimap lifts round whoever is looked through: the seat
+    // at this machine, Player Two, a friend at their own window. A friend's
+    // copy at the host is never looked through, and keeps no map of its own.
+    if (!player.absent && (!acting || seat_states[player.seat].viewed))
+        player.exploration.Reveal(map_id, map.Width(), map.Height(), player.x, player.y, dt);
 
     player.input_locked = locked_by_game;
     // Thin ice is the player's own, whoever's window this is: see IceStrain.

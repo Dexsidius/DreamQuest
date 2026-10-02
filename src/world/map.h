@@ -183,6 +183,11 @@ struct MapObject {
     // A boss's own chest is its to give: there only once that boss, posted on
     // this map, has fallen today -- and, once opened, there for good (open).
     string needs_slain;
+    // Used once by each character rather than once by the world: a key, a
+    // seal, a relic, a lever or a stone a quest asks for. Friends each open
+    // their own, and what one has done is no step past for another. See
+    // World::Used.
+    bool   own = false;
     string text;             // notes and signs
     string starts_quest;     // notes that kick off a quest
     string sprite;           // optional image path drawn at the position

@@ -407,8 +407,26 @@ so every save made before this is on the Single Player tab, as it was.
   first come, first served. Monsters go for whoever is nearest, with a margin
   so two friends either side of a boar do not have it spinning. A kill counts
   in the journal of everyone on the map. No friendly fire.
+- **Except what a story asks of each of you.** The chest with the mine's key,
+  the barrow's seal, a relic, the Cinder King's and the Quintessence's chests,
+  the spring in the well, the stone by the empty house in Mossvale, the
+  surveyor's page and the dream's voice are each opened, pulled, turned or
+  read by everyone for themselves: the host opening the key's chest used to
+  leave a friend with no key, and a quest that could not be finished
+  (`MapObject::own`; what you have used is kept among your own flags as
+  `own:<id>`, and a step to use it that you have taken already is past for
+  you, never for a friend). The self-test holds every one of them to it:
+  anything a quest asks to be used, or that holds a key, a seal, a relic or a
+  named thing, is each character's own, and nothing else is.
 - **Your character is yours**: bag, equipment, skills, talents, journal,
-  recipes and spells learned, your storage chest. It lives on your own machine.
+  recipes and spells learned, your storage chest, and the flags that are
+  yours (`World::PrivateFlag`): places seen, the chests that were yours to
+  open, a tool the smith replaced for you, Oona's doll bound and the day it was
+  last fed -- each friend's doll is fed on a day of its own. It lives on your
+  own machine; what is yours and happened at the host is told to you alone.
+  Acting as a friend, the host sees their own flags in place of its own, in
+  the world and in a conversation (`World::SeenFlags`), so Player Two is never
+  taken to know a recipe Player One learned.
   The host keeps a copy (your *sheet*, sent when it changes) so that its rolls
   use your numbers, and tells you what the world added or took -- a coin picked
   up, logs chopped, raw meat cooked, experience, a line in your journal. So
@@ -417,12 +435,20 @@ so every save made before this is on the Single Player tab, as it was.
   enchanting table, storage, dialogue, the boards.
 - **Things change hands by being dropped.** Whoever drops a thing must step
   clear of it before it can be theirs again; a friend standing by can pick it
-  straight up.
+  straight up. What your pack cannot take -- a quest's reward, a gift -- goes
+  on the ground at your feet at the host, as it would alone, and is there to
+  pick up when you have made room (`net::Action::Spill`); a guest's used to go
+  nowhere.
 - **Dropping out and coming back.** Your character is written to
   `saves/characters/<name>.json` on the autosave, when you save, when you quit,
   and when the line drops. Join again, today or next month, and you have your
   bag, your levels and your journal, and the host puts you back on the map and
-  the spot where you left off -- not beside the host. If the line drops mid-fight
+  the spot where you left off -- not beside the host. The host keeps where every
+  friend stands whenever the world is saved or autosaved, when the door is
+  shut, when the host goes back to the title or closes the game, and on the
+  server every two minutes and when it stops (`coop::Host::KeepAll`); it used
+  to keep only whoever walked out, and a friend still in the world when it was
+  closed came back to wherever they last left it, or to the host's side. If the line drops mid-fight
   your character stands where it was, out of the fight and unhurt, for thirty
   seconds in case you come straight back. The host also keeps a copy of every
   friend's character as it last saw it, in the world's own
@@ -451,6 +477,16 @@ so every save made before this is on the Single Player tab, as it was.
   in company, is lying down: out of the fight, nothing can hurt you, and the
   clock keeps its pace until **everyone is abed or dreaming** -- then it is
   dawn for all at once, and dreamers wake where they lay down. Any key gets up.
+  An inn's bed is paid for at the host, and only when it is lain in: a guest
+  used to pay for a bed the host would not let them lie in, in the middle of
+  the day or with a monster at the door.
+- **The waystones.** A woken stone is woken for everyone, and a friend goes by
+  one as the host does: the host takes them, as through a door
+  (`net::Action::Travel`). The gate on the walk there -- Combat 30 for the Ice
+  Spire's and Old Harl's, 40 for the Ashen Path's and the Plateau's (up from
+  the Ashen Path), 72 for the Primordium's, by the rift -- is asked of whoever
+  goes by the stone (`WaystoneDef::combat`), so a stone a friend woke is no
+  way round a gate.
 - **Falling.** A guest who falls reads the same screen and is got up in
   Havenbrook, whole, wherever everyone else is.
 
@@ -467,8 +503,10 @@ DreamQuestServer.exe --name "The Hollowmarch" --password barley
 ```
 
 `--port 7777`, `--map town_havenbrook` (where newcomers arrive), `--world
-saves/server_world.json` (the world's one-shots, the clock and the traders'
-day, written every two minutes and on Ctrl+C), `--kept <dir>`, `--start-here`.
+saves/server_world.json` (the world's one-shots, the clock, the traders' day
+and which bosses are down today, written every two minutes and on Ctrl+C --
+a restart used to stand the Pit Lord back up), `--kept <dir>` (everyone's
+character and place, kept at the same times), `--start-here`.
 It prints the addresses friends should dial and who is here as they come and
 go. Run it as a scheduled task or a service on the always-on machine.
 
@@ -4969,6 +5007,33 @@ stack of one-pixel strips, each as wide as the circle at that height. That
 keeps the map round without a mask or a shader and pixel-for-pixel crisp; the
 game still holds its 72 fps cap.
 
+**The fog of war.** Wherever you have not been is under a low, dark cloud on
+the minimap and on the map screen, mottled blue-grey so it reads as weather
+rather than as a hole in the map. Walk somewhere and it lifts round you -- clear out to about 190 pixels,
+thinning out to 320, which is about what the screen shows at the usual zoom --
+and not all at once: each patch of it fades over most of a second, so walking
+into new ground the fog draws back as you go, and the edges of where you have
+been stay soft. What you have seen stays seen. Monsters, people and ways out
+are not marked under it until their ground has been seen; the quest's gold
+mark is, so it can still be walked to.
+
+It is each character's own, like what they carry (`Player::exploration`,
+`src/systems/exploration.h`). Every map is a grid of 32-pixel squares, each
+how clearly it has been seen, 0 to 255, lifted by `World::UpdateSeat` round
+whoever is being looked through: the seat at this machine, **Player Two** (their
+half of the screen shows their own travels), and **a friend across the wire**,
+whose fog is lifted on their own machine from where they walk there and kept in
+their own character file -- the host's copy of them keeps none, and their sheet
+does not carry it. It is saved with the character, run-length coded -- as it
+is, or as each row's changes from the row above, whichever is shorter: a road
+across the largest map is about a kilobyte, and a map seen from end to end a
+few hundred bytes. A save from before the fog starts with everything still
+under it. It is painted as an image of its own (`FogTexture`, `src/ui/fog.h`),
+a pixel to each square, and stretched over whatever the map is drawn as -- the
+minimap's strips, a page of the map screen -- with smoothing on, so its edge is
+a gradient and not a staircase; it is repainted only when the grid has changed,
+and then only how thick it is.
+
 The **chain counter** sits under the target frame while melee swings are
 landing one after another; see "Combos" above.
 
@@ -4988,6 +5053,15 @@ its own colour where its foot is, which is what makes a wood a wood and a
 village a village at a few pixels to the tile. Underground, where the rock and
 the floor cut out of it are much the same grey, what cannot be walked on is
 drawn dark, so the rooms and passages are what is left.
+
+**The fog of war is on every page**, the same cloud as on the minimap, from what
+the one looking has seen of that map: a new character opening the Hollowmarch
+sees the ground round wherever they have walked and cloud everywhere else.
+Nothing is marked under it -- not a town, a dungeon's mouth, a door or a trader
+(`WorldMapPanel::Unfogged`) -- and the legend lists only what is marked, so it
+grows as the land does. Where you are, your friends, and the gold mark of the
+quest you are following are marked whatever lies on them. Player Two's map is
+Player Two's, and a friend's their own.
 
 Every mark is a lettered tile in its own colour with its name beside it, and
 the legend down the right lists only what is on the page in front of you:
@@ -5595,7 +5669,9 @@ quests finished (`"after": [...]`), a world flag or its absence (`"flag"`,
 and is asked without it fails rather than passing, so a line never shows by
 default. Some flags are set by the world itself: `visited:<map>` the first
 time a map loads, so Hesper talks about the lights differently once you have
-seen the Reverie.
+seen the Reverie. The flags that are a character's own (`visited:`,
+`recipe:`, `replaced:`, `poppet_` and the `own:` of a story's chests) are
+asked of whoever is talking, never of the host for a friend.
 
 When there is nothing to give yet, the NPC says so instead of going quiet:
 Maren, asked for more work between chapters, tells you to come back stronger.
@@ -5909,7 +5985,8 @@ the Doll Was For* begins at once:
    last is down, and the fire sinks into the mud and the poppet comes back
    with a knot tightened: **Poppet Idol (1/5)**.
 
-*Five Knots* follows. **One ritual a day** (a day's `poppet_day:<day>` flag), at
+*Five Knots* follows. **One ritual a day** (a day's `poppet_day:<day>` flag,
+the poppet's owner's own: a friend's doll is fed on its own day), at
 any table, until all five knots are tight. Then bring the poppet to Oona. She
 cuts it open, and what it has eaten pays out a choice (see [Choosing a
 reward](#choosing-a-reward)) of one of three weapons, found nowhere else:
@@ -6114,9 +6191,12 @@ stays open, so the lit stone cost no new drawing code. The panel is
 `Game::UpdateTravel` / `DrawTravel`, and going is an ordinary
 `RequestTransition` to the spawn named for the far stone, in front of it (a
 town's own stone answers to `waystone` as well, as it always has; Mossvale has
-two now, so a spawn has to say which) -- so a guest in co-op is
-told the host leads the way, as at any other door. Woken stones are world flags
-and are saved with the rest. The stone is `_waystone(lit)` in
+two now, so a spawn has to say which). A guest in co-op asks the host
+(`World::AskToTravel`, `net::Action::Travel`), which asks the stones again --
+`World::CanTravel`: the stone in hand and the one chosen both awake, and the
+Combat the walk there asks at its gate (`WaystoneDef::combat`, which the
+self-test works out from the maps' portals) -- and takes them as through a
+door. Woken stones are world flags and are saved with the rest. The stone is `_waystone(lit)` in
 `tools/blender_props.py`, rendered twice; `PlaceWaystone` in `tools/genmaps.cpp`
 stands one up. `--screen travel` opens the panel for a screenshot, and
 `--screen travel:waystone_bayou` opens it as if at that stone.
@@ -8109,7 +8189,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **71627 checks** covering:
+and checks all of it — currently **71719 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed
@@ -8150,6 +8230,20 @@ and checks all of it — currently **71627 checks** covering:
   is a greater one, and leaves something; the cores are worth having; and the
   Quintessence is a boss at 99 that throws all five, in the Conflux with its
   chest, with its relic and its totem
+- co-op, what the report found, put right: a quest's chest, lever, stone, page
+  or voice each character's own and nothing else, every quest's thing to use on
+  a map; the key's chest opened by the host and by a friend, each their own key
+  and once, an ordinary chest opened for both; serving a friend, the world's
+  flags and hers, not the host's recipes, and the smith's axe still hers to be
+  given; an old save's open chest its own player's only; a step past is past
+  for whoever took it, at the host and at her own machine; a friend's doll fed
+  on its own day; every waystone asking the Combat the walk to it asks, the
+  Primordium's 72; a friend's owed flame, her weather and her Electro-Node hers;
+  over the wire, a friend taken by the stones and refused past the rift, her
+  stone turned told to her alone and kept with her character, the host's own
+  not told, a reward her pack could not take on the ground and back in her bag,
+  a bed paid for only at night and only once, and friends kept as the world is
+  saved and closed, and put back where they stood
 - what the 1 October report found, put right: no post on a way in, in the
   Primordium or on the Ashen Path; every shooter heard as what it shoots (a
   spell cast, a spit thrown, only arrows and darts off a string); a fell wolf and
@@ -8278,6 +8372,20 @@ and checks all of it — currently **71627 checks** covering:
   comes back whole with its bar hidden
 - the HUD art is on disk, and the minimap clips every row to the edges of the
   map without ever sampling outside it
+- the fog of war: a new character has seen nothing; the fog lifts gradually where
+  you stand, clear in under a second, thinned further off and untouched past
+  what you can see; what was seen stays seen; kept and read back square for
+  square in about a kilobyte, a road down the map as its changes from row to
+  row, a grid that does not add up dropped and a map made bigger begun again;
+  saved with the character, a save from before starting
+  in the fog, and never on a friend's sheet; Player Two's travels lift Player
+  Two's fog and not Player One's, a friend across the wire keeps none at the host
+  and lifts their own at their own window; drawn, the ground shows where you have
+  been and a dark blue-grey cloud where you have not, and a monster out in the
+  fog is marked only once its ground has been seen; on the map screen nothing on
+  the Hollowmarch is marked for a character who has seen none of it, a town once
+  walked up to is, and its page is all cloud at first, less once you have been
+  out, and next to none once you have been everywhere
 - the title art: the cover painting, the window icon and the .exe's .ico are all
   in the repository rather than in the art that is not committed; the window
   icon is square and big enough for a hi-dpi taskbar; the .ico is a real icon
