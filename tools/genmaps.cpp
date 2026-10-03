@@ -10375,9 +10375,21 @@ static void BuildPlateauTerraces() {
     }
     m.Spawn("default", 4 * CELL + 16, 28 * CELL + 16);
 
+    // Something lives in the hot brine: the scaldfin (Fishing 84), between the
+    // cindergill and the deepgleam, cast for from the shore at the tip of four
+    // of the pools. The vents along the shores keep two cells off where a line
+    // goes in.
+    struct Cast { const char* id; int cx, cy; bool east; };
+    const Cast casts[] = {{"fish_brine_nw", 22, 14, true}, {"fish_brine_ne", 49, 12, false},
+                          {"fish_brine_sw", 19, 42, true}, {"fish_brine_se", 42, 42, false}};
+    for (const Cast& c : casts)
+        PlaceFishingSpot(m, c.id, c.cx * CELL + (c.east ? CELL - 8 : 8), c.cy * CELL + 16, "brine pool",
+                         {"raw_scaldfin"}, 84);
+
     Scatter(roads, 7373u, 3.0f, [&](int cx, int cy, int x, int y, float r, float gap) {
         (void)gap;
         if (in_pool(cx, cy) || in_pool(cx, cy + 1) || in_pool(cx + 1, cy) || in_pool(cx - 1, cy)) return;
+        for (const Cast& c : casts) if (abs(cx - c.cx) <= 2 && abs(cy - c.cy) <= 2) return;
         bool shore = false;
         for (int dy = -2; dy <= 2; ++dy)
             for (int dx = -2; dx <= 2; ++dx) shore = shore || in_pool(cx + dx, cy + dy);

@@ -654,6 +654,8 @@ FISH = {
     # with a light of its own.
     "frostfin":   ((0.66, 0.80, 0.92), (0.95, 0.98, 1.00), (0.30, 0.46, 0.72), 0.36, 0.11),
     "cindergill": ((0.22, 0.19, 0.19), (0.62, 0.30, 0.16), (0.40, 0.30, 0.26), 0.38, 0.12),
+    # Scalded pink out of the hot brine, with a crust of white salt along it.
+    "scaldfin":   ((0.86, 0.46, 0.36), (0.98, 0.84, 0.70), (0.97, 0.96, 0.92), 0.37, 0.12),
     "deepgleam":  ((0.10, 0.34, 0.42), (0.30, 0.62, 0.64), (0.20, 0.50, 0.56), 0.40, 0.12),
 }
 bc.PALETTE["cindergill_glow"] = (1.00, 0.56, 0.18)
@@ -2219,6 +2221,8 @@ bc.PALETTE.update({
     "chowder":    (0.93, 0.89, 0.76), "frostfin_flake": (0.62, 0.80, 0.96),
     "cindergill_cut": (0.32, 0.24, 0.22), "deep_broth": (0.12, 0.36, 0.42),
     "feast_board": (0.40, 0.26, 0.16), "feast_board_dk": (0.26, 0.16, 0.10),
+    "salmon_flake": (0.96, 0.60, 0.48), "glowcap_bit_glow": (0.52, 0.90, 0.92),
+    "goose_glaze": (0.78, 0.46, 0.16), "goose_glaze_lt": (0.96, 0.70, 0.30), "goose_bone": (0.94, 0.90, 0.80),
 })
 
 
@@ -2317,6 +2321,26 @@ def build_dish(name, parent):
         add("deep", bc.mesh_ellipsoid(0.06, 0.05, 0.045), "cooked_deepgleam_body", parent, loc=(-0.30, 0.10, -0.04))
         add("deep_light", bc.mesh_ellipsoid(0.03, 0.025, 0.02), "deepgleam_glow", parent, loc=(-0.30, 0.05, 0.0))
         add("herb", bc.mesh_ellipsoid(0.05, 0.035, 0.02), "greens_lt", parent, loc=(0.24, 0.12, -0.04))
+    elif name == "salmon_pie":
+        # The traveller's pie's crust, cut open: pink salmon in the cut and the
+        # glowcaps' blue light through the gap.
+        add("dish", bc.mesh_frustum(0.26, 0.30, 0.12, squash_y=0.72), "crock_dk", parent, loc=(0, 0, -0.08))
+        add("crust", bc.mesh_ellipsoid(0.29, 0.21, 0.10), "crust", parent, loc=(0, 0, 0.06))
+        add("crimp", bc.mesh_torus(0.29, 0.03), "crust_dk", parent, loc=(0, 0, 0.02))
+        add("cut", bc.mesh_ellipsoid(0.13, 0.08, 0.06), "salmon_flake", parent, loc=(0.06, -0.06, 0.12))
+        for k, (x, y) in enumerate(((-0.02, -0.10), (0.12, -0.08))):
+            add("glow_%d" % k, bc.mesh_ellipsoid(0.03, 0.025, 0.025), "glowcap_bit_glow", parent, loc=(x, y, 0.16))
+    elif name == "honey_roast_goose":
+        # A glazed bird on its back on a board, legs up, the glaze lighter
+        # where it has run.
+        add("board", bc.mesh_ellipsoid(0.36, 0.22, 0.04), "feast_board", parent, loc=(0, 0, -0.12))
+        add("body", bc.mesh_ellipsoid(0.22, 0.16, 0.13), "goose_glaze", parent, loc=(0, 0, 0.0))
+        add("sheen", bc.mesh_ellipsoid(0.12, 0.06, 0.05), "goose_glaze_lt", parent, loc=(-0.05, -0.10, 0.07))
+        for side in (-1, 1):
+            parts.append(bc.spike("leg_%d" % side, (side * 0.10, -0.04, 0.06), (side * 0.20, -0.10, 0.20), 0.05,
+                                  "goose_glaze", parent, r_tip=0.03))
+            add("knuckle_%d" % side, bc.mesh_ellipsoid(0.03, 0.03, 0.03), "goose_bone", parent,
+                loc=(side * 0.21, -0.11, 0.22))
     elif name == "egg":
         add("egg", bc.mesh_ellipsoid(0.15, 0.15, 0.20), "shell", parent, loc=(0, 0, 0.0))
         add("shade", bc.mesh_ellipsoid(0.10, 0.10, 0.13), "shell_dk", parent, loc=(0.05, 0.05, -0.04))
@@ -2343,7 +2367,8 @@ def build_dish(name, parent):
 
 FOOD_ICONS = ["hearty_stew", "fishermans_broth", "hunters_skewers", "travellers_pie", "moonpetal_tea",
               "honeyed_oats", "frog_legs", "egg", "milk", "wool", "honey",
-              "frostfin_chowder", "cindergill_skewers", "deepgleam_broth", "hollowmarch_feast"]
+              "frostfin_chowder", "cindergill_skewers", "deepgleam_broth", "hollowmarch_feast",
+              "salmon_pie", "honey_roast_goose"]
 
 
 def food_icons(only=None):

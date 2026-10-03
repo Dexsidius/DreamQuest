@@ -3347,8 +3347,9 @@ water with the odd bubble: three on the Fernhollow pond (one off the end of the
 jetty), three on the Whisperwood stream, and four along the Hollowmarch lake.
 Past 60 the fish are in the late lands, four spots to each: the **ice holes** on
 the Glass Mere, the **lava moat** under the Brimstone Palace (two casts from
-the outer bank of each of its arms), and four of the **pools of the Deeps** in
-the Primordium.
+the outer bank of each of its arms), the hot **brine pools** of the Brine
+Terraces on Purgatory's Plateau (from the tip of four of the five), and four
+of the **pools of the Deeps** in the Primordium.
 
 | Fish | Fishing | Caught in | Cooked, heals | Cooking |
 | --- | --- | --- | --- | --- |
@@ -3359,12 +3360,16 @@ the Primordium.
 | Eel | 60 | lake | 36 | 60 |
 | Frostfin | 68 | the Glass Mere's ice holes | 43 | 68 |
 | Cindergill | 78 | the Brimstone Palace's lava moat | 50 | 78 |
+| Scaldfin | 84 | the Brine Terraces' hot pools | 54 | 84 |
 | Deepgleam | 90 | the pools of the Deeps | 58 | 90 |
 
 A late spot holds only its own fish, so the water says what it asks before the
-rod goes in (*Needs Fishing 78 for the lava moat*). Each of the three bites
+rod goes in (*Needs Fishing 78 for the lava moat*). Each of the four bites
 later, pays more and heals more than the one before, which the self-test holds
-the whole ladder to; their dishes are below.
+the whole ladder to; their dishes are below. The scaldfin came last, to close
+the twelve levels between the cindergill and the deepgleam: it lives where
+the steam comes off the Terraces' pools, among the dragons at 58 to 65, so a
+fisher at 84 can stand there.
 
 Each spot gives up the best fish the level allows about a third of the time,
 more often the further past it the level is, and something lesser otherwise.
@@ -3403,13 +3408,21 @@ twenty minutes or so and lifts something while it does:
 | Fisherman's Broth | 28 | +12% max mana |
 | Moonpetal Tea | 34 | +18% max mana, +3 Magic |
 | Farmer's Supper | 40 | +15% max health, +3 Attack |
+| Salmon Pie | 50 | +15% max breath, +4 Ranged |
+| Honey-Roast Goose | 55 | +12% max health, +4 Strength, +3 Defence |
 | Frostfin Chowder | 72 | +20% max health, +15% max breath |
 | Cindergill Skewers | 84 | +10% max health, +4 Attack, +4 Strength |
 | Deepgleam Broth | 92 | +22% max mana, +5 Magic |
 | Hollowmarch Feast | 95 | +25% max health, +20% max mana, +30% max breath, +6 to every way of fighting, for forty minutes |
 
-The four past 70 are cooked from the late fish -- the chowder with milk and
-mint, the skewers with emberbloom, the broth with moonpetal, and the feast from
+The salmon pie (salmon, an egg and a glowcap) and the honey-roast goose (two
+geese, honey and a pinch of emberbloom) fill what was the widest hole in any
+skill that makes things -- nothing new from 45 to 60 -- and are the first
+dishes since the frog legs for a bow, and the first for Strength before the
+cindergill skewers at 84 and for Defence before the feast; the self-test holds
+Cooking to something new at least
+every eight levels from 1 to 95. The four past 70 are cooked from the late
+fish -- the chowder with milk and mint, the skewers with emberbloom, the broth with moonpetal, and the feast from
 all three and a joint of beef -- so from the eel at 60 a cook has something new
 every six levels or less to 95. The feast is 95 and not 99 because burning only
 falls away three in a hundred a level past a dish's level: a feast at 99 would
@@ -8513,7 +8526,7 @@ renamed, so an interrupted write cannot destroy the previous one.
 Screenshots prove the game runs; they do not prove that the mission board names
 a quest that exists, that every dialogue option leads somewhere, or that a loot
 table only drops real items. `tools/selftest.cpp` links the game's own systems
-and checks all of it — currently **74176 checks** covering:
+and checks all of it — currently **74234 checks** covering:
 
 - every sprite sheet and item icon exists on disk
 - every loot table drops real items, and quest-critical drops are guaranteed

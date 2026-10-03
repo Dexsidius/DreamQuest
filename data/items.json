@@ -671,6 +671,31 @@
   "heal": 50,
   "icon": "assets/icons/tiers/cooked_cindergill.png"
  },
+ "raw_scaldfin": {
+  "name": "Raw Scaldfin",
+  "desc": "It lives in the hot brine pools of the Terraces, where nothing should, and comes out of the water already half cooked. Finish the job.",
+  "stack": true,
+  "value": 188,
+  "fish": {
+   "level": 84,
+   "xp": 238
+  },
+  "cook": {
+   "result": "cooked_scaldfin",
+   "xp": 278,
+   "level": 84
+  },
+  "icon": "assets/icons/tiers/raw_scaldfin.png"
+ },
+ "cooked_scaldfin": {
+  "name": "Cooked Scaldfin",
+  "desc": "Restores 54 hitpoints.",
+  "stack": true,
+  "value": 376,
+  "consume": true,
+  "heal": 54,
+  "icon": "assets/icons/tiers/cooked_scaldfin.png"
+ },
  "raw_deepgleam": {
   "name": "Raw Deepgleam",
   "desc": "From the bottom of a sea nobody has filled. It gives off a light of its own, and goes on giving it off on the plate.",
@@ -2868,6 +2893,75 @@
     "cooked_pork": 1,
     "cooked_beef": 1,
     "mountain_sage": 1
+   }
+  }
+ },
+ "salmon_pie": {
+  "tags": [
+   "food",
+   "dish"
+  ],
+  "name": "Salmon Pie",
+  "desc": "Salmon and egg under a crust, with glowcaps chopped through it that still light the plate. A hunter's dinner: it keeps the breath long and the eye steady.",
+  "stack": true,
+  "value": 380,
+  "consume": true,
+  "heal": 55,
+  "icon": "assets/icons/tiers/salmon_pie.png",
+  "dish": {
+   "minutes": 25,
+   "max_hp": 0.0,
+   "max_mana": 0.0,
+   "max_stamina": 0.15,
+   "levels": {
+    "Ranged": 4
+   }
+  },
+  "craft": {
+   "result": "salmon_pie",
+   "qty": 1,
+   "xp": 660,
+   "level": 50,
+   "station": "range",
+   "inputs": {
+    "cooked_salmon": 1,
+    "egg": 1,
+    "glowcap": 1
+   }
+  }
+ },
+ "honey_roast_goose": {
+  "tags": [
+   "food",
+   "dish"
+  ],
+  "name": "Honey-Roast Goose",
+  "desc": "Two geese glazed with honey and a pinch of emberbloom for the heat, roasted until the skin cracks. It sits heavy, and the arm behind a blow is the better for it.",
+  "stack": true,
+  "value": 430,
+  "consume": true,
+  "heal": 58,
+  "icon": "assets/icons/tiers/honey_roast_goose.png",
+  "dish": {
+   "minutes": 30,
+   "max_hp": 0.12,
+   "max_mana": 0.0,
+   "max_stamina": 0.0,
+   "levels": {
+    "Strength": 4,
+    "Defence": 3
+   }
+  },
+  "craft": {
+   "result": "honey_roast_goose",
+   "qty": 1,
+   "xp": 720,
+   "level": 55,
+   "station": "range",
+   "inputs": {
+    "cooked_goose": 2,
+    "honey": 1,
+    "emberbloom": 1
    }
   }
  },

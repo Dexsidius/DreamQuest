@@ -78,178 +78,176 @@ To play:  double-click DreamQuest.exe. That is all.
 
 Your saves and settings are written next to the exe, in saves\ and
 settings.json. They are not in the zip, so unpacking a newer version over this
-folder keeps them.
+folder keeps them. There are three single-player and three multiplayer slots;
+each keeps a backup, the game saves itself every two minutes and when the
+window is closed, and the load screen can delete a slot.
 
-Controls (keyboard; a controller works too, and the game switches to whichever
-you touch):
 
-    WASD / arrows   move                 I or Tab   inventory
-    J               light attack          O          skills
-    K               heavy attack; hold    P or Q     quest journal
-                    to charge             M          map of where you are;
-                                                     J turns to the Hollowmarch
-    J+K, and heavy  combos: see the       G          drop (in the bag)
-    mixed into      journal's tutorials   1 2 3 4    choose an element
-    the chain                             5          the ancient magic
-    H (hold)        block, with a shield  R          cycle elements
-    H + J, H + K, H + L   abilities, once learned in your skill tree (O)
-    Shift (hold)    sprint                Esc        pause
-    Space           jump / climb
-    E               talk, open, work
+CONTROLS
 
-Any of those can be moved: Options, Controls, for the keyboard and for a
-controller. On a Steam Deck put the map somewhere other than Guide, which is
-Steam's. The quest you are following is pointed at -- a gold arrow, a mark on
-the minimap and the map -- and the journal (P) chooses which quest that is.
+Keyboard and controller both work; the game follows whichever you touch.
+Every one of these can be moved in Options, Controls.
 
-Waystones: there is an old standing stone in each of the three towns --
-Havenbrook, Mossvale, Fernhollow -- and nowhere else. Touch one (E) to wake
-it; touch a woken one again and it will take you to any other you have
-woken. A stone you have not walked to and woken yourself will not take you.
-It costs nothing.
+    WASD / arrows   move                     Tab        the menu of menus
+    J               light attack             I          bag
+    K               heavy attack; hold it    C          character
+                    to charge                O          skills, the skill tree,
+    L               lock on                             the spellbook, boons
+    H (hold)        guard (see below)        P or Q     journal
+    H or F, held,   the three abilities      M          map; J on it turns to
+      + J, K or L   from your skill tree                the whole Hollowmarch
+    Shift (hold)    sprint                   G          drop (in the bag)
+    Space           jump / climb             Esc        pause
+    E               talk, open, pick, work
+    1 2 3 4         fire, water, earth, air  5          lightning
+    6               the ancient magic        R          step through elements
+    [ and ]         the spell before / after in the element chosen
 
-A quick item: in the bag, L (target) on any food or potion makes it
-the quick item, shown at the bottom left. Hold block and press E to use it,
-hold block and tap sprint to step to the next. Anything that heals now takes
-a second and a half to get down before the next one.
+    In menus J (or Enter) confirms and K (or Backspace) goes back.
 
-At a bench, forge, loom or fire, hold sprint and press confirm to make as
-many as you have the materials for. At a storage chest the drop button stows
-everything the chest already has some of; with sprint held, the whole pack
-(never coins, never quest things). From the chest's side it takes the lot.
+    On a controller: X light, Y heavy, B guard, A use, RT lock on, LT sprint,
+    click the left stick to jump; hold RB with X, Y or RT for the abilities.
+    LB is the bag, Select the menu of menus, Start pauses. Click the right
+    stick to step through the elements, and push it left or right for the
+    spell. On a Steam Deck put the map on a button other than Guide, which is
+    Steam's.
 
-Armour now takes something off a leader's heavy attack -- it used to take
-nothing -- and a shield costs far less breath to hold against a strong
-monster, so a wooden one is worth carrying past the meadow. Old trees teach
-more than young ones, herbs grow back in a couple of hours rather than most
-of a day, and fish heal more than meat does. A boss you have killed stays
-dead until the next dawn. A room at the inn costs 15 coins (25 the double);
-unlearning a skill tree costs 60 coins a point. The forges, the bowyer and
-the college sell a piece or two of steel and azuryte. Oona in Mossvale keeps
-an order book for herbs and brews.
+The guard depends on what is in your hands: a shield blocks; a dagger with no
+shield, or a greatsword, parries (catch a blow in the first moment and it
+does nothing); the warden with nothing to guard with rolls instead; and a
+wayfarer who has learned the Aegis from the magic tree wards with magic.
 
-The wilds are different after dark. A few things come out at night that do
-not live there by day -- wolves on the meadow, the walking dead under the
-trees, worse in the Mire -- a step or two stronger than the neighbours, never
-on the roads, never near a town gate or a camp, and gone at dawn. Keep to the
-road at night, or find a bed. What you kill stays dead until the next night.
+The quest you are following is pointed at -- a gold arrow, a mark on the
+minimap and on the map -- and the journal chooses which quest that is.
 
-The first time you kill a boss it leaves you a skill point for your tree and
-a boon: one of fifteen small permanent bonuses, chosen by the dice from those
-your character can use. Once per boss, per character; everyone in the fight
-gets their own. The Skills panel (O) has a Boons tab that lists them.
 
-A new warden sets out in a full set of rawhide and a new wayfarer in a full
-set of homespun robes, instead of the hero's wooden cuirass: the same
-protection, and armour that helps the way they actually fight. (New
-characters only; one you already have keeps what it is wearing.)
+FIGHTING
 
-Keep killing a boss and the fifteenth time it leaves you its totem. There
-is a ring in the middle of the floor of your house at Mossvale: touch it, stand
-a totem in it, and it gives its blessing until dawn -- a big one, wherever you
-go. One totem at a time; stand another in the ring and the first goes back in
-your pack. The next day it wants touching again. The Boons tab keeps count of
-how many times you have killed each boss.
+Light attacks chain three blows. Mix a heavy into the chain, or press light
+and heavy together, for a combo: most weapons have five of their own, and
+the journal's tutorials show them. Each way of fighting has a skill tree (O): a
+point every three levels of its skill, three abilities carried at once, and
+techniques that replace the charged heavy attack. Unlearning a tree costs 60
+coins a point.
 
-Magic is trained by landing spells now, not by casting them: a spell pays
-its experience the first time it hurts something. Casting at a wall, or into
-an empty field, spends the mana and teaches nothing -- which is how a sword
-and a bow have always been.
+Attack decides whether a blow lands and Strength how hard; heavy swings train
+Strength. Ranged and Magic train by hitting: a spell pays its experience the
+first time it hurts something, so casting at a wall teaches nothing. Defence
+is not trained at all -- it follows your combat level.
 
-A fire opens a cooking menu now: plain food, and dishes that sit with you
-for twenty minutes and lift your health, mana, breath or one way of fighting.
-One dish at a time. The farm on the east side of Havenbrook has hens, pigs,
-sheep and cows to make them out of, and Wynn at Mossvale weaves the mage's
-robes and hats and pays for them.
+A monster's level is what it fights like: "Lv 13" means a Combat 13 character
+has a fight on their hands. A door, a ladder or a stair down that leads
+somewhere stronger than you says so, and so does the label at the edge of a
+map, in red. If you fall, you wake in Havenbrook with everything you carried.
 
-Heavy swings train Strength now -- they had been training Attack, and
-nothing trained Strength at all. Attack is whether you land a blow; Strength
-is how hard. Experience shows on screen as you earn it. Options has an
-Interface Size (up to 125% on a Steam Deck). Closing the window saves. Each
-slot keeps a backup, a damaged save says so instead of looking empty, and the
-load screen can delete a slot.
+Magic: 1 to 4 choose the four elements, 5 lightning and 6 the ancient magic,
+and [ and ] step through an element's spells as your Magic level opens them.
+A staff, a wand, a grimoire and an orb each reach a different part of every
+element. Lightning has its own battery, which only Zap fills. The ancient
+magic is learned from tomes; the College at Fernhollow sells them.
 
-Asking the gate watchman, the smith or the hunter to teach you no longer
-hands out experience every time you ask: each lesson is a one-time tutorial
-quest now -- go and do the thing, then come back. Lent tools are replaced
-once, not every time you sell them.
 
-In the bag and the storage chest, anything you could wear gets a small
-card beside the cursor: what it gives, and what it would change against what
-you have on. Shops and crafting panels show the same numbers in full: its bonuses, and next to each the difference against what you have
-on. Green is better, red is worse. Potions say what they would give you at
-your level rather than the formula they are stored as.
+THE BAG, FOOD AND POTIONS
 
-There are ducks and geese on the pond at Fernhollow. They walk the bank,
-wade in when they feel like it and paddle about, and come out again; nothing
-else in the game can get into water at all.
+The bag is 28 slots. Four bags -- satchel, pack, rucksack, haversack -- add a
+row of seven each: they are cut at a tanning rack from a great many hides, or
+found in a lucky chest. Use one from the bag to put it on.
 
-Wynn's shed at Mossvale has a loom in it, which is a station of its own:
-all cloth is woven there now, and so is every piece of the mage's robe sets.
-The bench she used to work at was a carpenter's.
+Anything you could wear shows a card beside the cursor: what it gives, and
+what it would change against what you have on -- green better, red worse.
 
-The college at Fernhollow is a place now, not a tower: go through the
-gatehouse on the north side of the hamlet into a great court, with the hall
-where the council sits to the north, a practice hall where the mages throw
-spells at straw men to the west, and a lecture room to the east. Magister
-Orrin is in the great hall. Nothing in the practice hall can hurt you.
+In the bag, L on any food or potion puts it to hand, at the bottom left. Hold
+the guard and press E to use it, and hold the guard and tap sprint to step to
+the next (RB + A, and RB + LT, on a controller). Anything that heals takes a
+second and a half to get down before the next one.
 
-Wynn the clothier has moved out of the square at Mossvale into a shop of
-her own, up the lane to the north-west -- blue door, gowns in the window. Her
-loom is inside with her.
+A fire's menu has plain food and dishes. A dish sits with you for fifteen to
+forty minutes and lifts your health, mana, breath or a way of fighting; one
+dish at a time. A potion lifts a level for a while, or keeps a status off you.
 
-Fixed: starting a new game after playing another save no longer puts the
-first character's things in the new character's storage chest.
 
-The tanning racks are what you work at now. Anything made of leather -- all
-the hide armour, the leather jerkin, hide boots, the bags and the bedroll -- is made at a tanning rack: three in Nessa's yard in Havenbrook, four
-at Hidewater, one at the trapper's camp in the Brackenwood. The carpenter's
-benches that stood in the tanners' yards are gone; a workbench is for wood.
+GETTING ABOUT
 
-Nessa's tannery, in the south-west of Havenbrook, has frames to work at and an order
-book: three orders a day for things you make rather than things you find,
-which is how Crafting is trained. A monster's level is now what it fights
-like, so "Lv 13" means a Combat 13 character has a fight on their hands.
+Waystones: ten of them. Four are on the Towns tab -- Havenbrook, Mossvale,
+your own house there, and Fernhollow -- and six on the Wilds tab, from the
+Bayou and the Ice Spire to the Primordium. Touch one (E) to wake it; touch a
+woken one again and it takes you to any other you have woken, for nothing.
+A few of the wild ones will not take a character too weak to live there.
 
-Three kinds of armour, and each helps one way of fighting: metal plate for
-a blade, hides for a bow, robes for a staff. Hides are cut from what you kill
--- wolves first, out of Havenbrook's west gate -- and robes from cloth and a
-dye; Orla and Isolde at Hidewater, just outside that gate, will tell you how.
+Every way into a town is a gate with a warden. A room at the inn is 15 coins
+(25 for the double); your own bed at Mossvale and a camp are free. After dusk
+a bed asks how you would spend the night: sleep through it, or dream. The
+dream -- the Reverie -- is different every night and goes down a ladder at a
+time, Combat 25 and then 56 advised; nothing in a dream can kill you.
 
-The bag is 28 slots, and four bags -- satchel, pack, rucksack, haversack --
-add a row of seven each. They take a great many hides at a workbench, or a
-lucky chest. Use one from the inventory to put it on; one of each.
+The wilds are different after dark: things come out at night that do not live
+there by day, a step stronger than the neighbours, never on the roads, never
+near a gate or a camp, and gone at dawn. In the Bayou and the Hexmire,
+gators and worse wait under still water and come up when you come too close
+to its edge.
 
-The Reverie -- where you go if you choose to dream at a bed -- is never the
-same two nights running, and it goes down: behind the brute there is a
-ladder, and another below that. Each depth is harder, and everything in it
-leaves one more dream shard than it would a ladder up. Combat 25, then 50,
-advised; nothing in a dream can kill you.
 
-Playing together, up to four of you, over Tailscale:
+BOSSES, BOONS AND TOTEMS
 
-    The host starts or loads a game, then Esc, "Play Together", Host a world.
-    The screen says what the others should type -- the host's machine name on
-    your tailnet, or its 100.x address. The others choose "Play Together" on
-    the title screen, pick a Character, choose Join, type that, and press
-    Enter: they walk into the host's game. Windows Firewall asks the host
-    once: allow DreamQuest on private networks. Everyone needs the same zip;
-    the door says so if not.
+The first time you kill a boss it leaves you a skill point for your tree and a
+boon: one of twenty-two, chosen by the dice from those your character can use,
+and lasting a day of the game's clock. Everyone on the map when it falls gets
+their own. A boss you have killed stays dead until the next dawn.
 
-    You fight the same monsters, share the chests and the trees, and can go
+The fifteenth time you kill a boss it leaves you its totem. There is a ring in
+the floor of your house at Mossvale: stand a totem in it and touch it, and it
+gives its blessing until dawn, wherever you go -- one totem at a time. The
+Skills panel's Boons tab lists your boons and keeps count of your kills.
+
+
+TRADES
+
+Every trade is a level to reach and something new every few levels: Mining,
+Woodcutting, Fishing and Foraging gather; Smithing (an anvil), Crafting (wood,
+bows and jewellery, at a workbench), Tanning (hides, boots, bags and bedrolls,
+at a tanning rack), the Clothier's robes (a loom; Wynn's is in her shop at
+Mossvale), Brewing (a cauldron) and Cooking (a fire) make; and Enchanting
+works charms into gear at an enchanting table. At any station, hold sprint and
+confirm to make as many as you have the materials for.
+
+Halda the smith, Nessa the tanner and Innkeeper Bess in Havenbrook, Wynn and
+Oona at Mossvale, and Old Wendel at Fernhollow keep order books: things to
+make or bring, which pay coins and train the trade they ask for. Anyone who
+offers to teach you something gives you a short tutorial quest -- go and do
+the thing, then come back.
+
+At a storage chest the drop button stows everything the chest already has some
+of; with sprint held, the whole pack (never coins, never quest things). From
+the chest's side it takes the lot.
+
+
+PLAYING TOGETHER, up to four of you, over Tailscale
+
+    The host chooses Play Together, then Host a world: from the title screen,
+    one of their multiplayer worlds or a new one; from a game in progress, that
+    game, carried to a multiplayer slot first (its single-player save stays as
+    it is). The screen says what the others should type -- the host's machine
+    name on your tailnet, or its 100.x address. The others choose Play Together
+    on the title screen, pick a character, choose Join, type that and press
+    Enter, and walk into the host's game. Windows Firewall asks the host once:
+    allow DreamQuest on private networks. Everyone needs the same zip; the door
+    says so if not.
+
+    You fight the same monsters and share the chests and the trees, and can go
     your separate ways: each map someone is on keeps running. Your character
     is your own, kept on your own machine in saves\characters\ -- drop out,
-    come back another day, and you are where you left off, with your bag,
-    your skills and your journal. A bed after dusk asks how you would spend
-    the night; dawn comes at once when everyone is abed or dreaming.
+    come back another day, and you are where you left off, with your bag, your
+    skills and your journal. Dawn comes at once when everyone is abed or
+    dreaming.
 
-    Two of you at one machine: plug in a controller, Esc, "Player Two
-    joins". The screen splits; Player Two plays on the controller with their
-    own character, and you can go your separate ways.
+    Two of you at one machine: plug in a controller, Esc, Player Two joins.
+    The screen splits, and Player Two plays on the controller with their own
+    character.
 
-    DreamQuestServer.exe is the same world with nobody at the keyboard, for
-    a machine that is always on. Run it and everyone joins it; nobody hosts.
+    DreamQuestServer.exe is the same world with nobody at the keyboard, for a
+    machine that is always on. Run it and everyone joins it; nobody hosts.
 
+Options has an Interface Size for small screens such as a Steam Deck's.
 The full manual is README.md in the source repository:
 https://github.com/Dexsidius/DreamQuest
 "@

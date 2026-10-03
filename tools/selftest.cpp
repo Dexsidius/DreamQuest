@@ -5037,7 +5037,7 @@ static void TestLateGathering(const Databases& db) {
     // Every fish bites later than the last, is worth more and heals more.
     {
         const char* fishes[] = {"raw_minnow", "raw_trout", "raw_pike", "raw_salmon", "raw_eel",
-                                "raw_frostfin", "raw_cindergill", "raw_deepgleam"};
+                                "raw_frostfin", "raw_cindergill", "raw_scaldfin", "raw_deepgleam"};
         const ItemDef* prev = nullptr;
         const ItemDef* prev_cooked = nullptr;
         string out_of_line;
@@ -5105,12 +5105,31 @@ static void TestLateGathering(const Databases& db) {
               string(skill) + " past 60 opens something new every few levels, up to " + std::to_string(prev) +
                   " (" + std::to_string(at.size()) + " rungs, widest gap " + std::to_string(widest) + ")");
     }
+    // And Cooking the whole way up: nothing new from 45 to 60 was the widest
+    // hole in any skill that makes things, until the salmon pie at 50 and the
+    // honey-roast goose at 55.
+    {
+        std::set<int> at;
+        for (const ItemDef* r : items.Recipes(CraftStation::Range)) at.insert(r->craft_level);
+        int widest = 0, prev = 0, from = 0;
+        for (int l : at) {
+            if (prev && l - prev > widest) { widest = l - prev; from = prev; }
+            prev = l;
+        }
+        const ItemDef* pie = items.Get("salmon_pie");
+        const ItemDef* goose = items.Get("honey_roast_goose");
+        Check(widest <= 8 && pie && pie->IsDish() && goose && goose->IsDish() && fs::exists(pie->icon) &&
+                  fs::exists(goose->icon),
+              "Cooking opens something at least every eight levels from 1 to 95 (widest " + std::to_string(widest) +
+                  ", from " + std::to_string(from) + ")");
+    }
 
     // --- where the fish are --------------------------------------------------------------------------
     {
         struct Water { const char* map; const char* fish; int level; int spots; };
         const Water waters[] = {{"frost_mere", "raw_frostfin", 68, 4},
                                 {"ashen_path", "raw_cindergill", 78, 4},
+                                {"plateau_terraces", "raw_scaldfin", 84, 4},
                                 {"prim_deeps", "raw_deepgleam", 90, 4}};
         for (const Water& wa : waters) {
             int spots = 0;
@@ -5204,7 +5223,7 @@ static void TestLateGathering(const Databases& db) {
     {
         struct Water { const char* map; const char* fish; int level; };
         for (const Water& wa : {Water{"frost_mere", "raw_frostfin", 68}, Water{"ashen_path", "raw_cindergill", 78},
-                                Water{"prim_deeps", "raw_deepgleam", 90}}) {
+                                Water{"plateau_terraces", "raw_scaldfin", 84}, Water{"prim_deeps", "raw_deepgleam", 90}}) {
             const auto spot = [&](const MapObject& o) {
                 return o.type == "fishing_spot" && std::find(o.fish.begin(), o.fish.end(), wa.fish) != o.fish.end();
             };
