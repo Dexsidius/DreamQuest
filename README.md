@@ -5510,13 +5510,28 @@ and came with protocol 15, as the three before them came with 14.
 **Ambience** is generated live, per map kind, and cross-fades on every map
 change: wind with slow swells and birdsong in the forest, groves and fields;
 a low breathing drone and echoing drips in the mines; a hearth's rumble and
-crackle indoors; a quiet wind on the title screen. At night the birds give way to crickets, and
+crackle indoors; a breath of wind under the theme on the title screen. At night the birds give way to crickets, and
 the dreamworld has three detuned sines drifting against each other under
 far-off chimes. The Primordium has four of its own: in the Deeps the wind
 muffled to a pressure over a low drone and slow drops; in the Firmament nothing
 but the wind, and a great deal of it; in the Tempest wind with a rumble under it
 and the crackle of what is charged; and in the Conflux all of it at once and a
 long way off -- a hum, a chime, a breath of wind.
+
+**The title screen has a theme**, "Hollowmarch, after dark", the game's only
+music and, like everything else, built in code (`theme::Make` in
+`src/systems/audio.cpp`). It is written for an eight-bit console's voices --
+two square waves, one a hummed tune with a vibrato and its own echo across the
+room, the other a plucked arpeggio; a stepped triangle for the bass; noise for
+the drums -- over a slow, swung hip-hop beat at 88 to the minute, in A minor.
+It goes from dusk into the night and out the other side: four bars of chords
+swelling in, eight of the beat and the tune, eight of the hook, higher and
+rounder, and four of daybreak, where the chords turn major and the last bar
+leans back into the night. It plays its dusk once each time the menu opens and
+then loops the rest, about 54 seconds of it, and fades out with the menu's
+ambience when a game starts. Making it takes a few hundred milliseconds, so it
+is made on a thread of its own while the game starts. It rides the Ambience
+volume.
 
 Options has Master, Effects and Ambience volume. With no playback device the
 game runs silently rather than failing.

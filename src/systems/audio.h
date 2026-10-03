@@ -55,6 +55,7 @@ void SetListener(float x, float y);
 
 // "forest", "grove", "town", "overworld", "dungeon", "dream" or "menu"; an
 // interior that is not a dungeon gets a hearth. An empty kind fades to silence.
+// "menu" is the title screen's theme, from its start each time it is set.
 void SetAmbience(const string& kind, bool interior);
 // 0 by day, 1 at night: outdoors the birds fall quiet as it rises and the
 // crickets start.
@@ -63,6 +64,9 @@ void SetVolumes(float master, float sfx, float ambience);
 
 // Offline inspection, used by the self-test.
 const vector<float>& Samples(Sfx s);
+// The menu's theme: stereo samples, interleaved, and the frame it loops to.
+const vector<float>& MenuTheme();
+size_t MenuThemeLoop();
 void Mix(float* stereo, int frames);
 int  ActiveVoices();
 

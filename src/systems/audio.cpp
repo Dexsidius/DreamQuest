@@ -1,4 +1,6 @@
 #include "audio.h"
+#include <atomic>
+#include <thread>
 
 namespace {
 
@@ -659,6 +661,326 @@ Buf MakeCrackle(uint32_t seed) {
     return b;
 }
 
+// --- the main menu's theme --------------------------------------------------------
+//
+// "Hollowmarch, after dark": the title screen's music, written for the game and
+// played on what an eight-bit console had -- two square-wave voices, a stepped
+// triangle for the bass and a noise channel for the drums -- over a slow,
+// swung hip-hop beat. It goes from dusk into the night and out the other side:
+//
+//   bars  0-3   dusk      the chords swell in, an arpeggio, no drums
+//   bars  4-11  night     the beat, and a hummed tune with its own echo
+//   bars 12-19  the hook  the tune again, higher and rounder
+//   bars 20-23  daybreak  the chords turn major, the beat thins, and the
+//                         last bar leans back into the night
+//
+// After the dusk it loops from the night, for as long as the menu is open.
+// Like every other sound it is built from nothing at start-up.
+
+namespace theme {
+
+constexpr float BPM   = 88.0f;
+constexpr float STEP  = 60.0f / BPM / 4.0f;   // a sixteenth, in seconds
+constexpr float SWING = 0.16f;                // the off sixteenths come late by this much of one
+constexpr int   BARS  = 24, LOOP_BAR = 4;
+
+float Hz(int midi) { return 440.0f * std::pow(2.0f, (midi - 69) / 12.0f); }
+float At(int bar, int step) {
+    return (bar * 16 + step) * STEP + ((step & 1) ? STEP * SWING : 0.0f);
+}
+
+// A square wave with its corners rounded off just enough not to alias into
+// a hiss (PolyBLEP), and its DC taken out so a thin one is not lopsided.
+float Blep(float t, float dt) {
+    if (t < dt)        { t /= dt;          return t + t - t * t - 1.0f; }
+    if (t > 1.0f - dt) { t = (t - 1.0f) / dt; return t * t + t + t + 1.0f; }
+    return 0.0f;
+}
+float Pulse(float ph, float dt, float duty) {
+    float v = ph < duty ? 1.0f : -1.0f;
+    v += Blep(ph, dt);
+    float p2 = ph - duty;
+    if (p2 < 0.0f) p2 += 1.0f;
+    v -= Blep(p2, dt);
+    return v - (2.0f * duty - 1.0f);
+}
+// The console's triangle had sixteen steps, which is its buzz.
+float Stepped(float ph) {
+    const float tri = 4.0f * std::fabs(ph - 0.5f) - 1.0f;
+    return std::floor((tri + 1.0f) * 7.5f + 0.5f) / 7.5f - 1.0f;
+}
+
+struct Stereo {
+    Buf s;   // interleaved left, right
+    void Add(size_t frame, float v, float gl, float gr) {
+        if (frame * 2 + 1 >= s.size()) return;
+        s[frame * 2]     += v * gl;
+        s[frame * 2 + 1] += v * gr;
+    }
+};
+void Pan(float pan, float& gl, float& gr) {
+    const float a = (std::clamp(pan, -1.0f, 1.0f) + 1.0f) * 0.25f * 3.14159265f;
+    gl = std::cos(a) * 1.4142f;
+    gr = std::sin(a) * 1.4142f;
+}
+
+struct Square {
+    float duty = 0.25f, amp = 0.15f, pan = 0.0f;
+    float attack = 0.01f, decay = 3.0f, release = 0.06f;
+    float vibrato = 0.0f;   // semitones, after a moment held
+    float scoop = 0.0f;     // semitones below, sliding up into the note: a hum
+    bool  steps = true;     // the volume in sixteen steps, as the console had it
+};
+
+void PlaySquare(Stereo& out, float at, float len, int midi, float vel, const Square& v) {
+    float gl, gr;
+    Pan(v.pan, gl, gr);
+    const float f0 = Hz(midi);
+    const size_t s0 = static_cast<size_t>(at * RATE);
+    const size_t n = static_cast<size_t>((len + v.release) * RATE);
+    // Thousands of notes are built at start-up, so nothing per sample that can
+    // be stepped instead: the decay is multiplied down, and a bend of a third
+    // of a semitone is near enough a straight line in frequency.
+    const float fall = std::exp(-1.0f / (v.decay * RATE));
+    float ph = 0.0f, held = 1.0f;
+    for (size_t i = 0; i < n; ++i) {
+        const float t = static_cast<float>(i) / RATE;
+        float semis = 0.0f;
+        if (v.scoop > 0.0f && t < 0.05f) semis -= v.scoop * (1.0f - t / 0.05f);
+        if (v.vibrato > 0.0f && t > 0.2f)
+            semis += v.vibrato * std::min(1.0f, (t - 0.2f) * 4.0f) * std::sin((t - 0.2f) * TAU * 5.2f);
+        const float f = f0 * (1.0f + semis * 0.0577623f);
+        const float dt = f / RATE;
+        ph += dt;
+        ph -= std::floor(ph);
+        float e;
+        if (t < v.attack) e = t / v.attack;
+        else { e = held; held *= fall; }
+        if (t > len) e *= std::max(0.0f, 1.0f - (t - len) / v.release);
+        if (v.steps) e = std::floor(e * 15.0f + 0.5f) / 15.0f;
+        out.Add(s0 + i, Pulse(ph, dt, v.duty) * e * v.amp * vel, gl, gr);
+    }
+}
+
+void PlayBass(Stereo& out, float at, float len, int midi, float vel) {
+    const float f = Hz(midi);
+    const size_t s0 = static_cast<size_t>(at * RATE);
+    const size_t n = static_cast<size_t>((len + 0.04f) * RATE);
+    float ph = 0.25f;   // where the triangle crosses zero: no click at the start
+    for (size_t i = 0; i < n; ++i) {
+        const float t = static_cast<float>(i) / RATE;
+        ph += f / RATE;
+        ph -= std::floor(ph);
+        float e = std::min(1.0f, t / 0.004f) * (0.75f + 0.25f * std::exp(-t * 4.0f));
+        if (t > len) e *= std::max(0.0f, 1.0f - (t - len) / 0.04f);
+        out.Add(s0 + i, Stepped(ph) * e * 0.30f * vel, 1.0f, 1.0f);
+    }
+}
+
+// The drums, as the console made them: a triangle dropped fast for the kick,
+// noise held at a lower rate for the snare's body, plain noise for the hats.
+void PlayKick(Stereo& out, float at, float vel) {
+    const size_t s0 = static_cast<size_t>(at * RATE);
+    const size_t n = static_cast<size_t>(0.16f * RATE);
+    float ph = 0.25f;
+    for (size_t i = 0; i < n; ++i) {
+        const float t = static_cast<float>(i) / RATE;
+        const float f = 48.0f + 150.0f * std::exp(-t / 0.025f);
+        ph += f / RATE;
+        ph -= std::floor(ph);
+        const float e = std::exp(-t / 0.07f) * std::min(1.0f, (0.16f - t) * 100.0f);
+        out.Add(s0 + i, Stepped(ph) * e * 0.42f * vel, 1.0f, 1.0f);
+    }
+}
+
+void PlayNoise(Stereo& out, float at, float decay, float hold_hz, float amp, float pan,
+               float tone_hz, uint32_t seed) {
+    Noise rng(seed);
+    float gl, gr;
+    Pan(pan, gl, gr);
+    const size_t s0 = static_cast<size_t>(at * RATE);
+    const size_t n = static_cast<size_t>(decay * 5.0f * RATE);
+    const int hold = std::max(1, static_cast<int>(RATE / hold_hz));
+    float held = 0.0f, ph = 0.0f;
+    for (size_t i = 0; i < n; ++i) {
+        const float t = static_cast<float>(i) / RATE;
+        if (i % hold == 0) held = rng.Next() > 0.0f ? 1.0f : -1.0f;
+        float v = held;
+        if (tone_hz > 0.0f) {
+            ph += tone_hz * (1.0f - 0.3f * std::min(1.0f, t / 0.06f)) / RATE;
+            ph -= std::floor(ph);
+            v = v * 0.7f + Stepped(ph) * 0.6f * std::exp(-t / 0.04f);
+        }
+        const float e = std::floor(std::exp(-t / decay) * 15.0f + 0.5f) / 15.0f;
+        out.Add(s0 + i, v * e * amp, gl, gr);
+    }
+}
+
+struct Chord { int bass; int tones[4]; };
+
+Buf Make() {
+    // The night: Am7, Dm9, Fmaj7, E7 -- the last one's G sharp is what pulls
+    // it round again. Daybreak: Fmaj7, G, Cmaj7, and E7 to fall back in.
+    static const Chord night[4] = {
+        {45, {57, 60, 64, 67}}, {38, {57, 60, 62, 65}}, {41, {57, 60, 64, 65}}, {40, {56, 59, 62, 64}},
+    };
+    static const Chord day[4] = {
+        {41, {57, 60, 64, 65}}, {43, {55, 59, 62, 67}}, {48, {55, 59, 60, 64}}, {40, {56, 59, 62, 64}},
+    };
+    auto chord = [&](int bar) -> const Chord& { return bar >= 20 ? day[bar - 20] : night[bar % 4]; };
+
+    // The tune: {bar, step, sixteenths long, note}.
+    struct N { int bar, step, len, note; };
+    static const N verse[] = {
+        {0, 4, 2, 76}, {0, 6, 2, 79}, {0, 8, 6, 81}, {0, 14, 2, 79},
+        {1, 0, 4, 76}, {1, 4, 2, 74}, {1, 6, 4, 72}, {1, 10, 6, 69},
+        {2, 4, 2, 72}, {2, 6, 2, 76}, {2, 8, 4, 77}, {2, 12, 2, 76}, {2, 14, 2, 72},
+        {3, 0, 6, 71}, {3, 6, 2, 74}, {3, 8, 8, 68},
+        {4, 0, 2, 69}, {4, 2, 2, 72}, {4, 4, 4, 76}, {4, 8, 2, 81}, {4, 10, 2, 83}, {4, 12, 4, 84},
+        {5, 0, 2, 83}, {5, 2, 4, 81}, {5, 6, 2, 77}, {5, 8, 4, 76}, {5, 12, 4, 74},
+        {6, 0, 6, 72}, {6, 6, 2, 69}, {6, 8, 2, 72}, {6, 10, 6, 76},
+        {7, 0, 4, 74}, {7, 4, 4, 71}, {7, 8, 4, 68}, {7, 12, 4, 64},
+    };
+    static const N hook[] = {
+        {0, 0, 12, 81}, {0, 12, 4, 79},
+        {1, 0, 8, 77}, {1, 8, 4, 76}, {1, 12, 4, 74},
+        {2, 0, 12, 76}, {2, 12, 4, 72},
+        {3, 0, 8, 71}, {3, 8, 4, 74}, {3, 12, 4, 80},
+        {4, 0, 6, 81}, {4, 6, 2, 84}, {4, 8, 4, 83}, {4, 12, 4, 81},
+        {5, 0, 6, 77}, {5, 6, 2, 81}, {5, 8, 4, 79}, {5, 12, 4, 77},
+        {6, 0, 8, 76}, {6, 8, 2, 79}, {6, 10, 2, 76}, {6, 12, 4, 72},
+        {7, 0, 8, 71},
+    };
+    static const N dawn[] = {
+        {0, 0, 8, 76}, {0, 8, 4, 77}, {0, 12, 4, 79},
+        {1, 0, 12, 74}, {1, 12, 4, 71},
+        {2, 0, 6, 76}, {2, 6, 2, 79}, {2, 8, 8, 84},
+        {3, 0, 4, 83}, {3, 4, 4, 80}, {3, 8, 8, 76},
+    };
+
+    const float length = BARS * 16 * STEP;
+    const float tail = 2.0f;
+    Stereo out;
+    out.s.assign(static_cast<size_t>((length + tail) * RATE) * 2, 0.0f);
+
+    // --- the chords, swelling, under the dusk and the daybreak -----------------
+    Square pad;
+    pad.duty = 0.5f; pad.amp = 0.035f; pad.attack = 0.6f; pad.decay = 6.0f; pad.release = 0.5f;
+    for (int bar = 0; bar < BARS; ++bar) {
+        if (bar >= LOOP_BAR && bar < 20) continue;
+        const Chord& c = chord(bar);
+        pad.duty = bar >= 20 ? 0.25f : 0.5f;
+        for (int k = 0; k < 4; ++k) {
+            pad.pan = -0.4f + 0.27f * k;
+            PlaySquare(out, At(bar, 0), 16 * STEP - 0.1f, c.tones[k], bar < LOOP_BAR ? 0.6f + 0.13f * bar : 0.9f, pad);
+        }
+    }
+
+    // --- the arpeggio: chord tones an octave up, a thin square plucked ---------
+    static const int arp[16] = {0, 2, 1, 3, 2, 1, 3, 2, 0, 2, 1, 3, 2, 3, 1, 2};
+    Square pluck;
+    pluck.duty = 0.125f; pluck.amp = 0.075f; pluck.attack = 0.003f; pluck.decay = 0.09f;
+    pluck.release = 0.03f; pluck.pan = 0.35f;
+    for (int bar = 0; bar < BARS; ++bar) {
+        const Chord& c = chord(bar);
+        const float vel = bar < LOOP_BAR ? 0.35f + 0.18f * bar : (bar >= 12 && bar < 20 ? 0.95f : 0.8f);
+        for (int s = 0; s < 16; ++s) {
+            const float accent = (s % 4 == 0) ? 1.0f : 0.78f;
+            PlaySquare(out, At(bar, s), STEP * 0.9f, c.tones[arp[s]] + 12, vel * accent, pluck);
+        }
+    }
+
+    // --- the bass: a bounce on the root, the fifth, the octave -----------------
+    for (int bar = 0; bar < BARS; ++bar) {
+        const int root = chord(bar).bass;
+        if (bar < LOOP_BAR) { PlayBass(out, At(bar, 0), 16 * STEP - 0.05f, root, 0.55f + 0.1f * bar); continue; }
+        if (bar >= 20) {
+            PlayBass(out, At(bar, 0), 6 * STEP, root, 0.9f);
+            PlayBass(out, At(bar, 8), 6 * STEP, root + 7, 0.75f);
+            continue;
+        }
+        PlayBass(out, At(bar, 0), 4 * STEP, root, 1.0f);
+        PlayBass(out, At(bar, 6), 2 * STEP, root, 0.8f);
+        PlayBass(out, At(bar, 8), 3 * STEP, root + 7, 0.85f);
+        PlayBass(out, At(bar, 11), 1 * STEP, root, 0.7f);
+        PlayBass(out, At(bar, 14), 2 * STEP, root + 12, 0.75f);
+    }
+
+    // --- the drums ---------------------------------------------------------------
+    uint32_t seed = 7001;
+    for (int bar = LOOP_BAR - 1; bar < BARS; ++bar) {
+        if (bar == LOOP_BAR - 1) {
+            // The dusk's last beat: a snare roll into the night.
+            for (int s = 12; s < 16; ++s)
+                PlayNoise(out, At(bar, s), 0.035f, 9000.0f, 0.10f + 0.04f * (s - 12), 0.0f, 190.0f, seed++);
+            continue;
+        }
+        const bool dawn_bar = bar >= 20;
+        const bool hook_bar = bar >= 12 && bar < 20;
+        if (dawn_bar) {
+            PlayKick(out, At(bar, 0), 0.85f);
+            PlayNoise(out, At(bar, 8), 0.05f, 9000.0f, 0.16f, 0.0f, 180.0f, seed++);
+            for (int s = 0; s < 16; s += 4) PlayNoise(out, At(bar, s), 0.012f, RATE, 0.035f, -0.3f, 0.0f, seed++);
+            continue;
+        }
+        PlayKick(out, At(bar, 0), 1.0f);
+        PlayKick(out, At(bar, 7), 0.75f);
+        PlayKick(out, At(bar, 10), 0.9f);
+        PlayNoise(out, At(bar, 4), 0.05f, 9000.0f, 0.20f, 0.0f, 180.0f, seed++);
+        PlayNoise(out, At(bar, 12), 0.05f, 9000.0f, 0.20f, 0.0f, 180.0f, seed++);
+        for (int s = 0; s < 16; s += hook_bar ? 1 : 2) {
+            const bool open = (s == 14) && (bar % 4 == 3);
+            const float amp = (s % 2 == 0 ? 0.05f : 0.026f) * (s % 4 == 2 ? 1.15f : 1.0f);
+            PlayNoise(out, At(bar, s), open ? 0.06f : 0.011f, RATE, open ? 0.045f : amp, -0.3f, 0.0f, seed++);
+        }
+        if (bar % 8 == 7) PlayNoise(out, At(bar, 15), 0.03f, 9000.0f, 0.10f, 0.0f, 200.0f, seed++);
+    }
+
+    // --- the tune, hummed, with its echo across the room -----------------------
+    Square hum;
+    hum.amp = 0.13f; hum.attack = 0.03f; hum.decay = 2.5f; hum.release = 0.09f;
+    hum.vibrato = 0.22f; hum.scoop = 0.35f; hum.pan = -0.15f;
+    Square echo = hum;
+    echo.scoop = 0.0f; echo.pan = 0.55f;
+    auto sing = [&](const N* tune, size_t count, int first_bar, float duty, float vel) {
+        hum.duty = echo.duty = duty;
+        for (size_t i = 0; i < count; ++i) {
+            const N& n = tune[i];
+            const int bar = first_bar + n.bar;
+            const float at = At(bar, n.step), len = n.len * STEP - 0.02f;
+            PlaySquare(out, at, len, n.note, vel, hum);
+            PlaySquare(out, at + 3 * STEP, len, n.note, vel * 0.30f, echo);
+        }
+    };
+    sing(verse, std::size(verse), 4, 0.25f, 1.0f);
+    sing(hook, std::size(hook), 12, 0.5f, 1.0f);
+    sing(dawn, std::size(dawn), 20, 0.25f, 0.85f);
+
+    // --- the loop: what rings past the end carries on over the night's start ---
+    const size_t frames = static_cast<size_t>(length * RATE);
+    const size_t loop = static_cast<size_t>(At(LOOP_BAR, 0) * RATE);
+    for (size_t i = frames * 2; i < out.s.size(); ++i) out.s[loop * 2 + (i - frames * 2)] += out.s[i];
+    out.s.resize(frames * 2);
+
+    // The console's own output: no DC, and nothing much above 12 kHz.
+    float hp[2] = {0, 0}, lp[2] = {0, 0}, peak = 0.0f;
+    const float c_hp = Coef(30.0f), c_lp = Coef(12000.0f);
+    for (size_t i = 0; i < out.s.size(); ++i) {
+        float& v = out.s[i];
+        const int ch = static_cast<int>(i & 1);
+        hp[ch] += (v - hp[ch]) * c_hp;
+        lp[ch] += ((v - hp[ch]) - lp[ch]) * c_lp;
+        v = lp[ch];
+        peak = std::max(peak, std::fabs(v));
+    }
+    if (peak > 0.0f) for (float& v : out.s) v *= 0.42f / peak;
+    return out.s;
+}
+
+size_t LoopFrame() { return static_cast<size_t>(At(LOOP_BAR, 0) * RATE); }
+
+}  // namespace theme
+
 // --- mixer state --------------------------------------------------------------------
 
 struct Voice {
@@ -679,6 +1001,8 @@ struct Profile {
     // The dream: a slow shimmering chord, and chimes.
     float pad = 0.0f;
     float chime_lo = 0.0f, chime_hi = 0.0f;
+    // The main menu's theme, at this level.
+    float music = 0.0f;
 };
 
 struct State {
@@ -688,6 +1012,15 @@ struct State {
 
     vector<Buf> bank;
     vector<Buf> birds, drips, crackles, crickets, chimes;
+    // The menu's theme takes a few hundred milliseconds to make, so it is made
+    // on a thread of its own while the game starts, and the mixer leaves it
+    // alone until it is ready. Written once, by that thread, before `ready`.
+    Buf theme;                     // stereo, interleaved
+    size_t theme_loop = 0;         // the frame it goes back to
+    std::thread theme_maker;
+    std::atomic<bool> theme_ready{false};
+    void ThemeMade() { if (theme_maker.joinable()) theme_maker.join(); }
+    ~State() { ThemeMade(); }
 
     static constexpr int VOICES = 32;
     Voice voices[VOICES];
@@ -696,7 +1029,9 @@ struct State {
     float master = 0.8f, sfx = 1.0f, amb = 0.8f;
 
     Profile target;
-    float wind_g = 0.0f, drone_g = 0.0f, fire_g = 0.0f, cut_g = 1.0f, pad_g = 0.0f;
+    float wind_g = 0.0f, drone_g = 0.0f, fire_g = 0.0f, cut_g = 1.0f, pad_g = 0.0f, music_g = 0.0f;
+    size_t theme_pos = 0;
+    bool theme_on = false;         // playing, or still fading out
     float bird_timer = 2.0f, drip_timer = 3.0f, crackle_timer = 0.5f;
     float cricket_timer = 1.0f, chime_timer = 1.5f;
     float night = 0.0f;
@@ -724,6 +1059,11 @@ void Build() {
     for (uint32_t i = 0; i < 8; ++i)  g.crackles.push_back(MakeCrackle(3000 + i * 71));
     for (uint32_t i = 0; i < 6; ++i)  g.crickets.push_back(MakeCricket(4000 + i * 29));
     for (uint32_t i = 0; i < 8; ++i)  g.chimes.push_back(MakeChime(5000 + i * 41));
+    g.theme_maker = std::thread([] {
+        g.theme = theme::Make();
+        g.theme_loop = theme::LoopFrame();
+        g.theme_ready.store(true, std::memory_order_release);
+    });
     g.built = true;
 }
 
@@ -786,11 +1126,13 @@ bool Init() {
 
 bool InitOffline() {
     Build();
+    g.ThemeMade();
     g.enabled = true;
     return true;
 }
 
 void Shutdown() {
+    g.ThemeMade();
     if (g.stream) {
         SDL_DestroyAudioStream(g.stream);
         g.stream = nullptr;
@@ -885,7 +1227,9 @@ void SetAmbience(const string& kind, bool interior) {
         p.pad = 0.06f;
         p.chime_lo = 1.5f; p.chime_hi = 5.0f;
     } else if (kind == "menu") {
-        p.wind = 0.10f; p.wind_cut = 0.8f; p.bird_lo = 6.0f; p.bird_hi = 14.0f;
+        // The theme, with a breath of wind and the odd bird behind it.
+        p.music = 1.0f;
+        p.wind = 0.05f; p.wind_cut = 0.8f; p.bird_lo = 9.0f; p.bird_hi = 20.0f;
     } else if (!kind.empty()) {
         p.wind = 0.17f; p.wind_cut = 1.2f; p.bird_lo = 4.0f; p.bird_hi = 11.0f;
     }
@@ -908,6 +1252,18 @@ void SetVolumes(float master, float sfx, float ambience) {
 const vector<float>& Samples(Sfx s) {
     Build();
     return g.bank[std::min(static_cast<size_t>(s), g.bank.size() - 1)];
+}
+
+const vector<float>& MenuTheme() {
+    Build();
+    g.ThemeMade();
+    return g.theme;
+}
+
+size_t MenuThemeLoop() {
+    Build();
+    g.ThemeMade();
+    return g.theme_loop;
 }
 
 int ActiveVoices() {
@@ -946,6 +1302,7 @@ void Mix(float* out, int frames) {
 
     const float sfx_bus = g.master * g.sfx;
     const float amb_bus = g.master * g.amb;
+    const bool theme_ready = g.theme_ready.load(std::memory_order_acquire);
     constexpr float SMOOTH = 1.0f / (0.8f * RATE);   // layers fade over most of a second
 
     for (int i = 0; i < frames; ++i) {
@@ -954,6 +1311,7 @@ void Mix(float* out, int frames) {
         g.fire_g  += (t.fire - g.fire_g) * SMOOTH;
         g.cut_g   += (t.wind_cut - g.cut_g) * SMOOTH;
         g.pad_g   += (t.pad - g.pad_g) * SMOOTH;
+        g.music_g += (t.music - g.music_g) * SMOOTH;
 
         float l = 0.0f, r = 0.0f;
 
@@ -996,6 +1354,17 @@ void Mix(float* out, int frames) {
             const float a = std::sin(g.pad_a * TAU), b = std::sin(g.pad_b * TAU), c = std::sin(g.pad_c * TAU);
             l += (a * 0.5f + b * 0.35f + c * 0.15f) * swell * g.pad_g;
             r += (a * 0.4f + b * 0.25f + c * 0.35f) * swell * g.pad_g;
+        }
+
+        // The menu's theme: from the dusk each time the menu opens, then round
+        // and round the night; it fades out with everything else.
+        if (theme_ready && !g.theme.empty() && (t.music > 0.0f || g.music_g > 0.0005f)) {
+            if (!g.theme_on) { g.theme_on = true; g.theme_pos = 0; }
+            l += g.theme[g.theme_pos * 2] * g.music_g;
+            r += g.theme[g.theme_pos * 2 + 1] * g.music_g;
+            if (++g.theme_pos * 2 >= g.theme.size()) g.theme_pos = g.theme_loop;
+        } else {
+            g.theme_on = false;
         }
 
         // A hearth: a low rumble under the crackles.

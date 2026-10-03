@@ -96,6 +96,52 @@ struct Databases {
     StatusDatabase& statuses; SpellBook& spells; SkillTrees& trees;
 };
 
+// The title screen's theme: made with every other sound, long enough to be
+// music, playing its opening once and then looping, as loud as the ambience it
+// plays under and never clipping -- and gone once the menu is left.
+static void TestMenuTheme() {
+    Section("the main menu's theme");
+    Audio::InitOffline();
+    const vector<float>& t = Audio::MenuTheme();
+    const size_t frames = t.size() / 2, loop = Audio::MenuThemeLoop();
+    float peak = 0.0f;
+    double energy = 0.0;
+    bool finite = true;
+    for (float v : t) { peak = std::max(peak, std::fabs(v)); energy += double(v) * v; finite &= std::isfinite(v); }
+    const float rms = t.empty() ? 0.0f : static_cast<float>(std::sqrt(energy / t.size()));
+    Check(t.size() % 2 == 0 && frames > 44100u * 40u,
+          "the menu has a theme, and it runs past forty seconds (" + std::to_string(frames / 44100) + " s)");
+    Check(loop > 0 && loop + 44100u * 30u < frames, "it plays its opening once, then loops half a minute or more of itself");
+    Check(finite, "the theme has no NaN or infinity");
+    Check(peak > 0.2f && peak <= 0.5f, "it is music, and well under clipping (peak " + std::to_string(peak) + ")");
+    Check(rms > 0.03f, "and it is not mostly silence");
+    if (frames > loop && loop > 0) {
+        const float seam = std::max(std::fabs(t[(frames - 1) * 2] - t[loop * 2]),
+                                    std::fabs(t[(frames - 1) * 2 + 1] - t[loop * 2 + 1]));
+        Check(seam < 0.1f, "where it loops there is no click (" + std::to_string(seam) + ")");
+    }
+
+    // Played: the menu's ambience sounds it, and leaving the menu fades it out.
+    auto mix = [](float seconds, float measure_from) {
+        vector<float> out(512 * 2);
+        double e = 0.0;
+        long n = 0;
+        for (int f = 0; f < static_cast<int>(44100 * seconds); f += 512) {
+            Audio::Mix(out.data(), 512);
+            if (f < 44100 * measure_from) continue;
+            for (float v : out) { e += double(v) * v; ++n; }
+        }
+        return n ? static_cast<float>(std::sqrt(e / n)) : 0.0f;
+    };
+    Audio::SetVolumes(0.8f, 1.0f, 0.8f);
+    Audio::SetAmbience("menu", false);
+    const float playing = mix(14.0f, 11.0f);   // past the dusk, into the beat
+    Check(playing > 0.02f, "the main menu plays it (" + std::to_string(playing) + ")");
+    Audio::SetAmbience("", false);
+    const float after = mix(5.0f, 4.0f);
+    Check(after < 0.003f, "and it fades away when the menu is left (" + std::to_string(after) + ")");
+}
+
 static void TestRewardChoices(const Databases& db) {
     SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
     LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
@@ -24247,6 +24293,7 @@ int main(int argc, char** argv) {
     TestLateGathering(db);
     TestMapsAndMonsters(db);
     TestDreamLands(db);
+    TestMenuTheme();
 
     Section("the Brimstone Palace, and its king");
     {
