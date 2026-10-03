@@ -6168,7 +6168,8 @@ copper and Wendel's pike, are now in these books.
   dreamcatcher.
 
 The **Dreamer's Slate** stands on the Reverie's central island and carries the
-reverie dailies. The hunts can only be finished asleep, before the dream ends
+reverie dailies, and every night the bounties on the dream lands: see
+[Bounties on the Dreamer's Slate](#bounties-on-the-dreamers-slate). The hunts can only be finished asleep, before the dream ends
 at dawn; the shards for Mira are gathered in the Reverie and handed in awake.
 
 ### Side quests in the new country
@@ -7687,9 +7688,72 @@ of it. It is a fourth depth of the dream, so it pays three extra shards a kill.
   Spring), with a second on half the nights. They are the real
   bosses, not dreams of them: **every kill counts toward that boss's totem**,
   so the fifteen kills a totem takes can be had at night as well as by day.
+- **Four more mirrors** stand in a row beside the one you came through, along
+  the west end of the square, each into one of [the dream lands](#the-dream-lands).
+  The stall, the log pile and the tanner's racks that stood there are not in
+  this dream.
 - It was made from the town itself: `BuildDreamHavenbrook` copies the finished
   Havenbrook map, takes its people, doors and beasts out and puts its dream
   in, so the one cannot drift from the other.
+
+### The dream lands
+
+Each of the four mirrors beside Havenbrook's looks out on somewhere else the
+dream has got into: a waking map as a nightmare has it -- the same ground and
+walls, nobody in it, nothing that opens -- overrun by something that does not
+live there, and all of it seventy levels strong and more.
+
+| Through the mirror | Overrun by | Levels | Its mirror warns |
+| --- | --- | --- | --- |
+| **The College, dreaming** -- the court at Fernhollow | the Bayou's own: lizardmen, croakers, rot shamblers, fen stalkers, swamp hags, lizard shamans | 70-80 | Combat 70 |
+| **The Ashen Path, dreaming** | dragons of all five elements -- basalt, pyre, brine, gale and storm -- and demons, greater demons and abyssal demons, stampeding the road | 80-89 | Combat 80 |
+| **The Plateau, dreaming** -- the Stronghold | the crypt come up out of Hollowrest: bone knights, blood thralls, nosferatu and crypt wardens, and by the fort bone colossi, **Ashen Lords** and cerberuses | 80-95 | Combat 80 |
+| **The Bayou, dreaming** | the Primordium's elementals: ember, stone, tide, gale and storm conjures, and their greater kin | 90-95 | Combat 90 |
+
+- **Harder the further in.** A land is a lattice of posts, each block of them
+  one kind a night (as everywhere, `World::ResolveSpawn`): the part nearer the
+  mirror is held by the land's weaker kinds, the part beyond by its stronger.
+  You come in by the land's own way in -- the College's gate, the west end of
+  the Ashen Path, the road up to the Stronghold, the Bayou's east bank -- with
+  a waking stone and a voice beside the mirror, and nothing within a few
+  strides of it.
+- **Every kind is its own monster**, made for its level: `dream_<land>_<kind>`
+  in `data/enemies.json`, the waking one's stat block with every fighting
+  number grown by one factor until it *shows* its level -- its hit points by
+  that factor too, not its square, or a lizardman at seventy had a boss's
+  pool. A night moves a post up one level at most, so nothing leaves its band.
+  Each is tinted, leaves a shard and its land's loot -- lizard scale and
+  platinum in the College; demonite, horns and wyvern scale on the Ashen Path;
+  grave candles, demonite and dracon on the Plateau, where the colossi, Ashen
+  Lords and cerberuses have a richer table of their own; and in the Bayou each
+  element's own core. None is a boss: a cerberus in a pack has half a boss's
+  pool, and an Ashen Lord is Lord Ashcroft without his crypt.
+- A **fifth depth** of the dream: four extra shards a kill. You cannot die in
+  it, and it ends at dawn.
+- Made the way Havenbrook's was: `BuildDreamLand` in genmaps copies the
+  finished waking map, takes out its people, doors and beasts (`Dreamt`),
+  clears the clutter from round where the mirror stands, and puts the dream
+  in.
+
+#### Bounties on the Dreamer's Slate
+
+Every night the Slate in the Reverie posts **bounties** on the lands: up to
+**three a land**, twelve a night, each on a kind that is out there tonight in
+at least the numbers it asks for -- three or four of most kinds, two of an
+Ashen Lord, a colossus or a cerberus. Which kinds are out is worked out from
+the land's map and the night alone (`World::DreamBounties`), so nobody has to
+have been there, and in a game together everyone's Slate posts the same ones.
+
+- A bounty is **for that night**. Taken and not finished by dawn, it lapses --
+  the monsters it was for are not there the next night -- and you are told
+  when you wake. Finished, it pays coins, dream shards and Hitpoints XP at
+  once, and a choice of **Attack and Strength, Ranged or Magic** experience,
+  your own way of fighting lit first -- all by the bounty's level and count.
+- The Slate lists everything from the easiest down, and scrolls. **L** (RT on
+  a pad) switches it to **only what is within ten levels of your Combat**,
+  either way, and back. A bounty's level is green within that, red above it
+  and grey below, and the filter stays as it was left from one board to the
+  next.
 
 ## Monsters
 

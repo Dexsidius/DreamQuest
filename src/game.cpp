@@ -456,6 +456,15 @@ int Game::Start(int argc, char** argv) {
                 else if (what == "storage")   { storage_id = "scratch"; storage_title = "Storage chest"; storage_slots = 100;
                                                 storage_cursor = storage_bag_cursor = 0; storage_on_chest = false; OpenPanel(GameState::Storage); }
                 else if (what == "orders")    OpenOrders(arg, arg);
+                else if (what == "board")     {
+                    // As if it were used: its title and what is pinned to it
+                    // from the map, when it is on the one stood on.
+                    string title = arg;
+                    vector<string> pinned;
+                    for (const MapObject& o : world->map.Objects())
+                        if (o.id == arg) { title = o.title.empty() ? "Mission Board" : o.title; pinned = o.quests; }
+                    OpenBoard(arg, title, pinned);
+                }
                 else if (what == "character") SetState(GameState::CharacterSelect);
                 else if (what == "load")      { SetState(GameState::LoadMenu);
                                                 if (arg == "multi") slot_tab = SaveKind::Multi; }
@@ -1130,6 +1139,10 @@ void Game::UpdatePlay(float dt) {
     world->shops.SetDay(world->clock.QuestDay());
     if (quest_day_seen >= 0 && world->clock.QuestDay() > quest_day_seen)
         PushToast("New notices are up, and the traders have restocked.", Palette::Xp);
+    if (const int lapsed = quests->TakeLapsed(); lapsed > 0)
+        PushToast(lapsed == 1 ? string("A bounty you had not finished lapsed at dawn.")
+                              : std::to_string(lapsed) + " bounties you had not finished lapsed at dawn.",
+                  Palette::TextDim, 5.0f);
     quest_day_seen = world->clock.QuestDay();
 
     // As a guest, the hands are read here, quantised, and sent as they were
@@ -1347,17 +1360,7 @@ void Game::HandleWorldRequests() {
                 break;
             }
             case WorldRequest::Type::Board:
-                board_orders = false;
-                board_title  = r.title;
-                board_quests = r.list;
-                // Anything whose giver is this board is pinned to it too:
-                // that is how the rotating dailies get posted.
-                for (const auto& kv : quests->Definitions())
-                    if (kv.second.giver == r.id &&
-                        std::find(board_quests.begin(), board_quests.end(), kv.first) == board_quests.end())
-                        board_quests.push_back(kv.first);
-                board_cursor = 0;
-                OpenPanel(GameState::Board);
+                OpenBoard(r.id, r.title, r.list);
                 break;
 
             case WorldRequest::Type::Note:
@@ -1539,6 +1542,28 @@ void Game::GiveRewards(const map<int, int>& xp, const vector<pair<string, int>>&
             world->DropItem(item.first, item.second - added, p.x, p.y + 6.0f, ctx);
         }
     }
+}
+
+void Game::OpenBoard(const string& id, const string& title, const vector<string>& pinned) {
+    board_orders = false;
+    board_title  = title;
+    board_quests = pinned;
+    // Anything whose giver is this board is pinned to it too: that is how the
+    // rotating dailies get posted.
+    for (const auto& kv : quests->Definitions())
+        if (kv.second.giver == id &&
+            std::find(board_quests.begin(), board_quests.end(), kv.first) == board_quests.end())
+            board_quests.push_back(kv.first);
+    // A board with bounties posts tonight's: what is out on the dream lands
+    // is worked out once a night.
+    if (quests->BountiesDay() != quests->Today())
+        for (const auto& kv : quests->Definitions())
+            if (kv.second.bounty && kv.second.giver == id) {
+                quests->PostBounties(quests->Today(), World::DreamBounties(*quests, quests->Today()));
+                break;
+            }
+    board_cursor = 0;
+    OpenPanel(GameState::Board);
 }
 
 void Game::GrantQuestRewards(const string& quest_id) {

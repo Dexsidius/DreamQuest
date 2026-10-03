@@ -87,6 +87,11 @@ struct QuestDef {
     // How many of its pool are posted a day; 0 means DAILY_PER_POOL. A pool
     // posts the largest number any of its quests asks for.
     int    posts = 0;
+    // A bounty: a daily the Dreamer's Slate posts only on a night the kind it
+    // names is out on its dream land in the numbers it asks for (World::
+    // DreamBounties), in no pool's turn, and which lapses at dawn if it is not
+    // done -- the monsters it was for are not there the next night.
+    bool   bounty = false;
     vector<string> prerequisites; // quest ids that must be complete first
     vector<QuestStage> stages;
     QuestRewards rewards;
@@ -103,6 +108,7 @@ struct QuestProgress {
     int stage = 0;
     int counter = 0;          // progress within the current stage
     int completed_day = -1;   // the quest day it was last finished on
+    int started_day = -1;     // and the one it was last taken on
     int completions = 0;
     // A quest with reward choices owes one pick each time it is finished,
     // kept in the save until it is made, so putting it off costs nothing.
@@ -132,9 +138,22 @@ public:
 
     bool LoadDefinitions(const string& path);
 
-    // The quest day, from the world clock; dailies reset when it changes.
-    void SetDay(int day) { today = day; }
+    // The quest day, from the world clock; dailies reset when it changes, and
+    // a bounty taken on an earlier day lapses.
+    void SetDay(int day);
     int  Today() const { return today; }
+    // Bounties that lapsed since this was last asked, for the player to be told.
+    int  TakeLapsed() { const int n = lapsed; lapsed = 0; return n; }
+
+    // The bounties posted on `day`, as World::DreamBounties worked them out:
+    // the only ones a board offers that day, besides any already taken.
+    void PostBounties(int day, const vector<string>& ids);
+    int  BountiesDay() const { return bounty_day; }
+    // Whether a quest of `level` is within reach of a character of `combat`:
+    // no more than LEVEL_RANGE levels either way of it. A board can be set to
+    // show only those.
+    static constexpr int LEVEL_RANGE = 10;
+    static bool InRange(int level, int combat) { return std::abs(level - combat) <= LEVEL_RANGE; }
     // The dailies a pool posts today: the same few all day, different ones on
     // other days, chosen from the pool by the day number. Given the player's
     // skills, a quest they could not take yet is passed over for the next one
@@ -252,6 +271,13 @@ private:
     vector<string> just_completed;
     vector<string> just_started;
     int today = 1;
+    // Tonight's bounties, and the day they are for.
+    std::set<string> bounties;
+    int  bounty_day = -1;
+    int  lapsed = 0;
+    // A journal just read in has not had its bounties looked at: the next
+    // SetDay does, whatever day it is.
+    bool sweep = false;
     string followed;
     bool   chosen = false;
     vector<string> taken_order;      // quests in the order they were taken, oldest first

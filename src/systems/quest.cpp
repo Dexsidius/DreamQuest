@@ -55,6 +55,8 @@ bool QuestLog::LoadDefinitions(const string& path) {
                 if (s >= 0) d.requirements[s] = r.value().get<int>();
             }
         d.daily = o.value("repeat", string("")) == "daily";
+        d.bounty = o.value("bounty", false);
+        if (d.bounty) d.daily = true;
         // Whatever the file says, nothing off a board and nothing repeatable
         // is a story quest: those are what the side tab exists for.
         if (d.source == QuestSource::Board || d.daily) { d.major = false; d.tutorial = false; }
@@ -148,10 +150,32 @@ int QuestLog::Counter(const string& id) const {
     return it == progress.end() ? 0 : it->second.counter;
 }
 
+void QuestLog::SetDay(int day) {
+    if (day == today && !sweep) return;
+    today = day;
+    sweep = false;
+    // A bounty is for one night's monsters, and they are not there the next:
+    // whatever of one was not done lapses at dawn. How many times it has been
+    // done stays, and a reward from one finished is still owed.
+    for (auto& [id, p] : progress) {
+        const QuestDef* d = Definition(id);
+        if (!d || !d->bounty || p.status != QuestStatus::Active || p.started_day >= today) continue;
+        p.status  = QuestStatus::NotStarted;
+        p.stage   = 0;
+        p.counter = 0;
+        ++lapsed;
+    }
+}
+
+void QuestLog::PostBounties(int day, const vector<string>& ids) {
+    bounty_day = day;
+    bounties = std::set<string>(ids.begin(), ids.end());
+}
+
 int QuestLog::PostsPerDay(const string& pool) const {
     int posts = 0;
     for (const auto& kv : defs)
-        if (kv.second.daily && kv.second.pool == pool) posts = std::max(posts, kv.second.posts);
+        if (kv.second.daily && !kv.second.bounty && kv.second.pool == pool) posts = std::max(posts, kv.second.posts);
     return posts > 0 ? posts : DAILY_PER_POOL;
 }
 
@@ -167,7 +191,7 @@ bool QuestLog::MeetsRequirements(const QuestDef& d, const Skills& skills) const 
 vector<string> QuestLog::PoolToday(const string& pool, const Skills* skills) const {
     vector<string> members;
     for (const auto& kv : defs)
-        if (kv.second.daily && kv.second.pool == pool) members.push_back(kv.first);
+        if (kv.second.daily && !kv.second.bounty && kv.second.pool == pool) members.push_back(kv.first);
     std::sort(members.begin(), members.end());
 
     // Shuffle the pool with the day and the pool's name as the seed, and post
@@ -238,6 +262,7 @@ bool QuestLog::OfferedToday(const string& id, const Skills* skills) const {
     const QuestDef* d = Definition(id);
     if (!d || !d->daily) return true;
     if (Status(id) == QuestStatus::Active) return true;
+    if (d->bounty) return bounty_day == today && bounties.count(id) > 0;
     const vector<string> posted = PoolToday(d->pool, skills);
     return std::find(posted.begin(), posted.end(), id) != posted.end();
 }
@@ -298,13 +323,15 @@ bool QuestLog::Start(const string& id) {
     if (st != QuestStatus::NotStarted && !again) return false;
 
     QuestProgress p;
-    if (again) {
-        p.completions = progress[id].completions;
-        p.completed_day = progress[id].completed_day;
-        // A pick still owed from the last time is owed yet.
-        p.owed = progress[id].owed;
-        p.chosen = progress[id].chosen;
+    // Taken before -- done, or a bounty that lapsed -- it keeps its count of
+    // times done, and a pick still owed from the last time is owed yet.
+    if (const auto before = progress.find(id); before != progress.end()) {
+        p.completions = before->second.completions;
+        p.completed_day = before->second.completed_day;
+        p.owed = before->second.owed;
+        p.chosen = before->second.chosen;
     }
+    p.started_day = today;
     p.status  = QuestStatus::Active;
     p.stage   = 0;
     p.counter = d->stages.empty() ? 0 : d->stages.front().start;
@@ -572,6 +599,7 @@ json QuestLog::ToJson() const {
             {"counter", kv.second.counter},
             {"completed_day", kv.second.completed_day},
             {"completions", kv.second.completions}};
+        if (kv.second.started_day >= 0) q["started_day"] = kv.second.started_day;
         // Only where there is a choice to speak of.
         if (kv.second.owed > 0)    q["owed"] = kv.second.owed;
         if (kv.second.chosen >= 0) q["chosen"] = kv.second.chosen;
@@ -605,6 +633,7 @@ void QuestLog::FromJson(const json& j) {
         p.stage   = it.value().value("stage", 0);
         p.counter = it.value().value("counter", 0);
         p.completed_day = it.value().value("completed_day", -1);
+        p.started_day = it.value().value("started_day", -1);
         p.completions = it.value().value("completions", p.status == QuestStatus::Complete ? 1 : 0);
         p.owed    = std::max(0, it.value().value("owed", 0));
         p.chosen  = it.value().value("chosen", -1);
@@ -618,4 +647,5 @@ void QuestLog::FromJson(const json& j) {
             Status(kv.second.then) == QuestStatus::NotStarted)
             follow_ups.push_back(kv.second.then);
     BeginFollowUps();
+    sweep = true;
 }

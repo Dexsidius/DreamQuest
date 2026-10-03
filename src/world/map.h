@@ -224,6 +224,11 @@ struct MapObject {
 class Map {
 public:
     bool Load(const string& path);
+    // Only the monsters' posts of the map file at `path`, without loading the
+    // rest of it: what a map has out on any night can be worked out from them
+    // and the day alone (World::ResolveSpawn), from anywhere. Empty if the
+    // file cannot be read.
+    static vector<EnemySpawnDef> ReadPosts(const string& path);
     void Unload();
     bool Loaded() const { return loaded; }
 

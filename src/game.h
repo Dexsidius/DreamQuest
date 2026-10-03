@@ -150,6 +150,9 @@ private:
     static const char* QuestTabName(int tab);
     void UpdateDialogue(float dt);
     void UpdateBoard();
+    // What the board panel lists: what can be taken now, and with the filter
+    // on, only what is within reach of the character's Combat level.
+    vector<string> BoardList() const;
     void UpdateNote();
     void UpdateSleepPrompt();
     void UpdateTravel();
@@ -491,7 +494,14 @@ private:
     // An NPC's order book, asked for in conversation and opened once it closes.
     string pending_orders;
     bool   board_orders = false;     // the board panel is showing an order book
+    // The board's filter: everything, or only what is within QuestLog::
+    // LEVEL_RANGE of the character's Combat level. Kept from one board to the
+    // next; an order book is by trade, and has none.
+    bool   board_in_range = false;
     void   OpenOrders(const string& npc_id, const string& npc_name);
+    // A board used: what is pinned to it, and every quest it gives -- the
+    // day's dailies, and tonight's bounties.
+    void   OpenBoard(const string& id, const string& title, const vector<string>& pinned);
     int    shop_tab = 0;
     int    shop_cursor = 0;
     // The storage chest standing open: which one, what it is called, how many

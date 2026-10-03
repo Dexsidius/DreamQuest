@@ -72,12 +72,44 @@
       "kind": "dungeon",
       "name": "Hollowrest Crypt, the Black Vault"
     },
+    "dream_ashen_path": {
+      "exits": [
+        "dream_havenbrook"
+      ],
+      "kind": "land",
+      "name": "The Ashen Path, Dreaming"
+    },
+    "dream_bayou": {
+      "exits": [
+        "dream_havenbrook"
+      ],
+      "kind": "land",
+      "name": "The Bayou, Dreaming"
+    },
+    "dream_college": {
+      "exits": [
+        "dream_havenbrook"
+      ],
+      "kind": "land",
+      "name": "The College, Dreaming"
+    },
     "dream_havenbrook": {
       "exits": [
-        "dreamworld_3"
+        "dreamworld_3",
+        "dream_college",
+        "dream_ashen_path",
+        "dream_plateau",
+        "dream_bayou"
       ],
       "kind": "land",
       "name": "Havenbrook, Dreaming"
+    },
+    "dream_plateau": {
+      "exits": [
+        "dream_havenbrook"
+      ],
+      "kind": "land",
+      "name": "The Plateau, Dreaming"
     },
     "dreamworld": {
       "exits": [

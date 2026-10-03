@@ -78,7 +78,7 @@ static const char* kMaps[] = {
     "crypt_1", "crypt_2", "crypt_3", "bayou",
     "palace_foyer", "palace_ballroom", "palace_dining", "palace_chambers", "palace_dungeon", "palace_throne",
     "plateau_ascent", "plateau_flats", "plateau_terraces", "plateau_stronghold", "stronghold_keep",
-    "dream_havenbrook",
+    "dream_havenbrook", "dream_college", "dream_ashen_path", "dream_plateau", "dream_bayou",
     "hex_drowns", "hex_strand", "hex_fens", "hex_temple", "hex_sanctum",
     "frost_barrows", "frost_mere", "frost_glacier", "frost_howe", "frost_howe_hall", "frost_cabin",
     "mossvale_cottage", "mayor_hall", "mossvale_mine",
@@ -5391,6 +5391,262 @@ static void TestLateGathering(const Databases& db) {
 // The trees past 70: three rows more in every branch, at 78, 86 and 94 -- a
 // passive of two, a point that grows the branch's own ability, and a second
 // capstone. Each growth is held against the same character a row short.
+// The dream lands past the mirrors in Havenbrook, dreaming: four waking maps
+// as nightmares have them, each overrun by its own monsters at its own levels,
+// and the bounties the Dreamer's Slate posts on whichever of those are out on
+// a night.
+static void TestDreamLands(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    Section("the dream lands: four places as nightmares have them, and bounties on them by the night");
+
+    struct Land { const char* id; const char* kinds; const char* waking; const char* back; int low, high, advised; };
+    const Land lands[] = {
+        {"dream_college",    "dream_college_", "college_grounds",    "from_college",    70, 80, 70},
+        {"dream_ashen_path", "dream_ashen_",   "ashen_path",         "from_ashen_path", 80, 90, 80},
+        {"dream_plateau",    "dream_plateau_", "plateau_stronghold", "from_plateau",    80, 95, 80},
+        {"dream_bayou",      "dream_bayou_",   "bayou",              "from_bayou",      90, 95, 90},
+    };
+    Map haven;
+    Check(haven.Load("maps/dream_havenbrook.mx"), "Havenbrook, dreaming, loads");
+    std::map<string, string> land_of;      // kind -> the land it walks
+    std::map<string, int> natural;         // kind -> the level it shows at a post's own level
+    for (const Land& l : lands) {
+        Map m, waking;
+        if (!m.Load(string("maps/") + l.id + ".mx") || !waking.Load(string("maps/") + l.waking + ".mx")) {
+            Check(false, string(l.id) + " and the map it is a dream of both load");
+            continue;
+        }
+        Check(m.Ambient() == "dream" && m.DreamDepth() == 5 && m.Npcs().empty() && m.Width() == waking.Width() &&
+                  m.Height() == waking.Height(),
+              string(l.id) + ": a dream, a depth below Havenbrook's, nobody in it, and laid as " + l.waking + " is");
+        // In by a mirror in Havenbrook, dreaming, which says how strong it is
+        // beyond; out by one mirror back, which lands you by that one.
+        const Portal* in = nullptr;
+        for (const Portal& p : haven.Portals()) if (p.target_map == l.id) in = &p;
+        SDL_FPoint at{};
+        Check(in && in->requires_interact && in->danger_level == l.advised && m.Spawn(in->target_spawn, at),
+              string(l.id) + ": a mirror in Havenbrook, dreaming, leads in, warning of Combat " +
+                  std::to_string(l.advised));
+        Check(m.Portals().size() == 1 && m.Portals()[0].requires_interact &&
+                  m.Portals()[0].target_map == "dream_havenbrook" && haven.Spawn(m.Portals()[0].target_spawn, at) &&
+                  m.Portals()[0].target_spawn == l.back,
+              string(l.id) + ": and one mirror back out, to beside its own in Havenbrook");
+        bool stone = false;
+        for (const MapObject& o : m.Objects()) stone |= o.type == "dream_wake";
+        Check(stone, string(l.id) + ": and a waking stone, as every depth of the dream has");
+
+        // What walks it: every kind its own nightmare -- not a boss, the slate's
+        // own kill to count, a shard on every one -- and all in the land's band
+        // at any level the night puts a post at.
+        std::set<string> kinds;
+        bool own = true;
+        int posts = 0, low = 99, high = 0;
+        for (const EnemySpawnDef& e : m.Enemies()) {
+            ++posts;
+            own &= !e.night && e.route.empty() && e.respawn > 0.0f;
+            for (const string& t : e.pool.empty() ? vector<string>{e.type} : e.pool) {
+                kinds.insert(t);
+                land_of[t] = l.id;
+                const EnemyDef* d = enemy_db.Get(t);
+                if (!d) { own = false; continue; }
+                const LootTable* lt = loot.Get(d->loot_table);
+                own &= !d->is_boss && d->kill_target == t && t.rfind(l.kinds, 0) == 0 && d->tint.r != 255 && lt &&
+                       !lt->always.empty() && lt->always.front().item == "dream_shard";
+                natural[t] = Enemy::ShownLevelOf(*d, e.level);
+                for (int lv = e.level; lv <= e.level + e.spread; ++lv) {
+                    low = std::min(low, Enemy::ShownLevelOf(*d, lv));
+                    high = std::max(high, Enemy::ShownLevelOf(*d, lv));
+                }
+            }
+        }
+        Check(own, string(l.id) + ": every kind in it is its own nightmare, there every night, and leaves a shard");
+        Check(posts >= 40 && kinds.size() >= 6,
+              string(l.id) + ": " + std::to_string(posts) + " posts of " + std::to_string(kinds.size()) + " kinds");
+        Check(low >= l.low && high <= l.high,
+              string(l.id) + ": everything in it is " + std::to_string(l.low) + " to " + std::to_string(l.high) +
+                  " (" + std::to_string(low) + " to " + std::to_string(high) + ")");
+    }
+
+    // --- one bounty a kind --------------------------------------------------------------------
+    std::map<string, const QuestDef*> bounty_on;
+    bool well_made = true;
+    string bad;
+    for (const auto& [id, d] : quests.Definitions()) {
+        if (!d.bounty) continue;
+        const bool one_kill = d.stages.size() == 1 && d.stages[0].type == ObjectiveType::Kill;
+        const string kind = one_kill ? d.stages[0].target : string();
+        std::set<string> styles;
+        for (const QuestRewardChoice& c : d.rewards.choices) if (!c.xp.empty()) styles.insert(c.style);
+        const bool ok = d.daily && d.source == QuestSource::Board && d.giver == "board_reverie" && one_kill &&
+                        land_of.count(kind) && d.stages[0].map_id == land_of[kind] && d.stages[0].count >= 2 &&
+                        std::abs(d.recommended_level - natural[kind]) <= 2 && styles.size() == 3 &&
+                        !bounty_on.count(kind);
+        if (!ok && bad.empty()) bad = id;
+        well_made &= ok;
+        if (one_kill) bounty_on[kind] = &d;
+    }
+    Check(well_made && bounty_on.size() == land_of.size(),
+          "every kind in the lands has one bounty: the slate's, a kill on its own land at its own level, paying "
+          "every way of fighting (" + std::to_string(bounty_on.size()) + " of " + std::to_string(land_of.size()) +
+              (bad.empty() ? string() : ", " + bad) + ")");
+    {
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        Check(log.PoolToday("dream_bounty").empty(), "and none of them is in any pool's turn of the days");
+    }
+
+    // --- the board, night by night --------------------------------------------------------------------
+    // Up to three a land, every one on a kind out there that night in the
+    // numbers it asks for; the same all night, others on other nights.
+    {
+        std::map<string, vector<EnemySpawnDef>> posts_of;
+        for (const Land& l : lands) posts_of[l.id] = Map::ReadPosts(string("maps/") + l.id + ".mx");
+        bool honest = true, steady = true, full = true;
+        int full_nights = 0;
+        std::set<string> ever;
+        std::set<vector<string>> boards;
+        const int kNights = 120;
+        for (int day = 1; day <= kNights; ++day) {
+            const vector<string> tonight = World::DreamBounties(quests, day);
+            steady &= tonight == World::DreamBounties(quests, day);
+            boards.insert(tonight);
+            std::map<string, int> per_land;
+            for (const string& id : tonight) {
+                ever.insert(id);
+                const QuestStage& st = quests.Definition(id)->stages.front();
+                ++per_land[st.map_id];
+                int out = 0;
+                const vector<EnemySpawnDef>& posts = posts_of[st.map_id];
+                for (size_t i = 0; i < posts.size(); ++i)
+                    out += World::ResolveSpawn(posts[i], st.map_id, day, static_cast<int>(i)).type == st.target;
+                honest &= out >= st.count;
+            }
+            bool all = true;
+            for (const Land& l : lands) {
+                full &= per_land[l.id] >= 2 && per_land[l.id] <= World::BOUNTIES_PER_LAND;
+                all &= per_land[l.id] == World::BOUNTIES_PER_LAND;
+            }
+            full_nights += all;
+        }
+        Check(honest, "every bounty posted is on a kind out on its land that night, at least as many as it asks for");
+        Check(full && full_nights * 10 >= kNights * 9,
+              "every land has two or three posted every night, and three on most (" + std::to_string(full_nights) +
+                  " of " + std::to_string(kNights) + " nights)");
+        Check(steady && boards.size() > static_cast<size_t>(kNights / 2),
+              "the same all night, and the nights different (" + std::to_string(boards.size()) + " boards in " +
+                  std::to_string(kNights) + " nights)");
+        Check(ever.size() == bounty_on.size(), "and every bounty comes up on some night (" +
+                                                   std::to_string(ever.size()) + " of " +
+                                                   std::to_string(bounty_on.size()) + ")");
+    }
+
+    // --- the journal: posted, taken, lapsed at dawn -------------------------------------------------------
+    {
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        log.FromJson(json{{"q_the_water_remembers", {{"status", static_cast<int>(QuestStatus::Complete)}}}});
+        Skills sk;
+        Inventory bag(&items);
+        log.SetDay(5);
+        const vector<string> tonight = World::DreamBounties(log, 5);
+        string posted = tonight.empty() ? string() : tonight.front(), unposted;
+        for (const auto& [id, kind] : bounty_on)
+            if (std::find(tonight.begin(), tonight.end(), kind->id) == tonight.end()) unposted = kind->id;
+        Check(!log.CanStart(posted, sk), "a bounty is not on the board before the board has been read for the night");
+        log.PostBounties(5, tonight);
+        Check(log.CanStart(posted, sk) && !log.CanStart(unposted, sk),
+              "read, it offers tonight's bounties and no others");
+        const QuestStage st = log.Definition(posted)->stages.front();
+        Check(log.Start(posted) && log.IsActive(posted), "one taken");
+        QuestEvent kill;
+        kill.type = ObjectiveType::Kill;
+        kill.target = st.target;
+        kill.map_id = "dream_havenbrook";
+        log.Notify(kill, bag);
+        Check(log.Counter(posted) == 0, "a kill of its kind anywhere but its own land does not count");
+        kill.map_id = st.map_id;
+        log.Notify(kill, bag);
+        Check(log.Counter(posted) == 1, "on its land it does");
+
+        log.SetDay(6);
+        Check(!log.IsActive(posted) && log.Status(posted) == QuestStatus::NotStarted && log.TakeLapsed() == 1 &&
+                  log.TakeLapsed() == 0,
+              "not done by dawn, it lapses -- the monsters it was for are not there the next night -- and the "
+              "player is told, once");
+        Check(!log.CanStart(posted, sk), "and it is not on the next night's board until the board is read again");
+
+        // Done, it is paid, owes its choice, and does not lapse.
+        log.PostBounties(6, {posted});
+        Check(log.Start(posted), "posted again, it can be taken again");
+        kill.amount = st.count;
+        log.Notify(kill, bag);
+        Check(log.IsComplete(posted) && log.Completions(posted) == 1 && log.ChoicesOwed(posted) == 1,
+              "finished, it is done, once, with a way of fighting's reward to choose");
+        log.SetDay(7);
+        Check(log.IsComplete(posted) && log.TakeLapsed() == 0, "and the dawn after takes nothing from it");
+
+        // A night's bounty kept in a save lapses when the save is read on a later day.
+        log.PostBounties(7, {posted});
+        Check(log.Start(posted), "taken again the next night");
+        QuestLog later;
+        later.LoadDefinitions("data/quests.json");
+        later.FromJson(log.ToJson());
+        later.SetDay(7);
+        Check(later.IsActive(posted) && later.Completions(posted) == 1, "saved and read the same night, it is still in hand");
+        QuestLog after;
+        after.LoadDefinitions("data/quests.json");
+        after.SetDay(8);
+        after.FromJson(log.ToJson());
+        after.SetDay(8);
+        Check(!after.IsActive(posted) && after.Completions(posted) == 1 && after.TakeLapsed() == 1,
+              "read on a later day, it has lapsed, and how many times it was done is kept");
+    }
+
+    // The board's filter: within ten levels either way of the character.
+    Check(QuestLog::InRange(80, 70) && QuestLog::InRange(60, 70) && !QuestLog::InRange(81, 70) &&
+              !QuestLog::InRange(59, 70),
+          "the board's filter keeps what is within ten levels of the character, either way");
+
+    // --- a night in each ------------------------------------------------------------------------
+    {
+        Input input;
+        std::mt19937 rng(4545);
+        GameContext ctx;
+        ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+        ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+        ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+        ctx.statuses = &statuses; ctx.input = &input;       ctx.rng = &rng;
+        for (const Land& l : lands) {
+            World w;
+            w.player.Init(ctx, "player_hero");
+            w.clock.Set(9, 23.0f);
+            if (!w.LoadMap(l.id, "from_havenbrook", ctx) || !w.InDream()) {
+                Check(false, string(l.id) + ": stepped into through its mirror, it is a dream");
+                continue;
+            }
+            std::map<string, int> about;
+            int low = 99, high = 0;
+            for (const auto& e : w.enemies) {
+                if (e->Dead() || !e->Def()) continue;
+                ++about[e->TypeId()];
+                low = std::min(low, e->ShownLevel());
+                high = std::max(high, e->ShownLevel());
+            }
+            bool counted = true;
+            for (const string& id : World::DreamBounties(quests, w.clock.QuestDay())) {
+                const QuestStage& st = quests.Definition(id)->stages.front();
+                if (st.map_id == l.id) counted &= about[st.target] >= st.count;
+            }
+            Check(low >= l.low && high <= l.high && counted,
+                  string(l.id) + " on the night: everything in it " + std::to_string(low) + " to " +
+                      std::to_string(high) + ", and every bounty posted on it has what it asks for out there");
+        }
+    }
+}
+
 static void TestLateTreeRows(const Databases& db) {
     SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
     LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
@@ -11011,7 +11267,9 @@ int main(int argc, char** argv) {
             std::map<string, int> pool_size;
             for (const auto& kv : log.Definitions()) {
                 if (!kv.second.daily) continue;
-                ++pool_size[kv.second.pool];
+                // A bounty is in no pool's turn: the Slate posts it by what is
+                // out on its dream land that night (TestDreamLands).
+                if (!kv.second.bounty) ++pool_size[kv.second.pool];
                 bool gathers = false;
                 for (const QuestStage& st2 : kv.second.stages) if (st2.type == ObjectiveType::Collect) gathers = true;
                 Check(!gathers, kv.first + " is spent, not merely held: a daily cannot be a collect quest");
@@ -17667,6 +17925,7 @@ int main(int argc, char** argv) {
             {"crypt_1", 34}, {"bayou", 30}, {"palace_foyer", 75},
             {"plateau_ascent", 53}, {"plateau_flats", 59}, {"plateau_terraces", 61}, {"plateau_stronghold", 66},
             {"stronghold_keep", 67}, {"dream_havenbrook", 54},
+            {"dream_college", 70}, {"dream_ashen_path", 80}, {"dream_plateau", 80}, {"dream_bayou", 90},
             {"hex_drowns", 57}, {"hex_strand", 59}, {"hex_fens", 61}, {"hex_temple", 63}, {"hex_sanctum", 64},
             {"frost_barrows", 62}, {"frost_mere", 64}, {"frost_glacier", 67}, {"frost_howe", 71},
             {"frost_howe_hall", 73},
@@ -18084,11 +18343,12 @@ int main(int argc, char** argv) {
         // Every other map's water is a plain wall, so nothing can swim anywhere
         // it was not meant to -- except the Bayou's, which is swimmable on
         // purpose: its drowned and its gators live in it. See EnemySpawnDef::lurk.
+        // The Bayou dreaming is the same Bayou, water and all.
         int watery = 0;
         for (const char* id : kMaps) {
             Map m;
             if (!m.Load(string("maps/") + id + ".mx")) continue;
-            if (m.HasWater() && string(id) != "bayou") ++watery;
+            if (m.HasWater() && string(id) != "bayou" && string(id) != "dream_bayou") ++watery;
         }
         Check(watery == 1, "and it is the only water in the world anything can swim in, but the Bayou's (" +
               std::to_string(watery) + ")");
@@ -23986,6 +24246,7 @@ int main(int argc, char** argv) {
     TestLateTreeRows(db);
     TestLateGathering(db);
     TestMapsAndMonsters(db);
+    TestDreamLands(db);
 
     Section("the Brimstone Palace, and its king");
     {
@@ -25787,9 +26048,14 @@ int main(int argc, char** argv) {
             const Map town = load("town_havenbrook");
             Check(dream.Ambient() == "dream" && dream.DreamDepth() == 4 && dream.Npcs().empty(),
                   "Havenbrook dreaming: a dream, a depth below the Dreaming Dark, and nobody in it");
+            // Its ways out are all mirrors: one back up, and the four into the
+            // dream lands (TestDreamLands).
+            bool mirrors = true;
+            for (const Portal& p : dream.Portals()) mirrors &= p.requires_interact;
             Check(leads("dreamworld_3", "dream_havenbrook") && leads("dream_havenbrook", "dreamworld_3") &&
-                      dream.Portals().size() == 1,
-                  "the mirror at the bottom of the dream goes there, and one mirror back is its only way out");
+                      dream.Portals().size() == 5 && mirrors,
+                  "the mirror at the bottom of the dream goes there, and its only ways out are mirrors: one "
+                  "back, and four into the dream lands");
             Check(dream.Width() == town.Width() && dream.Height() == town.Height(),
                   "and it is Havenbrook: the same town, laid the same way");
             bool mirror = false;

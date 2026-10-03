@@ -5415,5 +5415,1564 @@
       "id": "electrified",
       "chance": 0.3
     }
+  },
+  "dream_college_lizardman": {
+    "name": "Nightmare Lizardman",
+    "sprite": "lizardman",
+    "hp": 176,
+    "attack": 68,
+    "strength": 68,
+    "defence": 61,
+    "attack_bonus": 68,
+    "strength_bonus": 68,
+    "defence_bonus": 81,
+    "speed": 54,
+    "aggro": 190,
+    "attack_range": 66,
+    "attack_cooldown": 1.5,
+    "loot": "dream_college",
+    "kill_target": "dream_college_lizardman",
+    "foot_box": [
+      -14,
+      -14,
+      28,
+      14
+    ],
+    "body_box": [
+      -22,
+      -62,
+      44,
+      62
+    ],
+    "element": "water",
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.12
+    },
+    "tint": [
+      176,
+      156,
+      236
+    ]
+  },
+  "dream_college_mire_croaker": {
+    "name": "Nightmare Croaker",
+    "sprite": "mire_croaker",
+    "hp": 179,
+    "attack": 68,
+    "strength": 68,
+    "defence": 68,
+    "attack_bonus": 70,
+    "strength_bonus": 68,
+    "defence_bonus": 75,
+    "speed": 40,
+    "aggro": 205,
+    "attack_range": 54,
+    "attack_cooldown": 1.73,
+    "shoots": "croaker_spit",
+    "shoot_range": 180.0,
+    "shoot_cooldown": 2.6,
+    "loot": "dream_college",
+    "kill_target": "dream_college_mire_croaker",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -16,
+      -40,
+      32,
+      40
+    ],
+    "element": "water",
+    "on_hit": {
+      "id": "poison",
+      "chance": 0.2
+    },
+    "tint": [
+      176,
+      156,
+      236
+    ]
+  },
+  "dream_college_rot_shambler": {
+    "name": "Nightmare Rot Shambler",
+    "sprite": "rot_shambler",
+    "hp": 320,
+    "attack": 69,
+    "strength": 69,
+    "defence": 58,
+    "attack_bonus": 73,
+    "strength_bonus": 69,
+    "defence_bonus": 64,
+    "speed": 34,
+    "aggro": 160,
+    "attack_range": 60,
+    "attack_cooldown": 1.71,
+    "loot": "dream_college",
+    "kill_target": "dream_college_rot_shambler",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -22,
+      -40,
+      44,
+      40
+    ],
+    "element": "earth",
+    "immune": [
+      "poison"
+    ],
+    "on_hit": {
+      "id": "poison",
+      "chance": 0.3
+    },
+    "tint": [
+      176,
+      156,
+      236
+    ]
+  },
+  "dream_college_fen_stalker": {
+    "name": "Nightmare Fen Stalker",
+    "sprite": "fen_stalker",
+    "hp": 116,
+    "attack": 77,
+    "strength": 77,
+    "defence": 66,
+    "attack_bonus": 80,
+    "strength_bonus": 77,
+    "defence_bonus": 73,
+    "speed": 78,
+    "aggro": 160,
+    "attack_range": 58,
+    "attack_cooldown": 1.68,
+    "loot": "dream_college",
+    "kill_target": "dream_college_fen_stalker",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -19,
+      -42,
+      38,
+      42
+    ],
+    "element": "earth",
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.25
+    },
+    "tint": [
+      176,
+      156,
+      236
+    ]
+  },
+  "dream_college_swamp_hag": {
+    "name": "Nightmare Swamp Hag",
+    "sprite": "swamp_hag",
+    "hp": 204,
+    "attack": 72,
+    "strength": 72,
+    "defence": 69,
+    "attack_bonus": 76,
+    "strength_bonus": 72,
+    "defence_bonus": 76,
+    "speed": 48,
+    "aggro": 225,
+    "attack_range": 52,
+    "attack_cooldown": 1.72,
+    "shoots": "hag_hex",
+    "shoot_range": 200.0,
+    "shoot_cooldown": 3.0,
+    "loot": "dream_college",
+    "kill_target": "dream_college_swamp_hag",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -14,
+      -46,
+      28,
+      46
+    ],
+    "element": "earth",
+    "on_hit": {
+      "id": "poison",
+      "chance": 0.15
+    },
+    "spells": [
+      "hag_hex",
+      "hag_charm",
+      "hag_hex",
+      "hag_befuddle"
+    ],
+    "tint": [
+      176,
+      156,
+      236
+    ]
+  },
+  "dream_college_lizard_shaman": {
+    "name": "Nightmare Lizard Shaman",
+    "sprite": "lizard_shaman",
+    "hp": 277,
+    "attack": 72,
+    "strength": 72,
+    "defence": 70,
+    "attack_bonus": 75,
+    "strength_bonus": 72,
+    "defence_bonus": 76,
+    "speed": 50,
+    "aggro": 235,
+    "attack_range": 58,
+    "attack_cooldown": 1.65,
+    "shoots": "shaman_bolt",
+    "shoot_range": 210.0,
+    "shoot_cooldown": 2.4,
+    "loot": "dream_college",
+    "kill_target": "dream_college_lizard_shaman",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -20,
+      -74,
+      40,
+      74
+    ],
+    "element": "water",
+    "on_hit": {
+      "id": "wet",
+      "chance": 0.2
+    },
+    "spells": [
+      "shaman_bolt"
+    ],
+    "tint": [
+      176,
+      156,
+      236
+    ]
+  },
+  "dream_ashen_demon": {
+    "name": "Nightmare Demon",
+    "sprite": "demon",
+    "hp": 221,
+    "attack": 74,
+    "strength": 81,
+    "defence": 70,
+    "attack_bonus": 74,
+    "strength_bonus": 81,
+    "defence_bonus": 77,
+    "speed": 50,
+    "aggro": 210,
+    "attack_range": 68,
+    "attack_cooldown": 2.0,
+    "loot": "dream_ashen",
+    "kill_target": "dream_ashen_demon",
+    "foot_box": [
+      -14,
+      -14,
+      28,
+      14
+    ],
+    "body_box": [
+      -24,
+      -64,
+      48,
+      64
+    ],
+    "element": "fire",
+    "scale": 1.15,
+    "on_hit": {
+      "id": "burn",
+      "chance": 0.25
+    },
+    "tint": [
+      238,
+      158,
+      206
+    ]
+  },
+  "dream_ashen_dragon_earth": {
+    "name": "Nightmare Basalt Dragon",
+    "sprite": "dragon_earth",
+    "voice": "dragon",
+    "hp": 238,
+    "attack": 69,
+    "strength": 69,
+    "defence": 94,
+    "attack_bonus": 72,
+    "strength_bonus": 69,
+    "defence_bonus": 104,
+    "speed": 40,
+    "aggro": 230,
+    "attack_range": 90,
+    "attack_cooldown": 1.64,
+    "heavy": {
+      "windup": 1.4,
+      "damage": 2.4,
+      "cooldown": 9.0,
+      "reach": 1.4,
+      "width": 1.3,
+      "knockback": 240.0,
+      "status": {
+        "id": "concussed",
+        "chance": 0.5
+      }
+    },
+    "shoots": "drake_stone",
+    "shoot_range": 230.0,
+    "shoot_cooldown": 3.4,
+    "loot": "dream_ashen",
+    "kill_target": "dream_ashen_dragon_earth",
+    "foot_box": [
+      -24,
+      -16,
+      48,
+      16
+    ],
+    "body_box": [
+      -52,
+      -76,
+      104,
+      76
+    ],
+    "element": "earth",
+    "on_hit": {
+      "id": "concussed",
+      "chance": 0.2
+    },
+    "tint": [
+      238,
+      158,
+      206
+    ]
+  },
+  "dream_ashen_dragon_fire": {
+    "name": "Nightmare Pyre Dragon",
+    "sprite": "dragon_fire",
+    "voice": "dragon",
+    "hp": 225,
+    "attack": 79,
+    "strength": 79,
+    "defence": 73,
+    "attack_bonus": 83,
+    "strength_bonus": 79,
+    "defence_bonus": 80,
+    "speed": 50,
+    "aggro": 240,
+    "attack_range": 90,
+    "attack_cooldown": 1.62,
+    "heavy": {
+      "windup": 1.3,
+      "damage": 2.3,
+      "cooldown": 9.0,
+      "reach": 1.4,
+      "width": 1.3,
+      "status": {
+        "id": "burn",
+        "chance": 0.6
+      }
+    },
+    "shoots": "drake_flame",
+    "shoot_range": 240.0,
+    "shoot_cooldown": 2.8,
+    "loot": "dream_ashen",
+    "kill_target": "dream_ashen_dragon_fire",
+    "foot_box": [
+      -24,
+      -16,
+      48,
+      16
+    ],
+    "body_box": [
+      -52,
+      -76,
+      104,
+      76
+    ],
+    "element": "fire",
+    "immune": [
+      "burn"
+    ],
+    "on_hit": {
+      "id": "burn",
+      "chance": 0.3
+    },
+    "tint": [
+      238,
+      158,
+      206
+    ]
+  },
+  "dream_ashen_greater_demon": {
+    "name": "Nightmare Greater Demon",
+    "sprite": "greater_demon",
+    "hp": 276,
+    "attack": 76,
+    "strength": 76,
+    "defence": 79,
+    "attack_bonus": 80,
+    "strength_bonus": 76,
+    "defence_bonus": 87,
+    "speed": 58,
+    "aggro": 200,
+    "attack_range": 68,
+    "attack_cooldown": 1.6,
+    "heavy": {
+      "windup": 1.3,
+      "damage": 2.6,
+      "cooldown": 8.5,
+      "reach": 1.5,
+      "width": 1.3,
+      "knockback": 280.0,
+      "status": {
+        "id": "concussed",
+        "chance": 0.45
+      }
+    },
+    "loot": "dream_ashen",
+    "kill_target": "dream_ashen_greater_demon",
+    "foot_box": [
+      -14,
+      -12,
+      28,
+      12
+    ],
+    "body_box": [
+      -30,
+      -96,
+      60,
+      96
+    ],
+    "element": "fire",
+    "immune": [
+      "burn"
+    ],
+    "on_hit": {
+      "id": "burn",
+      "chance": 0.3
+    },
+    "tint": [
+      238,
+      158,
+      206
+    ]
+  },
+  "dream_ashen_dragon_water": {
+    "name": "Nightmare Brine Dragon",
+    "sprite": "dragon_water",
+    "voice": "dragon",
+    "hp": 406,
+    "attack": 75,
+    "strength": 75,
+    "defence": 75,
+    "attack_bonus": 78,
+    "strength_bonus": 75,
+    "defence_bonus": 82,
+    "speed": 50,
+    "aggro": 240,
+    "attack_range": 90,
+    "attack_cooldown": 1.61,
+    "heavy": {
+      "windup": 1.3,
+      "damage": 2.3,
+      "cooldown": 9.0,
+      "reach": 1.4,
+      "width": 1.3,
+      "status": {
+        "id": "chill",
+        "chance": 0.5
+      }
+    },
+    "shoots": "drake_tide",
+    "shoot_range": 240.0,
+    "shoot_cooldown": 2.8,
+    "loot": "dream_ashen",
+    "kill_target": "dream_ashen_dragon_water",
+    "foot_box": [
+      -24,
+      -16,
+      48,
+      16
+    ],
+    "body_box": [
+      -52,
+      -76,
+      104,
+      76
+    ],
+    "element": "water",
+    "immune": [
+      "wet",
+      "chill"
+    ],
+    "on_hit": {
+      "id": "chill",
+      "chance": 0.25
+    },
+    "tint": [
+      238,
+      158,
+      206
+    ]
+  },
+  "dream_ashen_dragon_air": {
+    "name": "Nightmare Gale Dragon",
+    "sprite": "dragon_air",
+    "voice": "dragon",
+    "hp": 203,
+    "attack": 87,
+    "strength": 87,
+    "defence": 68,
+    "attack_bonus": 91,
+    "strength_bonus": 87,
+    "defence_bonus": 75,
+    "speed": 70,
+    "aggro": 260,
+    "attack_range": 90,
+    "attack_cooldown": 1.59,
+    "heavy": {
+      "windup": 1.2,
+      "damage": 2.2,
+      "cooldown": 8.5,
+      "reach": 1.5,
+      "width": 1.4,
+      "knockback": 320.0,
+      "status": {
+        "id": "bleed",
+        "chance": 0.5
+      }
+    },
+    "shoots": "drake_gale",
+    "shoot_range": 260.0,
+    "shoot_cooldown": 2.4,
+    "loot": "dream_ashen",
+    "kill_target": "dream_ashen_dragon_air",
+    "foot_box": [
+      -24,
+      -16,
+      48,
+      16
+    ],
+    "body_box": [
+      -52,
+      -76,
+      104,
+      76
+    ],
+    "element": "air",
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.3
+    },
+    "tint": [
+      238,
+      158,
+      206
+    ]
+  },
+  "dream_ashen_dragon_lightning": {
+    "name": "Nightmare Storm Dragon",
+    "sprite": "dragon_lightning",
+    "voice": "dragon",
+    "hp": 214,
+    "attack": 85,
+    "strength": 85,
+    "defence": 76,
+    "attack_bonus": 89,
+    "strength_bonus": 85,
+    "defence_bonus": 85,
+    "speed": 56,
+    "aggro": 250,
+    "attack_range": 90,
+    "attack_cooldown": 1.58,
+    "heavy": {
+      "windup": 1.3,
+      "damage": 2.4,
+      "cooldown": 9.0,
+      "reach": 1.4,
+      "width": 1.3,
+      "status": {
+        "id": "electrified",
+        "chance": 0.6
+      }
+    },
+    "shoots": "drake_spark",
+    "shoot_range": 250.0,
+    "shoot_cooldown": 2.2,
+    "loot": "dream_ashen",
+    "kill_target": "dream_ashen_dragon_lightning",
+    "foot_box": [
+      -24,
+      -16,
+      48,
+      16
+    ],
+    "body_box": [
+      -52,
+      -76,
+      104,
+      76
+    ],
+    "element": "electric",
+    "immune": [
+      "electrified"
+    ],
+    "on_hit": {
+      "id": "electrified",
+      "chance": 0.35
+    },
+    "tint": [
+      238,
+      158,
+      206
+    ]
+  },
+  "dream_ashen_abyssal_demon": {
+    "name": "Nightmare Abyssal Demon",
+    "sprite": "abyssal_demon",
+    "hp": 193,
+    "attack": 88,
+    "strength": 88,
+    "defence": 77,
+    "attack_bonus": 93,
+    "strength_bonus": 88,
+    "defence_bonus": 85,
+    "speed": 72,
+    "aggro": 160,
+    "attack_range": 60,
+    "attack_cooldown": 1.52,
+    "heavy": {
+      "windup": 1.2,
+      "damage": 2.3,
+      "cooldown": 9.0,
+      "status": {
+        "id": "concussed",
+        "chance": 0.4
+      }
+    },
+    "loot": "dream_ashen",
+    "kill_target": "dream_ashen_abyssal_demon",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -21,
+      -74,
+      42,
+      74
+    ],
+    "element": "fire",
+    "immune": [
+      "burn"
+    ],
+    "on_hit": {
+      "id": "burn",
+      "chance": 0.3
+    },
+    "tint": [
+      238,
+      158,
+      206
+    ]
+  },
+  "dream_plateau_bone_knight": {
+    "name": "Nightmare Bone Knight",
+    "sprite": "bone_knight",
+    "hp": 131,
+    "attack": 72,
+    "strength": 72,
+    "defence": 97,
+    "attack_bonus": 76,
+    "strength_bonus": 72,
+    "defence_bonus": 107,
+    "speed": 42,
+    "aggro": 160,
+    "attack_range": 52,
+    "attack_cooldown": 1.7,
+    "loot": "dream_plateau",
+    "kill_target": "dream_plateau_bone_knight",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -14,
+      -50,
+      28,
+      50
+    ],
+    "element": "none",
+    "immune": [
+      "poison",
+      "bleed"
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.15
+    },
+    "tint": [
+      196,
+      168,
+      252
+    ]
+  },
+  "dream_plateau_blood_thrall": {
+    "name": "Nightmare Blood Thrall",
+    "sprite": "blood_thrall",
+    "hp": 112,
+    "attack": 85,
+    "strength": 85,
+    "defence": 72,
+    "attack_bonus": 89,
+    "strength_bonus": 85,
+    "defence_bonus": 80,
+    "speed": 68,
+    "aggro": 160,
+    "attack_range": 52,
+    "attack_cooldown": 1.64,
+    "loot": "dream_plateau",
+    "kill_target": "dream_plateau_blood_thrall",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -14,
+      -40,
+      28,
+      40
+    ],
+    "element": "none",
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.25
+    },
+    "tint": [
+      196,
+      168,
+      252
+    ]
+  },
+  "dream_plateau_nosferatu": {
+    "name": "Nightmare Nosferatu",
+    "sprite": "nosferatu",
+    "hp": 94,
+    "attack": 90,
+    "strength": 90,
+    "defence": 72,
+    "attack_bonus": 94,
+    "strength_bonus": 90,
+    "defence_bonus": 79,
+    "speed": 72,
+    "aggro": 160,
+    "attack_range": 52,
+    "attack_cooldown": 1.59,
+    "loot": "dream_plateau",
+    "kill_target": "dream_plateau_nosferatu",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -14,
+      -56,
+      28,
+      56
+    ],
+    "element": "none",
+    "immune": [
+      "poison"
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.25
+    },
+    "tint": [
+      196,
+      168,
+      252
+    ]
+  },
+  "dream_plateau_crypt_warden": {
+    "name": "Nightmare Crypt Warden",
+    "sprite": "crypt_warden",
+    "hp": 225,
+    "attack": 76,
+    "strength": 76,
+    "defence": 99,
+    "attack_bonus": 79,
+    "strength_bonus": 76,
+    "defence_bonus": 109,
+    "speed": 60,
+    "aggro": 160,
+    "attack_range": 56,
+    "attack_cooldown": 1.56,
+    "heavy": {
+      "windup": 1.5,
+      "damage": 2.4,
+      "cooldown": 9.5,
+      "status": {
+        "id": "concussed",
+        "chance": 0.45
+      }
+    },
+    "loot": "dream_plateau",
+    "kill_target": "dream_plateau_crypt_warden",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -18,
+      -72,
+      36,
+      72
+    ],
+    "element": "air",
+    "immune": [
+      "poison",
+      "bleed"
+    ],
+    "on_hit": {
+      "id": "chill",
+      "chance": 0.2
+    },
+    "tint": [
+      196,
+      168,
+      252
+    ]
+  },
+  "dream_plateau_bone_colossus": {
+    "name": "Nightmare Bone Colossus",
+    "sprite": "bone_colossus",
+    "hp": 354,
+    "attack": 76,
+    "strength": 76,
+    "defence": 95,
+    "attack_bonus": 79,
+    "strength_bonus": 76,
+    "defence_bonus": 105,
+    "speed": 38,
+    "aggro": 160,
+    "attack_range": 68,
+    "attack_cooldown": 1.61,
+    "heavy": {
+      "windup": 1.3,
+      "damage": 2.2,
+      "cooldown": 10.0,
+      "status": {
+        "id": "concussed",
+        "chance": 0.5
+      }
+    },
+    "loot": "dream_plateau_great",
+    "kill_target": "dream_plateau_bone_colossus",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -30,
+      -70,
+      60,
+      70
+    ],
+    "element": "earth",
+    "immune": [
+      "poison",
+      "bleed"
+    ],
+    "on_hit": {
+      "id": "concussed",
+      "chance": 0.1
+    },
+    "tint": [
+      196,
+      168,
+      252
+    ]
+  },
+  "dream_plateau_ashen_lord": {
+    "name": "Ashen Lord",
+    "sprite": "vampire_lord",
+    "hp": 356,
+    "attack": 89,
+    "strength": 89,
+    "defence": 72,
+    "attack_bonus": 92,
+    "strength_bonus": 89,
+    "defence_bonus": 79,
+    "speed": 76,
+    "aggro": 160,
+    "attack_range": 60,
+    "attack_cooldown": 1.54,
+    "heavy": {
+      "windup": 1.6,
+      "damage": 2.7,
+      "cooldown": 8.5,
+      "reach": 1.5,
+      "knockback": 260.0,
+      "status": {
+        "id": "concussed",
+        "chance": 0.4
+      }
+    },
+    "loot": "dream_plateau_great",
+    "kill_target": "dream_plateau_ashen_lord",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -21,
+      -74,
+      42,
+      74
+    ],
+    "element": "none",
+    "immune": [
+      "poison",
+      "bleed",
+      "chill"
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.3
+    },
+    "tint": [
+      196,
+      168,
+      252
+    ]
+  },
+  "dream_plateau_cerberus": {
+    "name": "Nightmare Cerberus",
+    "sprite": "cerberus",
+    "hp": 551,
+    "attack": 83,
+    "strength": 83,
+    "defence": 80,
+    "attack_bonus": 110,
+    "strength_bonus": 104,
+    "defence_bonus": 95,
+    "speed": 82,
+    "aggro": 280,
+    "attack_range": 82,
+    "attack_cooldown": 1.3,
+    "heavy": {
+      "windup": 1.1,
+      "damage": 2.4,
+      "cooldown": 7.0,
+      "reach": 1.5,
+      "width": 1.6,
+      "knockback": 300.0,
+      "status": {
+        "id": "burn",
+        "chance": 0.6
+      }
+    },
+    "shoots": "cerberus_fire",
+    "shoot_range": 220.0,
+    "shoot_cooldown": 3.0,
+    "loot": "dream_plateau_great",
+    "kill_target": "dream_plateau_cerberus",
+    "foot_box": [
+      -22,
+      -14,
+      44,
+      14
+    ],
+    "body_box": [
+      -44,
+      -70,
+      88,
+      70
+    ],
+    "element": "fire",
+    "immune": [
+      "burn"
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.35
+    },
+    "tint": [
+      196,
+      168,
+      252
+    ]
+  },
+  "dream_bayou_ember_conjure": {
+    "name": "Nightmare Ember Conjure",
+    "sprite": "ember_conjure",
+    "hp": 232,
+    "attack": 90,
+    "strength": 90,
+    "defence": 76,
+    "attack_bonus": 94,
+    "strength_bonus": 92,
+    "defence_bonus": 87,
+    "speed": 72,
+    "aggro": 220,
+    "attack_range": 64,
+    "attack_cooldown": 1.5,
+    "shoots": "conjure_flame",
+    "shoot_range": 230.0,
+    "shoot_cooldown": 3.0,
+    "spells": [
+      "conjure_flame"
+    ],
+    "loot": "dream_bayou_fire",
+    "kill_target": "dream_bayou_ember_conjure",
+    "foot_box": [
+      -12,
+      -10,
+      24,
+      10
+    ],
+    "body_box": [
+      -17,
+      -62,
+      34,
+      62
+    ],
+    "element": "fire",
+    "immune": [
+      "burn"
+    ],
+    "on_hit": {
+      "id": "burn",
+      "chance": 0.3
+    },
+    "tint": [
+      206,
+      196,
+      255
+    ]
+  },
+  "dream_bayou_stone_conjure": {
+    "name": "Nightmare Stone Conjure",
+    "sprite": "stone_conjure",
+    "hp": 658,
+    "attack": 72,
+    "strength": 72,
+    "defence": 86,
+    "attack_bonus": 77,
+    "strength_bonus": 75,
+    "defence_bonus": 97,
+    "speed": 50,
+    "aggro": 220,
+    "attack_range": 70,
+    "attack_cooldown": 1.9,
+    "shoots": "conjure_stone",
+    "shoot_range": 230.0,
+    "shoot_cooldown": 3.0,
+    "spells": [
+      "conjure_stone"
+    ],
+    "loot": "dream_bayou_earth",
+    "kill_target": "dream_bayou_stone_conjure",
+    "foot_box": [
+      -14,
+      -10,
+      28,
+      10
+    ],
+    "body_box": [
+      -30,
+      -70,
+      60,
+      70
+    ],
+    "element": "earth",
+    "immune": [
+      "concussed"
+    ],
+    "on_hit": {
+      "id": "concussed",
+      "chance": 0.25
+    },
+    "tint": [
+      206,
+      196,
+      255
+    ]
+  },
+  "dream_bayou_tide_conjure": {
+    "name": "Nightmare Tide Conjure",
+    "sprite": "tide_conjure",
+    "hp": 516,
+    "attack": 80,
+    "strength": 80,
+    "defence": 80,
+    "attack_bonus": 84,
+    "strength_bonus": 82,
+    "defence_bonus": 90,
+    "speed": 62,
+    "aggro": 220,
+    "attack_range": 64,
+    "attack_cooldown": 1.55,
+    "shoots": "conjure_tide",
+    "shoot_range": 230.0,
+    "shoot_cooldown": 3.0,
+    "spells": [
+      "conjure_tide"
+    ],
+    "loot": "dream_bayou_water",
+    "kill_target": "dream_bayou_tide_conjure",
+    "foot_box": [
+      -12,
+      -10,
+      24,
+      10
+    ],
+    "body_box": [
+      -16,
+      -62,
+      32,
+      62
+    ],
+    "element": "water",
+    "immune": [
+      "wet",
+      "chill"
+    ],
+    "on_hit": {
+      "id": "wet",
+      "chance": 0.35
+    },
+    "tint": [
+      206,
+      196,
+      255
+    ]
+  },
+  "dream_bayou_gale_conjure": {
+    "name": "Nightmare Gale Conjure",
+    "sprite": "gale_conjure",
+    "hp": 268,
+    "attack": 91,
+    "strength": 89,
+    "defence": 75,
+    "attack_bonus": 95,
+    "strength_bonus": 91,
+    "defence_bonus": 85,
+    "speed": 84,
+    "aggro": 220,
+    "attack_range": 64,
+    "attack_cooldown": 1.4,
+    "shoots": "conjure_gale",
+    "shoot_range": 230.0,
+    "shoot_cooldown": 3.0,
+    "spells": [
+      "conjure_gale"
+    ],
+    "loot": "dream_bayou_air",
+    "kill_target": "dream_bayou_gale_conjure",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -20,
+      -74,
+      40,
+      74
+    ],
+    "element": "air",
+    "immune": [
+      "bleed"
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.25
+    },
+    "tint": [
+      206,
+      196,
+      255
+    ]
+  },
+  "dream_bayou_storm_conjure": {
+    "name": "Nightmare Storm Conjure",
+    "sprite": "storm_conjure",
+    "hp": 343,
+    "attack": 86,
+    "strength": 88,
+    "defence": 80,
+    "attack_bonus": 90,
+    "strength_bonus": 90,
+    "defence_bonus": 90,
+    "speed": 76,
+    "aggro": 220,
+    "attack_range": 64,
+    "attack_cooldown": 1.45,
+    "shoots": "conjure_spark",
+    "shoot_range": 230.0,
+    "shoot_cooldown": 3.0,
+    "spells": [
+      "conjure_spark"
+    ],
+    "loot": "dream_bayou_storm",
+    "kill_target": "dream_bayou_storm_conjure",
+    "foot_box": [
+      -10,
+      -10,
+      20,
+      10
+    ],
+    "body_box": [
+      -20,
+      -74,
+      40,
+      74
+    ],
+    "element": "electric",
+    "immune": [
+      "electrified"
+    ],
+    "on_hit": {
+      "id": "electrified",
+      "chance": 0.35
+    },
+    "tint": [
+      206,
+      196,
+      255
+    ]
+  },
+  "dream_bayou_inferno_conjure": {
+    "name": "Nightmare Inferno Conjure",
+    "sprite": "inferno_conjure",
+    "hp": 432,
+    "attack": 85,
+    "strength": 88,
+    "defence": 74,
+    "attack_bonus": 90,
+    "strength_bonus": 90,
+    "defence_bonus": 85,
+    "speed": 66,
+    "aggro": 240,
+    "attack_range": 72,
+    "attack_cooldown": 1.6,
+    "shoots": "conjure_flame",
+    "shoot_range": 250.0,
+    "shoot_cooldown": 2.6,
+    "spells": [
+      "conjure_flame"
+    ],
+    "loot": "dream_bayou_fire",
+    "kill_target": "dream_bayou_inferno_conjure",
+    "foot_box": [
+      -16,
+      -12,
+      32,
+      12
+    ],
+    "body_box": [
+      -24,
+      -82,
+      48,
+      82
+    ],
+    "element": "fire",
+    "immune": [
+      "burn"
+    ],
+    "on_hit": {
+      "id": "burn",
+      "chance": 0.35
+    },
+    "heavy": {
+      "windup": 1.4,
+      "damage": 2.5,
+      "cooldown": 9.0,
+      "reach": 1.4,
+      "width": 1.3,
+      "status": {
+        "id": "burn",
+        "chance": 0.6
+      }
+    },
+    "tint": [
+      206,
+      196,
+      255
+    ]
+  },
+  "dream_bayou_monolith_conjure": {
+    "name": "Nightmare Monolith Conjure",
+    "sprite": "monolith_conjure",
+    "hp": 899,
+    "attack": 71,
+    "strength": 73,
+    "defence": 88,
+    "attack_bonus": 75,
+    "strength_bonus": 75,
+    "defence_bonus": 99,
+    "speed": 46,
+    "aggro": 240,
+    "attack_range": 72,
+    "attack_cooldown": 2.0,
+    "shoots": "conjure_stone",
+    "shoot_range": 250.0,
+    "shoot_cooldown": 2.6,
+    "spells": [
+      "conjure_stone"
+    ],
+    "loot": "dream_bayou_earth",
+    "kill_target": "dream_bayou_monolith_conjure",
+    "foot_box": [
+      -16,
+      -12,
+      32,
+      12
+    ],
+    "body_box": [
+      -30,
+      -92,
+      60,
+      92
+    ],
+    "element": "earth",
+    "immune": [
+      "concussed"
+    ],
+    "on_hit": {
+      "id": "concussed",
+      "chance": 0.3
+    },
+    "heavy": {
+      "windup": 1.4,
+      "damage": 2.5,
+      "cooldown": 9.0,
+      "reach": 1.4,
+      "width": 1.3,
+      "status": {
+        "id": "concussed",
+        "chance": 0.6
+      }
+    },
+    "tint": [
+      206,
+      196,
+      255
+    ]
+  },
+  "dream_bayou_maelstrom_conjure": {
+    "name": "Nightmare Maelstrom Conjure",
+    "sprite": "maelstrom_conjure",
+    "hp": 851,
+    "attack": 74,
+    "strength": 77,
+    "defence": 77,
+    "attack_bonus": 79,
+    "strength_bonus": 79,
+    "defence_bonus": 87,
+    "speed": 58,
+    "aggro": 240,
+    "attack_range": 72,
+    "attack_cooldown": 1.65,
+    "shoots": "conjure_tide",
+    "shoot_range": 250.0,
+    "shoot_cooldown": 2.6,
+    "spells": [
+      "conjure_tide"
+    ],
+    "loot": "dream_bayou_water",
+    "kill_target": "dream_bayou_maelstrom_conjure",
+    "foot_box": [
+      -18,
+      -12,
+      36,
+      12
+    ],
+    "body_box": [
+      -25,
+      -76,
+      50,
+      76
+    ],
+    "element": "water",
+    "immune": [
+      "wet",
+      "chill"
+    ],
+    "on_hit": {
+      "id": "chill",
+      "chance": 0.35
+    },
+    "heavy": {
+      "windup": 1.4,
+      "damage": 2.5,
+      "cooldown": 9.0,
+      "reach": 1.4,
+      "width": 1.3,
+      "status": {
+        "id": "frozen",
+        "chance": 0.6
+      }
+    },
+    "tint": [
+      206,
+      196,
+      255
+    ]
+  },
+  "dream_bayou_cyclone_conjure": {
+    "name": "Nightmare Cyclone Conjure",
+    "sprite": "cyclone_conjure",
+    "hp": 378,
+    "attack": 88,
+    "strength": 88,
+    "defence": 78,
+    "attack_bonus": 92,
+    "strength_bonus": 90,
+    "defence_bonus": 88,
+    "speed": 78,
+    "aggro": 240,
+    "attack_range": 72,
+    "attack_cooldown": 1.5,
+    "shoots": "conjure_gale",
+    "shoot_range": 250.0,
+    "shoot_cooldown": 2.6,
+    "spells": [
+      "conjure_gale"
+    ],
+    "loot": "dream_bayou_air",
+    "kill_target": "dream_bayou_cyclone_conjure",
+    "foot_box": [
+      -14,
+      -12,
+      28,
+      12
+    ],
+    "body_box": [
+      -30,
+      -94,
+      60,
+      94
+    ],
+    "element": "air",
+    "immune": [
+      "bleed"
+    ],
+    "on_hit": {
+      "id": "bleed",
+      "chance": 0.3
+    },
+    "heavy": {
+      "windup": 1.4,
+      "damage": 2.5,
+      "cooldown": 9.0,
+      "reach": 1.4,
+      "width": 1.3,
+      "status": {
+        "id": "concussed",
+        "chance": 0.6
+      }
+    },
+    "tint": [
+      206,
+      196,
+      255
+    ]
+  },
+  "dream_bayou_thunder_conjure": {
+    "name": "Nightmare Thunder Conjure",
+    "sprite": "thunder_conjure",
+    "hp": 535,
+    "attack": 82,
+    "strength": 84,
+    "defence": 78,
+    "attack_bonus": 86,
+    "strength_bonus": 86,
+    "defence_bonus": 88,
+    "speed": 70,
+    "aggro": 240,
+    "attack_range": 72,
+    "attack_cooldown": 1.55,
+    "shoots": "conjure_spark",
+    "shoot_range": 250.0,
+    "shoot_cooldown": 2.6,
+    "spells": [
+      "conjure_spark"
+    ],
+    "loot": "dream_bayou_storm",
+    "kill_target": "dream_bayou_thunder_conjure",
+    "foot_box": [
+      -14,
+      -12,
+      28,
+      12
+    ],
+    "body_box": [
+      -26,
+      -96,
+      52,
+      96
+    ],
+    "element": "electric",
+    "immune": [
+      "electrified"
+    ],
+    "on_hit": {
+      "id": "electrified",
+      "chance": 0.4
+    },
+    "heavy": {
+      "windup": 1.4,
+      "damage": 2.5,
+      "cooldown": 9.0,
+      "reach": 1.4,
+      "width": 1.3,
+      "status": {
+        "id": "electrified",
+        "chance": 0.6
+      }
+    },
+    "tint": [
+      206,
+      196,
+      255
+    ]
   }
 }

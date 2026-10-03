@@ -26,6 +26,48 @@ string Map::ResolveAsset(const string& rel) const {
     return rel;
 }
 
+// One monster's post, as a map file has it.
+static EnemySpawnDef PostFromJson(const json& e) {
+    EnemySpawnDef d;
+    d.type    = e.value("type", string("orc1"));
+    d.x       = e.value("x", 0.0f);
+    d.y       = e.value("y", 0.0f);
+    d.level   = e.value("level", 1);
+    d.respawn = e.value("respawn", 25.0f);
+    d.leash   = e.value("leash", 220.0f);
+    if (e.contains("pool") && e["pool"].is_array())
+        for (const auto& t : e["pool"]) if (t.is_string()) d.pool.push_back(t.get<string>());
+    d.group   = e.value("group", string(""));
+    d.spread  = std::max(0, e.value("spread", 0));
+    d.night   = e.value("night", false);
+    d.lurk    = e.value("lurk", false);
+    d.chance  = std::clamp(e.value("chance", 1.0f), 0.0f, 1.0f);
+    d.shown   = std::max(0, e.value("shown", 0));
+    d.ritual  = e.value("ritual", string(""));
+    d.wave    = std::max(0, e.value("wave", 0));
+    if (e.contains("route") && e["route"].is_array())
+        for (const auto& p : e["route"])
+            if (p.is_array() && p.size() >= 2)
+                d.route.push_back({p[0].get<float>(), p[1].get<float>()});
+    return d;
+}
+
+vector<EnemySpawnDef> Map::ReadPosts(const string& path) {
+    vector<EnemySpawnDef> out;
+    std::ifstream in(path);
+    if (!in) return out;
+    try {
+        json root;
+        in >> root;
+        if (root.contains("dreamquest") && root["dreamquest"].contains("enemies"))
+            for (const auto& e : root["dreamquest"]["enemies"]) out.push_back(PostFromJson(e));
+    } catch (const std::exception& e) {
+        SDL_Log("Map: cannot read the posts in '%s': %s", path.c_str(), e.what());
+        out.clear();
+    }
+    return out;
+}
+
 bool Map::Load(const string& path) {
     Unload();
 
@@ -279,30 +321,7 @@ bool Map::Load(const string& path) {
 
     // ---- enemies -------------------------------------------------------------
     if (dq.contains("enemies"))
-        for (const auto& e : dq["enemies"]) {
-            EnemySpawnDef d;
-            d.type    = e.value("type", string("orc1"));
-            d.x       = e.value("x", 0.0f);
-            d.y       = e.value("y", 0.0f);
-            d.level   = e.value("level", 1);
-            d.respawn = e.value("respawn", 25.0f);
-            d.leash   = e.value("leash", 220.0f);
-            if (e.contains("pool") && e["pool"].is_array())
-                for (const auto& t : e["pool"]) if (t.is_string()) d.pool.push_back(t.get<string>());
-            d.group   = e.value("group", string(""));
-            d.spread  = std::max(0, e.value("spread", 0));
-            d.night   = e.value("night", false);
-            d.lurk    = e.value("lurk", false);
-            d.chance  = std::clamp(e.value("chance", 1.0f), 0.0f, 1.0f);
-            d.shown   = std::max(0, e.value("shown", 0));
-            d.ritual  = e.value("ritual", string(""));
-            d.wave    = std::max(0, e.value("wave", 0));
-            if (e.contains("route") && e["route"].is_array())
-                for (const auto& p : e["route"])
-                    if (p.is_array() && p.size() >= 2)
-                        d.route.push_back({p[0].get<float>(), p[1].get<float>()});
-            enemies.push_back(d);
-        }
+        for (const auto& e : dq["enemies"]) enemies.push_back(PostFromJson(e));
 
     // ---- NPCs ----------------------------------------------------------------
     if (dq.contains("npcs"))

@@ -6213,5 +6213,1741 @@
    ]
   },
   "completion": "Oona cuts the five knots one after another, and the reeds fall open like a split pod. Inside, where there should be nothing at all, is everything it was fed."
+ },
+ "q_bounty_college_lizardman": {
+  "name": "Bounty: Lizardmen",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 71,
+  "summary": "Tonight the slate names the Nightmare Lizardmen the swamp has carried into the College at Fernhollow, dreaming. Four of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Lizardmen in the College, dreaming",
+    "type": "kill",
+    "target": "dream_college_lizardman",
+    "map": "dream_college",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 3408
+   },
+   "coins": 2840,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 2
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 5680,
+      "Strength": 5680
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 11360
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 11360
+     }
+    }
+   ]
+  },
+  "completion": "The name wipes itself off the slate. The court is a little quieter."
+ },
+ "q_bounty_college_mire_croaker": {
+  "name": "Bounty: Croakers",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 73,
+  "summary": "Tonight the slate names the Nightmare Croakers the swamp has carried into the College at Fernhollow, dreaming. Four of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Croakers in the College, dreaming",
+    "type": "kill",
+    "target": "dream_college_mire_croaker",
+    "map": "dream_college",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 3504
+   },
+   "coins": 2920,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 2
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 5840,
+      "Strength": 5840
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 11680
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 11680
+     }
+    }
+   ]
+  },
+  "completion": "The name wipes itself off the slate. The court is a little quieter."
+ },
+ "q_bounty_college_rot_shambler": {
+  "name": "Bounty: Rot Shamblers",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 75,
+  "summary": "Tonight the slate names the Nightmare Rot Shamblers the swamp has carried into the College at Fernhollow, dreaming. Four of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Rot Shamblers in the College, dreaming",
+    "type": "kill",
+    "target": "dream_college_rot_shambler",
+    "map": "dream_college",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 3600
+   },
+   "coins": 3000,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 2
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 6000,
+      "Strength": 6000
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 12000
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 12000
+     }
+    }
+   ]
+  },
+  "completion": "The name wipes itself off the slate. The court is a little quieter."
+ },
+ "q_bounty_college_fen_stalker": {
+  "name": "Bounty: Fen Stalkers",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 76,
+  "summary": "Tonight the slate names the Nightmare Fen Stalkers the swamp has carried into the College at Fernhollow, dreaming. Four of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Fen Stalkers in the College, dreaming",
+    "type": "kill",
+    "target": "dream_college_fen_stalker",
+    "map": "dream_college",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 3648
+   },
+   "coins": 3040,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 2
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 6080,
+      "Strength": 6080
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 12160
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 12160
+     }
+    }
+   ]
+  },
+  "completion": "The name wipes itself off the slate. The court is a little quieter."
+ },
+ "q_bounty_college_swamp_hag": {
+  "name": "Bounty: Swamp Hags",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 77,
+  "summary": "Tonight the slate names the Nightmare Swamp Hags the swamp has carried into the College at Fernhollow, dreaming. Four of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Swamp Hags in the College, dreaming",
+    "type": "kill",
+    "target": "dream_college_swamp_hag",
+    "map": "dream_college",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 3696
+   },
+   "coins": 3080,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 2
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 6160,
+      "Strength": 6160
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 12320
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 12320
+     }
+    }
+   ]
+  },
+  "completion": "The name wipes itself off the slate. The court is a little quieter."
+ },
+ "q_bounty_college_lizard_shaman": {
+  "name": "Bounty: Lizard Shamans",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 79,
+  "summary": "Tonight the slate names the Nightmare Lizard Shamans the swamp has carried into the College at Fernhollow, dreaming. Four of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Lizard Shamans in the College, dreaming",
+    "type": "kill",
+    "target": "dream_college_lizard_shaman",
+    "map": "dream_college",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 3792
+   },
+   "coins": 3160,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 2
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 6320,
+      "Strength": 6320
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 12640
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 12640
+     }
+    }
+   ]
+  },
+  "completion": "The name wipes itself off the slate. The court is a little quieter."
+ },
+ "q_bounty_ashen_demon": {
+  "name": "Bounty: Demons",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 81,
+  "summary": "Tonight the slate names the Nightmare Demons stampeding down the Ashen Path, dreaming. Four of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Demons on the Ashen Path, dreaming",
+    "type": "kill",
+    "target": "dream_ashen_demon",
+    "map": "dream_ashen_path",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 3888
+   },
+   "coins": 3240,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 3
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 6480,
+      "Strength": 6480
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 12960
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 12960
+     }
+    }
+   ]
+  },
+  "completion": "The name burns off the slate, a letter at a time."
+ },
+ "q_bounty_ashen_dragon_earth": {
+  "name": "Bounty: Basalt Dragons",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 82,
+  "summary": "Tonight the slate names the Nightmare Basalt Dragons stampeding down the Ashen Path, dreaming. Three of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Basalt Dragons on the Ashen Path, dreaming",
+    "type": "kill",
+    "target": "dream_ashen_dragon_earth",
+    "map": "dream_ashen_path",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 2952
+   },
+   "coins": 2460,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 3
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 4920,
+      "Strength": 4920
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 9840
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 9840
+     }
+    }
+   ]
+  },
+  "completion": "The name burns off the slate, a letter at a time."
+ },
+ "q_bounty_ashen_dragon_fire": {
+  "name": "Bounty: Pyre Dragons",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 83,
+  "summary": "Tonight the slate names the Nightmare Pyre Dragons stampeding down the Ashen Path, dreaming. Three of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Pyre Dragons on the Ashen Path, dreaming",
+    "type": "kill",
+    "target": "dream_ashen_dragon_fire",
+    "map": "dream_ashen_path",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 2988
+   },
+   "coins": 2490,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 3
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 4980,
+      "Strength": 4980
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 9960
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 9960
+     }
+    }
+   ]
+  },
+  "completion": "The name burns off the slate, a letter at a time."
+ },
+ "q_bounty_ashen_greater_demon": {
+  "name": "Bounty: Greater Demons",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 84,
+  "summary": "Tonight the slate names the Nightmare Greater Demons stampeding down the Ashen Path, dreaming. Four of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Greater Demons on the Ashen Path, dreaming",
+    "type": "kill",
+    "target": "dream_ashen_greater_demon",
+    "map": "dream_ashen_path",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 4032
+   },
+   "coins": 3360,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 3
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 6720,
+      "Strength": 6720
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 13440
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 13440
+     }
+    }
+   ]
+  },
+  "completion": "The name burns off the slate, a letter at a time."
+ },
+ "q_bounty_ashen_dragon_water": {
+  "name": "Bounty: Brine Dragons",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 85,
+  "summary": "Tonight the slate names the Nightmare Brine Dragons stampeding down the Ashen Path, dreaming. Three of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Brine Dragons on the Ashen Path, dreaming",
+    "type": "kill",
+    "target": "dream_ashen_dragon_water",
+    "map": "dream_ashen_path",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 3060
+   },
+   "coins": 2550,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 3
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 5100,
+      "Strength": 5100
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 10200
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 10200
+     }
+    }
+   ]
+  },
+  "completion": "The name burns off the slate, a letter at a time."
+ },
+ "q_bounty_ashen_dragon_air": {
+  "name": "Bounty: Gale Dragons",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 86,
+  "summary": "Tonight the slate names the Nightmare Gale Dragons stampeding down the Ashen Path, dreaming. Three of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Gale Dragons on the Ashen Path, dreaming",
+    "type": "kill",
+    "target": "dream_ashen_dragon_air",
+    "map": "dream_ashen_path",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 3096
+   },
+   "coins": 2580,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 3
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 5160,
+      "Strength": 5160
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 10320
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 10320
+     }
+    }
+   ]
+  },
+  "completion": "The name burns off the slate, a letter at a time."
+ },
+ "q_bounty_ashen_dragon_lightning": {
+  "name": "Bounty: Storm Dragons",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 87,
+  "summary": "Tonight the slate names the Nightmare Storm Dragons stampeding down the Ashen Path, dreaming. Three of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Storm Dragons on the Ashen Path, dreaming",
+    "type": "kill",
+    "target": "dream_ashen_dragon_lightning",
+    "map": "dream_ashen_path",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 3132
+   },
+   "coins": 2610,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 3
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 5220,
+      "Strength": 5220
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 10440
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 10440
+     }
+    }
+   ]
+  },
+  "completion": "The name burns off the slate, a letter at a time."
+ },
+ "q_bounty_ashen_abyssal_demon": {
+  "name": "Bounty: Abyssal Demons",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 89,
+  "summary": "Tonight the slate names the Nightmare Abyssal Demons stampeding down the Ashen Path, dreaming. Four of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Abyssal Demons on the Ashen Path, dreaming",
+    "type": "kill",
+    "target": "dream_ashen_abyssal_demon",
+    "map": "dream_ashen_path",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 4272
+   },
+   "coins": 3560,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 3
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 7120,
+      "Strength": 7120
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 14240
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 14240
+     }
+    }
+   ]
+  },
+  "completion": "The name burns off the slate, a letter at a time."
+ },
+ "q_bounty_plateau_bone_knight": {
+  "name": "Bounty: Bone Knights",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 81,
+  "summary": "Tonight the slate names the Nightmare Bone Knights risen from the crypt onto the Plateau, dreaming. Four of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Bone Knights on the Plateau, dreaming",
+    "type": "kill",
+    "target": "dream_plateau_bone_knight",
+    "map": "dream_plateau",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 3888
+   },
+   "coins": 3240,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 3
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 6480,
+      "Strength": 6480
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 12960
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 12960
+     }
+    }
+   ]
+  },
+  "completion": "The name goes grey on the slate, like ash, and blows away."
+ },
+ "q_bounty_plateau_blood_thrall": {
+  "name": "Bounty: Blood Thralls",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 83,
+  "summary": "Tonight the slate names the Nightmare Blood Thralls risen from the crypt onto the Plateau, dreaming. Four of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Blood Thralls on the Plateau, dreaming",
+    "type": "kill",
+    "target": "dream_plateau_blood_thrall",
+    "map": "dream_plateau",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 3984
+   },
+   "coins": 3320,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 3
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 6640,
+      "Strength": 6640
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 13280
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 13280
+     }
+    }
+   ]
+  },
+  "completion": "The name goes grey on the slate, like ash, and blows away."
+ },
+ "q_bounty_plateau_nosferatu": {
+  "name": "Bounty: Nosferatu",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 85,
+  "summary": "Tonight the slate names the Nightmare Nosferatu risen from the crypt onto the Plateau, dreaming. Four of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Nosferatu on the Plateau, dreaming",
+    "type": "kill",
+    "target": "dream_plateau_nosferatu",
+    "map": "dream_plateau",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 4080
+   },
+   "coins": 3400,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 3
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 6800,
+      "Strength": 6800
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 13600
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 13600
+     }
+    }
+   ]
+  },
+  "completion": "The name goes grey on the slate, like ash, and blows away."
+ },
+ "q_bounty_plateau_crypt_warden": {
+  "name": "Bounty: Crypt Wardens",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 87,
+  "summary": "Tonight the slate names the Nightmare Crypt Wardens risen from the crypt onto the Plateau, dreaming. Four of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Crypt Wardens on the Plateau, dreaming",
+    "type": "kill",
+    "target": "dream_plateau_crypt_warden",
+    "map": "dream_plateau",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 4176
+   },
+   "coins": 3480,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 3
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 6960,
+      "Strength": 6960
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 13920
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 13920
+     }
+    }
+   ]
+  },
+  "completion": "The name goes grey on the slate, like ash, and blows away."
+ },
+ "q_bounty_plateau_bone_colossus": {
+  "name": "Bounty: Bone Colossi",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 90,
+  "summary": "Tonight the slate names the Nightmare Bone Colossi risen from the crypt onto the Plateau, dreaming. Two of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Bone Colossi on the Plateau, dreaming",
+    "type": "kill",
+    "target": "dream_plateau_bone_colossus",
+    "map": "dream_plateau",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 2160
+   },
+   "coins": 1800,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 4
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 3600,
+      "Strength": 3600
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 7200
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 7200
+     }
+    }
+   ]
+  },
+  "completion": "The name goes grey on the slate, like ash, and blows away."
+ },
+ "q_bounty_plateau_ashen_lord": {
+  "name": "Bounty: Ashen Lords",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 92,
+  "summary": "Tonight the slate names the Ashen Lords risen from the crypt onto the Plateau, dreaming. Two of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Ashen Lords on the Plateau, dreaming",
+    "type": "kill",
+    "target": "dream_plateau_ashen_lord",
+    "map": "dream_plateau",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 2208
+   },
+   "coins": 1840,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 4
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 3680,
+      "Strength": 3680
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 7360
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 7360
+     }
+    }
+   ]
+  },
+  "completion": "The name goes grey on the slate, like ash, and blows away."
+ },
+ "q_bounty_plateau_cerberus": {
+  "name": "Bounty: Cerberuses",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 94,
+  "summary": "Tonight the slate names the Nightmare Cerberuses risen from the crypt onto the Plateau, dreaming. Two of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Cerberuses on the Plateau, dreaming",
+    "type": "kill",
+    "target": "dream_plateau_cerberus",
+    "map": "dream_plateau",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 2256
+   },
+   "coins": 1880,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 4
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 3760,
+      "Strength": 3760
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 7520
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 7520
+     }
+    }
+   ]
+  },
+  "completion": "The name goes grey on the slate, like ash, and blows away."
+ },
+ "q_bounty_bayou_ember_conjure": {
+  "name": "Bounty: Ember Conjures",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 91,
+  "summary": "Tonight the slate names the Nightmare Ember Conjures that have run the Bayou down, dreaming. Four of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Ember Conjures in the Bayou, dreaming",
+    "type": "kill",
+    "target": "dream_bayou_ember_conjure",
+    "map": "dream_bayou",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 4368
+   },
+   "coins": 3640,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 4
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 7280,
+      "Strength": 7280
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 14560
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 14560
+     }
+    }
+   ]
+  },
+  "completion": "The name runs off the slate like water."
+ },
+ "q_bounty_bayou_stone_conjure": {
+  "name": "Bounty: Stone Conjures",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 91,
+  "summary": "Tonight the slate names the Nightmare Stone Conjures that have run the Bayou down, dreaming. Four of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Stone Conjures in the Bayou, dreaming",
+    "type": "kill",
+    "target": "dream_bayou_stone_conjure",
+    "map": "dream_bayou",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 4368
+   },
+   "coins": 3640,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 4
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 7280,
+      "Strength": 7280
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 14560
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 14560
+     }
+    }
+   ]
+  },
+  "completion": "The name runs off the slate like water."
+ },
+ "q_bounty_bayou_tide_conjure": {
+  "name": "Bounty: Tide Conjures",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 92,
+  "summary": "Tonight the slate names the Nightmare Tide Conjures that have run the Bayou down, dreaming. Four of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Tide Conjures in the Bayou, dreaming",
+    "type": "kill",
+    "target": "dream_bayou_tide_conjure",
+    "map": "dream_bayou",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 4416
+   },
+   "coins": 3680,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 4
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 7360,
+      "Strength": 7360
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 14720
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 14720
+     }
+    }
+   ]
+  },
+  "completion": "The name runs off the slate like water."
+ },
+ "q_bounty_bayou_gale_conjure": {
+  "name": "Bounty: Gale Conjures",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 92,
+  "summary": "Tonight the slate names the Nightmare Gale Conjures that have run the Bayou down, dreaming. Four of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Gale Conjures in the Bayou, dreaming",
+    "type": "kill",
+    "target": "dream_bayou_gale_conjure",
+    "map": "dream_bayou",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 4416
+   },
+   "coins": 3680,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 4
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 7360,
+      "Strength": 7360
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 14720
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 14720
+     }
+    }
+   ]
+  },
+  "completion": "The name runs off the slate like water."
+ },
+ "q_bounty_bayou_storm_conjure": {
+  "name": "Bounty: Storm Conjures",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 93,
+  "summary": "Tonight the slate names the Nightmare Storm Conjures that have run the Bayou down, dreaming. Four of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Storm Conjures in the Bayou, dreaming",
+    "type": "kill",
+    "target": "dream_bayou_storm_conjure",
+    "map": "dream_bayou",
+    "count": 4
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 4464
+   },
+   "coins": 3720,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 4
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 7440,
+      "Strength": 7440
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 14880
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 14880
+     }
+    }
+   ]
+  },
+  "completion": "The name runs off the slate like water."
+ },
+ "q_bounty_bayou_inferno_conjure": {
+  "name": "Bounty: Inferno Conjures",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 93,
+  "summary": "Tonight the slate names the Nightmare Inferno Conjures that have run the Bayou down, dreaming. Three of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Inferno Conjures in the Bayou, dreaming",
+    "type": "kill",
+    "target": "dream_bayou_inferno_conjure",
+    "map": "dream_bayou",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 3348
+   },
+   "coins": 2790,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 4
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 5580,
+      "Strength": 5580
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 11160
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 11160
+     }
+    }
+   ]
+  },
+  "completion": "The name runs off the slate like water."
+ },
+ "q_bounty_bayou_monolith_conjure": {
+  "name": "Bounty: Monolith Conjures",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 94,
+  "summary": "Tonight the slate names the Nightmare Monolith Conjures that have run the Bayou down, dreaming. Three of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Monolith Conjures in the Bayou, dreaming",
+    "type": "kill",
+    "target": "dream_bayou_monolith_conjure",
+    "map": "dream_bayou",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 3384
+   },
+   "coins": 2820,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 4
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 5640,
+      "Strength": 5640
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 11280
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 11280
+     }
+    }
+   ]
+  },
+  "completion": "The name runs off the slate like water."
+ },
+ "q_bounty_bayou_maelstrom_conjure": {
+  "name": "Bounty: Maelstrom Conjures",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 94,
+  "summary": "Tonight the slate names the Nightmare Maelstrom Conjures that have run the Bayou down, dreaming. Three of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Maelstrom Conjures in the Bayou, dreaming",
+    "type": "kill",
+    "target": "dream_bayou_maelstrom_conjure",
+    "map": "dream_bayou",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 3384
+   },
+   "coins": 2820,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 4
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 5640,
+      "Strength": 5640
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 11280
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 11280
+     }
+    }
+   ]
+  },
+  "completion": "The name runs off the slate like water."
+ },
+ "q_bounty_bayou_cyclone_conjure": {
+  "name": "Bounty: Cyclone Conjures",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 94,
+  "summary": "Tonight the slate names the Nightmare Cyclone Conjures that have run the Bayou down, dreaming. Three of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Cyclone Conjures in the Bayou, dreaming",
+    "type": "kill",
+    "target": "dream_bayou_cyclone_conjure",
+    "map": "dream_bayou",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 3384
+   },
+   "coins": 2820,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 4
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 5640,
+      "Strength": 5640
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 11280
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 11280
+     }
+    }
+   ]
+  },
+  "completion": "The name runs off the slate like water."
+ },
+ "q_bounty_bayou_thunder_conjure": {
+  "name": "Bounty: Thunder Conjures",
+  "source": "board",
+  "giver": "board_reverie",
+  "level": 94,
+  "summary": "Tonight the slate names the Nightmare Thunder Conjures that have run the Bayou down, dreaming. Three of them, before dawn.",
+  "prereq": [
+   "q_the_water_remembers"
+  ],
+  "repeat": "daily",
+  "bounty": true,
+  "pool": "dream_bounty",
+  "stages": [
+   {
+    "desc": "Put down Nightmare Thunder Conjures in the Bayou, dreaming",
+    "type": "kill",
+    "target": "dream_bayou_thunder_conjure",
+    "map": "dream_bayou",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 3384
+   },
+   "coins": 2820,
+   "items": [
+    {
+     "id": "dream_shard",
+     "qty": 4
+    }
+   ],
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 5640,
+      "Strength": 5640
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 11280
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 11280
+     }
+    }
+   ]
+  },
+  "completion": "The name runs off the slate like water."
  }
 }

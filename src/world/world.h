@@ -642,6 +642,16 @@ public:
     // Pure, and static, so the self-test can ask it about any night.
     static EnemySpawnDef ResolveSpawn(const EnemySpawnDef& def, const string& map_id, int day, int index);
 
+    // --- the Dreamer's Slate's bounties ------------------------------------------------
+    // The bounties (QuestDef::bounty) posted on `day`: for each dream land, up
+    // to BOUNTIES_PER_LAND of those whose kind is out on it that night in at
+    // least the numbers the bounty asks for, chosen by the night. Worked out
+    // from the land's map file and the day alone, by ResolveSpawn, so nobody
+    // has to have been there, and every machine in a game together posts the
+    // same ones. Sorted.
+    static vector<string> DreamBounties(const class QuestLog& quests, int day, const string& maps_dir = "maps");
+    static constexpr int BOUNTIES_PER_LAND = 3;
+
     // --- what comes out at night ----------------------------------------------------
     // Night changed the light and nothing else. Now the wilds have visitors
     // after dark: things that live somewhere worse, a few of them, off the

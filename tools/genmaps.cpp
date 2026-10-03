@@ -396,6 +396,71 @@ public:
         return !hits(dq["collision"]) && !(dq.contains("water") && hits(dq["water"]));
     }
 
+    // True when the picture of a piece of standing scenery more than `larger`
+    // px on a side reaches into the box. Clear() knows only what is solid,
+    // and most of what stands about a map is not.
+    bool Standing(int x, int y, int w, int h, int larger = 0) const {
+        x += ox;
+        for (const auto& [name, g] : groups) {
+            if (g.layer < 1) continue;
+            for (const auto& l : g.locations) {
+                if (l[2] <= larger && l[3] <= larger) continue;
+                const int lx = l[0] - l[2] / 2, ly = l[1] - l[3] / 2;
+                if (x < lx + l[2] && lx < x + w && y < ly + l[3] && ly < y + h) return true;
+            }
+        }
+        return false;
+    }
+
+    // Makes room in a copy of a finished map: the standing scenery no more
+    // than `most` px on a side whose pictures reach into the box -- a stall, a
+    // barrel, a bush -- the objects that stand in it, and the collision that
+    // was theirs: a small box whose middle is under a picture taken away, or
+    // at the foot of an object taken away. Walls, houses and anything else
+    // larger stay where they are.
+    void ClearArea(int x, int y, int w, int h, int most = 96) {
+        x += ox;
+        const auto meets = [&](int lx, int ly, int lw, int lh) {
+            return x < lx + lw && lx < x + w && y < ly + lh && ly < y + h;
+        };
+        vector<std::array<int, 4>> gone;
+        for (auto& [name, g] : groups) {
+            if (g.layer < 1) continue;
+            auto& locs = g.locations;
+            for (auto it = locs.begin(); it != locs.end();) {
+                const int lx = (*it)[0] - (*it)[2] / 2, ly = (*it)[1] - (*it)[3] / 2;
+                if ((*it)[2] <= most && (*it)[3] <= most && meets(lx, ly, (*it)[2], (*it)[3])) {
+                    gone.push_back({lx, ly, (*it)[2], (*it)[3]});
+                    it = locs.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+        }
+        vector<std::pair<int, int>> feet;
+        json objects = json::array();
+        for (const auto& o : dq["objects"]) {
+            const int fx = o.value("x", 0), fy = o.value("y", 0);
+            if (fx >= x && fx < x + w && fy >= y && fy < y + h) feet.push_back({fx, fy});
+            else                                                objects.push_back(o);
+        }
+        dq["objects"] = objects;
+        json walls = json::array();
+        for (const auto& c : dq["collision"]) {
+            const int cw = c[2], ch = c[3];
+            const int mx = c[0].get<int>() + cw / 2, my = c[1].get<int>() + ch / 2;
+            bool theirs = false;
+            if (cw * ch <= 4096) {
+                for (const auto& b : gone)
+                    if (mx >= b[0] && mx < b[0] + b[2] && my >= b[1] && my < b[1] + b[3]) theirs = true;
+                for (const auto& f : feet)
+                    if (std::abs(mx - f.first) <= 24 && my - f.second >= -24 && my - f.second <= 8) theirs = true;
+            }
+            if (!theirs) walls.push_back(c);
+        }
+        dq["collision"] = walls;
+    }
+
     void Portal(int x, int y, int w, int h, const string& target,
                 const string& spawn, const string& label,
                 bool interact = true, const string& locked_by = "") {
@@ -2859,6 +2924,9 @@ static void BuildOverworld() {
 // --- town --------------------------------------------------------------------
 
 static void BuildDreamHavenbrook(const MapBuilder& town);
+// One of the dream lands past Havenbrook's mirrors, made of the waking map it
+// is a dream of: see "The dream lands".
+static void BuildDreamLand(const MapBuilder& waking, const string& land);
 
 static void BuildTown() {
     // Sixteen columns wider than it was, for the farm: everything else in the
@@ -5430,6 +5498,7 @@ static void BuildAshenPath() {
                            return true;
                        });
     m.Write("maps");
+    BuildDreamLand(m, "dream_ashen_path");
 }
 
 // =============================================================================
@@ -7748,6 +7817,7 @@ static void BuildBayou() {
         std::printf("  the Bayou: %zu witch's tables, %d monsters for their ritual\n", witch_tables.size(), called);
     }
     m.Write("maps");
+    BuildDreamLand(m, "dream_bayou");
 }
 
 static void BuildMossvale() {
@@ -9185,6 +9255,7 @@ static void BuildCollege() {
         m.Portal(W * CELL - 24, (cross - 1) * CELL, 24, 2 * CELL, "college_classroom", "entrance", "The lecture room", false);
         m.Spawn("from_college_classroom", (W - 4) * CELL, cross * CELL);
         m.Write("maps");
+        BuildDreamLand(m, "dream_college");
     }
 
     // ------------------------------------------------ west: the practice hall
@@ -9552,31 +9623,24 @@ static void PlaceWakingStone(MapBuilder& m, const string& id, int x, int y) {
 }
 
 // =============================================================================
-//  Havenbrook, dreaming
+//  Dreaming
 //
-//  Through the mirror at the bottom of the Dreaming Dark: Havenbrook exactly as
-//  it stands -- the same streets, the same roofs, the well in the square -- as a
-//  nightmare has it. Nobody lives in it. Nothing in it opens, sells or answers;
-//  the doors are only the pictures of doors, and past the gates there is only
-//  the dark. What walks its streets are the orcs and the dead, dreamt fifty
-//  levels strong and more, and the bosses of the waking world: some in their
-//  places every night, and at least one walking the town, a different one on a
-//  different road each night.
-//
-//  Built from the town itself, as it was built: a copy of the finished map with
-//  its people, its doors and its beasts taken out and its dream put in, so the
-//  one can never drift from the other.
+//  A waking map made a dream of: a copy of it, finished, with nobody in it and
+//  nothing in it that opens, sells or answers -- the doors are only pictures
+//  of doors, the ways out are shut on the dark, a chest is a picture of a
+//  chest -- and nothing walking it yet. What walks it is the dream's to say.
+//  Built from the map itself, as it was built, so the one can never drift
+//  from the other.
 // =============================================================================
-static void BuildDreamHavenbrook(const MapBuilder& town) {
-    const int CELL = 32;
-    MapBuilder m = town;
-    m.Rename("dream_havenbrook", "Havenbrook, Dreaming");
+static void Dreamt(MapBuilder& m, const string& id, const string& name, const string& subtitle, int depth,
+                   float fog_water = 0.0f) {
+    m.Rename(id, name);
     json& dq = m.dq;
     dq["ambient"]  = "dream";
-    dq["subtitle"] = "The town as a nightmare has it";
-    dq["dream_depth"] = 4;
+    dq["subtitle"] = subtitle;
+    dq["dream_depth"] = depth;
     dq["background"] = json::array({12, 8, 22, 255});
-    m.Fog(0.30f, 0.0f, {150, 118, 214});
+    m.Fog(0.30f, fog_water, {150, 118, 214});
 
     // Nobody lives here.
     dq["npcs"] = json::array();
@@ -9598,15 +9662,40 @@ static void BuildDreamHavenbrook(const MapBuilder& town) {
         d["y"]      = o["y"];
         d["sprite"] = o["sprite"];
         if (o.contains("title")) d["title"] = o["title"];
+        if (o.contains("solid")) d["solid"] = o["solid"];
         kept.push_back(d);
     }
     dq["objects"] = kept;
     dq["enemies"] = json::array();
     dq["spawns"]  = json::object();
+}
+
+// =============================================================================
+//  Havenbrook, dreaming
+//
+//  Through the mirror at the bottom of the Dreaming Dark: Havenbrook exactly as
+//  it stands -- the same streets, the same roofs, the well in the square -- as a
+//  nightmare has it. Nobody lives in it. Nothing in it opens, sells or answers;
+//  the doors are only the pictures of doors, and past the gates there is only
+//  the dark. What walks its streets are the orcs and the dead, dreamt fifty
+//  levels strong and more, and the bosses of the waking world: some in their
+//  places every night, and at least one walking the town, a different one on a
+//  different road each night.
+//
+//  And beside the mirror that brought you, four more, each a way into one of
+//  the dream lands: see below.
+// =============================================================================
+static void BuildDreamHavenbrook(const MapBuilder& town) {
+    const int CELL = 32;
+    MapBuilder m = town;
+    Dreamt(m, "dream_havenbrook", "Havenbrook, Dreaming", "The town as a nightmare has it", 4);
 
     // --- the mirror, in the square -----------------------------------------------------------
     int mx = 21 * CELL, my = 28 * CELL;
     for (int r = 0; r < 12 && !(m.Clear(mx, my) && m.Clear(mx, my + 40)); ++r) mx += 16;
+    // The west end of the square is not in this dream -- the stall, the log
+    // pile, the tanner's racks, a lamp -- to make room for the four mirrors.
+    m.ClearArea(mx - 612, my - 196, 560, 260);
     m.Prop("props", "dream_mirror", mx, my);
     m.Collision(mx - 40, my - 14, 80, 14);
     m.Portal(mx - 34, my - 30, 68, 40, "dreamworld_3", "from_havenbrook", "Step back through the mirror", true);
@@ -9621,8 +9710,34 @@ static void BuildDreamHavenbrook(const MapBuilder& town) {
                       "Nobody is here, and everything that is here should not be: the orcs from under "
                       "Emberfell, and the dead from under Hollowrest, and them -- the ones you have killed "
                       "and killed again, standing about the town as though they lived in it.\n\n"
+                      "And beside the glass you came through, four more. Each looks out on somewhere else "
+                      "the dream has got into -- the College, the Ashen Path, the Plateau, the Bayou -- and "
+                      "everything in them is stronger than anything here.\n\n"
                       "They count, here, the same as awake. And you cannot die in a dream.";
         m.Collision(mx + 80, my + 22, 20, 8);
+    }
+
+    // --- and four more beside it ---------------------------------------------------------------
+    // In a row along the square's west end, each into one of the dream lands.
+    // Every one leads somewhere stronger than this, and says so, as a door
+    // into a deeper dream must (Portal::Warning).
+    struct Glass { const char* to; const char* back; const char* label; int advised; };
+    const Glass glasses[] = {
+        {"dream_college",    "from_college",    "Into the College, dreaming",    70},
+        {"dream_ashen_path", "from_ashen_path", "Onto the Ashen Path, dreaming", 80},
+        {"dream_plateau",    "from_plateau",    "Up to the Plateau, dreaming",   80},
+        {"dream_bayou",      "from_bayou",      "Into the Bayou, dreaming",      90},
+    };
+    vector<std::pair<int, int>> mirrors = {{mx, my}};
+    const int gy = my - 16;
+    for (int i = 0; i < 4; ++i) {
+        const int gx = mx - 126 - 128 * i;
+        m.Prop("props", "dream_mirror", gx, gy);
+        m.Collision(gx - 40, gy - 14, 80, 14);
+        m.Portal(gx - 34, gy - 30, 68, 40, glasses[i].to, "from_havenbrook", glasses[i].label, true);
+        m.Danger(glasses[i].advised);
+        m.Spawn(glasses[i].back, gx, gy + 36);
+        mirrors.push_back({gx, gy});
     }
 
     // --- the orcs and the dead ---------------------------------------------------------------
@@ -9634,14 +9749,18 @@ static void BuildDreamHavenbrook(const MapBuilder& town) {
     int posts = 0;
     // A street's worth of them to a street, not a crowd: every sixth cell
     // or so, and not every one of those.
-    for (int gy = 4; gy < H - 3; gy += 6)
+    for (int gy2 = 4; gy2 < H - 3; gy2 += 6)
         for (int gx = 4; gx < W - 3; gx += 6) {
-            const int cx = gx + static_cast<int>(Hash2(gx, gy, 9191) * 3.0f) - 1;
-            const int cy = gy + static_cast<int>(Hash2(gx, gy, 9192) * 3.0f) - 1;
+            const int cx = gx + static_cast<int>(Hash2(gx, gy2, 9191) * 3.0f) - 1;
+            const int cy = gy2 + static_cast<int>(Hash2(gx, gy2, 9192) * 3.0f) - 1;
             const int x = cx * CELL + 16, y = cy * CELL + 16;
             if (Hash2(cx, cy, 9195) > 0.62f) continue;
             if (!m.Clear(x, y) || !m.Clear(x - 14, y) || !m.Clear(x + 14, y)) continue;
-            if (std::hypot(static_cast<float>(x - mx), static_cast<float>(y - my)) < 300.0f) continue;
+            // Nobody stepping out of a mirror steps into a fight.
+            bool by_glass = false;
+            for (const auto& g : mirrors)
+                if (std::hypot(static_cast<float>(x - g.first), static_cast<float>(y - g.second)) < 300.0f) by_glass = true;
+            if (by_glass) continue;
             const int block = (cx / 12) * 7 + (cy / 10);
             const bool orc = Hash2(block, 3, 9193) < 0.5f;
             const string group = string(orc ? "orcs_" : "dead_") + std::to_string(block);
@@ -9667,6 +9786,197 @@ static void BuildDreamHavenbrook(const MapBuilder& town) {
     // --- and at least one walking the town --------------------------------------------------------
     std::printf("  dream_havenbrook: %d posts of orcs and the dead\n", posts);
     PlaceRoamers(m);
+    m.Write("maps");
+}
+
+// =============================================================================
+//  The dream lands
+//
+//  Through the four mirrors beside Havenbrook's, dreaming: places of the
+//  waking world as nightmares have them, each overrun by something that does
+//  not live there, and all of it seventy levels strong and more --
+//
+//    the College at Fernhollow, by the Bayou's own people     70 to 80
+//    the Ashen Path, stampeded by dragons and demons          80 to 90
+//    Purgatory's Plateau, by the crypt's dead                 80 to 95
+//    the Bayou, run down by the Primordium's elementals       90 to 95
+//
+//  Each is its waking map made a dream of (Dreamt), with a mirror back to
+//  Havenbrook where the land's own way in is. What walks it is a lattice of
+//  posts, each block of them one kind a night (World::ResolveSpawn): the part
+//  of the land nearer the mirror is the weaker kinds', the further part the
+//  stronger's, so it is harder the further in you go. Every kind is its own
+//  monster, made to be its level (dream_<land>_<kind> in data/enemies.json),
+//  and the Dreamer's Slate in the Reverie posts bounties on whichever are out
+//  that night: see World::DreamBounties.
+// =============================================================================
+struct DreamLand {
+    const char* id;
+    const char* name;
+    const char* subtitle;
+    const char* back;        // the spawn beside its mirror in Havenbrook, dreaming
+    const char* voice;       // the sign beside its own mirror
+    int   spacing;           // cells between posts
+    float near_share;        // of the posts, the share that is the weaker kinds'
+    float fog_water;
+    int   seed;
+    vector<string> near_kinds, far_kinds;
+};
+
+static const vector<DreamLand>& DreamLands() {
+    static const vector<DreamLand> lands = {
+        {"dream_college", "The College, Dreaming", "The court as a nightmare has it: the swamp has come up the hill",
+         "from_college",
+         "The College at Fernhollow, and nobody at their books.\n\n"
+         "The swamp came up the hill in the dream and in at the gate: the lizardmen and their shamans, the "
+         "hags, the dead that walk out of the mire -- seventy levels strong and more, and stronger the further "
+         "you go from the mirror.\n\n"
+         "The slate in the Reverie names some of them every night. You cannot die in a dream.",
+         5, 0.5f, 0.0f, 7101,
+         {"dream_college_lizardman", "dream_college_mire_croaker", "dream_college_rot_shambler"},
+         {"dream_college_fen_stalker", "dream_college_swamp_hag", "dream_college_lizard_shaman"}},
+        {"dream_ashen_path", "The Ashen Path, Dreaming", "The burnt road as a nightmare has it: the ground is shaking",
+         "from_ashen_path",
+         "The Ashen Path, and the road is shaking.\n\n"
+         "Dragons of every element and the demons up out of the pit, running it in herds -- eighty levels "
+         "strong and more, and stronger the further you go from the mirror.\n\n"
+         "The slate in the Reverie names some of them every night. You cannot die in a dream.",
+         7, 0.5f, 0.0f, 7201,
+         {"dream_ashen_demon", "dream_ashen_dragon_earth", "dream_ashen_dragon_fire", "dream_ashen_greater_demon"},
+         {"dream_ashen_dragon_water", "dream_ashen_dragon_air", "dream_ashen_dragon_lightning",
+          "dream_ashen_abyssal_demon"}},
+        {"dream_plateau", "The Plateau, Dreaming", "The fort as a nightmare has it: the crypt has come up",
+         "from_plateau",
+         "Purgatory's Plateau, and the fort at the top of it.\n\n"
+         "The crypt has come up out of Hollowrest in the dream: its knights and its thralls and its wardens, "
+         "the colossi of its bones, the Ashen Lords -- and the dog, more than one of it. Eighty levels "
+         "strong by the mirror, ninety-five by the fort.\n\n"
+         "The slate in the Reverie names some of them every night. You cannot die in a dream.",
+         6, 0.55f, 0.0f, 7301,
+         {"dream_plateau_bone_knight", "dream_plateau_blood_thrall", "dream_plateau_nosferatu",
+          "dream_plateau_crypt_warden"},
+         {"dream_plateau_bone_colossus", "dream_plateau_ashen_lord", "dream_plateau_cerberus"}},
+        {"dream_bayou", "The Bayou, Dreaming", "The swamp as a nightmare has it: the water is burning",
+         "from_bayou",
+         "The Bayou, and the water is burning.\n\n"
+         "The elementals of the Primordium have run the swamp down, fire and stone and tide and gale and "
+         "storm -- ninety levels strong and more, and the greatest of them furthest from the mirror.\n\n"
+         "The slate in the Reverie names some of them every night. You cannot die in a dream.",
+         10, 0.5f, 1.0f, 7401,
+         {"dream_bayou_ember_conjure", "dream_bayou_stone_conjure", "dream_bayou_tide_conjure",
+          "dream_bayou_gale_conjure", "dream_bayou_storm_conjure"},
+         {"dream_bayou_inferno_conjure", "dream_bayou_monolith_conjure", "dream_bayou_maelstrom_conjure",
+          "dream_bayou_cyclone_conjure", "dream_bayou_thunder_conjure"}},
+    };
+    return lands;
+}
+
+// Whether (x, y) is within `margin` of anything that burns.
+static bool Hot(const MapBuilder& m, int x, int y, int margin) {
+    if (!m.dq.contains("hazards")) return false;
+    for (const auto& h : m.dq["hazards"]) {
+        const json& r = h.contains("rect") ? h["rect"] : h;
+        const int hx = r[0], hy = r[1], hw = r[2], hh = r[3];
+        if (x > hx - margin && x < hx + hw + margin && y > hy - margin && y < hy + hh + margin) return true;
+    }
+    return false;
+}
+
+// The nearest place to (x, y) a mirror can stand, ring by ring: clear ground
+// at its foot, in front of it and where its waking stone and its sign go, all
+// on the ground and out of any fire, and nothing bigger than a bush where its
+// glass would be (what is no bigger is cleared away: ClearArea).
+static std::pair<int, int> MirrorSpot(const MapBuilder& m, int x, int y) {
+    static const int kFeet[][2] = {{0, 0}, {-44, -6}, {44, -6}, {0, 40}, {-90, 30}, {90, 30}};
+    const auto fits = [&](int px, int py) {
+        if (px < 140 || py < 160 || px > m.Width() - 140 || py > m.Height() - 80) return false;
+        for (const auto& f : kFeet)
+            if (!m.Clear(px + f[0], py + f[1]) || m.LevelAt(px + f[0], py + f[1]) != 0) return false;
+        return !Hot(m, px, py, 160) && !m.Standing(px - 62, py - 124, 124, 168, 96);
+    };
+    for (int r = 0; r <= 800; r += 16) {
+        const int n = std::max(1, r / 4);
+        for (int k = 0; k < n; ++k) {
+            const float a = k * 6.2831853f / static_cast<float>(n);
+            const int px = x + static_cast<int>(lroundf(cosf(a) * r));
+            const int py = y + static_cast<int>(lroundf(sinf(a) * r));
+            if (fits(px, py)) return {px, py};
+        }
+    }
+    std::fprintf(stderr, "genmaps: no room for a mirror near (%d, %d)\n", x, y);
+    return {x, y};
+}
+
+static void BuildDreamLand(const MapBuilder& waking, const string& land_id) {
+    const DreamLand* found = nullptr;
+    for (const DreamLand& l : DreamLands())
+        if (land_id == l.id) found = &l;
+    if (!found) {
+        std::fprintf(stderr, "genmaps: there is no dream land '%s'\n", land_id.c_str());
+        return;
+    }
+    const DreamLand& land = *found;
+    const int CELL = 32;
+    MapBuilder m = waking;
+    Dreamt(m, land.id, land.name, land.subtitle, 5, land.fog_water);
+
+    // --- the mirror back, where the land's own way in is ----------------------------------------
+    int sx = m.Width() / 2, sy = m.Height() / 2;
+    if (waking.dq["spawns"].contains("default")) {
+        sx = waking.dq["spawns"]["default"][0].get<int>();
+        sy = waking.dq["spawns"]["default"][1].get<int>();
+    }
+    const auto [mx, my] = MirrorSpot(m, sx, sy);
+    m.ClearArea(mx - 110, my - 150, 220, 230);
+    m.Prop("props", "dream_mirror", mx, my);
+    m.Collision(mx - 40, my - 14, 80, 14);
+    m.Portal(mx - 34, my - 30, 68, 40, "dream_havenbrook", land.back, "Step back through the mirror", true);
+    m.Spawn("from_havenbrook", mx, my + 40);
+    m.Spawn("default", mx, my + 40);
+    const string tag = string(land.id).substr(6);
+    PlaceWakingStone(m, "dream_waking_stone_" + tag, mx - 90, my + 30);
+    {
+        json& o = m.Object("dream_voice_" + tag, "sign", mx + 90, my + 30);
+        o["sprite"] = ObjPath("rocksmall_02");
+        o["title"]  = "A voice in the dream";
+        o["text"]   = land.voice;
+        m.Collision(mx + 80, my + 22, 20, 8);
+    }
+
+    // --- what walks it ------------------------------------------------------------------------
+    // A post every `spacing` cells or so, and not every one of those; a block
+    // of three by two of them is one kind a night.
+    struct Post { int x, y, block; float d; };
+    vector<Post> posts;
+    const int step = land.spacing, W = m.Width() / CELL, H = m.Height() / CELL;
+    for (int gy = 3; gy < H - 2; gy += step)
+        for (int gx = 3; gx < W - 2; gx += step) {
+            const int cx = gx + static_cast<int>(Hash2(gx, gy, land.seed) * 3.0f) - 1;
+            const int cy = gy + static_cast<int>(Hash2(gx, gy, land.seed + 1) * 3.0f) - 1;
+            const int x = cx * CELL + 16, y = cy * CELL + 16;
+            if (Hash2(cx, cy, land.seed + 2) > 0.62f) continue;
+            if (!m.Clear(x, y) || !m.Clear(x - 14, y) || !m.Clear(x + 14, y)) continue;
+            if (m.LevelAt(x, y) != 0 || Hot(m, x, y, 24)) continue;
+            // Nobody stepping out of the mirror steps into a fight.
+            const float d = std::hypot(static_cast<float>(x - mx), static_cast<float>(y - my));
+            if (d < 360.0f) continue;
+            posts.push_back({x, y, (cx / (3 * step)) * 101 + cy / (2 * step), d});
+        }
+    vector<float> far_off;
+    for (const Post& p : posts) far_off.push_back(p.d);
+    std::sort(far_off.begin(), far_off.end());
+    const float cut = far_off.empty() ? 0.0f
+                                      : far_off[std::min(far_off.size() - 1,
+                                                         static_cast<size_t>(far_off.size() * land.near_share))];
+    int counts[2] = {0, 0};
+    for (const Post& p : posts) {
+        const int tier = p.d < cut ? 0 : 1;
+        m.EnemyPool(tier ? land.far_kinds : land.near_kinds, "t" + std::to_string(tier) + "_" + std::to_string(p.block),
+                    p.x, p.y, 1, 1, 60.0f, 240.0f);
+        ++counts[tier];
+    }
+    std::printf("  %s: mirror at (%d, %d), %d posts near it and %d further in\n", land.id, mx, my, counts[0],
+                counts[1]);
     m.Write("maps");
 }
 
@@ -10535,6 +10845,7 @@ static void BuildPlateauStronghold() {
                wold::Gap(roads, static_cast<float>(cx), static_cast<float>(cy)) > 4.0f;
     }, 10);
     m.Write("maps");
+    BuildDreamLand(m, "dream_plateau");
 }
 
 // --- the keep ---------------------------------------------------------------------------------

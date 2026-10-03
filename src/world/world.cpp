@@ -127,6 +127,45 @@ EnemySpawnDef World::ResolveSpawn(const EnemySpawnDef& def, const string& map_id
     return out;
 }
 
+vector<string> World::DreamBounties(const QuestLog& quests, int day, const string& maps_dir) {
+    // Every bounty, by the land its kills are to be made on.
+    std::map<string, vector<const QuestDef*>> lands;
+    for (const auto& kv : quests.Definitions())
+        if (kv.second.bounty && !kv.second.stages.empty() && !kv.second.stages.front().map_id.empty())
+            lands[kv.second.stages.front().map_id].push_back(&kv.second);
+    // A land's posts are read from its file once: it does not change while
+    // the game is running.
+    static std::map<string, vector<EnemySpawnDef>> known;
+    vector<string> out;
+    for (auto& [land, wanted] : lands) {
+        const string path = maps_dir + "/" + land + ".mx";
+        auto posts = known.find(path);
+        if (posts == known.end()) posts = known.emplace(path, Map::ReadPosts(path)).first;
+        // What is out there tonight, kind by kind. Nothing that comes and goes
+        // -- a night visitor, a roamer, a ritual's -- is counted on.
+        std::map<string, int> tonight;
+        for (size_t i = 0; i < posts->second.size(); ++i) {
+            const EnemySpawnDef& post = posts->second[i];
+            if (post.night || !post.route.empty() || !post.ritual.empty()) continue;
+            ++tonight[ResolveSpawn(post, land, day, static_cast<int>(i)).type];
+        }
+        vector<const QuestDef*> able;
+        for (const QuestDef* q : wanted)
+            if (tonight[q->stages.front().target] >= q->stages.front().count) able.push_back(q);
+        // Which of them, by the night: the same all night, others the next.
+        std::sort(able.begin(), able.end(), [](const QuestDef* a, const QuestDef* b) { return a->id < b->id; });
+        uint32_t seed = 2166136261u;
+        for (char c : land) seed = (seed ^ static_cast<unsigned char>(c)) * 16777619u;
+        seed ^= static_cast<uint32_t>(day) * 2654435761u;
+        std::mt19937 rng(seed);
+        std::shuffle(able.begin(), able.end(), rng);
+        for (size_t i = 0; i < able.size() && i < static_cast<size_t>(BOUNTIES_PER_LAND); ++i)
+            out.push_back(able[i]->id);
+    }
+    std::sort(out.begin(), out.end());
+    return out;
+}
+
 void World::StartAfresh() {
     flags.clear();
     slain.clear();

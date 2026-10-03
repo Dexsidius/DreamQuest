@@ -180,6 +180,13 @@ a bed asks how you would spend the night: sleep through it, or dream. The
 dream -- the Reverie -- is different every night and goes down a ladder at a
 time, Combat 25 and then 56 advised; nothing in a dream can kill you.
 
+At the bottom, through a mirror, is Havenbrook as a nightmare has it, and
+beside that mirror four more: the College, the Ashen Path, the Plateau and the
+Bayou, dreaming, overrun by monsters from 70 to 95. The Dreamer's Slate in the
+Reverie posts bounties on whatever is out on them that night, three a land;
+one not finished by dawn lapses. On the Slate, L (RT on a pad) shows only what
+is within ten levels of your Combat, and shows everything again.
+
 The wilds are different after dark: things come out at night that do not live
 there by day, a step stronger than the neighbours, never on the roads, never
 near a gate or a camp, and gone at dawn. In the Bayou and the Hexmire,

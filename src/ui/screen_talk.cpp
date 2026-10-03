@@ -133,12 +133,35 @@ void Game::DrawDialogue() {
 //  Mission board
 // =============================================================================
 
-void Game::UpdateBoard() {
-    // Only offer what the player can actually take on right now.
-    vector<string> available;
-    for (const string& id : board_quests)
-        if (quests->CanStart(id, world->player.skills)) available.push_back(id);
+vector<string> Game::BoardList() const {
+    vector<string> out;
+    const int combat = world->player.skills.CombatLevel();
+    for (const string& id : board_quests) {
+        // Only what the player can actually take on right now.
+        if (!quests->CanStart(id, world->player.skills)) continue;
+        const QuestDef* d = quests->Definition(id);
+        if (board_in_range && !board_orders && d && !QuestLog::InRange(d->recommended_level, combat)) continue;
+        out.push_back(id);
+    }
+    // A board reads from the easiest down. An order book keeps its own order.
+    if (!board_orders)
+        std::stable_sort(out.begin(), out.end(), [&](const string& a, const string& b) {
+            const QuestDef* da = quests->Definition(a);
+            const QuestDef* db = quests->Definition(b);
+            return (da ? da->recommended_level : 0) < (db ? db->recommended_level : 0);
+        });
+    return out;
+}
 
+void Game::UpdateBoard() {
+    // The filter: everything, or only what is within reach.
+    if (!board_orders && input.Pressed(Action::Target)) {
+        board_in_range = !board_in_range;
+        board_cursor = 0;
+        Audio::Play(Sfx::UiMove);
+    }
+
+    const vector<string> available = BoardList();
     MoveCursor(board_cursor, static_cast<int>(available.size()));
 
     if ((input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) &&
@@ -159,56 +182,90 @@ void Game::UpdateBoard() {
 
 void Game::DrawBoard() {
     ui.Dim(0.5f);
-    const SDL_FRect panel = CenteredPanel(ui, 720.0f, 440.0f);
+    const SDL_FRect panel = CenteredPanel(ui, 760.0f, 480.0f);
     ui.Panel(panel);
     ui.Text(board_title.empty() ? "Mission Board" : board_title,
             panel.x + panel.w / 2.0f, panel.y + 16.0f, TextSize::Large,
             Palette::Highlight, Align::Center);
 
-    vector<string> available;
-    for (const string& id : board_quests)
-        if (quests->CanStart(id, world->player.skills)) available.push_back(id);
+    const vector<string> available = BoardList();
+    const int combat = world->player.skills.CombatLevel();
+    const float list_w = 330.0f;
+    // What the filter is showing, over the list.
+    if (!board_orders)
+        ui.Text(board_in_range ? "Within " + std::to_string(QuestLog::LEVEL_RANGE) + " levels of your Combat (" +
+                                     std::to_string(combat) + ")"
+                               : string("Everything posted"),
+                panel.x + 20.0f, panel.y + 56.0f, TextSize::Small, board_in_range ? Palette::Xp : Palette::TextDim);
 
     if (available.empty()) {
-        ui.Text(board_orders ? "No orders for you today." : "Nothing new is pinned up today.",
+        const bool filtered = board_in_range && !board_orders;
+        ui.Text(board_orders ? "No orders for you today."
+                : filtered   ? "Nothing posted within " + std::to_string(QuestLog::LEVEL_RANGE) + " levels of you."
+                             : string("Nothing new is pinned up today."),
                 panel.x + panel.w / 2.0f,
                 panel.y + panel.h / 2.0f - 20.0f, TextSize::Body, Palette::TextDim,
                 Align::Center);
         ui.Text(board_orders ? "New orders come in at dawn. Anything you have taken is in your journal."
-                             : "Come back after you have finished what you already took on.",
+                : filtered   ? input.PromptFor(Action::Target) + " shows everything posted."
+                             : string("Come back after you have finished what you already took on."),
                 panel.x + panel.w / 2.0f, panel.y + panel.h / 2.0f + 6.0f,
                 TextSize::Small, Palette::TextDim, Align::Center);
     } else {
         const float row_h = 40.0f;
-        const float list_w = 300.0f;
+        const float top = panel.y + 82.0f;
+        // The window of rows the cursor is inside, so a full board scrolls --
+        // a night's bounties are a dozen and more -- rather than running off.
+        const int visible = 8;
+        const int n = static_cast<int>(available.size());
+        const int index = std::clamp(board_cursor, 0, n - 1);
+        const int first = n > visible ? std::min(n - visible, std::max(0, index - visible / 2)) : 0;
 
-        for (size_t i = 0; i < available.size() && i < 8; ++i) {
-            const SDL_FRect row = {panel.x + 20.0f, panel.y + 62.0f + i * row_h,
-                                   list_w, row_h - 5.0f};
-            const bool selected = (static_cast<int>(i) == board_cursor);
+        for (int k = 0; k < visible && first + k < n; ++k) {
+            const int i = first + k;
+            const SDL_FRect row = {panel.x + 20.0f, top + k * row_h, list_w, row_h - 5.0f};
+            const bool selected = i == index;
             if (selected) {
                 ui.Fill(row, {58, 46, 28, 210});
                 ui.Outline(row, Palette::Highlight, 1.0f);
             }
             const QuestDef* d = quests->Definition(available[i]);
-            ui.Text(d ? d->name : available[i], row.x + 10.0f, row.y + 3.0f,
-                    TextSize::Small, selected ? Palette::Highlight : Palette::Text);
-            if (d)
-                ui.Text((d->daily ? string(board_orders ? "order   " : "daily   ") : string("")) +
-                        "Lv " + std::to_string(d->recommended_level),
-                        row.x + row.w - 8.0f, row.y + 3.0f, TextSize::Small,
-                        d->daily ? Palette::Xp : Palette::TextDim, Align::Right);
+            // The tag: what it is and its level -- a bounty's in the colour of
+            // how it sits against the character: within reach, beyond it, or
+            // beneath them.
+            string tag;
+            SDL_Color tone = Palette::TextDim;
+            if (d) {
+                tag = string(d->bounty ? "bounty   " : d->daily ? (board_orders ? "order   " : "daily   ") : "") +
+                      "Lv " + std::to_string(d->recommended_level);
+                tone = !d->daily ? Palette::TextDim
+                     : !d->bounty ? Palette::Xp
+                     : QuestLog::InRange(d->recommended_level, combat) ? Palette::Xp
+                     : d->recommended_level > combat ? SDL_Color{235, 120, 100, 255}
+                                                     : Palette::TextDim;
+            }
+            const float tag_w = ui.Measure(tag, TextSize::Small).x;
+            ui.Text(ui.Fit(d ? d->name : available[i], row.w - 30.0f - tag_w, TextSize::Small),
+                    row.x + 10.0f, row.y + 3.0f, TextSize::Small, selected ? Palette::Highlight : Palette::Text);
+            if (!tag.empty())
+                ui.Text(tag, row.x + row.w - 8.0f, row.y + 3.0f, TextSize::Small, tone, Align::Right);
         }
+        // How far down the list the cursor is, when it does not all fit.
+        if (n > visible)
+            ui.Text(std::to_string(index + 1) + " of " + std::to_string(n),
+                    panel.x + 20.0f + list_w, top + visible * row_h + 2.0f, TextSize::Small, Palette::TextDim,
+                    Align::Right);
 
-        const int index = std::clamp(board_cursor, 0, static_cast<int>(available.size()) - 1);
         if (const QuestDef* d = quests->Definition(available[index])) {
             const float dx = panel.x + list_w + 40.0f;
             const float dw = panel.w - list_w - 64.0f;
             float y = panel.y + 62.0f;
 
-            ui.Text(d->name, dx, y, TextSize::Body, Palette::Highlight);
-            y += 30.0f;
-            if (d->daily) {
+            y += ui.TextWrapped(d->name, dx, y, dw, TextSize::Body, Palette::Highlight) + 10.0f;
+            if (d->bounty) {
+                y += ui.TextWrapped("Bounty: tonight only. It lapses at dawn if it is not done.", dx, y, dw,
+                                    TextSize::Small, Palette::Xp) + 4.0f;
+            } else if (d->daily) {
                 ui.Text(board_orders ? "Order: new orders at dawn" : "Daily: new notices at dawn",
                         dx, y, TextSize::Small, Palette::Xp);
                 y += 22.0f;
@@ -242,7 +299,10 @@ void Game::DrawBoard() {
     }
 
     ui.Text(input.PromptFor(Action::Confirm) + " accept     " +
-            input.PromptFor(Action::Back) + " leave",
+                (board_orders ? string()
+                              : input.PromptFor(Action::Target) +
+                                    (board_in_range ? " show everything     " : " only what is within reach     ")) +
+                input.PromptFor(Action::Back) + " leave",
             panel.x + panel.w / 2.0f, panel.y + panel.h - 28.0f, TextSize::Small,
             Palette::TextDim, Align::Center);
 }
