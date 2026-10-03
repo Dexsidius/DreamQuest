@@ -589,6 +589,31 @@ a screen goes wrong: each piece at the foot of it names the room it takes
 (`UI::Claim`), and any two that meet are printed -- which is what would have
 caught the spell's name being written over the key hints.
 
+It also prints **text that runs into other text** on the same panel
+(`UI::TextCollisions`), because a line can stay inside its panel and still be
+written over the next thing in its row -- which nothing above could say. The
+Almanac had measured where, against every name in the game: an enchanted
+piece's name in the bag's worn rows ran back over its slot's label (9,715 of
+the 10,757 enchanted pieces were too long for the row), the selected item's
+name and its tier tag shared a line without room, the shop's rows ran names
+under the count and the price, the quick item ("Frog Legs in Butter") ran under
+how many are left, and a save row's place could run into whom it was played
+with. The audit, with the character it poses, caught the worn rows -- and the
+Primordium Ward's five materials pushing the cauldron's XP line down into the
+note at the foot of the panel. Every one of those rows now fits its words to
+the room it has (`UI::Fit`, which cuts at a whole character and ends with
+"...", and which the three hand-rolled copies there were now call), so no name
+can run into its neighbour whatever it is; the full name is always on the card
+or the detail beside it, and the cauldron sets four materials and more in two
+columns. The totem ring's blessings ran a hundred
+pixels past the panel on one line and wrap onto two now -- the audit had never
+seen it, because its character's bag was too full for a totem to go in and the
+ring was audited empty; the quick-item box is audited as a panel
+(`UI::Region`), with the longest name of anything eaten to hand. And two lines
+were simply wrong: the Skills page told a pad player to hold B for an ability
+-- the guard -- where it is RB, and the character panel's bag card said a bag
+is made at a workbench, where it is cut at a tanning rack.
+
 What is still plain: a friend's chopping shows the swing without the axe in
 hand on other screens; camps are the host's to pitch; and a line relayed
 through Tailscale's DERP has not been tried -- `tailscale ping` says which you

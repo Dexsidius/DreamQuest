@@ -419,7 +419,7 @@ public:
     // --- bags -------------------------------------------------------------------
     // The bag starts at four rows of seven. A satchel, a pack, a rucksack and a
     // haversack each add a row when they are put on, once each and in any
-    // order; they are made at a workbench out of a great deal of hide, or found
+    // order; they are cut at a tanning rack out of a great deal of hide, or found
     // in a chest by someone lucky. What has been put on is the character's and
     // is kept with them, and the size of the bag follows from it.
     const vector<string>& Bags() const { return bags; }

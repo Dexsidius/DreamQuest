@@ -363,8 +363,13 @@ void Game::DrawInventory() {
         const ItemDef* def = worn.empty() ? nullptr : items.Get(worn);
         // A second dagger sits where a shield would: the row says which it is.
         const bool second = def && i == SLOT_SHIELD && def->slot == SLOT_WEAPON;
-        ui.Text(second ? "off hand" : EquipSlotName(i), r.x + 8.0f, r.y + 4.0f, TextSize::Small, Palette::TextDim);
-        ui.Text(def ? def->name : "-", r.x + r.w - 8.0f, r.y + 4.0f, TextSize::Small,
+        const string label = second ? "off hand" : EquipSlotName(i);
+        ui.Text(label, r.x + 8.0f, r.y + 4.0f, TextSize::Small, Palette::TextDim);
+        // In the room the label leaves: an enchanted piece's name is longer
+        // than the row, and ran back over the label and on into the bag. The
+        // whole of it is on the card when the row is chosen.
+        const float room = r.w - 16.0f - ui.Measure(label, TextSize::Small).x - 10.0f;
+        ui.Text(def ? ui.Fit(def->name, room, TextSize::Small) : "-", r.x + r.w - 8.0f, r.y + 4.0f, TextSize::Small,
                 def ? Palette::Text : Palette::TextDim, Align::Right);
     }
 
@@ -424,7 +429,6 @@ void Game::DrawInventory() {
     if (const ItemDef* def = sel_id.empty() ? nullptr : items.Get(sel_id)) {
         const float y = grid_y + grid_h + 12.0f;
         const float text_x = panel.x + 24.0f;
-        ui.Text(def->name, text_x, y, TextSize::Body, Palette::Highlight);
         // The tier and what it needs, on the right of the name.
         string tag;
         if (const TierDef* t = def->tier.empty() ? nullptr : items.Tier(def->tier)) tag = t->name + " tier";
@@ -433,8 +437,21 @@ void Game::DrawInventory() {
             tag += (tag.empty() ? "" : "   ") + string(met ? "" : "needs ") + SkillName(rq.first) +
                    " " + std::to_string(rq.second);
         }
+        // The two share the line and neither runs into the other: the name
+        // keeps what it needs if it can, and never less than half; the tag
+        // has what is left. The card beside the cursor has both in full.
+        const float line_w = COLS * pitch - 12.0f;
+        string name = def->name;
+        if (!tag.empty()) {
+            const float tag_w = ui.Measure(tag, TextSize::Small).x;
+            if (ui.Measure(name, TextSize::Body).x + 16.0f + tag_w > line_w) {
+                name = ui.Fit(name, std::max(line_w * 0.5f, line_w - tag_w - 16.0f), TextSize::Body);
+                tag = ui.Fit(tag, line_w - ui.Measure(name, TextSize::Body).x - 16.0f, TextSize::Small);
+            }
+        }
+        ui.Text(name, text_x, y, TextSize::Body, Palette::Highlight);
         if (!tag.empty())
-            ui.Text(tag, text_x + COLS * pitch - 12.0f, y + 4.0f, TextSize::Small, Palette::TextDim, Align::Right);
+            ui.Text(tag, text_x + line_w, y + 4.0f, TextSize::Small, Palette::TextDim, Align::Right);
         const float desc_h = ui.TextWrapped(def->description, text_x, y + 24.0f,
                                             COLS * pitch - 12.0f, TextSize::Small, Palette::TextDim);
         // What it does beyond its numbers, in the colour of something rare.

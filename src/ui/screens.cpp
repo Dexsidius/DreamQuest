@@ -486,20 +486,26 @@ void Game::DrawSlotList(const SDL_FRect& area, const string& heading) {
             ui.Text(hosting_list ? "Empty: a new world starts here" : "Empty",
                     row.x + 16.0f, row.y + 42.0f, TextSize::Small, Palette::TextDim);
         } else {
-            ui.Text(s.map_name + (s.from_backup ? "  (backup)" : ""), row.x + 120.0f, row.y + 12.0f,
+            // Whose world it is, at a glance -- or that it is this one. Then
+            // where it was left, in what that leaves: a deep floor's name and
+            // three friends' ran into each other. Whose it is keeps up to
+            // half the row, and the place has the rest.
+            string whose = playing ? string("this game") : WithWhom(s.played_with);
+            whose = ui.Fit(whose, (row.w - 32.0f) * 0.5f, TextSize::Small);
+            if (!whose.empty())
+                ui.Text(whose, row.x + row.w - 16.0f, row.y + 15.0f, TextSize::Small,
+                        playing ? Palette::Highlight : SDL_Color{150, 190, 230, 255}, Align::Right);
+            const float place_room = row.w - 16.0f - 120.0f - (whose.empty() ? 0.0f : ui.Measure(whose, TextSize::Small).x + 14.0f);
+            ui.Text(ui.Fit(s.map_name + (s.from_backup ? "  (backup)" : ""), place_room, TextSize::Body),
+                    row.x + 120.0f, row.y + 12.0f,
                     TextSize::Body, s.from_backup ? SDL_Color{235, 200, 120, 255} : Palette::Text);
-            // Whose world it is, at a glance -- or that it is this one.
-            if (playing)
-                ui.Text("this game", row.x + row.w - 16.0f, row.y + 15.0f, TextSize::Small,
-                        Palette::Highlight, Align::Right);
-            else if (!s.played_with.empty())
-                ui.Text(WithWhom(s.played_with), row.x + row.w - 16.0f, row.y + 15.0f, TextSize::Small,
-                        {150, 190, 230, 255}, Align::Right);
             char line[160];
             SDL_snprintf(line, sizeof(line), "Combat %d    Total level %d    %s",
                          s.combat_level, s.total_level,
                          SaveSystem::FormatPlaytime(s.playtime).c_str());
-            ui.Text(line, row.x + 16.0f, row.y + 42.0f, TextSize::Small, Palette::TextDim);
+            const float when_w = ui.Measure(s.saved_at, TextSize::Small).x;
+            ui.Text(ui.Fit(line, row.w - 32.0f - when_w - 14.0f, TextSize::Small), row.x + 16.0f, row.y + 42.0f,
+                    TextSize::Small, Palette::TextDim);
             ui.Text(s.saved_at, row.x + row.w - 16.0f, row.y + 42.0f, TextSize::Small,
                     Palette::TextDim, Align::Right);
         }

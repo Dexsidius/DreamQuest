@@ -711,12 +711,8 @@ void Game::DrawSkillModal(const SDL_FRect& panel) {
             const SkillMilestone* next = nullptr;
             for (const SkillMilestone& m : milestones) if (m.level > level) { next = &m; break; }
             if (next && y + 18.0f <= r.y + r.h) {
-                string line = "Next, at " + std::to_string(next->level) + ": " + next->text;
-                if (ui.Measure(line, TextSize::Small).x > r.w - 28.0f) {
-                    while (line.size() > 12 && ui.Measure(line + "...", TextSize::Small).x > r.w - 28.0f) line.pop_back();
-                    line += "...";
-                }
-                ui.Text(line, r.x + 14.0f, y, TextSize::Small, Palette::Xp);
+                const string line = "Next, at " + std::to_string(next->level) + ": " + next->text;
+                ui.Text(ui.Fit(line, r.w - 28.0f, TextSize::Small), r.x + 14.0f, y, TextSize::Small, Palette::Xp);
             }
         }
     }
@@ -744,12 +740,7 @@ void Game::DrawMilestones(const SDL_FRect& col) {
 
     // A line trimmed to the width it has, because a long node name in a narrow
     // window is a line running off a panel: see UI::BeginAudit.
-    const auto fit = [&](string t, float w) {
-        if (ui.Measure(t, TextSize::Small).x <= w) return t;
-        while (t.size() > 2 && ui.Measure(t + "...", TextSize::Small).x > w) t.pop_back();
-        while (!t.empty() && t.back() == ' ') t.pop_back();
-        return t + "...";
-    };
+    const auto fit = [&](const string& t, float w) { return ui.Fit(t, w, TextSize::Small); };
 
     ui.Text(string(SkillName(cursor)) + " opens", col.x + 10.0f, col.y + 7.0f, TextSize::Body, Palette::Highlight);
     const float top = col.y + 32.0f;
@@ -1327,9 +1318,12 @@ void Game::DrawSkillTree(const SDL_FRect& panel) {
             string cost = "Every " + std::to_string(static_cast<int>(n->cooldown)) + " seconds";
             if (n->stamina_cost > 0) cost += ", " + std::to_string(n->stamina_cost) + " stamina";
             if (n->mana_cost > 0)    cost += ", " + std::to_string(n->mana_cost) + " mana";
-            y += ui.TextWrapped(cost + ". Hold " + input.PromptFor(Action::Block) + " and press " +
-                                input.PromptFor(Action::LightAttack) + ", " + input.PromptFor(Action::StrongAttack) +
-                                " or " + input.PromptFor(Action::Target) + ", whichever slot it is in. Three are carried at once.",
+            // The button the abilities are held on: H on the keys, and RB on a
+            // pad -- where Block is B, which this said for as long as there
+            // was a pad.
+            y += ui.TextWrapped(cost + ". Hold " + input.PromptFor(input.ShiftAction()) + " and press " +
+                                input.PromptFor(AbilityButton(0)) + ", " + input.PromptFor(AbilityButton(1)) +
+                                " or " + input.PromptFor(AbilityButton(2)) + ", whichever slot it is in. Three are carried at once.",
                                 dx, y, dw, TextSize::Small, {130, 190, 240, 255}) + 10.0f;
         }
 

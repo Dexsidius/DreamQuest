@@ -52,6 +52,10 @@ public:
     float WrappedHeight(const string& text, float wrap_width, TextSize size = TextSize::Body);
     SDL_FPoint Measure(const string& text, TextSize size = TextSize::Body);
     float LineHeight(TextSize size = TextSize::Body) const;
+    // The text as it fits in `width`: whole if it does, cut and ended with
+    // "..." if not -- never in the middle of a character. For a line with a
+    // fixed room in a row, whose next thing is not to be written over.
+    string Fit(const string& text, float width, TextSize size = TextSize::Body);
 
     // --- shapes -------------------------------------------------------------
     void Fill(const SDL_FRect& r, SDL_Color c);
@@ -95,7 +99,11 @@ public:
     // how `--audit` walks every menu and says which ones overflow, instead of
     // somebody having to notice.
     struct Overflow { string text; float over_right = 0, over_left = 0, over_bottom = 0; bool off_window = false; };
-    void BeginAudit() { auditing = true; audit_panels.clear(); audit_found.clear(); audit_claims.clear(); }
+    void BeginAudit() { auditing = true; audit_panels.clear(); audit_found.clear(); audit_claims.clear(); audit_texts.clear(); }
+    // A box drawn some other way than Panel -- a bare Fill on the HUD -- whose
+    // words are to be audited as a panel's are: against its edges, and
+    // against each other.
+    void Region(const SDL_FRect& r) { if (auditing) audit_panels.push_back(r); }
     vector<Overflow> EndAudit() { auditing = false; return std::move(audit_found); }
 
     // --- and for two things in one place ------------------------------------------
@@ -111,6 +119,15 @@ public:
     bool Auditing() const { return auditing; }
     // What met in the frame just audited: kept until the next BeginAudit.
     vector<Overlap> Overlaps() const;
+
+    // --- and for text that runs into text ---------------------------------------------
+    // A line can stay inside its panel and still run over the next thing in
+    // its row: an enchanted piece's name in the bag ran past its slot's label
+    // and into the bag grid, and nothing above could say so, since it never
+    // left the panel. While auditing, every piece of text drawn is kept with
+    // the panel it was drawn on, and any two on the same panel that cover
+    // each other are written down: what each said, and by how much.
+    vector<Overlap> TextCollisions() const;
 
     bool Ready() const { return fonts[0] != nullptr; }
     // Which font file was actually opened, for the startup log.
@@ -137,4 +154,6 @@ private:
     vector<Overflow>  audit_found;
     struct Claimed { const char* what; SDL_FRect r; };
     vector<Claimed>   audit_claims;
+    struct Drawn { string text; SDL_FRect r; int panel; };
+    vector<Drawn>     audit_texts;
 };

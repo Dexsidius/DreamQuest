@@ -1677,6 +1677,13 @@ void Game::RunAudit() {
         p.interact = {};
         p.interact.kind = InteractTarget::Object;
         p.interact.label = "Search the Drowned King's reliquary";
+        // And to hand, the longest name of anything eaten: "Frog Legs in
+        // Butter" ran on under its count. The bag is full; a greatsword makes room.
+        if (!p.inventory.Has("fried_frog_legs") && p.inventory.Add("fried_frog_legs", 12) == 0) {
+            p.inventory.Remove("demonite_greatsword", 1);
+            p.inventory.Add("fried_frog_legs", 12);
+        }
+        p.SetQuickItem("fried_frog_legs");
     };
     // Half a split screen, as RenderSplit lays one out: at 100% whatever the
     // interface is set to, without the key hints, and -- side by side -- narrow
@@ -1691,7 +1698,7 @@ void Game::RunAudit() {
         split_active = false;
     };
 
-    int found = 0, met = 0;
+    int found = 0, met = 0, ran = 0;
     std::set<string> said;
     const int was_w = screen_w, was_h = screen_h;
     const float was_scale = settings.ui_scale;
@@ -1784,9 +1791,15 @@ void Game::RunAudit() {
             // With every totem there is in the bag, and one of them in the ring.
             {"totem ring",     GameState::TotemRing,       [&] {
                 totem_cursor = 0;
+                // The bag is already full of the longest names in the game, and
+                // a totem that will not go in is one the ring never lists: the
+                // ring was audited empty. A greatsword makes room for each.
                 for (const TotemDef& t : skill_trees.Totems())
-                    if (!world->player.inventory.Has(t.item) && world->player.talents.PlacedTotem() != t.item)
+                    if (!world->player.inventory.Has(t.item) && world->player.talents.PlacedTotem() != t.item &&
+                        world->player.inventory.Add(t.item, 1) == 0) {
+                        world->player.inventory.Remove("demonite_greatsword", 1);
                         world->player.inventory.Add(t.item, 1);
+                    }
                 if (world->player.talents.PlacedTotem().empty() && !skill_trees.Totems().empty()) {
                     const string first = skill_trees.Totems().front().item;
                     world->player.inventory.Remove(first, 1);
@@ -1868,6 +1881,13 @@ void Game::RunAudit() {
                     std::printf("audit %4.0fx%-4.0f @%3.0f%% %-14s the %s and the %s overlap by %.0f\n", size.w, size.h,
                                 size.scale * 100.0f, sc.name, o.a.c_str(), o.b.c_str(), o.by);
                 }
+                for (const UI::Overlap& o : ui.TextCollisions()) {
+                    const string key = string(sc.name) + "|" + o.a + "|" + o.b + "|runs";
+                    if (!said.insert(key).second) continue;
+                    ++ran;
+                    std::printf("audit %4.0fx%-4.0f @%3.0f%% %-14s \"%.48s\" runs into \"%.48s\" by %.0f\n", size.w, size.h,
+                                size.scale * 100.0f, sc.name, o.a.c_str(), o.b.c_str(), o.by);
+                }
                 for (const UI::Overflow& o : ui.EndAudit()) {
                     const string key = string(sc.name) + "|" + o.text;
                     if (!said.insert(key).second) continue;
@@ -1896,6 +1916,7 @@ void Game::RunAudit() {
     settings.show_fps = was_fps;
     std::printf("audit: %d overflowing %s\n", found, found == 1 ? "line" : "lines");
     std::printf("audit: %d overlapping HUD %s\n", met, met == 1 ? "pair" : "pairs");
+    std::printf("audit: %d %s running into other text\n", ran, ran == 1 ? "line" : "lines");
 }
 
 float Game::UiScale() const {

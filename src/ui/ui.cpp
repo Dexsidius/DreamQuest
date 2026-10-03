@@ -169,6 +169,7 @@ void UI::Text(const string& text, float x, float y, TextSize size,
         const SDL_FRect* on = nullptr;
         for (const SDL_FRect& p : audit_panels)
             if (mx >= p.x && mx <= p.x + p.w && my >= p.y && my <= p.y + p.h) on = &p;
+        if (on) audit_texts.push_back({text, dst, static_cast<int>(on - audit_panels.data())});
         if (on) {
             o.over_left   = std::max(0.0f, (on->x + 4.0f) - dst.x);
             o.over_right  = std::max(0.0f, (dst.x + dst.w) - (on->x + on->w - 4.0f));
@@ -192,6 +193,43 @@ vector<UI::Overlap> UI::Overlaps() const {
         }
     }
     return out;
+}
+
+vector<UI::Overlap> UI::TextCollisions() const {
+    vector<Overlap> out;
+    // The ink of a line is the middle of its box: the font's height has room
+    // above and below the letters, and lines set at the font's own spacing
+    // touch box to box without a letter of one near the other.
+    const auto ink = [](const SDL_FRect& r) {
+        return SDL_FRect{r.x + 1.0f, r.y + r.h * 0.22f, std::max(0.0f, r.w - 2.0f), r.h * 0.56f};
+    };
+    for (size_t i = 0; i < audit_texts.size(); ++i)
+        for (size_t k = i + 1; k < audit_texts.size(); ++k) {
+            const Drawn& a = audit_texts[i];
+            const Drawn& b = audit_texts[k];
+            if (a.panel != b.panel) continue;
+            // The same words drawn twice in the same place are one line.
+            if (a.text == b.text && fabsf(a.r.x - b.r.x) < 2.0f && fabsf(a.r.y - b.r.y) < 2.0f) continue;
+            const SDL_FRect ra = ink(a.r), rb = ink(b.r);
+            const float across = std::min(ra.x + ra.w, rb.x + rb.w) - std::max(ra.x, rb.x);
+            const float down   = std::min(ra.y + ra.h, rb.y + rb.h) - std::max(ra.y, rb.y);
+            if (across > 1.0f && down > 1.0f) out.push_back({a.text, b.text, across});
+        }
+    return out;
+}
+
+string UI::Fit(const string& text, float width, TextSize size) {
+    if (Measure(text, size).x <= width) return text;
+    string t = text;
+    while (!t.empty()) {
+        // Back to the start of the last character, not into the middle of it.
+        size_t cut = t.size() - 1;
+        while (cut > 0 && (static_cast<unsigned char>(t[cut]) & 0xC0) == 0x80) --cut;
+        t.erase(cut);
+        while (!t.empty() && t.back() == ' ') t.pop_back();
+        if (Measure(t + "...", size).x <= width) break;
+    }
+    return t + "...";
 }
 
 void UI::TextShadowed(const string& text, float x, float y, TextSize size,

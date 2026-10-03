@@ -518,7 +518,9 @@ void Game::DrawTotemRing() {
     ui.Dim(0.55f);
     const Player& p = world->player;
     const vector<string> have = TotemChoices();
-    const float row_h = 46.0f;
+    // Two lines of blessing to a row: Grave Chill's and the Priest's Poppet's
+    // ran a hundred pixels past the panel on one.
+    const float row_h = 62.0f;
     // Room for as many rows as the window has, and no fewer than three so the
     // panel is not a letterbox with one totem in it.
     const float fit_h = ui.ViewHeight() - 16.0f;
@@ -555,13 +557,15 @@ void Game::DrawTotemRing() {
                 const SDL_FRect ic = {row.x + 6.0f, row.y + 4.0f, 32.0f, 32.0f};
                 SDL_RenderTexture(renderer, tex, nullptr, &ic);
             }
-        ui.Text(thing ? thing->name : have[i], row.x + 46.0f, row.y + 3.0f, TextSize::Body,
+        const string where = standing ? (awake ? "awake until dawn" : "in the ring, asleep") : "in your pack";
+        const float name_room = row.w - 46.0f - 10.0f - ui.Measure(where, TextSize::Small).x - 12.0f;
+        ui.Text(ui.Fit(thing ? thing->name : have[i], name_room, TextSize::Body), row.x + 46.0f, row.y + 3.0f, TextSize::Body,
                 selected ? Palette::Highlight : Palette::Text);
-        ui.Text(standing ? (awake ? "awake until dawn" : "in the ring, asleep") : "in your pack",
-                row.x + row.w - 10.0f, row.y + 5.0f, TextSize::Small,
+        ui.Text(where, row.x + row.w - 10.0f, row.y + 5.0f, TextSize::Small,
                 awake ? SDL_Color{255, 214, 120, 255} : (standing ? SDL_Color{170, 160, 190, 255} : Palette::TextDim),
                 Align::Right);
-        if (def) ui.Text(def->name + ": " + def->text, row.x + 46.0f, row.y + 22.0f, TextSize::Small, Palette::TextDim);
+        if (def) ui.TextWrapped(def->name + ": " + def->text, row.x + 46.0f, row.y + 22.0f, row.w - 56.0f,
+                                TextSize::Small, Palette::TextDim);
         y += row_h;
     }
 

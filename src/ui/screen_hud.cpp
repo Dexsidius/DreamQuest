@@ -374,6 +374,7 @@ void Game::DrawHud() {
             const SDL_FRect box = {18.0f, ay + static_cast<float>(carrying) * 30.0f, 214.0f, 26.0f};
             const float chewing = std::clamp(me.EatCooldown() / Player::EAT_COOLDOWN, 0.0f, 1.0f);
             ui.Fill(box, {18, 15, 13, 190});
+            ui.Region(box);                       // what is written in it, audited as on a panel
             if (have > 0)
                 ui.Fill({box.x, box.y, box.w * (1.0f - chewing), box.h},
                         chewing > 0.0f ? SDL_Color{58, 70, 48, 210} : SDL_Color{52, 92, 56, 225});
@@ -385,10 +386,16 @@ void Game::DrawHud() {
                     const SDL_FRect ic = {box.x + 60.0f, box.y + 3.0f, 20.0f, 20.0f};
                     SDL_RenderTexture(renderer, tex, nullptr, &ic);
                 }
-            ui.Text(quick_def->name, box.x + 84.0f, box.y + 4.0f, TextSize::Small,
+            // Up to how many are left and no further: "Frog Legs in Butter"
+            // ran on under its count.
+            const string count = "x" + std::to_string(have);
+            const float count_w = ui.Measure(count, TextSize::Small).x;
+            const string name = ui.Fit(quick_def->name, box.w - 8.0f - count_w - 84.0f - 8.0f, TextSize::Small);
+            ui.Text(name, box.x + 84.0f, box.y + 4.0f, TextSize::Small,
                     have > 0 ? Palette::Text : SDL_Color{150, 110, 100, 255});
-            ui.Text("x" + std::to_string(have), box.x + box.w - 8.0f, box.y + 4.0f, TextSize::Small,
+            ui.Text(count, box.x + box.w - 8.0f, box.y + 4.0f, TextSize::Small,
                     have > 0 ? Palette::TextDim : SDL_Color{200, 110, 100, 255}, Align::Right);
+
             // Anything else that could be to hand -- a potion, another dish --
             // and a tab beside the box that says how to step to it, so the
             // slot is not taken for the one thing it happens to hold. (The

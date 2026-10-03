@@ -130,12 +130,7 @@ void SectionBar(UI& ui, const SDL_FRect& r, const string& title) {
 }
 
 // A line cut to the width it has, rather than run off the panel.
-string Fit(UI& ui, string t, float w) {
-    if (ui.Measure(t, TextSize::Small).x <= w) return t;
-    while (t.size() > 2 && ui.Measure(t + "...", TextSize::Small).x > w) t.pop_back();
-    while (!t.empty() && t.back() == ' ') t.pop_back();
-    return t + "...";
-}
+string Fit(UI& ui, const string& t, float w) { return ui.Fit(t, w, TextSize::Small); }
 
 } // namespace
 
@@ -476,7 +471,7 @@ void Game::DrawPieceCard(int piece, const SDL_FRect& tile, const SDL_FRect& stag
         sub = std::to_string(worn) + " of 4 worn: " + std::to_string(p.BagSlots()) + " slots";
         for (const string& id : p.Bags())
             if (const ItemDef* d = items.Get(id)) rows.push_back({d->name, "+" + std::to_string(d->bag_slots), "", 0});
-        if (worn < 4) notes.push_back("Each one adds a row. They are made at a workbench, or found.");
+        if (worn < 4) notes.push_back("Each one adds a row. They are made at a tanning rack, or found.");
         note_c = Palette::TextDim;
     } else if (const ItemDef* d = items.Get(p.equipment.InSlot(slot))) {
         title = d->name;

@@ -241,16 +241,24 @@ void Game::DrawCrafting() {
 
     ui.Text("Materials", dx, y, TextSize::Small, Palette::Highlight);
     y += 20.0f;
+    // Four and more go in two columns: the Primordium Ward's five, under a
+    // description and a stat block, ran the XP line down into the note at
+    // the foot of the panel.
+    const float detail_w = panel.w - list_w - 64.0f;
+    const bool two = r->craft_inputs.size() >= 4;
+    int n = 0;
     for (const auto& in : r->craft_inputs) {
         const ItemDef* mat = items.Get(in.first);
         const int held = p.inventory.Count(in.first);
         const bool enough = held >= in.second;
-        char line[128];
-        SDL_snprintf(line, sizeof(line), "%s  %d / %d",
-                     (mat ? mat->name.c_str() : in.first.c_str()), held, in.second);
-        ui.Text(line, dx, y, TextSize::Small,
+        char count[32];
+        SDL_snprintf(count, sizeof(count), "  %d / %d", held, in.second);
+        const float col_w = two ? detail_w / 2.0f - 8.0f : detail_w;
+        const string name = ui.Fit(mat ? mat->name : in.first, col_w - ui.Measure(count, TextSize::Small).x, TextSize::Small);
+        ui.Text(name + count, dx + (two && n % 2 ? detail_w / 2.0f : 0.0f), y, TextSize::Small,
                 enough ? Palette::Xp : SDL_Color{225, 130, 120, 255});
-        y += 18.0f;
+        if (!two || n % 2 || n + 1 == static_cast<int>(r->craft_inputs.size())) y += 18.0f;
+        ++n;
     }
 
     y += 10.0f;
@@ -613,7 +621,7 @@ void Game::DrawShop() {
                 SDL_RenderTexture(renderer, tex, nullptr, &ic);
             }
 
-        string right;
+        string right, many;
         SDL_Color right_c = Palette::Text;
         bool dim = false;
         if (shop_tab == 0) {
@@ -622,17 +630,19 @@ void Game::DrawShop() {
             right_c = (d && p.inventory.Coins() >= Trade::BuyPrice(*shop, *d)) ? Palette::Highlight
                                                                                 : SDL_Color{225, 130, 120, 255};
             dim = (left == 0);
-            ui.Text(left == 0 ? "sold out" : ("x" + std::to_string(left)),
-                    row.x + row.w - 64.0f, row.y + 6.0f, TextSize::Small, Palette::TextDim, Align::Right);
+            many = left == 0 ? "sold out" : ("x" + std::to_string(left));
         } else {
             const int offer = d ? Trade::SellPrice(*shop, items, *d) : 0;
             right = offer > 0 ? std::to_string(offer) + "c" : "--";
             right_c = offer > 0 ? Palette::Xp : Palette::TextDim;
             dim = (offer == 0);
-            ui.Text("x" + std::to_string(p.inventory.Count(id)), row.x + row.w - 64.0f, row.y + 6.0f,
-                    TextSize::Small, Palette::TextDim, Align::Right);
+            many = "x" + std::to_string(p.inventory.Count(id));
         }
-        ui.Text(d ? d->name : id, row.x + 34.0f, row.y + 6.0f, TextSize::Small,
+        ui.Text(many, row.x + row.w - 64.0f, row.y + 6.0f, TextSize::Small, Palette::TextDim, Align::Right);
+        // Up to the count and no further: an enchanted piece's name in the
+        // sell list ran on under it and the price. The detail below has it whole.
+        const float name_room = row.w - 64.0f - ui.Measure(many, TextSize::Small).x - 34.0f - 10.0f;
+        ui.Text(ui.Fit(d ? d->name : id, name_room, TextSize::Small), row.x + 34.0f, row.y + 6.0f, TextSize::Small,
                 dim ? SDL_Color{120, 110, 100, 255} : (selected ? Palette::Highlight : Palette::Text));
         ui.Text(right, row.x + row.w - 8.0f, row.y + 6.0f, TextSize::Small, right_c, Align::Right);
     }
