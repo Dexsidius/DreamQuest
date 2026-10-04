@@ -28,6 +28,16 @@ enum class Sfx {
     Throw, KnifeHit, Whiff,
     // A dragon's: its breath going out, its roar into a heavy blow, its bite.
     Breath, Roar, Bite,
+    // The prologue's: an Echo -- a change carrying from the Reverie into the
+    // waking world -- a suit of armour grinding awake, the stranger going to
+    // smoke, and thunder over his house.
+    Echo, Grind, Vanish, Thunder,
+    // Act I's: a Dawn Bell's toll, the Dawn Chimes, the anvil that rings Halda
+    // awake, the wolves' last howl, a laugh from nowhere, the Reverie torn
+    // open, a fist bumped, a barrier of thread breaking, and a gust of wind.
+    Bell, Chime, Anvil, Howl, Laugh, Tear, Bump, Shatter, Gust,
+    // Fishing's: the bobber pulled under, the reel's ratchet, a line snapping.
+    Plop, Reel, Snap,
     Count
 };
 
@@ -57,6 +67,15 @@ void SetListener(float x, float y);
 // interior that is not a dungeon gets a hearth. An empty kind fades to silence.
 // "menu" is the title screen's theme, from its start each time it is set.
 void SetAmbience(const string& kind, bool interior);
+// The music a story's scene asks for: a cue by name -- "ominous", "town",
+// "montage", "hum", "dream", "escape", and Act I's "dream_town", "boss" and
+// "trap" -- faded to over `fade` seconds; ""
+// fades out whatever is playing. The menu's theme is the menu's own.
+void Music(const string& cue, float fade = 1.5f);
+const string& MusicCue();
+// A cue as the mixer would play it, made now: stereo, interleaved, a loop from
+// its first frame to its last. Empty for a name that is no cue. For the self-test.
+vector<float> MakeMusic(const string& cue);
 // 0 by day, 1 at night: outdoors the birds fall quiet as it rises and the
 // crickets start.
 void SetNight(float amount);

@@ -68,6 +68,8 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
     player.StopGathering();
 
     SpawnEntitiesFromMap(ctx);
+    // Whoever the story has asleep, moved or gone; doors as they stand.
+    SettleStory(true);
     if (visiting) {
         // Every monster the map has, as a puppet nobody has spoken of yet:
         // out of sight until the host says where it is. The nth is number n.
@@ -357,6 +359,121 @@ void World::CatchUpUsedObjects(const GameContext& ctx) {
     }
 }
 
+void World::SettleStory(bool force) {
+    if (!force && story_settled == story_version) return;
+    story_settled = story_version;
+    for (auto& n : npcs) {
+        if (n->actor || n->scripted) continue;
+        const vector<NpcState>& states = n->States();
+        int pick = -1;
+        for (size_t i = 0; i < states.size(); ++i)
+            if (Holds(states[i].when)) { pick = static_cast<int>(i); break; }
+        if (force || pick != n->StateIndex()) n->ApplyState(pick);
+    }
+    for (const MapObject& o : map.Objects()) {
+        // Not there, nothing to walk into -- a cart left in the road only on
+        // the prologue's morning -- and a door open is nothing in the way.
+        if (o.type != "door" && o.when.Empty()) continue;
+        bool solid = o.when.Empty() || Holds(o.when);
+        if (o.type == "door") solid = solid && !Holds(o.open_if);
+        map.SetColliderOn(o.collider, solid);
+    }
+    for (auto& e : enemies) {
+        if (e->dormant && !e->wake_flag.empty() && Flagged(e->wake_flag)) e->WakeUp();
+        // Its story come: on its way, out of smoke (World::Update).
+        if (e->held_back && Holds(e->appear_when)) {
+            e->held_back = false;
+            e->appear_in = e->appear_after;
+        }
+    }
+}
+
+void World::UpdateSquads(float dt) {
+    // Coming out of smoke, each when its time comes.
+    for (auto& e : enemies) {
+        if (e->appear_in < 0.0f || e->puppet) continue;
+        if ((e->appear_in -= dt) > 0.0f) continue;
+        e->appear_in = -1.0f;
+        e->Revive();
+        e->Provoke(-1);
+        Smoke(e->x, e->y - 20.0f, 30.0f * (e->Def() ? e->Def()->scale : 1.0f), false);
+        Audio::PlayAt(Sfx::Vanish, e->x, e->y, 0.6f, 0.8f);
+    }
+    // A squad all down sets its flag. A friend's machine is told the flag.
+    if (visiting || (squad_check -= dt) > 0.0f) return;
+    squad_check = 0.2f;
+    std::map<string, bool> down;
+    for (auto& e : enemies) {
+        if (e->squad.empty() || e->puppet) continue;
+        bool& all = down.emplace(e->squad, true).first->second;
+        if (e->CurrentState() != Enemy::State::Dead || e->Pending()) all = false;
+    }
+    for (const auto& [flag, all] : down)
+        if (all && !Flagged(flag)) {
+            SetFlag(flag);
+            SettleStory();
+        }
+}
+
+void World::SetReverieVeil(float v) {
+    reverie_veil = std::clamp(v, 0.0f, 1.0f);
+    // Its motes come with it, and go with it.
+    const bool want = reverie_veil > 0.05f && !InDream();
+    if (want != veil_motes) {
+        veil_motes = want;
+        ambience.SetKind(want ? string("dream") : map.Ambient(), map.IsInterior());
+    }
+}
+
+bool World::EnterDream(const string& dream_map, const string& spawn, bool story, bool locked) {
+    if (transition_pending || player.IsDead()) return false;
+    dream.active = true;
+    dream.map = map_id;
+    dream.x = player.x;
+    dream.y = player.y;
+    dream.story = story;
+    dream.locked = locked;
+    player.Rest();
+    targeting.Clear();
+    if (!RequestTransition(dream_map, spawn)) return false;
+    fade_speed = SLEEP_FADE_SPEED;
+    flip = true;
+    Audio::Play(Sfx::Sleep);
+    return true;
+}
+
+bool World::TearInto(const string& dream_map, const string& spawn) {
+    if (!EnterDream(dream_map, spawn, true, true)) return false;
+    // Faster than falling asleep, and torn: see ScreenFrame.
+    fade_speed = SLEEP_FADE_SPEED * 2.6f;
+    tear = true;
+    return true;
+}
+
+void World::PassShadow(const string& image, float x0, float y0, float x1, float y1, float time, float alpha) {
+    shadow.on = true;
+    shadow.image = image;
+    shadow.x0 = x0; shadow.y0 = y0; shadow.x1 = x1; shadow.y1 = y1;
+    shadow.t = 0.0f;
+    shadow.time = std::max(0.1f, time);
+    shadow.alpha = std::clamp(alpha, 0.0f, 1.0f);
+}
+
+int World::FitLevel(int fit) const {
+    return std::max(1, player.skills.CombatLevel() + fit);
+}
+
+int World::Banish(const string& type) {
+    int gone = 0;
+    for (auto& e : enemies) {
+        if (e->Dead() || !e->Def() || (!type.empty() && e->Def()->id != type)) continue;
+        Smoke(e->x, e->y, 20.0f * e->Def()->scale + 8.0f, false);
+        e->LieDead();
+        ++gone;
+    }
+    return gone;
+}
+
 void World::SettlePlayer() {
     const SDL_FPoint at = OpenGroundNear(player.x, player.y, player.foot_box);
     player.x = at.x;
@@ -379,6 +496,8 @@ void World::SpawnEntitiesFromMap(const GameContext& ctx) {
             SDL_Log("World: unknown enemy type '%s'", def.type.c_str());
             continue;
         }
+        // Fitted to the player: as strong as they are and `fit` more.
+        if (def.fitted) def.shown = FitLevel(def.fit);
         // Scaled to how strong it should look, whatever the day put here, with
         // the day's spread on top of that.
         if (def.shown > 0) def.level = Enemy::PostLevel(*stats, def) + (def.level - written.level);
@@ -400,6 +519,21 @@ void World::SpawnEntitiesFromMap(const GameContext& ctx) {
         // A ritual's: nobody's until a witch table calls it, and not back
         // by itself once it is down. See World::Ritual.
         if (!def.ritual.empty()) e->LieDead();
+        // Kept only while the story says: not there, and not back -- unless
+        // it is to come when the story does (appear).
+        e->squad = def.squad;
+        e->appear_after = def.appear_after;
+        e->appear_when = def.when;
+        if (!Holds(def.when)) {
+            e->LieDead();
+            e->held_back = def.appear;
+        }
+        // Stood on its pedestal until it is told, or struck.
+        if (!def.dormant.empty() && !Flagged(def.dormant)) {
+            e->dormant = true;
+            e->wake_flag = def.dormant;
+            e->perch = def.perch;
+        }
         enemies.push_back(std::move(e));
     }
 
@@ -601,6 +735,11 @@ void World::SwapSeat(Player& who, SeatState& s) {
     std::swap(gather_index, s.gather_index);
     std::swap(gather_timer, s.gather_timer);
     std::swap(gather_needed, s.gather_needed);
+    std::swap(angler, s.angler);
+    std::swap(angler_fish, s.angler_fish);
+    std::swap(angler_x, s.angler_x);
+    std::swap(angler_y, s.angler_y);
+    std::swap(reel_click, s.reel_click);
     std::swap(hazard_timer, s.hazard_timer);
     std::swap(ice_strain, s.ice_strain);
     std::swap(ice_grace, s.ice_grace);
@@ -628,6 +767,8 @@ void World::SwapSeat(Player& who, SeatState& s) {
     std::swap(fade_dir, s.fade_dir);
     std::swap(fade_caption, s.fade_caption);
     std::swap(dream.active, s.dream_active);
+    std::swap(dream.story, s.dream_story);
+    std::swap(dream.locked, s.dream_locked);
     std::swap(dream.map, s.dream_map);
     std::swap(dream.x, s.dream_x);
     std::swap(dream.y, s.dream_y);
@@ -786,6 +927,7 @@ bool World::Sleep(SleepChoice how, const GameContext& ctx, int fee) {
         RequestTransition(DREAM_MAP, "arrival");
         fade_speed = SLEEP_FADE_SPEED;
         fade_caption = "You drift off to sleep...";
+        flip = true;
     } else if (company) {
         // In company the night is everyone's. Lie down: out of the fight,
         // nothing can hurt you, and the clock keeps its own pace until every
@@ -825,10 +967,14 @@ void World::Wake(WakeReason why) {
         next_y = dream.y;
     }
     fade_speed = SLEEP_FADE_SPEED;
+    // A story's dream left early -- by the stone, or thrown out of it -- takes
+    // its music with it: the scene that would have ended it never comes.
+    if (dream.story && !visiting && !acting) Audio::Music("", 1.0f);
     fade_caption = why == WakeReason::Nightmare ? "The nightmare throws you awake."
                  : why == WakeReason::Stone     ? "You wake."
                                                 : "Dawn breaks.";
     waking = why;
+    flip = true;
 }
 
 string World::PitchCamp(int slot, const GameContext& ctx) {
@@ -942,6 +1088,7 @@ bool World::ObjectPresent(const MapObject& o) const {
         }
         if (!down) return false;
     }
+    if (!Holds(o.when)) return false;
     if (o.needs_quest.empty()) return true;
     return quest_log && quest_log->IsActive(o.needs_quest);
 }
@@ -954,6 +1101,9 @@ void World::Update(float dt, const GameContext& ctx) {
         catch_up_timer = 0.5f;
         CatchUpUsedObjects(ctx);
     }
+    // --- a shadow passing over ------------------------------------------------
+    if (shadow.on && (shadow.t += dt) >= shadow.time) shadow.on = false;
+
     // --- screen wipe ---------------------------------------------------------
     if (fade_dir != 0) {
         fade += fade_dir * fade_speed * dt;
@@ -965,6 +1115,8 @@ void World::Update(float dt, const GameContext& ctx) {
             fade_dir = 0;
             fade_speed = FADE_SPEED;
             fade_caption.clear();
+            flip = false;
+            tear = false;
         }
     }
 
@@ -993,6 +1145,8 @@ void World::Update(float dt, const GameContext& ctx) {
         TellTheDay();
     }
     TellTheHour(ctx);
+    SettleStory();
+    shut_note_timer = std::max(0.0f, shut_note_timer - dt);
     // The seat at this machine, and then the place. A friend's seat is done
     // by StepGuest, to their own clock, acting as them.
     if (!player.absent) UpdateSeat(dt, ctx);
@@ -1002,7 +1156,12 @@ void World::Update(float dt, const GameContext& ctx) {
     if (!visiting && !player.absent) CollectPickups(dt, ctx);
     FlushKills(ctx);
 
-    if (!player.absent) {
+    if (cam_hold.on) {
+        if (cam_hold.snap) camera.SnapTo(cam_hold.x, cam_hold.y);
+        else               camera.Follow(cam_hold.x, cam_hold.y, dt);
+        ambience.Update(dt, camera);
+        Audio::SetListener(cam_hold.x, cam_hold.y);
+    } else if (!player.absent) {
         camera.Follow(player.x + player.LookAhead().x, player.y + player.LookAhead().y, dt);
         ambience.Update(dt, camera);
         Audio::SetListener(player.x, player.y);
@@ -1087,7 +1246,7 @@ void World::UpdateSeat(float dt, const GameContext& ctx) {
     if (InDream() && !transition_pending) {
         if (player.IsDead()) {
             if (player.DeathTimer() < 1.6f) Wake(WakeReason::Nightmare);
-        } else if (clock.DreamOver()) {
+        } else if (clock.DreamOver() && !dream.story) {
             Wake(WakeReason::Dawn);
         }
     }
@@ -1161,7 +1320,15 @@ void World::UpdateSeat(float dt, const GameContext& ctx) {
             for (const Portal& q : map.Portals())
                 if (!q.requires_interact && q.locked_by.empty() && RectsOverlap(player.Bounds(), q.rect) &&
                     !PortalHeld(q)) { p = &q; break; }
-            if (p) {
+            const string* shut = p ? p->ShutBy([&](const string& f) { return Flagged(f); }) : nullptr;
+            if (shut) {
+                if (shut_note_timer <= 0.0f) {
+                    AddText(shut->empty() ? string("The way is shut.") : *shut, player.x, player.y - 52.0f,
+                            {235, 200, 160, 255}, 2.4f);
+                    Audio::Play(Sfx::Locked);
+                    shut_note_timer = 2.8f;
+                }
+            } else if (p) {
                 if (p->min_combat > player.skills.CombatLevel()) {
                     if (gate_note_timer <= 0.0f) {
                         AddText("Too dangerous for you yet: Combat " + std::to_string(p->min_combat) + " needed.",
@@ -1197,6 +1364,7 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
         ShedFromGround(dt);
         ShedFromRing(dt);
         ShedFromStatuses(dt);
+        UpdateChimneys(dt);
         UpdateMotes(dt);
         UpdateScreenFx(dt);
         UpdateElevation(dt);
@@ -1293,6 +1461,7 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
 
     // A witch table's ritual, after the monsters it called have had their turn.
     UpdateRitual(dt, ctx);
+    UpdateSquads(dt);
 
     UpdateProjectiles(dt, ctx);
     UpdateGroundEffects(dt, ctx);
@@ -1303,6 +1472,7 @@ void World::UpdateShared(float dt, const GameContext& ctx) {
     ShedFromGround(dt);
     ShedFromRing(dt);
     ShedFromStatuses(dt);
+    UpdateChimneys(dt);
     UpdateMotes(dt);
     UpdateScreenFx(dt);
     UpdateElevation(dt);

@@ -693,7 +693,7 @@
    "wood": {
     "logs": 5
    },
-   "desc": "A staff given over to one element. It casts nothing else -- and 1 to 4 are fire's four spells, where any other staff has only the first of them."
+   "desc": "A staff given over to one element: it casts nothing else, and its slots hold fire's spells in order -- as many of them as its make opens."
   },
   "water_staff": {
    "slot": "weapon",
@@ -722,7 +722,7 @@
    "wood": {
     "logs": 5
    },
-   "desc": "A staff given over to one element. It casts nothing else -- and 1 to 4 are water's four spells, where any other staff has only the first of them."
+   "desc": "A staff given over to one element: it casts nothing else, and its slots hold water's spells in order -- as many of them as its make opens."
   },
   "earth_staff": {
    "slot": "weapon",
@@ -751,7 +751,7 @@
    "wood": {
     "logs": 5
    },
-   "desc": "A staff given over to one element. It casts nothing else -- and 1 to 4 are earth's four spells, where any other staff has only the first of them."
+   "desc": "A staff given over to one element: it casts nothing else, and its slots hold earth's spells in order -- as many of them as its make opens."
   },
   "air_staff": {
    "slot": "weapon",
@@ -780,7 +780,7 @@
    "wood": {
     "logs": 5
    },
-   "desc": "A staff given over to one element. It casts nothing else -- and 1 to 4 are air's four spells, where any other staff has only the first of them."
+   "desc": "A staff given over to one element: it casts nothing else, and its slots hold air's spells in order -- as many of them as its make opens."
   },
   "ring_blade": {
    "slot": "ring",

@@ -1171,5 +1171,40 @@
     "knockback": 110,
     "element": "air",
     "impact_size": 12
+  },
+  "web_shot": {
+    "_comment": "A nightmare spider's web shot (Act I): little harm in it, and whoever it lands on is Webbed where they stand.",
+    "sprite": "assets/effects/web_glob.png",
+    "tail": {"sprite": "assets/effects/web_glob_wake.png", "frames": 8, "pivot": [18, 6]},
+    "frames": 8,
+    "fps": 12,
+    "upright": true,
+    "tint": [255, 255, 255],
+    "trail_color": [228, 228, 236],
+    "speed": 250,
+    "life": 1.4,
+    "radius": 7,
+    "knockback": 0,
+    "element": "none",
+    "power": 0.4,
+    "impact_size": 8,
+    "status": {"id": "rooted", "chance": 0.5}
+  },
+  "demon_flame": {
+    "_comment": "The Forge Demon's belly flame (Act I): a fan of these across the platform, further than a dragon's jet and slower.",
+    "sprite": "assets/effects/flame_billow.png",
+    "frames": 8,
+    "fps": 18,
+    "pivot": [19, 9],
+    "glow": 40,
+    "tint": [255, 255, 255],
+    "status": {"id": "burn", "chance": 0.3},
+    "speed": 260,
+    "life": 0.85,
+    "radius": 10,
+    "pierce": 3,
+    "knockback": 30,
+    "element": "fire",
+    "impact_size": 0
   }
 }

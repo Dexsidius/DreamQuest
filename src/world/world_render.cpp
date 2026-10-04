@@ -126,6 +126,12 @@ vector<Light> World::CollectLights() const {
 
     for (const MapObject& o : map.Objects()) {
         if (!ObjectPresent(o)) continue;
+        // Its own light, of its own colour: as much of it as it is dark.
+        if (o.light.a > 0) {
+            const float f = o.light_flicker ? flicker(o.id) : 1.0f;
+            lights.push_back({o.x, o.y - o.light_height, o.light_radius * (0.97f + 0.03f * f), o.light,
+                              dark * o.light_strength * f});
+        }
         const bool fire = o.type == "range" || o.type == "camp_fire";
         if (fire) {
             const float f = flicker(o.id);
@@ -150,6 +156,13 @@ vector<Light> World::CollectLights() const {
         }
     }
 
+    // What has eyes that shine: a suit of armour once it has woken, the light
+    // in its visor slit.
+    for (const auto& e : enemies) {
+        const EnemyDef* d = e->Def();
+        if (!d || d->eye_light.a == 0 || e->dormant || e->CurrentState() == Enemy::State::Dead) continue;
+        lights.push_back({e->x, e->y - d->eye_height - e->perch, 34.0f, d->eye_light, 0.9f});
+    }
     // A leader winding up a heavy throws red light around it, so the warning
     // reads at night and underground as well as by day.
     for (const auto& e : enemies) {
@@ -891,6 +904,8 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
             }
         }
     }
+    // Whoever is fishing: their bobber on the water and the line to it.
+    DrawAnglers(r, cache);
 
     // Sprint dust, on the ground under everything that stands on it. Square
     // puffs, snapped to the art's pixel grid so they sit with the sprites.
@@ -1213,15 +1228,17 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
                 // it is still a rock -- so it is drawn dark and dull instead.
                 // A hive taken from is still a hive: what it has lost is the
                 // bees round it.
-                const bool spent = ObjectSpent(*o);
+                // A door is open while what holds it open holds.
+                const bool spent = o->type == "door" ? Holds(o->open_if) : ObjectSpent(*o);
                 const bool used = !o->sprite_open.empty() && spent;
                 const bool dulled = spent && o->sprite_open.empty() && o->type != "hive";
                 SDL_Texture* tex = cache.Get(used ? o->sprite_open : o->sprite);
                 if (!tex) break;
                 float tw = 0, th = 0;
                 SDL_GetTextureSize(tex, &tw, &th);
-                // Objects stand on their position, like characters do.
-                const SDL_FRect world = {o->x - tw / 2.0f, o->y - th, tw, th};
+                // Objects stand on their position, like characters do -- or that
+                // far above it, on whatever they stand on.
+                const SDL_FRect world = {o->x - tw / 2.0f, o->y - th - o->lift, tw, th};
                 const SDL_FRect dst = camera.ToScreenRect(world);
 
                 // Tall scenery drawn in front of someone goes translucent
@@ -1894,6 +1911,37 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     // under the flames.
     DrawRitual(r, cache);
 
+    // A bell over anybody the story has something for (NpcState::mark): the
+    // host's to see, bobbing gently above the head.
+    if (!visiting && !Acting())
+        if (SDL_Texture* bell = cache.Get("assets/icons/marker_side.png")) {
+            const float t = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+            for (const auto& n : npcs) {
+                if (!n->Marked() || n->alpha < 0.5f) continue;
+                const float bob = roundf(2.0f * sinf(t * 2.4f + n->x * 0.01f));
+                const SDL_FRect w = {n->x - 8.0f, n->y - 70.0f - bob - n->lift, 16.0f, 16.0f};
+                const SDL_FRect dst = camera.ToScreenRect(w);
+                SDL_RenderTexture(r, bell, nullptr, &dst);
+            }
+        }
+
+    // A shadow passing over the whole of it, rooftops and people alike.
+    if (shadow.on)
+        if (SDL_Texture* tex = cache.Get(shadow.image)) {
+            float tw = 0.0f, th = 0.0f;
+            SDL_GetTextureSize(tex, &tw, &th);
+            const float k = std::clamp(shadow.t / shadow.time, 0.0f, 1.0f);
+            const float x = shadow.x0 + (shadow.x1 - shadow.x0) * k;
+            const float y = shadow.y0 + (shadow.y1 - shadow.y0) * k;
+            const float edge = std::min(1.0f, std::min(k, 1.0f - k) * 5.0f);
+            const SDL_FRect dst = camera.ToScreenRect({x - tw / 2.0f, y - th / 2.0f, tw, th});
+            SDL_SetTextureColorMod(tex, 0, 0, 0);
+            SDL_SetTextureAlphaMod(tex, static_cast<Uint8>(255.0f * shadow.alpha * edge));
+            SDL_RenderTexture(r, tex, nullptr, &dst);
+            SDL_SetTextureAlphaMod(tex, 255);
+            SDL_SetTextureColorMod(tex, 255, 255, 255);
+        }
+
     // Embers, drops and the rest, over everything that stands: see Mote.
     DrawMotes(r);
 
@@ -2002,7 +2050,7 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
             static const SDL_Color kPip[STATUS_COUNT] = {
                 {255, 150, 60, 255}, {110, 180, 240, 255}, {236, 214, 120, 255}, {200, 60, 70, 255},
                 {140, 210, 90, 255}, {170, 220, 250, 255}, {232, 246, 255, 255}, {252, 236, 120, 255},
-                {255, 140, 200, 255}, {196, 160, 255, 255}};
+                {255, 140, 200, 255}, {196, 160, 255, 255}, {228, 228, 236, 255}};
             const float side = static_cast<float>(std::max(6, bh + 1));
             float px = bx;
             for (int i = 0; i < STATUS_COUNT; ++i) {
@@ -2536,6 +2584,75 @@ void World::DrawBees(SDL_Renderer* r, const MapObject& o, float top, float heigh
             const SDL_FRect wing = {px, py - z, z, z};
             SDL_SetRenderDrawColor(r, 236, 244, 255, 210);
             SDL_RenderFillRect(r, &wing);
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+//  Lines in the water
+//
+//  Everyone fishing on the map: the bobber afloat where the cast put it,
+//  bobbing a pixel, and pulled under as a fish takes it -- only its cap showing
+//  -- and the line from the rod's tip, slack and sagging while it waits and
+//  drawn straight once a fish is on. The host draws every seat's from the casts
+//  themselves; a friend's window draws what the host said (World::Bobbers).
+// -----------------------------------------------------------------------------
+
+void World::DrawAnglers(SDL_Renderer* r, TextureCache& cache) const {
+    struct Line { const Player* who; float x, y, dip; };
+    vector<Line> lines;
+    if (visiting) {
+        for (const Bobber& b : heard_bobbers) {
+            const Player* who = b.seat == player.seat ? &player : nullptr;
+            for (const auto& g : guests)
+                if (!who && g->seat == b.seat) who = g.get();
+            if (who) lines.push_back({who, b.x, b.y, b.dip});
+        }
+    } else {
+        if (!player.absent && gather_index >= 0 && angler.Active())
+            lines.push_back({&player, angler_x, angler_y, angler.Dip()});
+        for (const auto& g : guests) {
+            if (g->puppet) continue;
+            const auto s = seat_states.find(g->seat);
+            if (s == seat_states.end() || s->second.gather_index < 0 || !s->second.angler.Active()) continue;
+            lines.push_back({g.get(), s->second.angler_x, s->second.angler_y, s->second.angler.Dip()});
+        }
+    }
+    if (lines.empty()) return;
+
+    SDL_Texture* float_tex = cache.Get("assets/props/bobber.png");
+    const float z = camera.zoom;
+    const float now = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+    for (const Line& l : lines) {
+        // The bobber: ten rows of art, of which as many go under as it is pulled.
+        const float dip = std::clamp(l.dip, 0.0f, 1.0f);
+        const float sunk = roundf(dip * 7.0f);
+        const float bob = dip < 0.05f ? roundf(sinf(now * 2.6f + l.x * 0.05f) * 0.6f) : 0.0f;
+        const float rows = 10.0f - sunk;
+        if (float_tex && rows > 0.0f) {
+            const SDL_FRect src = {0.0f, 0.0f, 8.0f, rows};
+            const SDL_FRect dst = camera.ToScreenRect({l.x - 4.0f, l.y - 10.0f + sunk + bob, 8.0f, rows});
+            SDL_RenderTexture(r, float_tex, &src, &dst);
+        }
+        // The line, in pale pixels along a curve that sags while it waits and
+        // pulls straight with a fish on it.
+        SDL_FPoint tip = RodTip(*l.who);
+        tip.y -= l.who->draw_lift;
+        const SDL_FPoint end = {l.x, l.y - 9.0f + sunk + bob};
+        const float dx = end.x - tip.x, dy = end.y - tip.y;
+        const float span = std::sqrt(dx * dx + dy * dy);
+        const float sag = dip > 0.6f ? 0.0f : 4.0f + span * 0.12f;
+        const SDL_FPoint mid = {(tip.x + end.x) * 0.5f, (tip.y + end.y) * 0.5f + sag};
+        const int steps = std::max(6, static_cast<int>(span / 1.5f));
+        SDL_SetRenderDrawColor(r, 232, 234, 240, 185);
+        for (int i = 0; i <= steps; ++i) {
+            const float t = static_cast<float>(i) / steps, u = 1.0f - t;
+            const float px = u * u * tip.x + 2.0f * u * t * mid.x + t * t * end.x;
+            const float py = u * u * tip.y + 2.0f * u * t * mid.y + t * t * end.y;
+            const SDL_FPoint s = camera.ToScreen(px, py);
+            const SDL_FRect dot = {roundf(s.x / z) * z, roundf(s.y / z) * z, z, z};
+            SDL_RenderFillRect(r, &dot);
         }
     }
 }

@@ -87,5 +87,12 @@
     "color": [196, 160, 255],
     "seconds": 4.0,
     "players_only": true
+  },
+  "rooted": {
+    "name": "Webbed",
+    "color": [228, 228, 236],
+    "seconds": 1.6,
+    "speed": 0.0,
+    "players_only": true
   }
 }

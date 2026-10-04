@@ -57,6 +57,52 @@ struct TileInstance {
     // Lies on the floor over the other ground tiles -- a rug, a flight of
     // stairs. Named with a leading '~' in the .mx file.
     bool  overlay = false;
+    // Degrees it leans, its foot where it stands and its top pushed over to
+    // the right (or left, below zero): a house in a dream of the town. A fifth
+    // number after a placement's size in the .mx file.
+    float lean = 0.0f;
+};
+
+// A condition on the world's flags: every one of `all` set, and none of
+// `none`. Empty, it always holds. It is how a story says when somebody is
+// where, asleep or not there at all, when a door stands open and when a way
+// is shut -- written in the map, read against the save, so a game loaded
+// halfway through the prologue finds the town as it was left.
+//
+//     "when": {"flags": ["HAVENBROOK_ASLEEP"], "not": ["ACT1_TOWN_WOKEN"]}
+//     "when": "PRO_05_MAYOR_TALK"            one flag, set
+//     "when": "!PRO_15_FOYER_CLEARED"        one flag, not set
+//
+// And, because a story's flags are only ever set and never cleared (a friend's
+// machine hears a flag set, and never one cleared), two ways to say "or":
+//
+//     "any": ["A", "B"]                      at least one of them set
+//     "unless": {"flags": ["HAVENBROOK_ASLEEP"], "not": ["ACT1_BESS_AWAKE"]}
+//                                            and this other condition does not
+//                                            hold (a list of them: none holds)
+struct FlagCond {
+    vector<string> all, none, any;
+    vector<FlagCond> unless;
+    bool Empty() const { return all.empty() && none.empty() && any.empty() && unless.empty(); }
+    template <class Has> bool Holds(const Has& has) const {
+        for (const string& f : all)  if (!has(f)) return false;
+        for (const string& f : none) if (has(f))  return false;
+        if (!any.empty()) {
+            bool one = false;
+            for (const string& f : any) if (has(f)) { one = true; break; }
+            if (!one) return false;
+        }
+        for (const FlagCond& u : unless) if (u.Holds(has)) return false;
+        return true;
+    }
+    // Every flag it names, however deep: for checking they are all real.
+    void Names(vector<string>& out) const {
+        out.insert(out.end(), all.begin(), all.end());
+        out.insert(out.end(), none.begin(), none.end());
+        out.insert(out.end(), any.begin(), any.end());
+        for (const FlagCond& u : unless) u.Names(out);
+    }
+    static FlagCond FromJson(const json& j);
 };
 
 struct Portal {
@@ -71,6 +117,23 @@ struct Portal {
     // Spire and the way to the pit are closed to a character who would only
     // die there.
     int    min_combat = 0;
+    // Shut while a story says so, and what it says when tried: "No one
+    // answers." at a house nobody will open, "The gate is chained shut."
+    // The first rule that holds is the one; none, and the way is open.
+    // `ask`, when there is one, is a flag: the door asks the host (text the
+    // question) whether they are ready, and a yes sets it -- which opens it.
+    // A friend is not asked, and goes through: the question is the story's.
+    struct ShutRule { FlagCond when; string text; string ask; };
+    vector<ShutRule> shut;
+    template <class Has> const ShutRule* ShutRuleBy(const Has& has) const {
+        for (const ShutRule& r : shut)
+            if (r.when.Holds(has)) return &r;
+        return nullptr;
+    }
+    template <class Has> const string* ShutBy(const Has& has) const {
+        const ShutRule* r = ShutRuleBy(has);
+        return r ? &r->text : nullptr;
+    }
 
     // What it says of what lies beyond it to somebody at `combat_level`, to
     // go after its label: that it is shut to them, or dangerous, or nothing.
@@ -138,6 +201,29 @@ struct EnemySpawnDef {
     // it is wanted -- and does not come back by itself. See World::Ritual.
     string ritual;
     int    wave = 0;
+    // A post kept only while a story says so: the foyer's armour stands until
+    // it has been beaten, and is not there again after.
+    FlagCond when;
+    // A post that stands still, unseeing and unmoving, until this flag is set
+    // -- or until it is struck: a suit of armour on a pedestal. See
+    // Enemy::Dormant. `perch` is how high the pedestal is: 0, on the floor.
+    string dormant;
+    float  perch = 10.0f;
+    // One of a squad: when every post of the squad on the map is down, the
+    // flag of that name is set -- the guards round a Nightmare Hold, the
+    // knights in the forge. A post not yet come (`appear`) is not down.
+    string squad;
+    // Comes when its `when` comes to hold while the map is up -- out of
+    // smoke, where it was put, `appear_after` seconds later -- rather than
+    // only being there or not as the map is walked into: knights forming out
+    // of the shadows one by one, a dream's next wave.
+    bool   appear = false;
+    float  appear_after = 0.0f;
+    // A level fitted to the player's: their combat level and `fit` more (and
+    // `spread` on top), however strong they have grown -- Act I's Hushed,
+    // never walling a player who comes late or early. See World::FitLevel.
+    bool   fitted = false;
+    int    fit = 0;
 };
 
 // Somewhere a walking villager stops, and for how long.
@@ -145,6 +231,32 @@ struct NpcStop {
     float  x = 0, y = 0;
     float  pause = 0.0f;     // seconds stood here before going on
     Facing facing = FACE_DOWN;
+};
+
+// One of an NPC's states: what a story has made of them while `when` holds.
+// The first state that holds is the one; none, and they are as the rest of the
+// definition has them. Anything a state leaves unsaid stays as it was.
+struct NpcState {
+    FlagCond when;
+    bool   hidden = false;        // not there at all
+    bool   moved = false;         // stands at x, y instead
+    float  x = 0, y = 0;
+    bool   turned = false;        // and faces this way
+    Facing facing = FACE_DOWN;
+    string pose;                  // a clip held instead of idle: "slump", "lie"
+    // Asleep: spoken to, they say nothing, and this is what is seen instead.
+    bool   asleep = false;
+    string asleep_text;
+    string name, dialogue;        // another name, another conversation
+    float  alpha = 1.0f;          // a faint shape, half there
+    bool   flicker = false;       // and coming and going
+    float  sort_bias = 0.0f;      // drawn as though this much further down
+    // What pressing to interact with them says, in place of "Talk to" or "Try
+    // to wake": "Use Dreamcatcher". The story's own -- the host's, in company.
+    string prompt;
+    // A little bell hung over them: there is something of the story's to do
+    // here (a sleeper whose dream can be caught). The host's alone.
+    bool   mark = false;
 };
 
 struct NpcDef {
@@ -169,6 +281,7 @@ struct NpcDef {
     // Projectile::show. "casts": {"bolt": ..., "at": [x, y], "every": seconds}.
     string cast_bolt;
     float  cast_x = 0.0f, cast_y = 0.0f, cast_every = 0.0f;
+    vector<NpcState> states;
 };
 
 struct MapObject {
@@ -219,6 +332,46 @@ struct MapObject {
     int    capacity = 0;
     vector<string> quests;   // mission boards
     vector<string> fish;     // fishing spots: what can be caught there
+
+    // --- what a story makes of it -------------------------------------------------
+    // There only while this holds: the stall shuttered on the morning the
+    // town will not wake, the papers on the Mayor's floor once he has.
+    FlagCond when;
+    // A door ("door"): open while `open_if` holds, shut -- solid, and saying
+    // `text` when tried -- otherwise. Tried while shut, a door that `opens`
+    // sets that flag and so opens: in the Reverie, the cell door whose bolt
+    // has rusted away. An `echo` door rings as it goes, the sound of a change
+    // carrying from one world into the other.
+    FlagCond open_if;
+    string opens;
+    bool   echo = false;
+    int    collider = -1;    // its solid box, among the map's colliders
+    // A bed ("bed") that sends a sleeper somewhere of its own rather than into
+    // the Reverie's first depth, and lets them lie down at any hour.
+    string dream_map;
+    bool   any_hour = false;
+    // A light of its own, whatever the object is: the cold shaft from a cell's
+    // grate, a pool of colour under a stained window, a brazier's blue flame.
+    // Colour alpha 0 is none.
+    SDL_Color light{0, 0, 0, 0};
+    float  light_radius = 110.0f, light_height = 20.0f, light_strength = 0.9f;
+    bool   light_flicker = false;
+    // Drawn this far up from where it stands, still sorted by its foot: a cup
+    // on a desk.
+    float  lift = 0.0f;
+    // Not to be used while this holds -- it says `closed_text` instead: the
+    // smith's anvil while the smith is still asleep, Act I.
+    FlagCond closed;
+    string closed_text;
+};
+
+// A skill the story has not given the player yet: while `when` holds, the
+// work is refused and `text` is said (story.json "locks"). Act I's gathering,
+// before Elder Vask wakes.
+struct SkillLock {
+    string   skill;          // "Woodcutting", as a gathering node names it
+    FlagCond when;
+    string   text;
 };
 
 class Map {
@@ -378,8 +531,17 @@ public:
 
     // --- lookups -------------------------------------------------------------
     const Portal* PortalAt(const SDL_FRect& box) const;
+    // A collider can be switched off and on again: a door opening is its
+    // solid box going out of the way. Off, nothing stops at it.
+    void  SetColliderOn(int index, bool on) {
+        if (index >= 0 && index < static_cast<int>(collider_off.size())) collider_off[index] = on ? 0 : 1;
+    }
     bool  Spawn(const string& name, SDL_FPoint& out) const;
     SDL_FPoint DefaultSpawn() const;
+    // A point a scene names -- where a camera looks, an actor stands, a cart
+    // stops. Not an arrival: nobody comes into the map there, so it need not
+    // be on the floor (a camera over a roof, the player lying in a bed).
+    bool  Mark(const string& name, SDL_FPoint& out) const;
 
     const vector<EnemySpawnDef>& Enemies() const { return enemies; }
     // How far down the Reverie this is: 1 where a sleeper arrives, 2 and 3
@@ -405,7 +567,7 @@ public:
 
 private:
     void   BuildChunks();
-    void   AddCollider(const SDL_FRect& r, bool water = false);
+    int    AddCollider(const SDL_FRect& r, bool water = false);
     string ResolveAsset(const string& rel) const;
 
     struct Chunk { vector<int> layers[3]; vector<int> colliders; };
@@ -440,6 +602,8 @@ private:
     // rects rather than a second list, so the chunk index built over the
     // colliders serves both questions.
     vector<uint8_t>      collider_water;
+    // And which of them are switched off: see SetColliderOn.
+    vector<uint8_t>      collider_off;
     int                  water_count = 0;
     // The ring of fire, while one burns: see SetRing.
     bool  ring_on = false;
@@ -452,6 +616,7 @@ private:
     vector<NpcDef>        npcs;
     vector<MapObject>     objects;
     map<string, SDL_FPoint> spawns;
+    map<string, SDL_FPoint> marks;
 
     // Height grid. Empty on a map that does not use elevation.
     vector<uint8_t>   elev;

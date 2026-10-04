@@ -21,6 +21,50 @@ struct HeavyAttackDef {
     StatusProc status;
 };
 
+// One of a boss's own moves, beside its swing and its heavy: what makes a
+// fight with it its own. Each has a tell -- `windup` seconds of it glowing and
+// turning to follow, then committed -- then goes on for `active` seconds and
+// stands for `recover`, and is not tried again for `cooldown`.
+//
+//   charge   runs at them along the line it committed to, `speed` times its
+//            pace, and strikes once if it reaches them (Ashen Vanguard)
+//   double   two quick strikes, one at the start and one halfway (a fury)
+//   spin     whirls in place, edging after them, striking everything within
+//            `reach` pixels every half second (the Forge Demon)
+//   flame    breathes a fan of `reach` shots of `shot` across `width` degrees
+//   shot     the same, quietly: one thing spat (`reach` 1) -- a spider's web
+//   sweep    one lash of everything within `reach` pixels, across `width`
+//            degrees (360, all round): the Anchor's threads
+//   howl     no blow: every one of its own kind within 320 px is roused,
+//            quicker and harder for `active` seconds (the wolves)
+//
+// `min_gap`/`max_gap` is how far off it has to be to try it, and `phase` 2
+// keeps it for the second half of the fight (EnemyDef::phase2).
+struct EnemyMove {
+    string kind;
+    float  windup = 0.8f, active = 0.6f, recover = 0.6f, cooldown = 8.0f, opening = 2.5f;
+    float  damage = 1.2f;          // times its max hit
+    float  reach = 120.0f;         // see the kinds
+    float  width = 360.0f;         // degrees, for flame and sweep
+    float  speed = 3.0f;           // a charge's, times its pace
+    float  knockback = 140.0f;
+    float  min_gap = 0.0f, max_gap = 100000.0f;
+    int    phase = 0;
+    string clip, shot;
+    StatusProc status;
+};
+
+// What a boss turns into at half its health (or wherever `at` says): quicker
+// on its feet and with its blows, in its own colours -- and, with
+// `fire_trail`, leaving burning ground ahead of every blow that lands.
+struct PhaseTwoDef {
+    bool  enabled = false;
+    float at = 0.5f;
+    float speed = 1.3f, cooldown = 0.7f;
+    bool  fire_trail = false;
+    SDL_Color tint{255, 255, 255, 255};
+};
+
 // Stat block for one kind of monster, from data/enemies.json.
 struct EnemyDef {
     string id, name, sprite;
@@ -52,11 +96,21 @@ struct EnemyDef {
     float shoot_cooldown = 2.4f;
     float xp_multiplier = 1.0f;
     string loot_table;
+    // A light where its eyes are, once it is awake: colour (alpha 0 none) and
+    // how high up it is.
+    SDL_Color eye_light{0, 0, 0, 0};
+    float     eye_height = 30.0f;
     string kill_target;            // what Kill quest objectives match on
     SDL_FRect foot_box{-9.0f, -12.0f, 18.0f, 12.0f};
     SDL_FRect body_box{-14.0f, -42.0f, 28.0f, 42.0f};
     float scale = 1.0f;
     bool  is_boss = false;
+    // A story's boss (Act I's Ashen Vanguard, Forge Demon and Anchor): a boss
+    // to look at and to fight -- its bar, its roar, its weight, the statuses it
+    // shrugs -- but met once, so it is no part of what a boss gives for its
+    // first kill and its fifteenth (Talents::SlayBoss), nor kept once a day.
+    bool  story_boss = false;
+    bool  Boss() const { return is_boss || story_boss; }
     // It can get into water. Only waterfowl do, and only where the map has
     // said which of its collision is water -- everywhere else a pond is a
     // wall to everything, which is how it has always been.
@@ -75,6 +129,16 @@ struct EnemyDef {
     // world's orcs and boars, drawn in the colours of a bad night.
     SDL_Color tint{255, 255, 255, 255};
     HeavyAttackDef heavy;
+    vector<EnemyMove> moves;
+    PhaseTwoDef phase2;
+    // It never moves from where it stands, and nothing moves it: the Anchor.
+    bool  rooted = false;
+    // A pack animal: while its swing cools it circles whoever it is after
+    // rather than standing off, so a pack comes from every side.
+    bool  circles = false;
+    // After a spin or a flame its seams are soft for this long: every blow
+    // lands twice as hard (Enemy::Weak), and it glows to say so.
+    float weak_after = 0.0f;
 };
 
 class EnemyDatabase {
@@ -108,7 +172,7 @@ class Enemy : public Entity {
 public:
     // Heavy: a leader winding up and delivering its heavy attack; see
     // HeavyAttackDef. The charge, the blow and a moment to recover from it.
-    enum class State { Idle, Chase, Attack, Hurt, Dead, Return, Heavy };
+    enum class State { Idle, Chase, Attack, Hurt, Dead, Return, Heavy, Move };
 
     void Init(const EnemyDef* def, const EnemySpawnDef& spawn, const GameContext& ctx);
     void Update(float dt, World& world, const GameContext& ctx) override;
@@ -130,6 +194,22 @@ public:
     // counts them by their place in this list, and gone.
     int  post = -1;
     void LieDead();
+    // Dormant: stood on its pedestal, unseeing, until `wake_flag` is set or it
+    // is struck -- then it steps down (`perch` falling to nothing) and comes
+    // on. See EnemySpawnDef::dormant.
+    bool   dormant = false;
+    string wake_flag;
+    float  perch = 0.0f;         // drawn this far up while it stands on its pedestal
+    void   WakeUp();
+    // A story's post (EnemySpawnDef squad/appear): the squad it is one of, and
+    // -- held back until its `when` holds -- when it comes: `appear_in` counts
+    // down to it, out of smoke. A post held back or still coming is not down.
+    string squad;
+    bool   held_back = false;
+    float  appear_after = 0.0f;
+    float  appear_in = -1.0f;
+    FlagCond appear_when;
+    bool   Pending() const { return held_back || appear_in >= 0.0f; }
     // A night visitor: see EnemySpawnDef::night. What it needs of its post to
     // be asked, each frame, whether tonight is one of its nights.
     bool   night = false;
@@ -157,6 +237,14 @@ public:
     // it is no chase at all.
     float ChaseBudget() const { return std::max(200.0f, leash * 1.5f); }
     float ChaseRun() const { return chase_run; }
+
+    // --- its own moves (EnemyMove) -----------------------------------------------------
+    // Soft after a spin or a flame: blows land WEAK_DAMAGE times as hard.
+    static constexpr float WEAK_DAMAGE = 2.0f;
+    bool  Weak() const { return weak_left > 0.0f; }
+    bool  PhaseTwo() const { return phase_two; }
+    // Roused by a packmate's howl: quicker and harder for this long.
+    float enraged = 0.0f;
 
     // --- heavy attack -------------------------------------------------------------
     // 0 to 1 through the wind-up, for the bar over its head and the red glow;
@@ -335,6 +423,7 @@ public:
         uint8_t facing = 0, state = 0, frame = 0, heavy = 0, alpha = 255;
         uint8_t statuses = 0;          // StatusSet::Bits: what a friend's machine draws on it
         bool  hurt = false, bar = false;
+        bool  weak = false;            // its seams soft (Weak): drawn glowing
         int   hp = 0;
         string clip;
     };
@@ -397,6 +486,20 @@ private:
     float roam_stuck = 0.0f;      // how long it has come no nearer
 
     float heavy_timer = 0.0f;     // until the next heavy attack may start
+    // The move under way (State::Move), how far into it, which way it is
+    // committed to, and whether it has struck; and when each may next start.
+    int   move_i = -1;
+    float move_t = 0.0f, move_dx = 0.0f, move_dy = 1.0f, spin_tick = 0.0f;
+    bool  move_begun = false, move_hit = false, move_second = false;
+    vector<float> move_ready;
+    bool  phase_two = false;
+    float weak_left = 0.0f;
+    // Starts a move whose time has come, from `gap` away; true if one did.
+    bool  TryMove(World& world, const GameContext& ctx, float gap);
+    void  UpdateMove(float dt, World& world, const GameContext& ctx, float dx, float dy, float dist, float gap,
+                     float& move_x, float& move_y);
+    // Burning ground ahead of a blow, in the second phase of a boss that leaves it.
+    void  FireTrail(World& world);
     float shoot_timer = 0.0f;     // until it may throw again
     bool  shooting = false;       // this attack is a shot, not a swing
     bool  heavy_landed = false;   // the blow has been delivered this heavy

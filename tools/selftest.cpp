@@ -17,6 +17,7 @@
 #include "../src/sprite.h"
 #include "../src/world/map.h"
 #include "../src/world/world.h"
+#include "../src/world/story.h"
 #include "../src/world/ambience.h"
 #include "../src/systems/items.h"
 #include "../src/systems/loot.h"
@@ -41,6 +42,7 @@
 #include "../src/coop/coop.h"
 
 #include <fstream>
+#include <deque>
 #include <set>
 #include <filesystem>
 
@@ -83,6 +85,10 @@ static const char* kMaps[] = {
     "frost_barrows", "frost_mere", "frost_glacier", "frost_howe", "frost_howe_hall", "frost_cabin",
     "mossvale_cottage", "mayor_hall", "mossvale_mine",
     "prim_kiln", "prim_bedrock", "prim_deeps", "prim_firmament", "prim_tempest", "prim_conflux",
+    "house_sleeper", "mansion_cells", "mansion_cells_dream", "mansion_foyer", "mansion_grounds",
+    "prologue_dream_havenbrook", "dream_forge", "dream_tannery", "dream_cellar", "dream_mayor_hall", "dream_guild_hall",
+    "house_havenbrook", "chime_posy", "chime_tobin", "chime_ivo", "chime_marrow", "chime_wenna", "chime_perrin",
+    "chime_pip", "chime_bram", "chime_hester", "chime_hollis",
 };
 
 // The databases, for the sections that live outside main(). GCC's memory for
@@ -95,6 +101,53 @@ struct Databases {
     QuestLog& quests; DialogueDatabase& dialogue; ProjectileDatabase& projectiles;
     StatusDatabase& statuses; SpellBook& spells; SkillTrees& trees;
 };
+
+// --- fishing, played as a steady hand plays it --------------------------------------------
+// A catch is earned now (Gathering::Angler), so a test that wants a fish goes
+// through it: a cast if no line is out, the strike on the second dip, and the
+// reel worked to keep the line on the green as the band moves -- judged from
+// where each is heading, the way a player watching the gauge does -- until the
+// cast is over. `step` runs one frame of the world. True if a fish came in.
+static bool PlayCast(World& w, const GameContext& ctx, const std::function<void()>& step, float limit = 40.0f) {
+    using Phase = Gathering::Angler::Phase;
+    const auto fish_held = [&]() {
+        int n = 0;
+        for (int s = 0; s < w.player.inventory.SlotCount(); ++s) {
+            const ItemDef* d = ctx.items ? ctx.items->Get(w.player.inventory.Slot(s).id) : nullptr;
+            if (d && d->fish_level > 0) n += w.player.inventory.Slot(s).qty;
+        }
+        return n;
+    };
+    const int before = fish_held();
+    const bool was_external = w.player.hands_external;
+    w.player.hands_external = true;
+    w.player.hands = PlayerInput{};
+    if (!w.Angling().on) w.TryInteract(ctx);
+    if (!w.Angling().on) { w.player.hands_external = was_external; return false; }
+    constexpr float dt = 1.0f / 60.0f, lead = 0.25f;
+    float last_line = -1.0f, last_band = -1.0f;
+    bool struck = false;
+    for (int f = 0; f < static_cast<int>(limit * 60.0f); ++f) {
+        const World::AnglerView v = w.Angling();
+        if (!v.on) break;
+        PlayerInput hands;
+        if (v.phase == Phase::Bite && !struck) {
+            struck = true;
+            w.TryInteract(ctx);
+        } else if (v.phase == Phase::Reeling) {
+            const float line_v = last_line < 0.0f ? 0.0f : (v.line - last_line) / dt;
+            const float band_v = last_band < 0.0f ? 0.0f : (v.band - last_band) / dt;
+            if ((v.band + band_v * lead) - (v.line + line_v * lead) > 0.0f) hands.down = PlayerInput::Interact;
+            last_line = v.line;
+            last_band = v.band;
+        }
+        w.player.hands = hands;
+        step();
+    }
+    w.player.hands = PlayerInput{};
+    w.player.hands_external = was_external;
+    return fish_held() > before;
+}
 
 // The title screen's theme: made with every other sound, long enough to be
 // music, playing its opening once and then looping, as loud as the ambience it
@@ -3903,7 +3956,8 @@ static void TestCombatFixes(const Databases& db) {
     // --- Arcane Pulse with the lightning chosen -----------------------------------------------------------------
     {
         World w;
-        if (field(w, "player_wayfarer", "iron_staff", SKILL_MAGIC, 99)) {
+        // Steel: the lightning is the fifth slot (SPELL_BOXES).
+        if (field(w, "player_wayfarer", "steel_staff", SKILL_MAGIC, 99)) {
             for (const char* id : {"flow", "swift_casting", "barrage", "blink", "potency", "focus", "nova", "arcane_pulse"})
                 w.player.talents.Learn(id, w.player.skills);
             w.player.talents.SetAbility(0, "arcane_pulse");
@@ -3966,7 +4020,8 @@ static void TestCombatFixes(const Databases& db) {
         World w;
         const SpellDef* node_spell = spells.Get("electro_node");
         // Magic 70: at 99 there is no more experience to be had, paid or not.
-        if (node_spell && field(w, "player_wayfarer", "iron_staff", SKILL_MAGIC, 70)) {
+        // Steel: the lightning is the fifth slot (SPELL_BOXES).
+        if (node_spell && field(w, "player_wayfarer", "steel_staff", SKILL_MAGIC, 70)) {
             w.player.SetElectricSpell("electro_node");
             w.player.SelectElement(Element::Electric);
             w.player.AddBattery(1.0f);
@@ -4795,7 +4850,8 @@ static void TestLateSpells(const Databases& db) {
                   tome->learn == "spell:starfall" && sold,
               "Starfall is the ancient magic's, at Magic 90, and the college's copying room sells its tome");
         World w;
-        if (star && field(w, "iron_staff", 90)) {
+        // Azuryte: the ancient magic is the sixth slot (SPELL_BOXES).
+        if (star && field(w, "azuryte_staff", 90)) {
             w.SetFlag("recipe:spell:starfall");
             w.player.SelectArcane(w.KnownArcane(spells));
             const EnemyDef* stats = enemy_db.Get("boar");
@@ -5282,12 +5338,13 @@ static void TestLateGathering(const Databases& db) {
             if (!stand_at(w, wa.map, spot, SKILL_FISHING, wa.level)) { Check(false, string("stood at ") + wa.map); continue; }
             w.player.inventory.Add("fishing_rod", 1);
             frames(w, 1);
-            w.TryInteract(ctx);
-            int f = 0;
-            while (w.player.inventory.Count(wa.fish) == 0 && f++ < 60 * 40) frames(w, 1);
+            // Played, cast after cast: the best fish at the water bites a third
+            // of the time at its own level, and is earned like any other.
+            int casts = 0;
+            while (w.player.inventory.Count(wa.fish) == 0 && casts++ < 24) PlayCast(w, ctx, [&] { frames(w, 1); });
             Check(w.player.inventory.Count(wa.fish) > 0,
                   string("at Fishing ") + std::to_string(wa.level) + " it gives up a " + wa.fish + " (" +
-                      std::to_string(f / 60) + "s)");
+                      std::to_string(casts) + " casts)");
         }
     }
     {
@@ -5693,6 +5750,1169 @@ static void TestDreamLands(const Databases& db) {
     }
 }
 
+// The prologue: data/story.json's scenes as the user's script has them, the
+// maps they play on, and the whole of it played through headless -- once as it
+// plays, once with every scene skipped -- from the road to the title card and
+// Elder Vask on the porch. And the town as an old save still has it.
+static void TestPrologue(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    Section("the prologue: the town that wouldn't wake, played through");
+
+    StoryDirector story;
+    Check(story.Load("data/story.json") && story.SceneCount() >= 20 && story.HasScene("pro_01_road"),
+          "the prologue's scenes load, and a new game has one to begin with");
+
+    // --- every scene can be played: its steps known, everything it names there --------
+    {
+        static const std::set<string> kSteps = {
+            "bars", "fade", "wait", "say", "narrate", "note", "title", "tip", "map", "player", "camera", "spawn",
+            "remove", "walk", "face", "pose", "show", "name", "attach", "detach", "fx", "sfx", "music", "clock",
+            "timelapse", "flag", "quest", "give", "take", "settle", "wake", "banish", "tint", "confirm", "count",
+            "dialogue", "crowd", "dip"};
+        std::map<string, Map> maps;
+        const auto map_of = [&](const string& id) -> const Map* {
+            if (id.empty()) return nullptr;
+            auto it = maps.find(id);
+            if (it == maps.end()) {
+                Map m;
+                if (!m.Load("maps/" + id + ".mx")) return nullptr;
+                it = maps.emplace(id, std::move(m)).first;
+            }
+            return &it->second;
+        };
+        string bad;
+        for (const auto& sc : story.Scenes()) {
+            // Where it plays: its trigger's map, or wherever its own steps go.
+            string here = sc.on == "new_game" ? string("overworld") : sc.map;
+            std::set<string> spawned;
+            if (sc.id == "pro_02_wake" || sc.id == "pro_10_cell") here.clear();   // straight on from another
+            for (const auto& st : sc.steps) {
+                const string op = st.value("do", string(""));
+                if (!kSteps.count(op)) { bad = sc.id + ": a step '" + op + "'"; continue; }
+                if (op == "map" || op == "wake") here = st.value("map", string(""));
+                if (op == "fx" && (st.value("kind", string("")) == "dream" || st.value("kind", string("")) == "tear"))
+                    here = st.value("map", string(""));
+                if (op == "take" && st.contains("item") && !items.Get(st["item"].get<string>()))
+                    bad = sc.id + ": no item " + st["item"].get<string>();
+                if (op == "dialogue" && !dialogue.Get(st.value("id", string(""))))
+                    bad = sc.id + ": no dialogue " + st.value("id", string(""));
+                if (op == "spawn") spawned.insert(st.value("actor", string("")));
+                if (op == "quest" && st.contains("start") && !quests.Definition(st["start"].get<string>()))
+                    bad = sc.id + ": no quest " + st["start"].get<string>();
+                if (op == "give" && !items.Get(st.value("item", string(""))))
+                    bad = sc.id + ": no item " + st.value("item", string(""));
+                if (op == "tip" && !story.FindTip(st.value("id", string(""))))
+                    bad = sc.id + ": no tip " + st.value("id", string(""));
+                if (op == "music" && !st.value("cue", string("")).empty() && Audio::MakeMusic(st["cue"].get<string>()).empty())
+                    bad = sc.id + ": no music " + st["cue"].get<string>();
+                if ((op == "map" || op == "wake") && !map_of(here)) bad = sc.id + ": no map " + here;
+                // Every mark it names: somewhere on the map it is on, somebody there, or the player.
+                const Map* m = map_of(here);
+                for (const char* key : {"at", "toward", "follow"}) {
+                    if (!st.contains(key) || !st[key].is_string() || !m) continue;
+                    const string mark = st[key].get<string>();
+                    if (mark == "player" || spawned.count(mark)) continue;
+                    SDL_FPoint pt;
+                    bool there = m->Spawn(mark, pt) || m->Mark(mark, pt);
+                    for (const NpcDef& n : m->Npcs()) there |= n.id == mark;
+                    if (!there) bad = sc.id + ": no mark '" + mark + "' on " + here;
+                }
+                if (st.contains("who") && m) {
+                    const string who = st["who"].get<string>();
+                    bool there = who == "player" || spawned.count(who) > 0;
+                    for (const NpcDef& n : m->Npcs()) there |= n.id == who;
+                    if (!there) bad = sc.id + ": nobody '" + who + "' on " + here;
+                }
+            }
+            if (sc.on == "use" || sc.on == "near" || sc.on == "talk" || sc.on == "enter")
+                if (!map_of(sc.map)) bad = sc.id + ": no map " + sc.map;
+        }
+        Check(bad.empty(), "every scene's steps are known, and everything one names is where it plays (" + bad + ")");
+    }
+
+    // --- the music --------------------------------------------------------------------
+    {
+        bool music = true;
+        string which;
+        for (const char* cue : {"ominous", "town", "montage", "hum", "dream", "escape", "dream_town", "boss", "trap"}) {
+            const vector<float> m = Audio::MakeMusic(cue);
+            float peak = 0.0f;
+            bool finite = true;
+            for (float v : m) { peak = std::max(peak, std::fabs(v)); finite &= std::isfinite(v); }
+            const size_t e = m.size() / 2 - 1;
+            const float seam = m.empty() ? 1.0f : std::max(std::fabs(m[e * 2] - m[0]), std::fabs(m[e * 2 + 1] - m[1]));
+            if (m.size() < 2 * 44100 * 6 || !finite || peak < 0.15f || peak > 0.45f || seam > 0.1f) { music = false; which = cue; }
+        }
+        Check(music, "the story's nine cues are music: long enough to loop, under clipping, and round without a click (" + which + ")");
+    }
+
+    Input input;
+    std::mt19937 rng(8181);
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+    ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.statuses = &statuses; ctx.input = &input;       ctx.rng = &rng;
+    const float dt = 1.0f / 30.0f;
+    const auto shut = [](World& w, const string& target) {
+        for (const Portal& p : w.CurrentMap().Portals())
+            if (p.target_map == target) return p.ShutBy([&](const string& f) { return w.Flagged(f); }) != nullptr;
+        return false;
+    };
+
+    // Played twice: as it plays, a line read on the moment it can be; and every
+    // scene skipped the moment it begins. Both have to come out the same.
+    for (int pass = 0; pass < 2; ++pass) {
+        const bool skip = pass == 1;
+        const string how = skip ? " (skipped)" : "";
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        ctx.quests = &log;
+        StoryDirector dir;
+        dir.Load("data/story.json");
+        World w;
+        w.player.Init(ctx, "player_hero");
+        w.SetFlag("PROLOGUE");
+        w.clock.Set(1, 4.1f);
+        w.LoadMap("overworld", "start", ctx);
+        log.SetDay(w.clock.QuestDay());
+        // Runs whatever scene is under way to its end -- and any it leads to.
+        const auto play = [&]() {
+            for (int f = 0; f < 30 * 400 && dir.Running(); ++f) {
+                w.Update(dt, ctx);
+                dir.Update(dt, w, log, ctx, true, skip && f % 30 != 29);
+            }
+            // A few frames more, for a transition to land and its scene to start.
+            for (int f = 0; f < 90; ++f) {
+                w.Update(dt, ctx);
+                dir.Update(dt, w, log, ctx, true, false);
+                if (dir.Running()) for (int g = 0; g < 30 * 400 && dir.Running(); ++g) {
+                    w.Update(dt, ctx);
+                    dir.Update(dt, w, log, ctx, true, skip && g % 30 != 29);
+                }
+            }
+            return !dir.Running();
+        };
+        const auto stand = [&](const string& mark) {
+            SDL_FPoint pt;
+            if (!w.CurrentMap().Spawn(mark, pt) && !w.CurrentMap().Mark(mark, pt)) return false;
+            w.player.x = pt.x;
+            w.player.y = pt.y;
+            return true;
+        };
+        const auto go = [&](const string& map, const string& spawn) {
+            w.LoadMap(map, spawn, ctx);
+            return play();
+        };
+        const auto use = [&](const string& mark) {
+            stand(mark);
+            w.Update(dt, ctx);
+            w.TryInteract(ctx);
+            for (const string& id : w.TakeStoryUses()) dir.OnUse(id, w, log, ctx);
+            return play();
+        };
+
+        // Scene 1 and 2: found on the road, carted in, woken in the inn.
+        Check(dir.Start("pro_01_road", w, log, ctx) && play(), "the road and the cart, to the bed in the inn" + how);
+        Check(w.MapId() == "house_inn_upper" && w.Flagged("PRO_01_INTRO_DONE") && w.Flagged("PRO_02_NOTE_READ") &&
+                  log.IsActive("q_pro_meet_mayor") && w.clock.Hours() > 7.0f && w.clock.Hours() < 10.0f,
+              "woken upstairs at the Barley and Bell in the morning, with the note read and the Mayor to meet" + how);
+        Check(w.player.scene_clip.empty() && !w.player.scene_hidden && !w.player.input_locked && !dir.View().in_scene,
+              "and the player handed back: standing, seen, theirs to move" + how);
+        // Bess.
+        Check(go("house_inn", "from_upstairs") && w.Flagged("PRO_03_TAVERN_DONE") &&
+                  w.player.inventory.Count("hearty_meal") == 2,
+              "down the stairs, Bess hurries over with two Hearty Meals" + how);
+        // Scene 3: the town, panned, thin.
+        Check(go("town_havenbrook", "from_house_inn") && w.Flagged("PRO_04_TOWN_PAN"), "out of the inn: the town, from above" + how);
+        {
+            Npc* sweeper = w.FindNpc("npc_sweeper");
+            Npc* posy = w.FindNpc("npc_posy");
+            Npc* corrin = w.FindNpc("npc_guard");
+            Check(sweeper && !sweeper->Away() && posy && posy->Away() && corrin && !corrin->Away() &&
+                      corrin->DialogueRoot() == "pro_gate_root",
+                  "fewer townsfolk than the town was built for: one sweeping, the gates kept, nobody else" + how);
+            Check(shut(w, "overworld") && shut(w, "westwold") && shut(w, "house_sleeper") && !shut(w, "mayor_hall"),
+                  "and the gates barred, the houses unanswered, the Mayor's door open" + how);
+        }
+        // Scene 4: the Mayor, and the weeks the town has had.
+        const double before = w.clock.GameHours();
+        w.LoadMap("mayor_hall", "entrance", ctx);
+        Check(dir.OnTalk("npc_mayor", w, log, ctx) && play() && w.Flagged("PRO_05_MAYOR_TALK") &&
+                  log.IsActive("q_pro_wake_sleeper") && w.MapId() == "mayor_hall",
+              "the Mayor's story, the days going by over the town, and a sleeper to wake" + how);
+        Check(std::fabs(w.clock.GameHours() - before) < 1.0, "and the clock as it was before the remembering" + how);
+        // Scene 5: the stranger at the bedside.
+        w.LoadMap("town_havenbrook", "from_mayor_hall", ctx);
+        Check(!shut(w, "house_sleeper"), "the marked house is open now" + how);
+        Check(go("house_sleeper", "entrance"), "and walked into" + how);
+        {
+            Npc* stranger = w.FindNpc("npc_stranger");
+            Check(stranger && !stranger->Away() && stranger->Name() == "???", "a stranger stands over the bed, nameless" + how);
+        }
+        stand("sleeper_near");
+        Check(play() && w.Flagged("PRO_06_STRANGER_SEEN") && w.FindNpc("npc_stranger")->Away(),
+              "he turns, and is gone in smoke" + how);
+        for (int k = 0; k < 3; ++k) use("sleeper_bed");
+        Check(w.Flagged("PRO_07_SLEEPER_FAIL") && log.Stage("q_pro_wake_sleeper") == 1,
+              "shaken three times, the sleeper does not wake: report to the Mayor" + how);
+        // Scene 6: the silent town.
+        go("mayor_hall", "entrance");
+        Check(w.FindNpc("npc_mayor") && w.FindNpc("npc_mayor")->Asleep(), "the Mayor slumped in his chair" + how);
+        for (int k = 0; k < 3; ++k) {
+            dir.OnTalk("npc_mayor", w, log, ctx);
+            play();
+        }
+        Check(w.Flagged("PRO_08_MAYOR_ASLEEP") && w.Flagged("HAVENBROOK_ASLEEP") && log.IsComplete("q_pro_wake_sleeper"),
+              "he fought it as long as he could: the town asleep" + how);
+        w.LoadMap("town_havenbrook", "from_mayor_hall", ctx);
+        {
+            Npc* posy = w.FindNpc("npc_posy");
+            Npc* corrin = w.FindNpc("npc_guard");
+            Check(posy && posy->Asleep() && !posy->Away() && corrin && corrin->Asleep() && w.FindNpc("npc_sweeper")->Away(),
+                  "everyone asleep where the night found them" + how);
+        }
+        stand("square_centre");
+        Check(play() && w.Flagged("PRO_09_ABDUCTED") && w.Flagged("PRO_10_IN_CELL") && w.MapId() == "mansion_cells" &&
+                  log.IsActive("q_pro_experiment"),
+              "the stranger in the square, the smoke, and a cell under his house" + how);
+        // Scene 7 and 8: the cell, and the first Echo.
+        const auto blocked_at = [&](const string& id) {
+            for (const MapObject& o : w.CurrentMap().Objects())
+                if (o.id == id) return w.CurrentMap().Blocked({o.solid.x, o.solid.y, o.solid.w, o.solid.h});
+            return false;
+        };
+        Check(blocked_at("pro_cell_door"), "the door bolted from the outside" + how);
+        use("pro_mattress");
+        Check(w.InDream() && w.MapId() == "mansion_cells_dream" && w.Flagged("PRO_11_FIRST_REVERIE") &&
+                  log.Stage("q_pro_experiment") == 1,
+              "slept on the mattress: the same cell, in the Reverie" + how);
+        Check(blocked_at("dream_cell_door"), "its door shut, but its bolt rusted to nothing" + how);
+        // The flip into the dream done with, and the dream's own scene: nothing
+        // is touched while a transition is still fading in.
+        for (int f = 0; f < 30 * 20 && (w.TransitionPending() || dir.Running()); ++f) {
+            w.Update(dt, ctx);
+            dir.Update(dt, w, log, ctx, true, skip && f % 30 != 29);
+        }
+        stand("pro_cell_door_in");
+        w.Update(dt, ctx);
+        w.TryInteract(ctx);
+        Check(w.Flagged("ECHO_CELL_DOOR_OPEN") && !blocked_at("dream_cell_door"), "pushed, it opens" + how);
+        use("waking_stone_near");
+        Check(!w.InDream() && w.MapId() == "mansion_cells" && w.Flagged("PRO_12_WAKING_STONE") &&
+                  log.IsComplete("q_pro_experiment"),
+              "the Waking Stone: back on the mattress, awake" + how);
+        Check(!blocked_at("pro_cell_door"), "and the cell door stands open, as it was left in the dream: the Echo" + how);
+        // Scene 9: Vigil.
+        stand("out_of_cell");
+        Check(play() && w.Flagged("PRO_VIGIL_MET") && log.IsActive("q_pro_arm"), "a voice down the corridor" + how);
+        use("vigil_front");     // the corridor, then across to the chest's cell
+        {
+            SDL_FPoint chest{};
+            for (const MapObject& o : w.CurrentMap().Objects()) if (o.id == "pro_chest_arms") chest = {o.x, o.y + 18.0f};
+            w.player.x = chest.x; w.player.y = chest.y;
+            w.Update(dt, ctx);
+            w.TryInteract(ctx);
+            dir.Update(dt, w, log, ctx, false, false);
+        }
+        Check(log.IsComplete("q_pro_arm") && log.ChoicesOwed("q_pro_arm") == 1, "the chest: a weapon to choose" + how);
+        if (const QuestRewardChoice* c = log.TakeChoice("q_pro_arm", 0)) {
+            for (const auto& it : c->items) w.player.inventory.Add(it.first, it.second);
+            w.SetFlag(log.Definition("q_pro_arm")->choice_flag);
+        }
+        Check(w.Flagged("WEAPON_CHOSEN") && w.player.inventory.Has("wood_sword"), "one taken, and only one" + how);
+        stand("vigil_front");
+        Check(play() && w.Flagged("PRO_13_NAME_REVEAL") && w.FindNpc("npc_vigil")->Name() == "Vigil" &&
+                  dir.ActorName("vexel", w) == "Vexel Von Finch" && log.IsActive("q_pro_escape"),
+              "the old man is Vigil, and the stranger is Vexel Von Finch" + how);
+        Check(w.Flagged("PRO_14_DREAMCATCHER") && w.player.inventory.Has("vigil_dreamcatcher"),
+              "and one more thing: the Dreamcatcher, through the bars" + how);
+        Check(!shut(w, "mansion_foyer"), "the stairs up" + how);
+        // Scene 10: the foyer, and out.
+        w.LoadMap("mansion_foyer", "from_cells", ctx);
+        play();
+        int dormant = 0, armour = 0;
+        for (const auto& e : w.enemies)
+            if (e->TypeId() == "animated_armor" && !e->Dead()) { ++armour; dormant += e->dormant; }
+        Check(armour == 2 && dormant == 2 && shut(w, "mansion_grounds"),
+              "two suits of armour on their pedestals, still, and the doors locked" + how);
+        stand("foyer_middle");
+        Check(play() && w.Flagged("PRO_FOYER_WAKE") && log.IsActive("q_pro_first_blood"), "they wake" + how);
+        dormant = 0;
+        for (const auto& e : w.enemies) if (e->TypeId() == "animated_armor") dormant += e->dormant;
+        Check(dormant == 0, "and step down" + how);
+        for (int k = 0; k < 2; ++k) {
+            QuestEvent kill;
+            kill.type = ObjectiveType::Kill;
+            kill.target = "animated_armor";
+            kill.map_id = "mansion_foyer";
+            log.Notify(kill, w.player.inventory);
+        }
+        dir.Update(dt, w, log, ctx, false, false);
+        Check(w.Flagged("PRO_15_FOYER_CLEARED") && !shut(w, "mansion_grounds"), "both down: the doors give" + how);
+        Check(go("mansion_grounds", "from_foyer") && w.Flagged("PRO_OUTSIDE") && Audio::MusicCue() == "escape",
+              "out into the storm, running" + how);
+        stand("gate_end");
+        Check(play() && w.Flagged("PRO_COMPLETE") && w.MapId() == "town_havenbrook" && log.IsComplete("q_pro_escape") &&
+                  w.Flagged("ACT1_00_STARTED") && log.IsActive("q_pro_anyone_awake"),
+              "down the gate road, the house watching -- Havenbrook in the morning, and ACT I: Anyone Awake?" + how);
+        // Scene 11: Vask.
+        Check(!shut(w, "overworld") && !shut(w, "guild_hall"), "the town's gates open now, and its doors" + how);
+        {
+            Npc* vask = w.FindNpc("npc_vask_porch");
+            Check(vask && !vask->Away() && w.FindNpc("npc_posy")->Asleep(), "everyone asleep, and Vask rocking on the porch" + how);
+        }
+        Check(dir.OnTalk("npc_vask_porch", w, log, ctx) && play() && w.Flagged("ACT1_01_VASK_FOUND") &&
+                  log.IsComplete("q_pro_anyone_awake") && log.IsActive("q_act1_vask"),
+              "Vask mutters, and does not wake: What Troubles Elder Vask" + how);
+        Check(w.FindNpc("npc_vask_porch")->Asleep() && w.FindNpc("npc_vask_porch")->Prompt() == "Use Dreamcatcher",
+              "and after, it is the Dreamcatcher he wants" + how);
+        Check(!w.player.input_locked && !dir.View().in_scene && dir.View().fade < 0.05f,
+              "nothing left dark, and the player theirs" + how);
+    }
+
+    // --- an old save: Havenbrook as it always was --------------------------------------------
+    {
+        World w;
+        QuestLog log;
+        log.LoadDefinitions("data/quests.json");
+        ctx.quests = &log;
+        w.player.Init(ctx, "player_hero");
+        w.LoadMap("town_havenbrook", "default", ctx);
+        Npc* posy = w.FindNpc("npc_posy");
+        Npc* vask = w.FindNpc("npc_vask_porch");
+        Npc* sweeper = w.FindNpc("npc_sweeper");
+        Check(posy && !posy->Away() && !posy->Asleep() && vask && vask->Away() && sweeper && sweeper->Away() &&
+                  !shut(w, "overworld") && !shut(w, "guild_hall"),
+              "a character from before the prologue finds the town awake, its gates open, nothing changed");
+        bool doors = false;
+        for (const MapObject& o : w.CurrentMap().Objects())
+            if (o.type == "door" && w.ObjectPresent(o)) doors = true;
+        Check(!doors, "and no door they did not have before");
+    }
+    ctx.quests = &quests;
+}
+
+// Act I, played through (Screenplay.md, scenes 17-50): Vask's dream and the
+// Dawn Bells, the gathering lessons, a Dawn Chime, Halda, Bess and the Tanner
+// in their dreams, and the finale -- every scene run headless, every flag,
+// quest, post and door checked as the chapter goes. Then a fall in the
+// finale, and the way back in; and the chapter's monsters fought.
+static void TestActOne(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    Section("Act I: learning the rules, played through");
+
+    Input input;
+    std::mt19937 rng(2604);
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+    ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.statuses = &statuses; ctx.input = &input;       ctx.rng = &rng;
+    const float dt = 1.0f / 30.0f;
+
+    // --- the data hangs together ----------------------------------------------------------------
+    {
+        string bad;
+        for (const char* id : {"vigil_dreamcatcher", "scorched_scale", "token_candle", "token_loaf", "token_mug",
+                               "havenbrook_house_key", "guild_amulet", "guild_ring", "guild_hood", "bess_supper",
+                               "bronze_axe", "bronze_pickaxe", "fishing_rod"})
+            if (!items.Get(id)) bad += string(" item ") + id;
+        for (const char* id : {"hushed", "ashen_vanguard", "black_knight", "forge_demon", "nightmare_spider",
+                               "nightmare_spider_large", "nightmare_wolf", "nightmare_anchor"}) {
+            const EnemyDef* d = enemy_db.Get(id);
+            if (!d) { bad += string(" enemy ") + id; continue; }
+            if (!sprites.Get(d->sprite)) bad += string(" sprite ") + d->sprite;
+            for (const EnemyMove& m : d->moves) {
+                if (!m.shot.empty() && !projectiles.Get(m.shot)) bad += " shot " + m.shot;
+                const SpriteDef* sd = sprites.Get(d->sprite);
+                if (!m.clip.empty() && sd && !sd->Find(m.clip)) bad += string(" clip ") + id + "/" + m.clip;
+            }
+        }
+        for (const char* q : {"q_act1_vask", "q_act1_break_hold", "q_act1_bells", "q_act1_gather", "q_act1_tut_wood",
+                              "q_act1_tut_fish", "q_act1_tut_mine", "q_act1_forge", "q_act1_save_halda", "q_act1_bess",
+                              "q_act1_save_bess", "q_act1_supper", "q_act1_hides", "q_act1_save_tanner",
+                              "q_act1_finale", "q_chime_posy"})
+            if (!quests.Definition(q)) bad += string(" quest ") + q;
+        Check(bad.empty(), "Act I's things are all there: items, monsters and their art, quests (" + bad + ")");
+        const EnemyDef* demon = enemy_db.Get("forge_demon");
+        const EnemyDef* anchor = enemy_db.Get("nightmare_anchor");
+        const EnemyDef* wolf = enemy_db.Get("nightmare_wolf");
+        Check(demon && demon->phase2.enabled && demon->phase2.fire_trail && demon->weak_after > 0.0f &&
+                  demon->moves.size() == 2 && anchor && anchor->rooted && wolf && wolf->circles,
+              "the demon flames, spins, softens and ignites; the Anchor never moves; the wolves circle");
+        Check(Enemy::ShownLevelOf(*enemy_db.Get("hushed"), 1) == 1 && Enemy::ShownLevelOf(*enemy_db.Get("hushed"), 2) == 2,
+              "the Hushed show level 1 and 2, as written");
+    }
+
+    // --- the cellar's lock: one order of three opens it, and only that one ---------------------------
+    {
+        int opens = 0, orders = 0;
+        string opened_by;
+        std::function<void(const string&, string)> walk = [&](const string& node, string order) {
+            const DialogueNode* n = dialogue.Get(node);
+            if (!n) return;
+            if (n->on_enter.set_flag == "ACT1_INN_CELLAR_OPEN") { ++opens; opened_by = order; }
+            bool leaf = true;
+            for (const DialogueOption& o : n->options) {
+                if (o.next == "end" || o.next.empty()) continue;
+                leaf = false;
+                walk(o.next, order + (order.empty() ? "" : ",") + o.text);
+            }
+            if (leaf) ++orders;
+        };
+        walk("inn_lock_1", "");
+        Check(opens == 1 && opened_by.find("candle") != string::npos &&
+                  opened_by.find("candle") < opened_by.find("loaf") && opened_by.find("loaf") < opened_by.find("mug") &&
+                  orders == 6,
+              "the cellar's lock: six orders to try, and only candle, loaf, mug turns it (" + opened_by + ")");
+    }
+
+    QuestLog log;
+    log.LoadDefinitions("data/quests.json");
+    ctx.quests = &log;
+    StoryDirector dir;
+    dir.Load("data/story.json");
+    World w;
+    w.player.Init(ctx, "player_hero");
+    w.skill_locks = dir.Locks();
+    for (const char* f : {"PROLOGUE", "PRO_01_INTRO_DONE", "PRO_02_NOTE_READ", "PRO_03_TAVERN_DONE", "PRO_04_TOWN_PAN",
+                          "PRO_05_MAYOR_TALK", "PRO_06_STRANGER_SEEN", "PRO_07_SLEEPER_FAIL", "PRO_08_MAYOR_ASLEEP",
+                          "HAVENBROOK_ASLEEP", "PRO_09_ABDUCTED", "PRO_10_IN_CELL", "PRO_11_FIRST_REVERIE",
+                          "ECHO_CELL_DOOR_OPEN", "PRO_12_WAKING_STONE", "WEAPON_CHOSEN", "PRO_13_NAME_REVEAL",
+                          "PRO_14_DREAMCATCHER", "PRO_15_FOYER_CLEARED", "PRO_OUTSIDE", "PRO_COMPLETE", "ACT1_00_STARTED"})
+        w.SetFlag(f);
+    w.player.inventory.Add("vigil_dreamcatcher", 1);
+    w.player.inventory.Add("wood_sword", 1);
+    // A deep pool of hitpoints, topped up as it goes: what is checked here is
+    // the story, and a fall in a dream (which wakes the player) is a check of
+    // its own further down.
+    w.player.skills.SetXp(SKILL_HITPOINTS, XpForLevel(99));
+    w.player.SyncHitpoints();
+    const auto topup = [&]() {
+        w.player.skills.SetCurrent(SKILL_HITPOINTS, w.player.skills.Level(SKILL_HITPOINTS));
+        w.player.hp = w.player.max_hp;
+    };
+    w.clock.Set(2, 8.0f);
+    log.SetDay(w.clock.QuestDay());
+    log.Start("q_pro_anyone_awake");
+    log.TakeJustStarted();
+    w.LoadMap("town_havenbrook", "act1_path", ctx);
+    bool answer = true;
+
+    // Runs whatever scene is under way to its end -- and any it leads to, and
+    // any the flags it set start -- answering a question as `answer` says.
+    const auto play = [&]() {
+        for (int round = 0; round < 6; ++round) {
+            for (int f = 0; f < 30 * 600 && dir.Running(); ++f) {
+                if (dir.View().ask) dir.Answer(answer);
+                topup();
+                w.Update(dt, ctx);
+                dir.Update(dt, w, log, ctx, true, false);
+            }
+            bool more = false;
+            for (int f = 0; f < 60; ++f) {
+                topup();
+                w.Update(dt, ctx);
+                dir.Update(dt, w, log, ctx, true, false);
+                if (dir.Running()) { more = true; break; }
+            }
+            if (!more) break;
+        }
+        return !dir.Running();
+    };
+    const auto frames = [&](float seconds) {
+        for (float t = 0.0f; t < seconds; t += dt) {
+            topup();
+            w.Update(dt, ctx);
+            dir.Update(dt, w, log, ctx, true, false);
+            if (dir.Running()) play();
+        }
+    };
+    const auto stand = [&](const string& mark) {
+        SDL_FPoint pt;
+        if (Npc* n = w.FindNpc(mark)) { w.player.x = n->x; w.player.y = n->y + 22.0f; return true; }
+        if (!w.CurrentMap().Spawn(mark, pt) && !w.CurrentMap().Mark(mark, pt)) return false;
+        w.player.x = pt.x;
+        w.player.y = pt.y;
+        return true;
+    };
+    const auto go = [&](const string& map, const string& spawn) {
+        w.LoadMap(map, spawn, ctx);
+        return play();
+    };
+    const auto present = [&](const string& id) {
+        for (const MapObject& o : w.CurrentMap().Objects())
+            if (o.id == id) return w.ObjectPresent(o);
+        return false;
+    };
+    const auto use = [&](const string& id) {
+        if (!present(id)) return false;
+        const bool ran = dir.OnUse(id, w, log, ctx);
+        play();
+        return ran;
+    };
+    const auto talk = [&](const string& npc) {
+        const bool ran = dir.OnTalk(npc, w, log, ctx);
+        play();
+        return ran;
+    };
+    // Everything of a kind -- or of a squad -- that is up, put down.
+    const auto slay = [&](const std::function<bool(const Enemy&)>& which) {
+        int n = 0;
+        for (auto& e : w.enemies)
+            if (!e->Dead() && !e->Pending() && which(*e)) { e->LieDead(); ++n; }
+        frames(0.6f);
+        return n;
+    };
+    const auto squad = [&](const string& s) { return slay([&](const Enemy& e) { return e.squad == s; }); };
+    const auto up = [&](const string& type) {
+        int n = 0;
+        for (auto& e : w.enemies) n += e->TypeId() == type && !e->Dead();
+        return n;
+    };
+    const auto shut = [&](const string& target) {
+        for (const Portal& p : w.CurrentMap().Portals())
+            if (p.target_map == target) return p.ShutBy([&](const string& f) { return w.Flagged(f); }) != nullptr;
+        return false;
+    };
+    const auto asleep = [&](const string& id) { Npc* n = w.FindNpc(id); return n && !n->Away() && n->Asleep(); };
+    const auto awake = [&](const string& id) { Npc* n = w.FindNpc(id); return n && !n->Away() && !n->Asleep(); };
+    const auto gone = [&](const string& id) { Npc* n = w.FindNpc(id); return !n || n->Away(); };
+
+    // --- 17: Anyone Awake? -----------------------------------------------------------------------------
+    Check(asleep("npc_posy") && asleep("npc_sawyer") && !gone("npc_vask_porch") && w.FindNpc("npc_vask_porch")->Marked(),
+          "Havenbrook asleep, and a bell over the one chair still rocking");
+    Check(w.SkillLocked("Woodcutting") && w.SkillLocked("Mining") && w.SkillLocked("Fishing") && !w.SkillLocked("Cooking"),
+          "and the gathering trades not yet the player's");
+    Check(shut("house_smith") && !shut("house_inn") && !shut("guild_hall") && !shut("overworld"),
+          "the forge barred, the inn and the guild hall open, the gates open on the waking world");
+    Check(talk("npc_vask_porch") && w.Flagged("ACT1_01_VASK_FOUND") && log.IsComplete("q_pro_anyone_awake") &&
+              log.IsActive("q_act1_vask"),
+          "Elder Vask, muttering in his sleep: What Troubles Elder Vask");
+    Check(w.FindNpc("npc_vask_porch")->Prompt() == "Use Dreamcatcher" && w.FindNpc("npc_vask_porch")->Marked(),
+          "and the button over him says Use Dreamcatcher");
+
+    // --- 18-19: into his dream ----------------------------------------------------------------------------
+    Check(talk("npc_vask_porch") && w.InDream() && w.MapId() == "prologue_dream_havenbrook" && w.StoryDream() &&
+              !w.DreamLocked() && w.Flagged("ACT1_02_DREAM_ENTERED") && w.Flagged("ACT1_DREAM_INTRO") &&
+              log.IsActive("q_act1_break_hold") && log.Stage("q_act1_vask") == 1,
+          "the Dreamcatcher pulls the player into Vask's dream, where he holds them off: Break the Hold");
+    Check(Audio::MusicCue() == "dream_town" && w.FindNpc("npc_vask_dream") && !gone("npc_vask_dream"),
+          "the town's tune, bent and slowed, and Vask at his chair");
+    {
+        int dormant = 0, street = 0;
+        for (auto& e : w.enemies)
+            if (e->squad == "ACT1_STREETS_CLEARED") { ++street; dormant += e->dormant; }
+        Check(street == 5 && dormant == 0, "the Hushed in the streets turn on the player");
+    }
+    w.clock.Set(2, 13.0f);
+    frames(1.0f);
+    Check(w.InDream(), "a sleeper's dream keeps no hours: noon does not end it");
+    Check(squad("ACT1_STREETS_CLEARED") == 5 && w.Flagged("ACT1_STREETS_CLEARED") && log.Stage("q_act1_break_hold") == 1,
+          "the streets cleared: Release the Nightmare Holds");
+    // --- 20: the holds -----------------------------------------------------------------------------------
+    Check(use("hold_wood") && !w.Flagged("ACT1_HOLD_WOOD_FREED"), "a hold's threads are taut while its guards stand");
+    for (const string key : {"wood", "water", "mine"}) {
+        const string KEY = key == "wood" ? "WOOD" : key == "water" ? "WATER" : "MINE";
+        squad("ACT1_HOLD_" + KEY + "_GUARDS");
+        use("hold_" + key);
+    }
+    Check(w.Flagged("ACT1_HOLD_WOOD_FREED") && w.Flagged("ACT1_HOLD_WATER_FREED") && w.Flagged("ACT1_HOLD_MINE_FREED") &&
+              w.Flagged("ACT1_03_HOLDS_CLEARED_3") && w.Flagged("ACT1_04_ANCHOR_UNSEALED") &&
+              log.Stage("q_act1_break_hold") == 2 && !present("hold_wood"),
+          "three guards' squads down, three captives released: the barrier round the square falls");
+    {
+        bool open = true;
+        for (const MapObject& o : w.CurrentMap().Objects())
+            if (o.id.rfind("dream_barrier_box", 0) == 0 && w.CurrentMap().Blocked({o.solid.x + 2, o.solid.y + 2, 6, 6}))
+                open = false;
+        Check(open, "and nothing of it is left in the way");
+    }
+    // --- 21: the Anchor, and its guardian -------------------------------------------------------------------------
+    Check(use("square_anchor") && !w.Flagged("ACT1_05_ANCHOR_DOWN"), "the Anchor cannot be touched while its guardian stands");
+    stand("square_centre");
+    frames(0.2f);
+    play();
+    frames(1.0f);
+    Check(w.Flagged("ACT1_VANGUARD_RISE") && up("ashen_vanguard") == 1 && Audio::MusicCue() == "boss",
+          "into the square: the Ashen Vanguard drags itself out of the knot, to the boss's music");
+    Check(squad("ACT1_VANGUARD_DOWN") == 1 && w.Flagged("ACT1_SCALE_TAKEN") && w.player.inventory.Has("scorched_scale"),
+          "it falls, and leaves a scorched scale on the stones");
+    Check(use("square_anchor") && w.Flagged("ACT1_05_ANCHOR_DOWN") && present("dawn_bells") &&
+              log.IsComplete("q_act1_break_hold") && log.IsActive("q_act1_bells"),
+          "the Anchor broken: the Dawn Bells, and Ring the Dawn Bells");
+    // --- 21-23: the bells, the morning, the fist ---------------------------------------------------------------
+    Check(use("dawn_bells") && w.Flagged("ECHO_HAVENBROOK_BELLS") && w.Flagged("ACT1_06_VASK_AWAKE") && !w.InDream() &&
+              w.MapId() == "town_havenbrook" && log.IsComplete("q_act1_bells") && log.IsComplete("q_act1_vask") &&
+              log.IsActive("q_act1_gather"),
+          "the bells rung: Solace in the morning, Vask awake, Learn to Gather");
+    Check(awake("npc_sawyer") && awake("npc_angler") && awake("npc_pitmaster") && w.FindNpc("npc_sawyer")->Marked() &&
+              asleep("npc_posy") && asleep("npc_guard") && awake("npc_vask_porch"),
+          "the gatherers awake with a lesson to give, the rest of the town asleep, Vask rocking with his eyes open");
+    Check(!w.SkillLocked("Woodcutting") && !w.SkillLocked("Fishing") && !w.SkillLocked("Mining"),
+          "and the gathering trades unlocked");
+    Check(w.FindNpc("npc_posy")->Marked() && w.FindNpc("npc_posy")->Prompt() == "Use Dreamcatcher" &&
+              !w.FindNpc("npc_guard")->Marked(),
+          "the Dawn Chimes' sleepers show their bells; nobody else does");
+
+    // --- 24-26: Learn to Gather, in any order ---------------------------------------------------------------------
+    const auto lesson = [&](const string& npc, const string& tool, const string& quest, const string& yield) {
+        stand(npc);
+        if (!talk(npc) || !w.player.inventory.Has(tool) || !log.IsActive(quest)) return false;
+        w.player.inventory.Add(yield, 3);
+        log.RefreshCollectObjectives(w.player.inventory);
+        frames(0.5f);
+        play();
+        return log.IsComplete(quest);
+    };
+    Check(lesson("npc_angler", "fishing_rod", "q_act1_tut_fish", "raw_minnow") && w.Flagged("ACT1_TUT_FISHING_DONE") &&
+              w.Flagged("ACT1_LEARN_1") && log.Counter("q_act1_gather") == 1,
+          "the angler's lesson, out of order: a rod, three fish, one of three");
+    Check(lesson("npc_sawyer", "bronze_axe", "q_act1_tut_wood", "logs") && w.Flagged("ACT1_TANNER_QUEST_START") &&
+              log.IsActive("q_act1_hides"),
+          "the woodcutter's: an axe, three logs -- and wolves heard by the tannery: The Haunted Hides");
+    Check(lesson("npc_pitmaster", "bronze_pickaxe", "q_act1_tut_mine", "copper_ore") &&
+              log.IsComplete("q_act1_gather") && w.Flagged("ACT1_LEARN_TO_GATHER_DONE"),
+          "the miner's: Learn to Gather done");
+    {
+        bool old_lesson = false;
+        DialogueContext dc;
+        dc.quests = &log; dc.inventory = &w.player.inventory; dc.skills = &w.player.skills; dc.flags = &w.Flags();
+        if (const DialogueNode* n = dialogue.Get("sawyer_root"))
+            for (const DialogueOption& o : n->options)
+                if (o.condition.quest == "q_learn_woodcutting" && o.condition.quest_state == "available" &&
+                    EvaluateCondition(o.condition, dc))
+                    old_lesson = true;
+        Check(!old_lesson, "and the old lesson is not offered on top of the one given");
+    }
+
+    // --- 27-29: a Dawn Chime ---------------------------------------------------------------------------------------
+    stand("npc_posy");
+    Check(talk("npc_posy") && w.InDream() && w.MapId() == "chime_posy" && w.Flagged("CHIME_POSY_GO") &&
+              log.IsActive("q_chime_posy"),
+          "the Dreamcatcher on Posy: her home as she dreams it, and a mini anchor to break");
+    {
+        frames(3.0f);
+        int fitted = 0, first = 0;
+        const int combat = w.player.skills.CombatLevel();
+        for (auto& e : w.enemies)
+            if (e->squad == "CHIME_POSY_R_1" && !e->Dead()) {
+                ++first;
+                const int shown = e->ShownLevel();
+                fitted += shown >= combat - 2 && shown <= combat + 5;
+            }
+        Check(first >= 5 && first <= 8 && fitted == first,
+              "round one: five to eight Hushed out of the walls, as strong as the player and never five over");
+    }
+    for (int r = 1; r <= 3; ++r) {
+        squad("CHIME_POSY_R_" + std::to_string(r));
+        frames(9.0f);
+    }
+    {
+        int third = 0;
+        for (auto& e : w.enemies) third += e->squad == "CHIME_POSY_R_3";
+        Check(third == 10 && w.Flagged("CHIME_POSY_R_3") && present("chime_posy_chimes") && !present("mini_anchor") &&
+                  log.Stage("q_chime_posy") == 1,
+              "three rounds, the last of ten: the knot unravels into a string of chimes");
+    }
+    const int coins_before = w.player.inventory.Count("coins");
+    (void)coins_before;
+    Check(use("chime_posy_chimes") && w.Flagged("SIDE_CHIMES_DONE_POSY") && !w.InDream() && w.MapId() == "town_havenbrook" &&
+              log.IsComplete("q_chime_posy") && awake("npc_posy") && !log.Definition("q_chime_posy")->rewards.items.empty(),
+          "rung: Posy awake in Solace, with something pressed into the player's hands");
+
+    // --- 30-35: Halda -------------------------------------------------------------------------------------------------
+    Check(!shut("house_smith"), "the forge's door, unbarred now there is somebody awake to wonder");
+    stand("forge_look");
+    frames(0.2f);
+    play();
+    Check(w.Flagged("ACT1_FORGE_QUEST_START") && log.IsActive("q_act1_forge"), "no smoke from the forge's chimney: The Silent Forge");
+    Check(go("house_smith", "entrance") && w.Flagged("ACT1_FORGE_ENTERED") && up("black_knight") == 4,
+          "inside, four Black Knights round Halda in her chains turn their helmets");
+    {
+        int dormant = 0;
+        for (auto& e : w.enemies) dormant += e->TypeId() == "black_knight" && e->dormant;
+        bool shut_station = false;
+        for (const MapObject& o : w.CurrentMap().Objects())
+            if (o.type == "workbench" && !o.closed.Empty() && w.Holds(o.closed)) shut_station = true;
+        Check(dormant == 0 && shut_station, "and come on; and her anvil is nobody's while she sleeps");
+    }
+    Check(squad("ACT1_FORGE_KNIGHTS_DOWN") == 4 && w.Flagged("ACT1_FORGE_CHAINS") && log.Stage("q_act1_forge") == 2,
+          "the knights down to scrap: the chains go slack");
+    Check(w.FindNpc("npc_smith")->Prompt() == "Try to wake", "Halda, to be woken");
+    for (int k = 0; k < 3; ++k) talk("npc_smith");
+    Check(w.Flagged("ACT1_HALDA_STILL_DREAMING") && log.IsComplete("q_act1_forge") && log.IsActive("q_act1_save_halda") &&
+              w.FindNpc("npc_smith")->Prompt() == "Use Dreamcatcher",
+          "three tries, and the Dreamcatcher tugs toward her: Save Halda");
+    Check(talk("npc_smith") && w.MapId() == "dream_forge" && w.InDream() && w.Flagged("ACT1_FORGE_DREAM_INTRO"),
+          "into her dream: the forge as a cavern of slag, Halda fighting alone on the platform");
+    {
+        int dormant = 0;
+        for (auto& e : w.enemies) dormant += e->TypeId() == "forge_demon" && e->dormant;
+        Check(dormant == 1, "the demon still busy with her");
+    }
+    stand("forge_platform");
+    frames(0.2f);
+    play();
+    {
+        int dormant = 0;
+        for (auto& e : w.enemies) dormant += e->TypeId() == "forge_demon" && e->dormant;
+        Check(w.Flagged("ACT1_HALDA_DEMON_START") && dormant == 0 && Audio::MusicCue() == "boss",
+              "onto the platform: the demon turns, and roars");
+    }
+    Check(use("forge_anchor") && !w.Flagged("ECHO_HALDA_FORGE_RELIT"), "the anvil's knot holds while the demon stands");
+    Check(squad("ACT1_HALDA_DEMON_DOWN") == 1 && w.Flagged("ACT1_DEMON_FALL_SAID"), "the demon falls into the lava in pieces");
+    Check(use("forge_anchor") && w.Flagged("ECHO_HALDA_FORGE_RELIT") && w.Flagged("ACT1_HALDA_AWAKE") &&
+              w.MapId() == "house_smith" && awake("npc_smith") && log.IsComplete("q_act1_save_halda"),
+          "the Anchor broken, the anvil rings into Solace: Halda wakes, and owes the player some work");
+    {
+        bool open = true;
+        for (const MapObject& o : w.CurrentMap().Objects())
+            if ((o.type == "workbench" || o.type == "range") && !o.closed.Empty() && w.Holds(o.closed)) open = false;
+        Check(open && up("black_knight") == 0, "her forge hers again, and the knights stay scrap");
+    }
+
+    // --- 36-40: Bess ----------------------------------------------------------------------------------------------------
+    Check(go("house_inn", "entrance") && w.Flagged("ACT1_BESS_QUEST_START") && log.IsActive("q_act1_bess") &&
+              gone("npc_cook") && shut("house_inn_cellar"),
+          "the tavern, emptier: no Bess, and the cellar locked: Where's Bess?");
+    Check(use("inn_cellar_lock") && w.Flagged("ACT1_INN_LOCK_SEEN") && log.Stage("q_act1_bess") == 1,
+          "the lock: three round slots");
+    Check(use("inn_loaf") && use("inn_mug") && w.Flagged("ACT1_INN_TOKENS_FOUND_2") && !present("inn_loaf"),
+          "a token in the stale loaf, a token in the mug");
+    w.TakeRequests();
+    Check(use("inn_cellar_lock") && !w.Flagged("ACT1_INN_CELLAR_OPEN"), "two tokens are not three");
+    go("house_inn_upper", "from_downstairs");
+    Check(use("inn_candlestick") && w.Flagged("ACT1_INN_TOKENS_FOUND_3") && log.Stage("q_act1_bess") == 2,
+          "and under the candlestick upstairs, the third");
+    go("house_inn", "from_upstairs");
+    w.TakeRequests();
+    use("inn_cellar_lock");
+    {
+        bool asked = false;
+        for (const WorldRequest& r : w.TakeRequests())
+            asked |= r.type == WorldRequest::Type::Dialogue && r.text == "inn_lock_1";
+        Check(asked, "all three: the lock asks which token goes first");
+    }
+    w.SetFlag("ACT1_INN_CELLAR_OPEN");      // what candle, loaf, mug sets (checked above)
+    w.SettleStory();
+    frames(0.5f);
+    play();
+    Check(!shut("house_inn_cellar") && !w.player.inventory.Has("token_mug") && log.Stage("q_act1_bess") == 3,
+          "candle, loaf, mug: the cellar door swings open, and the tokens stay in their slots");
+    Check(go("house_inn_cellar", "from_inn") && w.Flagged("ACT1_CELLAR_SEEN"), "down the webbed stair");
+    frames(4.0f);
+    Check(up("nightmare_spider") + up("nightmare_spider_large") == 8 && up("rat") == 0 && up("broodmother") == 0,
+          "nightmare spiders drop from the rafters -- and the cellar's own vermin keep out of it");
+    squad("ACT1_INN_CELLAR_CLEARED");
+    Check(w.Flagged("ACT1_INN_CELLAR_CLEARED") && w.Flagged("ACT1_CELLAR_QUIET") && log.Stage("q_act1_bess") == 4,
+          "the cellar quiet: Bess, slumped against a cask in webbing");
+    for (int k = 0; k < 3; ++k) talk("npc_bess_cellar");
+    Check(w.Flagged("ACT1_BESS_STILL_DREAMING") && log.IsActive("q_act1_save_bess"), "three tries: Save Bess");
+    Check(talk("npc_bess_cellar") && w.MapId() == "dream_cellar" && w.Flagged("ACT1_BESS_DREAM_INTRO"),
+          "into her dream: the casks impossibly high, the chime in its web");
+    Check(use("bess_chime") && !w.Flagged("ECHO_BESS_CHIME"), "the chime out of reach while the spiders spin");
+    Check(squad("ACT1_BESS_SPIDERS_DOWN") == 10 && w.Flagged("ACT1_BESS_WEB_SLACK"), "ten spiders down: the web goes slack");
+    Check(use("bess_chime") && w.Flagged("ECHO_BESS_CHIME") && w.Flagged("ACT1_BESS_AWAKE") &&
+              log.IsComplete("q_act1_save_bess") && w.MapId() == "house_inn_cellar" && gone("npc_bess_cellar"),
+          "rung: Bess wakes in the cellar, thanks the player, and goes up to her bar");
+    w.LoadMap("house_inn_cellar", "from_inn", ctx);
+    Check(up("rat") > 0, "and the cellar's own vermin are back, for her own errand");
+    Check(go("house_inn", "from_cellar") && awake("npc_cook") && log.OfferedToday("q_act1_supper", &w.player.skills),
+          "Bess at her bar, with a supper on the board for the player every day");
+
+    // --- 41-43: the Tanner -------------------------------------------------------------------------------------------------
+    go("town_havenbrook", "from_house_inn");
+    {
+        bool racks = false;
+        for (const MapObject& o : w.CurrentMap().Objects())
+            if (o.station == "rack" && !o.closed.Empty() && w.Holds(o.closed)) racks = true;
+        Check(racks, "Nessa's racks are hers to lend, and she is asleep");
+    }
+    stand("tannery_yard");
+    frames(0.2f);
+    play();
+    Check(w.Flagged("ACT1_TANNER_SEEN") && w.FindNpc("npc_nessa")->Prompt() == "Try to wake",
+          "the tannery: frost in daylight, claw marks, a howl, and the Tanner asleep with a knife in her fist");
+    for (int k = 0; k < 3; ++k) talk("npc_nessa");
+    Check(w.Flagged("ACT1_TANNER_STILL_DREAMING") && log.IsActive("q_act1_save_tanner"), "three tries: Save the Tanner");
+    Check(talk("npc_nessa") && w.MapId() == "dream_tannery" && w.Flagged("ACT1_TANNER_DREAM_INTRO") &&
+              up("nightmare_wolf") == 4,
+          "into her dream: the winter yard, four wolves round the post she is bound to");
+    Check(squad("ACT1_TANNER_WOLVES_DOWN") == 4 && log.Stage("q_act1_save_tanner") == 2, "the pack down");
+    Check(use("tannery_anchor") && w.Flagged("ECHO_TANNER_HOWL_FADES") && w.Flagged("ACT1_TANNER_AWAKE") &&
+              awake("npc_nessa") && log.IsComplete("q_act1_save_tanner"),
+          "the Anchor broken, a last howl fading: the Tanner wakes");
+    Check(w.Flagged("ACT1_FINALE_QUEST_START") && log.IsActive("q_act1_finale"),
+          "Halda, Bess and the Tanner saved: The Mayor's Dream");
+
+    // --- 44-45: the note, and the trap -----------------------------------------------------------------------------------------
+    {
+        const Portal* door = nullptr;
+        for (const Portal& p : w.CurrentMap().Portals()) if (p.target_map == "mayor_hall") door = &p;
+        const Portal::ShutRule* rule = door ? door->ShutRuleBy([&](const string& f) { return w.Flagged(f); }) : nullptr;
+        Check(rule && rule->ask == "ACT1_FINALE_READY", "the Mayor's Hall asks first: once in, there is no leaving");
+    }
+    w.SetFlag("ACT1_FINALE_READY");
+    Check(go("mayor_hall", "entrance") && w.Flagged("ACT1_FINALE_TRAPPED") && w.MapId() == "dream_mayor_hall" &&
+              w.DreamLocked() && gone("npc_mayor"),
+          "his chair empty, a note -- Boo -- and the hall torn into the Reverie, no way out");
+    frames(6.0f);
+    Check(up("black_knight") == 5 && Audio::MusicCue() == "trap" && shut("prologue_dream_havenbrook"),
+          "Black Knights form out of the shadows one by one; the doors are barred");
+    // --- a fall, and back in -----------------------------------------------------------------------------------------------------
+    w.Wake(World::WakeReason::Nightmare);
+    frames(3.0f);
+    Check(!w.InDream() && w.MapId() == "mayor_hall" && w.Flagged("ACT1_FINALE_TRAPPED") && present("mh_note"),
+          "struck down in the dream: woken at the Mayor's desk, the note where it was dropped");
+    answer = false;
+    use("mh_note");
+    Check(!w.InDream(), "not yet: nothing happens");
+    answer = true;
+    Check(use("mh_note") && w.MapId() == "dream_mayor_hall" && w.DreamLocked(), "ready: back into the hall");
+    frames(6.0f);
+    Check(squad("ACT1_MAYOR_HALL_CLEARED") == 5 && w.Flagged("ACT1_MH_DOORS") && !shut("prologue_dream_havenbrook") &&
+              log.Stage("q_act1_finale") == 2,
+          "the knights down: the doors groan open");
+    // --- 46-48: the streets, the Guild Hall, the last bell -------------------------------------------------------------------------
+    Check(go("prologue_dream_havenbrook", "from_dream_mayor") && w.Flagged("ACT1_VASK_SHOUT") && !gone("npc_vask_dream") &&
+              !shut("dream_guild_hall"),
+          "out into the dreaming town: Vask, rocking with his eyes open, shouts the player inside");
+    {
+        bool cold = false;
+        for (const MapObject& o : w.CurrentMap().Objects()) if (o.type == "dream_wake") cold = true;
+        Check(cold && w.DreamLocked(), "and the Waking Stone is cold");
+    }
+    Check(go("dream_guild_hall", "arrival") && up("black_knight") == 6, "the Guild Hall: knights in two lines, still");
+    stand("dgh_desk_near");
+    frames(0.2f);
+    play();
+    {
+        int dormant = 0;
+        for (auto& e : w.enemies) dormant += e->TypeId() == "black_knight" && e->dormant;
+        Check(w.Flagged("ACT1_FINALE_GUILD_ENTERED") && dormant == 0 && up("nightmare_anchor") == 0,
+              "Vexel glimpsed and gone in smoke: the knights turn");
+    }
+    squad("ACT1_GUILD_KNIGHTS_DOWN");
+    frames(1.0f);
+    Check(w.Flagged("ACT1_ANCHOR_WAKES") && up("nightmare_anchor") == 1 && gone("npc_finale_anchor"),
+          "the knights down: the Anchor shudders awake");
+    {
+        Enemy* a = nullptr;
+        for (auto& e : w.enemies) if (e->TypeId() == "nightmare_anchor" && !e->Dead()) a = e.get();
+        const float x0 = a ? a->x : 0.0f;
+        frames(4.0f);
+        Check(a && fabsf(a->x - x0) < 0.5f, "and strikes from where it stands: it never moves");
+    }
+    Check(squad("ACT1_FINALE_ANCHOR_DOWN") == 1 && w.Flagged("ACT1_BELL_REVEALED") && present("guild_dawn_bell"),
+          "struck down: the last Dawn Bell");
+    Check(use("guild_dawn_bell") && w.Flagged("ECHO_HAVENBROOK_FINAL_BELL") && w.MapId() == "guild_hall" && !w.InDream() &&
+              w.Flagged("ACT1_FINALE_THANKED") && log.IsComplete("q_act1_finale") && log.ChoicesOwed("q_act1_finale") == 1 &&
+              log.Definition("q_act1_finale")->rewards.items.size() == 1 &&
+              log.Definition("q_act1_finale")->rewards.items[0].first == "havenbrook_house_key",
+          "rung: the town wakes, the Mayor gives a house, the Guild a choice of gifts");
+    if (const QuestRewardChoice* c = log.TakeChoice("q_act1_finale", 1)) {
+        for (const auto& it : c->items) w.player.inventory.Add(it.first, it.second);
+        w.SetFlag(log.Definition("q_act1_finale")->choice_flag);
+    }
+    Check(w.Flagged("ACT1_FINALE_GIFT_CHOSEN") && w.player.inventory.Has("guild_ring"), "the ring taken");
+    // --- 50: the shadow ------------------------------------------------------------------------------------------------------------
+    Check(go("town_havenbrook", "from_guild_hall") && w.Flagged("ACT1_DRAGON_SHADOW_SEEN") && gone("npc_vask_porch"),
+          "out on the porch: a shadow with wings across the town, and Vask's fury");
+    Check(awake("npc_guard") && awake("npc_marrow") && awake("npc_tobin") && !shut("house_havenbrook"),
+          "Havenbrook awake, every one of them, and the house the player's");
+    w.LoadMap("guild_hall", "entrance", ctx);
+    Check(awake("npc_elder") && awake("npc_guildmaster") && gone("npc_mayor_guild"), "Vask back in the guild hall, as he always was");
+    w.LoadMap("mayor_hall", "entrance", ctx);
+    Check(awake("npc_mayor") && !present("mh_note"), "and the Mayor at his desk");
+    Check(!w.player.input_locked && !dir.View().in_scene && dir.View().fade < 0.05f && w.ReverieVeil() < 0.05f,
+          "the chapter over: nothing left dark, and the player theirs");
+
+    // --- a friend's hands: the story is the host's ---------------------------------------------------------------------------------
+    {
+        World f;
+        f.player.Init(ctx, "player_hero");
+        f.skill_locks = dir.Locks();
+        for (const char* fl : {"PROLOGUE", "PRO_COMPLETE", "HAVENBROOK_ASLEEP", "ACT1_00_STARTED", "ACT1_BESS_QUEST_START"})
+            f.SetFlag(fl);
+        f.LoadMap("house_inn", "entrance", ctx);
+        f.visiting = true;
+        Check(f.SkillLocked("Woodcutting") != nullptr, "a friend's machine knows the host's locks");
+    }
+    ctx.quests = &quests;
+}
+
+// The chapter's monsters, fought: what a character of the level each is met at
+// loses beating it with nothing but swings -- a boss costs a meal or two, not
+// a life; nothing walls.
+static void TestActOneFights(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees; QuestLog& quests = db.quests;
+    Section("Act I's monsters, fought");
+    Input input;
+    std::mt19937 rng(77);
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;   ctx.quests = &quests;
+    ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.statuses = &statuses; ctx.input = &input;       ctx.rng = &rng;
+    const auto key = [&](SDL_Keycode k, bool down) {
+        SDL_Event e{};
+        e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+        e.key.key = k;
+        input.HandleEvent(e);
+    };
+    struct Out { bool won = false; int hp_lost = 0; float seconds = 0; int max_hp = 0; };
+    // A hero of `combat` levels in every fighting skill, `weapon` in hand,
+    // standing and swinging at one of `type` shown at `shown`.
+    const auto fight = [&](const string& type, int shown, int level, const string& weapon) {
+        Out out;
+        World w;
+        w.player.Init(ctx, "player_hero");
+        for (int s : {SKILL_ATTACK, SKILL_STRENGTH})
+            w.player.skills.SetXp(s, XpForLevel(level));
+        // Hitpoints as a character of that level has them: ten to begin with,
+        // and about one a level after.
+        const int pool = std::max(10, level + 4);
+        w.player.skills.SetXp(SKILL_HITPOINTS, XpForLevel(pool));
+        w.player.SyncDefence(false);
+        // Then a deep pool to fight with -- Defence, which is never lowered,
+        // stays what that character's would be -- and what is lost is counted
+        // against the pool they would really have.
+        w.player.skills.SetXp(SKILL_HITPOINTS, XpForLevel(99));
+        w.player.SyncHitpoints();
+        w.player.inventory.Add(weapon, 1);
+        string why;
+        for (int s = 0; s < w.player.inventory.SlotCount(); ++s)
+            if (w.player.inventory.Slot(s).id == weapon) w.player.EquipFromInventory(s, why);
+        w.SetFlag("ACT1_TANNER_WOLVES_DOWN");
+        w.clock.Set(1, 23.0f);      // a dream, and not one the morning ends
+        if (!w.LoadMap("dream_tannery", "arrival", ctx)) return out;
+        w.enemies.clear();
+        w.player.x = 448.0f;
+        w.player.y = 470.0f;
+        const EnemyDef* stats = enemy_db.Get(type);
+        if (!stats) return out;
+        EnemySpawnDef def;
+        def.type = type; def.level = 1; def.shown = shown;
+        def.level = Enemy::PostLevel(*stats, def);
+        def.x = w.player.x + 40.0f; def.y = w.player.y;
+        def.leash = 600.0f; def.respawn = 0.0f;
+        auto e = std::make_unique<Enemy>();
+        e->Init(stats, def, ctx);
+        Enemy* enemy = e.get();
+        w.enemies.push_back(std::move(e));
+        out.max_hp = pool;
+        int lost = 0, last = w.player.hp;
+        if (w.player.IsDead()) return out;
+        const float dt = 1.0f / 60.0f;
+        SDL_Keycode held = 0;
+        const float px = w.player.x, py = w.player.y;
+        int frame = 0;
+        for (float t = 0; t < 240.0f; t += dt, ++frame) {
+            input.Update(dt);
+            if (held) { key(held, false); held = 0; }
+            // Pinned where they stand: a player who always closes straight back
+            // in after a blow throws them off, turned to it, swinging whenever
+            // the sword is ready.
+            w.player.x = px;
+            w.player.y = py;
+            const SDL_FPoint g = enemy->GroundCentre();
+            const float dx = g.x - px, dy = g.y - py;
+            const Facing want = fabsf(dx) > fabsf(dy) ? (dx > 0 ? FACE_RIGHT : FACE_LEFT) : (dy > 0 ? FACE_DOWN : FACE_UP);
+            w.player.facing = want;
+            w.player.sprite.facing = want;
+            if (w.player.CanAttack() && frame % 2 == 0) {
+                held = SDLK_J;
+                key(held, true);
+            }
+            w.Update(dt, ctx);
+            if (w.player.hp < last) {
+                lost += last - w.player.hp;
+                if (getenv("ACT1_FIGHT_DEBUG"))
+                    printf("      t=%5.2f %s hit %d (state %d, clip %s, gap %.0f, ground fx %d)\n", t, type.c_str(),
+                           last - w.player.hp, (int)enemy->CurrentState(), enemy->sprite.current.c_str(),
+                           Length(enemy->x - px, enemy->y - py), (int)w.ground_effects.size());
+            }
+            // Never let them fall: what it would have cost is what is counted.
+            w.player.skills.SetCurrent(SKILL_HITPOINTS, w.player.skills.Level(SKILL_HITPOINTS));
+            w.player.hp = w.player.max_hp;
+            last = w.player.hp;
+            if (enemy->CurrentState() == Enemy::State::Dead) { out.won = true; out.seconds = t; break; }
+            if (frame % 600 == 0 && getenv("ACT1_FIGHT_DEBUG"))
+                printf("      t=%5.1f %s hp %d/%d state %d at %.0f,%.0f player %.0f,%.0f can %d\n", t, type.c_str(), enemy->hp,
+                       enemy->max_hp, (int)enemy->CurrentState(), enemy->x, enemy->y, w.player.x, w.player.y,
+                       (int)w.player.CanAttack());
+        }
+        out.hp_lost = lost;
+        return out;
+    };
+    struct Case { const char* type; int shown; int level; const char* weapon; float most; const char* what; };
+    for (const Case& c : {Case{"ashen_vanguard", 0, 6, "wood_sword", 3.0f, "the Ashen Vanguard, at level 6 with the chest's wooden sword"},
+                          Case{"black_knight", 6, 7, "wood_sword", 1.0f, "a forge Black Knight (6), at level 7"},
+                          Case{"forge_demon", 0, 9, "bronze_sword", 3.5f, "the Forge Demon, at level 9"},
+                          Case{"nightmare_spider", 11, 11, "bronze_sword", 0.6f, "a nightmare spider (11), at level 11"},
+                          Case{"nightmare_wolf", 13, 12, "iron_sword", 1.0f, "a nightmare wolf (13), at level 12"},
+                          Case{"black_knight", 11, 14, "iron_sword", 1.0f, "a finale Black Knight (11), at level 14"},
+                          Case{"nightmare_anchor", 0, 15, "iron_sword", 3.5f, "the Nightmare Anchor, at level 15"}}) {
+        const EnemyDef* d = enemy_db.Get(c.type);
+        const int shown = c.shown > 0 ? c.shown : (d ? Enemy::ShownLevelOf(*d, 1) : 0);
+        const Out o = fight(c.type, c.shown, c.level, c.weapon);
+        printf("    %-22s shown %2d  vs level %2d: %s in %5.1f s, %3d hp lost of %3d (%.1f lives)\n", c.type, shown,
+               c.level, o.won ? "won " : "LOST", o.seconds, o.hp_lost, o.max_hp,
+               o.max_hp > 0 ? static_cast<float>(o.hp_lost) / o.max_hp : 0.0f);
+        Check(o.won && o.hp_lost <= c.most * o.max_hp,
+              string(c.what) + ": beaten standing and swinging, for at most " + std::to_string(c.most).substr(0, 3) +
+                  " lives' worth");
+    }
+}
+
+// A caster's tier opens the spell bar's boxes, keys 1 to 6: a wooden one two,
+// one more each tier, all six from the azuryte tier up (SPELL_BOXES). Whatever
+// chooses a spell keeps to the boxes the weapon in hand opens, and a plainer
+// weapon taken up puts the choice back where it reaches.
+static void TestSpellBoxes(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    Section("a caster's tier opens the spell bar: two boxes in wood, one more a tier, six from azuryte");
+
+    // --- the items ------------------------------------------------------------------
+    {
+        static const char* kCasters[] = {"staff", "wand", "grimoire", "orb",
+                                         "fire_staff", "water_staff", "earth_staff", "air_staff"};
+        string wrong;
+        int casters = 0;
+        for (size_t t = 0; t < items.Tiers().size(); ++t)
+            for (const char* piece : kCasters) {
+                const ItemDef* d = items.Get(items.TierPiece(items.Tiers()[t].id, piece));
+                if (!d) { wrong += " no " + items.Tiers()[t].id + " " + piece; continue; }
+                ++casters;
+                const int want = std::min(SPELL_BOXES, 2 + static_cast<int>(t));
+                if (d->SpellBoxes() != want) wrong += " " + d->id + "=" + std::to_string(d->SpellBoxes());
+            }
+        Check(wrong.empty() && casters == 8 * static_cast<int>(items.Tiers().size()),
+              "every tier's staves, wands, grimoires and orbs open 2 + their tier's place, to six (" +
+              std::to_string(casters) + wrong + ")");
+        const ItemDef* novice = items.Get("novice_staff");
+        const ItemDef* apprentice = items.Get("apprentice_staff");
+        const ItemDef* poppet = items.Get("poppet_staff");
+        Check(novice && novice->SpellBoxes() == 2 && apprentice && apprentice->SpellBoxes() == 3 &&
+                  poppet && poppet->SpellBoxes() == 6,
+              "one made by hand opens what its Magic requirement's tier would: the novice's 2, the apprentice's 3, "
+              "the poppet's 6");
+        // Its charmed copies keep it.
+        bool charms = true;
+        int charmed = 0;
+        for (const auto& [id, d] : items.All())
+            if (d.kind == WeaponKind::Staff && d.slot == SLOT_WEAPON && !d.enchant.empty() && d.tier_index >= 0) {
+                charms &= d.SpellBoxes() == SpellBoxesAtTier(d.tier_index);
+                ++charmed;
+            }
+        Check(charms && charmed > 0, "and a charmed one opens as many as the plain one (" + std::to_string(charmed) + ")");
+        const ItemDef* wood = items.Get(items.TierPiece("wood", "staff"));
+        const ItemDef* iron = items.Get(items.TierPiece("iron", "staff"));
+        bool said = false, compared = false;
+        if (wood && iron) {
+            for (const ItemStat& r : ItemStatLines(*wood, nullptr, false))
+                said |= r.label == "Spell slots" && r.value == "2 of 6";
+            for (const ItemStat& r : ItemStatLines(*iron, wood, true))
+                compared |= r.label == "Spell slots" && r.value == "4 of 6" && r.delta == "(+2)" && r.verdict == 1;
+        }
+        Check(said && compared, "the bag says how many it opens, and what a finer one is worth beside the one worn");
+    }
+
+    // --- the hands -------------------------------------------------------------------
+    Input input;
+    std::mt19937 rng(6262);
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+    ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.statuses = &statuses; ctx.input = &input;       ctx.rng = &rng;
+    World w;
+    w.player.Init(ctx, "player_wayfarer");
+    Player& p = w.player;
+    LevelUp lu;
+    p.skills.AddXp(SKILL_MAGIC, XpForLevel(60), lu);
+    const vector<string> arcane = {"eldritch_blast"}, electric = {"zap", "discharge"};
+    p.SetArcaneSpell("eldritch_blast");
+    p.SetElectricSpell("zap");
+
+    // A plain staff: the elements, in the bar's order.
+    p.equipment.Equip(SLOT_WEAPON, items.TierPiece("wood", "staff"));
+    Check(p.SpellBoxes() == 2 && p.BoxOpen(0) && p.BoxOpen(1) && !p.BoxOpen(2) && !p.BoxOpen(5),
+          "a wooden staff opens fire and water, and nothing past them");
+    {
+        std::set<Element> round;
+        p.SelectElement(Element::Fire);
+        for (int k = 0; k < 8; ++k) { p.CycleElement(1, arcane); round.insert(p.SelectedElement()); }
+        Check(round == std::set<Element>{Element::Fire, Element::Water},
+              "and stepping round the bar with it never lands on a shut box");
+    }
+    p.equipment.Equip(SLOT_WEAPON, items.TierPiece("steel", "staff"));
+    p.SelectElement(Element::Electric);
+    Check(p.SpellBoxes() == 5 && p.SelectedBox() == 4 && p.BoxOpen(4) && !p.BoxOpen(5),
+          "a steel staff opens the lightning, and the ancient magic is still shut");
+    p.equipment.Equip(SLOT_WEAPON, items.TierPiece("wood", "staff"));
+    p.KeepSpellInReach();
+    Check(p.SelectedElement() == Element::Fire, "a wooden staff taken up again puts the choice back on fire");
+    p.equipment.Equip(SLOT_WEAPON, items.TierPiece("azuryte", "staff"));
+    {
+        std::set<Element> round;
+        for (int k = 0; k < 12; ++k) { p.CycleElement(1, arcane); round.insert(p.SelectedElement()); }
+        Check(round.size() == 6, "an azuryte one opens all six, and the round goes through every one");
+    }
+
+    // An element's own staff: its spells, then the lightning and the ancient magic.
+    p.equipment.Equip(SLOT_WEAPON, items.TierPiece("wood", "fire_staff"));
+    p.SelectSlot(0);
+    Check(p.SpellChoices(spells, arcane, electric).size() == 2, "a wooden fire staff casts its first two spells, no more");
+    {
+        std::set<int> boxes;
+        for (int k = 0; k < 8; ++k) { p.CycleElement(1, arcane); boxes.insert(p.SelectedBox()); }
+        Check(boxes == std::set<int>{0, 1}, "and its round is those two");
+    }
+    p.equipment.Equip(SLOT_WEAPON, items.TierPiece("iron", "fire_staff"));
+    p.SelectSlot(3);
+    Check(p.SpellBoxes() == 4 && p.SelectedBox() == 3 && p.SpellChoices(spells, arcane, electric).size() == 4,
+          "an iron one all four of fire's");
+    p.equipment.Equip(SLOT_WEAPON, items.TierPiece("bronze", "fire_staff"));
+    p.KeepSpellInReach();
+    Check(p.SelectedBox() == 0 && p.SelectedElement() == Element::Fire,
+          "put down for a bronze one, the fourth spell goes back to the first");
+    {
+        // Its fifth is the ancient magic, in the sixth box: it casts nothing of
+        // another element, so the lightning's box is never its.
+        p.equipment.Equip(SLOT_WEAPON, items.TierPiece("steel", "fire_staff"));
+        std::set<int> boxes;
+        for (int k = 0; k < 12; ++k) { p.CycleElement(1, arcane); boxes.insert(p.SelectedBox()); }
+        Check(boxes == std::set<int>{0, 1, 2, 3, 5} && p.BoxRank(4) < 0 && p.BoxOpen(5),
+              "a steel fire staff opens all it ever will: its four, and the ancient magic");
+        p.equipment.Equip(SLOT_WEAPON, items.TierPiece("enchanted", "fire_staff"));
+        Check(!p.BoxOpen(4), "and not even the last tier's casts the lightning");
+        const ItemDef* steel_fire = items.Get(items.TierPiece("steel", "fire_staff"));
+        bool five = false;
+        if (steel_fire)
+            for (const ItemStat& r : ItemStatLines(*steel_fire, nullptr, false))
+                five |= r.label == "Spell slots" && r.value == "5 of 5";
+        Check(five, "which the bag says: five of five");
+    }
+    // Nothing else is shut: a sword never asks.
+    p.equipment.Equip(SLOT_WEAPON, "wood_sword");
+    Check(p.SpellBoxes() == SPELL_BOXES, "and with no caster in hand nothing is shut");
+}
+
 static void TestLateTreeRows(const Databases& db) {
     SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
     LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
@@ -5909,6 +7129,718 @@ static void TestLateTreeRows(const Databases& db) {
     }
 }
 
+// Act II opens on Guild Master Orlend: the Guild's ledger of named beasts. Talked
+// to once Act I is over -- once the dragon's shadow has crossed Havenbrook, or at
+// once for a character from before the prologue -- he opens it, pins a bounty
+// board up beside his desk, and every boss there is but Hoarfang (Elder Vask's,
+// and the dragon of Act II) has a page on it: taken once, paid the day the beast
+// falls, wherever it falls, and pointed at the lair it keeps.
+static void TestGuildBounties(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    Section("Act II: the Guild's ledger -- a bounty on every named beast, opened by Orlend");
+
+    const string kOpen = "ACT2_GUILD_BOUNTIES_OPEN", kLedger = "q_guild_ledger", kBoard = "board_bounties";
+
+    // --- one page a boss, at its own lair, at the level it is met there ---------------------------------
+    // Where each boss keeps: its own posts (not a roaming one's), in the waking
+    // world first and the Reverie's after; with none anywhere, the maps it
+    // roams. What comes out only after dark, or only to a ritual, keeps nowhere.
+    struct Lairs { std::map<string, int> waking, dreaming, roams; };   // map -> the level it shows there
+    std::map<string, Lairs> lairs;
+    for (const auto& entry : fs::directory_iterator("maps")) {
+        if (entry.path().extension() != ".mx") continue;
+        Map m;
+        if (!m.Load(entry.path().string())) continue;
+        const string id = entry.path().stem().string();
+        for (const EnemySpawnDef& s : m.Enemies()) {
+            if (s.night || !s.ritual.empty()) continue;
+            for (const string& k : s.pool.empty() ? vector<string>{s.type} : s.pool) {
+                const EnemyDef* d = enemy_db.Get(k);
+                if (!d || !d->is_boss) continue;
+                EnemySpawnDef one = s;
+                one.type = k;
+                Lairs& l = lairs[k];
+                auto& into = !s.route.empty() ? l.roams : m.Ambient() == "dream" ? l.dreaming : l.waking;
+                into.emplace(id, Enemy::ShownLevelOf(*d, Enemy::PostLevel(*d, one)));
+            }
+        }
+    }
+    std::map<string, const QuestDef*> page_of;      // boss -> its page
+    string bad;
+    for (const auto& [id, d] : quests.Definitions()) {
+        if (!d.guild_bounty) continue;
+        const bool one_kill = d.stages.size() == 1 && d.stages[0].type == ObjectiveType::Kill && d.stages[0].count == 1;
+        const string boss = one_kill ? d.stages[0].target : string();
+        const EnemyDef* def = enemy_db.Get(boss);
+        std::set<string> styles;
+        for (const QuestRewardChoice& c : d.rewards.choices) if (!c.xp.empty()) styles.insert(c.style);
+        const bool ok = one_kill && def && def->is_boss && d.source == QuestSource::Board && d.giver == kBoard &&
+                        !d.daily && !d.bounty && !d.major && d.stages[0].map_id.empty() &&
+                        d.prerequisites == vector<string>{kLedger} && styles.size() == 3 && d.rewards.coins > 0 &&
+                        !d.summary.empty() && !d.completion_text.empty() && !page_of.count(boss);
+        if (!ok && bad.empty()) bad = id;
+        if (one_kill) page_of[boss] = &d;
+    }
+    Check(bad.empty(), "every Guild bounty is one boss to kill, anywhere, on the board by Orlend's desk once the "
+                       "ledger is open, paying every way of fighting, once (" + bad + ")");
+    string missing, misplaced;
+    for (const auto& [id, def] : enemy_db.All()) {
+        if (!def.is_boss) continue;
+        const auto page = page_of.find(id);
+        if (id == "frost_dragon") {
+            Check(page == page_of.end() && quests.Definition("q_ice_spire_dragon") &&
+                      quests.Definition("q_ice_spire_dragon")->giver == "npc_elder",
+                  "Hoarfang has no page: Elder Vask's own quest is the way to him, and to Act II's dragon");
+            continue;
+        }
+        if (page == page_of.end()) { missing += " " + id; continue; }
+        const Lairs& l = lairs[id];
+        const auto& at = !l.waking.empty() ? l.waking : !l.dreaming.empty() ? l.dreaming : l.roams;
+        const QuestDef& d = *page->second;
+        const auto lair = at.find(d.stages[0].where);
+        if (lair == at.end() || lair->second != d.recommended_level)
+            misplaced += " " + id + " (" + d.stages[0].where + ", Lv " + std::to_string(d.recommended_level) + ")";
+    }
+    Check(missing.empty(), "every other boss has its page in the ledger, " + std::to_string(page_of.size()) +
+                               " of them (" + missing + ")");
+    Check(misplaced.empty(), "and each page points at the boss's own lair -- its post in the waking world, else in "
+                             "the Reverie, else where it roams -- at the level it is met there (" + misplaced + ")");
+    {
+        StoryDirector dir;
+        dir.Load("data/story.json");
+        Check(dir.HasScene("act2_bounties_tip"), "the card that says how bounties work comes up when the ledger opens");
+    }
+
+    // --- Orlend opens it: at the start of Act II, and not before ----------------------------------------------------
+    Input input;
+    std::mt19937 rng(2702);
+    QuestLog log;
+    log.LoadDefinitions("data/quests.json");
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+    ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.statuses = &statuses; ctx.input = &input;       ctx.rng = &rng;
+    ctx.quests = &log;
+    World w;
+    w.player.Init(ctx, "player_hero");
+    // A character who woke in Havenbrook, its chapter played to the Guild owner's gift.
+    for (const char* f : {"PROLOGUE", "PRO_COMPLETE", "ECHO_HAVENBROOK_FINAL_BELL", "ACT1_FINALE_QUEST_START",
+                          "ACT1_FINALE_THANKED", "ACT1_FINALE_GIFT_CHOSEN"})
+        w.SetFlag(f);
+    if (!w.LoadMap("guild_hall", "", ctx)) {
+        Check(false, "the Guild Hall loads");
+        return;
+    }
+    const auto orlend = [&]() { w.SettleStory(); return w.FindNpc("npc_guildmaster"); };
+    const auto board = [&]() -> int {
+        for (size_t i = 0; i < w.map.Objects().size(); ++i)
+            if (w.map.Objects()[i].id == kBoard) return static_cast<int>(i);
+        return -1;
+    };
+    const auto any_page = [&]() {
+        for (const auto& kv : page_of) if (log.CanStart(kv.second->id, w.player.skills)) return true;
+        return false;
+    };
+    Npc* o = orlend();
+    Check(o && !o->Marked() && o->DialogueRoot() == "guildmaster_root" && board() >= 0 &&
+              !w.ObjectPresent(w.map.Objects()[board()]) && !any_page(),
+          "before the dragon's shadow: no bell over Orlend, no ledger, no board, no bounty to take");
+    w.SetFlag("ACT1_DRAGON_SHADOW_SEEN");
+    o = orlend();
+    Check(o && o->Marked() && o->DialogueRoot() == "guildmaster_ledger" && board() >= 0 &&
+              w.ObjectPresent(w.map.Objects()[board()]) && !any_page(),
+          "Act II opens: a bell over Orlend, the ledger is what he wants to talk about, and his bounty board stands "
+          "by his desk -- with nothing on it for you yet");
+
+    // What he says: the ledger shown, and opened -- and a way past it to everything else he has to say.
+    DialogueContext dc;
+    dc.quests = &log; dc.inventory = &w.player.inventory; dc.skills = &w.player.skills; dc.flags = &w.Flags();
+    const auto leads = [&](const string& node, const string& to) {
+        DialogueRunner r;
+        r.Begin(&dialogue, node, "npc_guildmaster", "Guild Master Orlend", dc);
+        for (const DialogueOption* opt : r.VisibleOptions()) if (opt->next == to) return opt;
+        return static_cast<const DialogueOption*>(nullptr);
+    };
+    const DialogueOption* open = leads("guildmaster_ledger_2", "guildmaster_ledger_3");
+    Check(leads("guildmaster_ledger", "guildmaster_ledger_2") && leads("guildmaster_ledger", "guildmaster_root") && open &&
+              open->action.start_quest == kLedger && open->action.set_flag == kOpen,
+          "he shows you the ledger, and opening it is one line; anything else he has to say is a line away");
+    if (open) {
+        const DialogueOutcome out = ApplyDialogueAction(open->action, log, w.player.inventory, w.player.skills,
+                                                        "npc_guildmaster");
+        for (const string& f : out.flags) w.SetFlag(f);
+        Check(out.quest_started && log.IsActive(kLedger) && w.Flagged(kOpen) && !log.Definition(kLedger)->stages.empty(),
+              "\"Open the ledger to me\": The Guild's Ledger begins, and the world remembers it is open");
+    }
+    o = orlend();
+    const int at = board();
+    Check(o && !o->Marked() && o->DialogueRoot() == "guildmaster_root" && at >= 0 &&
+              w.ObjectPresent(w.map.Objects()[at]) && w.map.Objects()[at].type == "board" && !any_page(),
+          "the bell goes -- and the pages are yours once the board beside his desk is read");
+    if (at >= 0) {
+        const MapObject& b = w.map.Objects()[at];
+        w.player.x = b.x;
+        w.player.y = b.y + 30.0f;
+        w.InteractWith(InteractTarget::Object, at, ctx);
+        bool opened = false;
+        for (const WorldRequest& r : w.TakeRequests()) opened |= r.type == WorldRequest::Type::Board && r.id == kBoard;
+        int open_pages = 0;
+        for (const auto& kv : page_of) open_pages += log.CanStart(kv.second->id, w.player.skills);
+        Check(opened && log.IsComplete(kLedger) && open_pages == static_cast<int>(page_of.size()),
+              "read, the ledger quest is done and every page can be taken: " + std::to_string(open_pages));
+    }
+    {
+        // Somebody who came after it was opened -- Player Two, a friend -- opens it for
+        // themselves; anybody who has it can ask about it again.
+        QuestLog late;
+        late.LoadDefinitions("data/quests.json");
+        Skills sk;
+        Inventory inv(&items);
+        DialogueContext lc;
+        lc.quests = &late; lc.inventory = &inv; lc.skills = &sk; lc.flags = &w.Flags();
+        const auto root = [&]() {
+            DialogueRunner r;
+            r.Begin(&dialogue, "guildmaster_root", "npc_guildmaster", "Guild Master Orlend", lc);
+            std::set<string> to;
+            for (const DialogueOption* opt : r.VisibleOptions()) to.insert(opt->next);
+            return to;
+        };
+        auto to = root();
+        const bool join = to.count("guildmaster_ledger_2") && !to.count("guildmaster_bounties_about");
+        late.Start(kLedger);
+        QuestEvent read;
+        read.type = ObjectiveType::Interact;
+        read.target = kBoard;
+        late.Notify(read, inv);
+        to = root();
+        Check(join && late.IsComplete(kLedger) && to.count("guildmaster_bounties_about") &&
+                  !to.count("guildmaster_ledger_2"),
+              "whoever came later opens it for themselves from his first line, and can ask about it after");
+    }
+
+    // --- a page closed: the beast killed anywhere, paid once ------------------------------------------------------
+    {
+        const string den = "q_guild_den_mother", chief = "q_guild_lizardman_chief";
+        Check(log.Start(den) && log.Start(chief), "two pages taken");
+        QuestEvent kill;
+        kill.type = ObjectiveType::Kill;
+        kill.target = "lizardman";                 // an ordinary lizardman: not the chief
+        kill.map_id = "overworld";
+        log.Notify(kill, w.player.inventory);
+        Check(log.IsActive(chief), "a lizardman is not the chief: his page stays open");
+        kill.target = "bear";
+        kill.secondary = "den_mother";             // the Den Mother, out roaming far from the Brackenwood
+        kill.map_id = "frost_barrows";
+        log.Notify(kill, w.player.inventory);
+        Check(log.IsComplete(den) && log.ChoicesOwed(den) == 1 && !log.CanStart(den, w.player.skills),
+              "the Den Mother, killed out on the Draugr Barrows: her page closes, owes its pick, and is never posted "
+              "again");
+    }
+
+    // --- a character from before the prologue has no Act I to finish ---------------------------------------------
+    {
+        World old;
+        old.player.Init(ctx, "player_hero");
+        if (old.LoadMap("guild_hall", "", ctx)) {
+            old.SettleStory();
+            Npc* n = old.FindNpc("npc_guildmaster");
+            Check(n && n->Marked() && n->DialogueRoot() == "guildmaster_ledger",
+                  "from before the prologue, the ledger is Orlend's from the first time you see him");
+        }
+    }
+
+    // --- the arrow: to each beast's lair from the Guild Hall --------------------------------------------------------
+    {
+        WaypointIndex index;
+        Check(index.Load("data/waypoints.json"), "the waypoint index loads");
+        string lost;
+        for (const auto& [boss, page] : page_of) {
+            QuestLog one;
+            one.LoadDefinitions("data/quests.json");
+            one.Start(kLedger);
+            QuestEvent read;
+            read.type = ObjectiveType::Interact;
+            read.target = kBoard;
+            one.Notify(read, w.player.inventory);
+            one.Start(page->id);
+            const Waypoint wp = index.Resolve(one, page->id, w, &enemy_db, &loot, &items);
+            const string& lair = page->stages[0].where;
+            const bool dream = index.Areas().count(lair) && index.Areas().at(lair).dream;
+            if (wp.map != lair || (dream ? wp.hint.empty() : !wp.found)) lost += " " + boss;
+        }
+        Check(lost.empty(), "from the Guild Hall the arrow leads toward every beast's lair, and for those in the "
+                            "Reverie says how to get there (" + lost + ")");
+        // On its lair, a beast that only roams it: the beast itself if it is out today, and if not, says so.
+        World ward;
+        ward.player.Init(ctx, "player_hero");
+        if (ward.LoadMap("plateau_stronghold", "", ctx)) {
+            QuestLog one;
+            one.LoadDefinitions("data/quests.json");
+            one.Start(kLedger);
+            QuestEvent read;
+            read.type = ObjectiveType::Interact;
+            read.target = kBoard;
+            one.Notify(read, ward.player.inventory);
+            one.Start("q_guild_cerberus");
+            bool out = false;
+            for (const auto& e : ward.enemies) out |= e->TypeId() == "cerberus" && !e->Dead();
+            const Waypoint wp = index.Resolve(one, "q_guild_cerberus", ward, &enemy_db, &loot, &items);
+            Check(wp.map == "plateau_stronghold" &&
+                      (out ? wp.found && wp.here && wp.what == "Cerberus"
+                           : !wp.found && wp.hint.find("not out today") != string::npos),
+                  string("in the Stronghold, Cerberus ") + (out ? "is out, and the arrow is on it" :
+                                                                   "is not out today, and the arrow says so"));
+        }
+    }
+}
+
+// Fishing as the angler in Havenbrook teaches it: the bobber dips once -- not
+// yet -- and then goes under, and that is the strike. Hooked, a fight on a
+// gauge: the reel held keeps the line in the green band the fish drags about,
+// and out of it too long the line snaps and the fish is gone, the cast over.
+// The better the fish, the harder the fight.
+static void TestFishing(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    Section("fishing: wait for the second dip, then fight it in");
+    using Angler = Gathering::Angler;
+    using Phase = Angler::Phase;
+    using Outcome = Angler::Outcome;
+    std::mt19937 dice(4242);
+    constexpr float dt = 1.0f / 60.0f;
+
+    // --- the fight gets harder with the fish -----------------------------------------------------
+    {
+        bool harder = true;
+        Gathering::Fight prev = Gathering::FightFor(1, 1);
+        for (int lv = 10; lv <= 90; lv += 10) {
+            const Gathering::Fight f = Gathering::FightFor(lv, lv);
+            harder = harder && f.band < prev.band && f.speed > prev.speed && f.darts > prev.darts && f.land > prev.land &&
+                     f.snap < prev.snap && f.bite <= prev.bite;
+            prev = f;
+        }
+        Check(harder, "the better the fish, the narrower the green, the quicker and jumpier the fish, the longer it "
+                      "takes and the sooner the line goes");
+        const Gathering::Fight own = Gathering::FightFor(40, 40), master = Gathering::FightFor(40, 99);
+        Check(master.band > own.band && master.band - own.band <= 0.0301f && master.speed == own.speed &&
+                  master.snap == own.snap,
+              "a fisher far past the fish has the green a little wider for it, and nothing else");
+    }
+
+    // --- the two dips --------------------------------------------------------------------------------
+    const auto until = [&](Angler& a, Phase p) {
+        for (int f = 0; f < 60 * 30 && a.phase != p && a.Active(); ++f) a.Update(dt, false, dice);
+        return a.phase == p;
+    };
+    const Gathering::Fight minnow = Gathering::FightFor(1, 1);
+    {
+        Angler a;
+        a.Cast(2.0f, minnow, dice);
+        Check(a.phase == Phase::Waiting && a.Dip() == 0.0f, "a cast floats the bobber, and it waits");
+        Check(a.Strike() == Outcome::ReeledIn && !a.Active(), "struck before anything touches it, the line is only wound in");
+    }
+    {
+        Angler a;
+        a.Cast(2.0f, minnow, dice);
+        const bool nibble = until(a, Phase::Nibble);
+        float deepest = 0.0f;
+        for (int f = 0; f < 12; ++f) { a.Update(dt, false, dice); deepest = std::max(deepest, a.Dip()); }
+        Check(nibble && deepest > 0.2f && deepest < 0.5f && a.Strike() == Outcome::TooSoon && !a.Active(),
+              "the first dip is a nibble and a little one: struck there, the fish takes fright");
+    }
+    {
+        Angler a;
+        a.Cast(2.0f, minnow, dice);
+        Check(until(a, Phase::Lull) && a.Strike() == Outcome::TooSoon, "and between the two dips it is still too soon");
+    }
+    {
+        Angler a;
+        a.Cast(2.0f, minnow, dice);
+        until(a, Phase::Bite);
+        a.Update(0.1f, false, dice);
+        Check(a.phase == Phase::Bite && a.Dip() > 0.95f, "the second dip takes the bobber right under");
+        Outcome out = Outcome::None;
+        int f = 0;
+        for (; f < 120 && out == Outcome::None; ++f) out = a.Update(dt, false, dice);
+        Check(out == Outcome::Missed && !a.Active() && f / 60.0f + 0.1f <= minnow.bite + 0.05f,
+              "let it go by, and it is gone (" + std::to_string(minnow.bite).substr(0, 4) + "s to strike in)");
+    }
+    {
+        Angler a;
+        a.Cast(2.0f, minnow, dice);
+        until(a, Phase::Bite);
+        Check(a.Strike() == Outcome::Hooked && a.Hooked() && a.progress == Angler::HEAD_START && a.InBand(),
+              "struck on the second dip, it is hooked, with the line in the green to begin");
+        Check(a.Strike() == Outcome::None && a.Hooked(), "and with it on, a press is only part of reeling");
+    }
+
+    // --- the fight: nothing done, or the button held down, snaps it; a steady hand lands it -------------------
+    // A hand that sees the gauge `delay` late and works the reel by where the
+    // line and the band are heading; or one that never reels, or never lets go.
+    enum Hand { Never, Always, Steady };
+    const auto fight = [&](int fish, Hand hand, float delay, float* took = nullptr) {
+        Angler a;
+        a.Cast(0.5f, Gathering::FightFor(fish, fish), dice);
+        until(a, Phase::Bite);
+        a.Strike();
+        std::deque<std::array<float, 4>> seen;
+        const size_t lag = static_cast<size_t>(delay * 60.0f);
+        Outcome out = Outcome::None;
+        int f = 0;
+        for (; f < 60 * 90 && out == Outcome::None; ++f) {
+            seen.push_back({a.line, a.line_v, a.band, a.band_v});
+            while (seen.size() > lag + 1) seen.pop_front();
+            const auto& s = seen.front();
+            const bool reel = hand == Always || (hand == Steady && (s[2] + s[3] * 0.25f) - (s[0] + s[1] * 0.25f) > 0.0f);
+            out = a.Update(dt, reel, dice);
+        }
+        if (took) *took = f / 60.0f;
+        return out;
+    };
+    {
+        bool snaps = true;
+        for (int fish : {1, 40, 90})
+            for (int k = 0; k < 10; ++k)
+                snaps = snaps && fight(fish, Never, 0.0f) == Outcome::Snapped && fight(fish, Always, 0.0f) == Outcome::Snapped;
+        Check(snaps, "a fight left alone, or the button simply held down, ends with the line snapped, every time");
+    }
+    {
+        const auto rate = [&](int fish, float delay, float* mean_time = nullptr) {
+            int landed = 0;
+            float total = 0.0f;
+            for (int k = 0; k < 200; ++k) {
+                float took = 0.0f;
+                if (fight(fish, Steady, delay, &took) == Outcome::Landed) { ++landed; total += took; }
+            }
+            if (mean_time) *mean_time = landed > 0 ? total / landed : 0.0f;
+            return landed / 200.0f;
+        };
+        float t1 = 0.0f, t90 = 0.0f;
+        const float r1 = rate(1, 0.12f, &t1), r40 = rate(40, 0.12f), r60 = rate(60, 0.12f), r90 = rate(90, 0.12f, &t90);
+        const auto pct = [](float r) { return std::to_string(static_cast<int>(r * 100.0f + 0.5f)) + "%"; };
+        Check(r1 >= 0.98f && r40 >= 0.95f && r60 >= 0.9f && r90 >= 0.55f && r90 < r40,
+              "a quick, steady hand lands a minnow every time and the best fish more often than not (" + pct(r1) + ", " +
+                  pct(r40) + ", " + pct(r60) + ", " + pct(r90) + " at 1, 40, 60, 90)");
+        const float s1 = rate(1, 0.22f), s40 = rate(40, 0.22f), s90 = rate(90, 0.22f);
+        Check(s1 >= 0.95f && s40 > s90 && s90 < 0.5f,
+              "a slower hand lands the easy ones and loses most of the best (" + pct(s1) + ", " + pct(s40) + ", " +
+                  pct(s90) + " at 1, 40, 90)");
+        Check(t90 > t1 * 2.0f, "and the best fish take far longer to bring in (" + std::to_string(t1).substr(0, 4) +
+                                   "s against " + std::to_string(t90).substr(0, 4) + "s)");
+    }
+
+    // --- at the water -----------------------------------------------------------------------------------------
+    Input input;
+    std::mt19937 rng(77);
+    QuestLog log;
+    log.LoadDefinitions("data/quests.json");
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+    ctx.quests = &log;        ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.statuses = &statuses; ctx.input = &input;       ctx.rng = &rng;
+    const auto frames = [&](World& w, int n) {
+        for (int f = 0; f < n; ++f) { input.Update(dt); w.Update(dt, ctx); }
+    };
+    World w;
+    w.player.Init(ctx, "player_hero");
+    const MapObject* pond = nullptr;
+    if (w.LoadMap("fernhollow", "", ctx)) {
+        w.enemies.clear();
+        for (const MapObject& o : w.CurrentMap().Objects()) {
+            if (o.type != "fishing_spot" || pond) continue;
+            for (float a = 1.57f; a < 1.57f + 6.28f && !pond; a += 0.3f)
+                for (float d = 14.0f; d <= 44.0f && !pond; d += 6.0f) {
+                    const float px = o.x + cosf(a) * d, py = o.y + sinf(a) * d;
+                    if (w.CurrentMap().Blocked({px - 8.0f, py - 10.0f, 16.0f, 10.0f})) continue;
+                    w.player.x = px;
+                    w.player.y = py;
+                    frames(w, 2);
+                    if (w.player.interact.kind == InteractTarget::Object) pond = &o;
+                }
+        }
+    }
+    Check(pond != nullptr, "a pond in Fernhollow to fish");
+    if (!pond) return;
+    w.player.inventory.Add("fishing_rod", 1);
+    frames(w, 1);
+    const auto fish_held = [&]() {
+        int n = 0;
+        for (int s = 0; s < w.player.inventory.SlotCount(); ++s) {
+            const ItemDef* d = items.Get(w.player.inventory.Slot(s).id);
+            if (d && d->fish_level > 0) n += w.player.inventory.Slot(s).qty;
+        }
+        return n;
+    };
+    const auto wait_for = [&](Phase p) {
+        for (int f = 0; f < 60 * 30 && w.Angling().on && w.Angling().phase != p; ++f) frames(w, 1);
+        return w.Angling().on && w.Angling().phase == p;
+    };
+    w.player.hands_external = true;
+    w.player.hands = PlayerInput{};
+    w.TryInteract(ctx);
+    frames(w, 1);
+    Check(w.Gathering() && w.Angling().on && w.Angling().phase == Phase::Waiting && w.player.GatherClip() == "fish",
+          "cast at the pond: the bobber out, the rod in hand, waiting");
+    Check(wait_for(Phase::Nibble), "and in a while it dips");
+    w.TryInteract(ctx);
+    frames(w, 1);
+    Check(!w.Gathering() && !w.Angling().on && fish_held() == 0, "struck at the first dip: too soon, and the cast is over");
+    w.TryInteract(ctx);
+    Check(wait_for(Phase::Bite), "cast again, it goes under at the second dip");
+    for (int f = 0; f < 120 && w.Angling().on; ++f) frames(w, 1);
+    Check(!w.Gathering() && fish_held() == 0, "left there, it gets away");
+    w.TryInteract(ctx);
+    wait_for(Phase::Bite);
+    w.TryInteract(ctx);
+    frames(w, 1);
+    Check(w.Angling().on && w.Angling().phase == Phase::Reeling && !w.Angling().fish.empty(),
+          "struck on the second dip: hooked, and the gauge says what is on the line (" + w.Angling().fish + ")");
+    for (int f = 0; f < 60 * 10 && w.Angling().on; ++f) frames(w, 1);
+    Check(!w.Gathering() && fish_held() == 0, "not reeled at all, the line snaps and the fish is lost");
+    w.TryInteract(ctx);
+    wait_for(Phase::Bite);
+    w.TryInteract(ctx);
+    frames(w, 2);
+    w.player.x += 120.0f;
+    frames(w, 3);
+    Check(!w.Gathering() && !w.Angling().on && fish_held() == 0, "walked away with it on, it is let go");
+    w.player.x -= 120.0f;
+    frames(w, 3);
+    const int xp = w.player.skills.Xp(SKILL_FISHING);
+    const bool landed = PlayCast(w, ctx, [&] { frames(w, 1); });
+    Check(landed && fish_held() > 0 && w.player.skills.Xp(SKILL_FISHING) > xp && !w.Gathering(),
+          "played right -- the second dip, the line kept in the green -- it is landed, Fishing is trained, and the "
+          "cast is over until the next");
+    w.player.hands_external = false;
+
+    // --- a friend's window hears of it ------------------------------------------------------------------------
+    {
+        net::Snapshot s;
+        s.angle_phase = static_cast<uint8_t>(Phase::Reeling);
+        s.angle_x = 812; s.angle_y = -40;
+        s.angle_dip = 200; s.angle_line = 30; s.angle_band = 140; s.angle_half = 40; s.angle_progress = 90;
+        s.angle_strain = 250;
+        s.angle_fish = "raw_pike";
+        s.bobbers.push_back({3, 700, 420, 255});
+        net::Snapshot back;
+        Check(net::Decode(net::Encode(s), back) && back.angle_phase == s.angle_phase && back.angle_x == 812 &&
+                  back.angle_y == -40 && back.angle_dip == 200 && back.angle_line == 30 && back.angle_band == 140 &&
+                  back.angle_half == 40 && back.angle_progress == 90 && back.angle_strain == 250 &&
+                  back.angle_fish == "raw_pike" && back.bobbers.size() == 1 && back.bobbers[0].seat == 3 &&
+                  back.bobbers[0].x == 700 && back.bobbers[0].dip == 255,
+              "a snapshot carries a friend's own cast and gauge, and everybody's bobber, there and back");
+        Check(net::PROTOCOL_VERSION >= 23, "and the protocol says so (" + std::to_string(net::PROTOCOL_VERSION) + ")");
+    }
+
+    // --- the angler's lesson shows the same two dips -----------------------------------------------------------
+    {
+        std::ifstream in("data/story.json");
+        json story;
+        in >> story;
+        int dips = 0;
+        bool held_under = false, nibble_first = false, tip = story["tips"].contains("fishing");
+        for (const auto& sc : story["scenes"]) {
+            if (sc.value("id", string("")) != "act1_tut_fish") continue;
+            for (const auto& st : sc["steps"]) {
+                if (st.value("do", string("")) == "tip" && st.value("id", string("")) == "fishing") tip = tip && true;
+                if (st.value("do", string("")) != "dip") continue;
+                ++dips;
+                if (dips == 1) nibble_first = !st.value("hold", false) && st.value("depth", 0.0f) < 5.0f;
+                if (dips == 2) held_under = st.value("hold", false);
+            }
+        }
+        Check(dips == 2 && nibble_first && held_under && tip,
+              "the angler's demonstration dips the bobber once, then pulls it under, and a card says how it is done");
+    }
+}
+
+// Act I's last loose ends: smoke from Havenbrook's chimneys when its fires are
+// lit -- the forge's when Halda lights it again, the inn's when Bess is back,
+// all of them with the last bell -- the houses of the town dreamt leaning at
+// wrong angles, and the townsfolk stopping to look up as the dragon's shadow
+// goes over (scene 50).
+static void TestTownDetails(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles; StatusDatabase& statuses = db.statuses;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    (void)quests;
+    Section("Havenbrook's chimneys, its houses dreamt, and a crowd that stops to look up");
+    Input input;
+    std::mt19937 rng(5050);
+    QuestLog log;
+    log.LoadDefinitions("data/quests.json");
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+    ctx.quests = &log;        ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.statuses = &statuses; ctx.input = &input;       ctx.rng = &rng;
+    constexpr float dt = 1.0f / 60.0f;
+
+    // --- a chimney at the top of every stack, smoking when the story says ----------------------------------
+    {
+        Map town;
+        Check(town.Load("maps/town_havenbrook.mx"), "Havenbrook loads");
+        int stacks = 0;
+        bool forge = false, gated = true;
+        for (const MapObject& o : town.Objects()) {
+            if (o.type != "chimney") continue;
+            ++stacks;
+            forge = forge || o.id == "chimney_forge";
+            gated = gated && !o.when.Empty();
+        }
+        Check(stacks == 18 && forge && gated,
+              "Havenbrook has a chimney at every stack its buildings show, the forge's own among them, each with the "
+              "story's say on its fire (" + std::to_string(stacks) + ")");
+        bool forge_stack = false;
+        for (const MapObject& o : town.Objects())
+            if (o.id == "forge_chimney_stack") forge_stack = o.sprite == "assets/props/forge_chimney.png" && o.lift > 0.0f;
+        Check(forge_stack && fs::exists("assets/props/forge_chimney.png"),
+              "and the forge, whose art has no chimney, has one stood on its roof");
+
+        const auto lit = [](World& w, const string& id) {
+            for (const MapObject& o : w.CurrentMap().Objects())
+                if (o.id == id) return w.ObjectPresent(o);
+            return false;
+        };
+        World w;
+        w.player.Init(ctx, "player_hero");
+        if (w.LoadMap("town_havenbrook", "", ctx)) {
+            Check(lit(w, "chimney_forge") && lit(w, "chimney_inn_building_0") && lit(w, "chimney_guild_house_0"),
+                  "awake -- the prologue's first morning, or a character from before it -- every hearth is lit");
+            w.SetFlag("HAVENBROOK_ASLEEP");
+            Check(!lit(w, "chimney_forge") && !lit(w, "chimney_inn_building_0") && !lit(w, "chimney_mayor_hall_0"),
+                  "with the town asleep, not one");
+            w.SetFlag("ECHO_HALDA_FORGE_RELIT");
+            Check(lit(w, "chimney_forge") && !lit(w, "chimney_townhouse_a_0"),
+                  "the forge smokes again once Halda lights it, before anybody else's hearth");
+            w.SetFlag("ECHO_BESS_CHIME");
+            Check(lit(w, "chimney_inn_building_0") && !lit(w, "chimney_townhouse_b_0"), "and the inn's once Bess is back");
+            w.SetFlag("ECHO_HAVENBROOK_FINAL_BELL");
+            Check(lit(w, "chimney_townhouse_b_0") && lit(w, "chimney_mayor_hall_1") && lit(w, "chimney_guild_house_1"),
+                  "and with the last bell, every chimney in the town");
+        }
+        // Smoke you can see: stood under the inn's chimney, the air fills with it
+        // when the hearth is lit, and stays clear when it is not.
+        const auto smoke_near_inn = [&](bool asleep) {
+            World s;
+            s.player.Init(ctx, "player_hero");
+            if (asleep) s.SetFlag("HAVENBROOK_ASLEEP");
+            if (!s.LoadMap("town_havenbrook", "", ctx)) return size_t{0};
+            s.enemies.clear();
+            s.player.x = 1454.0f;
+            s.player.y = 640.0f;
+            for (int f = 0; f < 120; ++f) { input.Update(dt); s.Update(dt, ctx); }
+            return s.MoteCount();
+        };
+        const size_t awake = smoke_near_inn(false), asleep = smoke_near_inn(true);
+        Check(awake >= asleep + 8, "smoke rises from the chimneys in sight when the fires are lit (" +
+                                       std::to_string(awake) + " puffs against " + std::to_string(asleep) + ")");
+        // The rest of the realm's chimneys are always lit; nobody keeps a fire in a dream.
+        int elsewhere = 0, dreamt = 0;
+        bool always = true;
+        for (const char* id : {"mossvale", "fernhollow", "frost_mere"}) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            for (const MapObject& o : m.Objects())
+                if (o.type == "chimney") { ++elsewhere; always = always && o.when.Empty(); }
+        }
+        for (const char* id : {"prologue_dream_havenbrook", "dream_havenbrook"}) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) continue;
+            for (const MapObject& o : m.Objects()) dreamt += o.type == "chimney";
+        }
+        Check(elsewhere >= 10 && always && dreamt == 0,
+              "Mossvale's, Fernhollow's and the trapper's chimneys smoke too, always, and a dream's never (" +
+                  std::to_string(elsewhere) + ")");
+    }
+
+    // --- the town dreamt: its houses lean at wrong angles ----------------------------------------------------
+    {
+        const auto house = [](const string& path) {
+            for (const char* h : {"townhouse_", "inn_building", "guild_house", "mayor_hall", "building_house_a",
+                                  "building_shop", "sawmill"})
+                if (path.find(h) != string::npos) return true;
+            return false;
+        };
+        for (const char* id : {"prologue_dream_havenbrook", "dream_havenbrook"}) {
+            Map m;
+            if (!m.Load(string("maps/") + id + ".mx")) { Check(false, string(id) + " loads"); continue; }
+            int houses = 0, leaning = 0, left = 0, right = 0, upright_else = 0, others = 0;
+            for (const TileInstance& t : m.Tiles()) {
+                const string& path = m.TexturePath(t);
+                if (house(path)) {
+                    ++houses;
+                    const float a = std::fabs(t.lean);
+                    if (a >= 4.99f && a <= 11.01f) ++leaning;
+                    left += t.lean < 0.0f;
+                    right += t.lean > 0.0f;
+                } else {
+                    ++others;
+                    upright_else += t.lean == 0.0f;
+                }
+            }
+            Check(houses >= 15 && leaning == houses && left > 0 && right > 0 && upright_else == others,
+                  string(id) + ": every house leans, five to eleven degrees, some one way and some the other, and "
+                               "nothing else does (" + std::to_string(leaning) + " of " + std::to_string(houses) + ")");
+        }
+        Map waking;
+        int leaning = 0;
+        if (waking.Load("maps/town_havenbrook.mx"))
+            for (const TileInstance& t : waking.Tiles()) leaning += t.lean != 0.0f;
+        Check(leaning == 0, "and awake, Havenbrook stands straight");
+    }
+
+    // --- 50: the townsfolk freeze and look up as the shadow goes over ----------------------------------------
+    {
+        World w;
+        w.player.Init(ctx, "player_hero");
+        for (const char* f : {"PROLOGUE", "PRO_COMPLETE", "ECHO_HAVENBROOK_FINAL_BELL", "ACT1_FINALE_QUEST_START",
+                              "ACT1_FINALE_THANKED", "ACT1_FINALE_GIFT_CHOSEN"})
+            w.SetFlag(f);
+        w.clock.Set(3, 10.0f);
+        StoryDirector dir;
+        dir.Load("data/story.json");
+        if (w.LoadMap("town_havenbrook", "from_guild_hall", ctx) && dir.Start("act1_dragon", w, log, ctx)) {
+            std::map<string, SDL_FPoint> frozen_at;
+            bool vask_in_it = false, moved = false;
+            int most = 0;
+            for (int f = 0; f < 60 * 40 && dir.Running(); ++f) {
+                input.Update(dt);
+                w.Update(dt, ctx);
+                dir.Update(dt, w, log, ctx, f % 30 == 0, false);
+                int now = 0;
+                for (const auto& n : w.npcs) {
+                    if (n->actor || !n->scripted || n->facing != FACE_UP) continue;
+                    ++now;
+                    if (n->Id() == "npc_vask_porch") vask_in_it = true;
+                    const auto at = frozen_at.find(n->Id());
+                    if (at == frozen_at.end()) frozen_at[n->Id()] = {n->x, n->y};
+                    else moved = moved || std::fabs(at->second.x - n->x) > 0.5f || std::fabs(at->second.y - n->y) > 0.5f;
+                }
+                most = std::max(most, now);
+            }
+            bool all_let_go = true;
+            for (const auto& [id, at] : frozen_at)
+                if (Npc* n = w.FindNpc(id)) all_let_go = all_let_go && !n->scripted;
+            Check(most >= 3 && !moved && !vask_in_it,
+                  "as the dragon's shadow goes over, everyone in the street stops dead and looks up -- all but Vask, "
+                  "who is the scene's own (" + std::to_string(most) + " townsfolk)");
+            Check(!dir.Running() && w.Flagged("ACT1_DRAGON_SHADOW_SEEN") && all_let_go,
+                  "and when it has passed they go on about their day");
+        } else {
+            Check(false, "scene 50 begins on Havenbrook's street");
+        }
+    }
+}
+
 int main(int argc, char** argv) {
     // Unbuffered (Windows has no line buffering), so a crash does not take what
     // was printed before it with it.
@@ -5944,6 +7876,20 @@ int main(int argc, char** argv) {
     Check(statuses.Load("data/statuses.json"),       "data/statuses.json loads");
     Check(spells.Load("data/spells.json"),         "data/spells.json loads");
     Check(trees.Load("data/skill_trees.json"),     "data/skill_trees.json loads");
+
+    // `selftest --only prologue`: the data, and that one section -- for working
+    // on the story without waiting the half hour the rest takes.
+    if (argc > 2 && string(argv[1]) == "--only") {
+        const string only = argv[2];
+        if (only == "prologue")    TestPrologue(db);
+        if (only == "act1")        { TestActOne(db); TestActOneFights(db); }
+        if (only == "guild")       TestGuildBounties(db);
+        if (only == "fishing")     TestFishing(db);
+        if (only == "town")        TestTownDetails(db);
+        if (only == "spell-boxes") TestSpellBoxes(db);
+        printf("\n%d checks, %d failures\n", g_checks, g_failures);
+        return g_failures;
+    }
 
     // --- sprite art -----------------------------------------------------------
     Section("sprite sheets exist on disk");
@@ -6300,10 +8246,23 @@ int main(int argc, char** argv) {
     }
 
     // --- every quest is actually obtainable -----------------------------------
+    // Somebody on a map gives it -- or a scene of the story starts it.
     Section("every quest has a giver somewhere in the world");
-    for (const auto& kv : quests.Definitions())
-        Check(quest_givers.count(kv.second.giver) > 0,
-              kv.first + " giver '" + kv.second.giver + "' is not in any map");
+    {
+        std::set<string> told;
+        std::ifstream sf("data/story.json");
+        json story_root;
+        sf >> story_root;
+        for (const auto& sc : story_root["scenes"])
+            for (const auto& st : sc["steps"])
+                if (st.value("do", string("")) == "quest" && st.contains("start")) told.insert(st["start"].get<string>());
+        // Or the quest before it leads straight on to it (QuestDef::then).
+        for (const auto& kv : quests.Definitions())
+            if (!kv.second.then.empty()) told.insert(kv.second.then);
+        for (const auto& kv : quests.Definitions())
+            Check(quest_givers.count(kv.second.giver) > 0 || told.count(kv.first) > 0,
+                  kv.first + " giver '" + kv.second.giver + "' is not in any map");
+    }
 
     // --- projectiles ----------------------------------------------------------
     Section("projectiles");
@@ -7789,6 +9748,15 @@ int main(int argc, char** argv) {
             for (const char* name : {"walk", "run", "attack", "hurt"}) {
                 const AnimClip* clip = def->Find(name);
                 if (!clip || !fs::exists(clip->sheet)) continue;
+                // What reaches below the feet in some facings and not others is
+                // not the feet drifting: Act I's Ashen Vanguard drags its
+                // greatsword behind it, the Forge Demon drags a sword as long as
+                // a wagon and its smash comes down past its own feet, and the
+                // Hushed rake low with trailing hands. Their anchors were
+                // checked frame by frame when they were made.
+                static const std::set<string> kReaching = {"ashen_vanguard/walk", "ashen_vanguard/run",
+                                                           "forge_demon/walk", "forge_demon/attack", "hushed/attack"};
+                if (kReaching.count(id + "/" + name)) continue;
                 const vector<int> feet = row_feet(clip->sheet, def->rows, clip->frames);
                 int off = 0;
                 for (int r = 1; r < def->rows; ++r)
@@ -9265,6 +11233,9 @@ int main(int argc, char** argv) {
                         // The work clips hold a tool, not a weapon, and picking herbs holds nothing.
                         if (clip.first == "chop" || clip.first == "mine" || clip.first == "fish" ||
                             clip.first == "gather") continue;
+                        // Nor do the story's: lying down and sitting up are only played in
+                        // the prologue, before the chest has put anything in the player's hands.
+                        if (clip.first == "lie" || clip.first == "sit_up") continue;
                         const auto whose = own.find(clip.first);
                         if (whose != own.end() && !whose->second.count(k)) continue;
                         // Rushing Strike is a melee move; nothing thrown or cast ever leaps.
@@ -11106,19 +13077,25 @@ int main(int argc, char** argv) {
                 Check(w.player.interact.label.find("needs a fishing rod") != string::npos, "the pond wants a rod");
                 w.player.inventory.Add("fishing_rod", 1);
                 frames(w, 1);
-                const float t = time_to_first(w, "raw_minnow", 15.0f);
-                Check(t > 0.0f, "with a rod, a level 1 fisher catches a minnow (" + std::to_string(t).substr(0, 4) + "s)");
-                Check(w.player.GatherClip() == "fish" && w.player.skills.Xp(SKILL_FISHING) > 0,
-                      "fishing plays its animation and trains Fishing");
+                bool clip = false;
+                int run = 0;
+                const bool landed = PlayCast(w, ctx, [&] {
+                    frames(w, 1);
+                    ++run;
+                    clip = clip || w.player.GatherClip() == "fish";
+                });
+                Check(landed && w.player.inventory.Count("raw_minnow") > 0,
+                      "with a rod, a level 1 fisher who strikes on the second dip and keeps the line in the green "
+                      "lands a minnow (" + std::to_string(run / 60.0f).substr(0, 4) + "s)");
+                Check(clip && w.player.skills.Xp(SKILL_FISHING) > 0, "fishing plays its animation and trains Fishing");
             }
             World w99;
             if (work_at(w99, "fernhollow", is_pond, SKILL_FISHING, 99)) {
                 w99.player.inventory.Add("fishing_rod", 1);
                 frames(w99, 1);
-                w99.TryInteract(ctx);
                 int catches = 0, multi = 0, last = 0;
-                for (int f = 0; f < 60 * 60 && catches < 30; ++f) {
-                    frames(w99, 1);
+                for (int cast = 0; cast < 40 && catches < 30; ++cast) {
+                    PlayCast(w99, ctx, [&] { frames(w99, 1); });
                     int total = 0;
                     for (int s2 = 0; s2 < w99.player.inventory.SlotCount(); ++s2) {
                         const ItemDef* d = items.Get(w99.player.inventory.Slot(s2).id);
@@ -12731,10 +14708,12 @@ int main(int argc, char** argv) {
                 bool west = false;
                 for (const WorldMark& mk : marks)
                     west |= mk.kind == "path" && mk.label.find("Westwold") != string::npos && mk.label.find("Combat 7") != string::npos;
-                Check(count(marks, "door") == 5 && count(marks, "dungeon") == 1 && count(marks, "path") == 2 && west &&
+                Check(count(marks, "door") == 7 && count(marks, "dungeon") == 1 && count(marks, "path") == 2 && west &&
                       count(marks, "craft") >= 2 && count(marks, "trader") >= 2,
-                      "Havenbrook's: five doors -- the mayor's hall is the fifth -- the well, both gates -- the west one "
-                      "with its warning -- the benches and the traders (" + std::to_string(count(marks, "door")) + " doors)");
+                      "Havenbrook's: seven doors -- the mayor's hall the fifth, the prologue's sleeper's house the sixth, "
+                      "the Mayor's gift of a house the seventh -- "
+                      "the well, both gates -- the west one with its warning -- the benches and the traders (" +
+                      std::to_string(count(marks, "door")) + " doors)");
             }
             {
                 Map m;
@@ -16229,7 +18208,8 @@ int main(int argc, char** argv) {
             w.player.y -= 200.0f;
             w.player.facing = FACE_RIGHT;
             w.player.sprite.facing = FACE_RIGHT;
-            w.player.equipment.Equip(SLOT_WEAPON, "novice_staff");
+            // Azuryte: the ancient magic is the sixth slot, which nothing plainer opens (SPELL_BOXES).
+            w.player.equipment.Equip(SLOT_WEAPON, "azuryte_staff");
             LevelUp lu;
             w.player.skills.AddXp(SKILL_MAGIC, XpForLevel(20), lu);
             w.player.SyncMana();
@@ -17700,9 +19680,17 @@ int main(int argc, char** argv) {
                     ++located;
                     continue;
                 }
+                // A story's beat that happens in a place is pointed at the way a place to reach is.
+                if (st.type == ObjectiveType::Flag && ways.Areas().count(st.where)) { ++located; continue; }
                 // With enough in the bag, and with none.
                 const auto full = ways.SpotsFor(st, st.count, &enemy_db, &loot, &items);
                 const auto empty = ways.SpotsFor(st, 0, &enemy_db, &loot, &items);
+                // And so is a beast that only roams its lair -- no post of its own the index
+                // keeps (a Guild bounty's Cerberus): the road to the lair, and there the beast.
+                if (st.type == ObjectiveType::Kill && st.map_id.empty() && ways.Areas().count(st.where) && full.empty()) {
+                    ++located;
+                    continue;
+                }
                 if (st.type == ObjectiveType::Collect) {
                     // What is only bought or made has nowhere to point at, and says nothing.
                     if (!empty.empty()) ++gathered;
@@ -21526,7 +23514,8 @@ int main(int argc, char** argv) {
             w.player.skills.AddXp(SKILL_MAGIC, XpForLevel(magic), lu);
             w.player.SyncMana();
             w.player.RestoreMana();
-            w.player.equipment.Equip(SLOT_WEAPON, "novice_staff");
+            // Azuryte, to open the sixth slot: see SPELL_BOXES.
+            w.player.equipment.Equip(SLOT_WEAPON, "azuryte_staff");
             w.player.facing = FACE_RIGHT;
             w.player.sprite.facing = FACE_RIGHT;
             return true;
@@ -21890,7 +23879,8 @@ int main(int argc, char** argv) {
         for (const Thrown& t : {Thrown{Element::Fire, Status::Burn, "embers"}, Thrown{Element::Water, Status::Wet, "sprays"},
                                 Thrown{Element::Earth, Status::Concussed, "shardshots"}, Thrown{Element::Air, Status::COUNT, "gusts"}}) {
             World w;
-            if (!field(w, "player_wayfarer", "novice_staff", SKILL_MAGIC, 12)) continue;
+            // Iron: the four elements are the first four slots (SPELL_BOXES).
+            if (!field(w, "player_wayfarer", "iron_staff", SKILL_MAGIC, 12)) continue;
             Enemy* cow = sturdy(w, "cow", 110.0f);
             if (!cow) continue;
             w.player.SelectElement(t.element);
@@ -21972,7 +23962,8 @@ int main(int argc, char** argv) {
         Check(projectiles.Get("hellfire") && projectiles.Get("hellfire")->status.kind == Status::Burn, "the Rebuke burns");
         {
             World w;
-            if (field(w, "player_wayfarer", "novice_staff", SKILL_MAGIC, 60)) {
+            // Azuryte, to open the sixth slot: see SPELL_BOXES.
+            if (field(w, "player_wayfarer", "azuryte_staff", SKILL_MAGIC, 60)) {
                 for (const char* id : {"acid_spray", "ice_touch", "vampiric_touch", "hellish_rebuke"}) w.SetFlag(string("recipe:spell:") + id);
                 Enemy* cow = sturdy(w, "cow", 50.0f);
                 const auto reset = [&](float dx) {
@@ -23056,7 +25047,7 @@ int main(int argc, char** argv) {
             const SpellDef* sp = spells.Get(id);
             Check(sp && sp->shape == "claw", string(id) + " is raked, not thrown");
             World w;
-            if (!sp || !field(w, "iron_staff", 70)) continue;
+            if (!sp || !field(w, "azuryte_staff", 70)) continue;
             Enemy* cow = sturdy(w, 40.0f);
             w.SetFlag("recipe:spell:" + string(id));
             w.player.SetArcaneSpell(id);
@@ -23098,7 +25089,7 @@ int main(int argc, char** argv) {
             Check(d && fabsf(d->speed * d->life - 88.4f) < 1.0f,
                   "the bolt it replaces flew a hand's reach and a little more");
             World w;
-            if (field(w, "iron_staff", 70)) {
+            if (field(w, "azuryte_staff", 70)) {
                 Enemy* near_one = sturdy(w, 60.0f);
                 Enemy* far_one = sturdy(w, 150.0f);
                 w.SetFlag("recipe:spell:vampiric_touch");
@@ -23126,7 +25117,7 @@ int main(int argc, char** argv) {
             const SpellDef* sp = spells.Get("hail_of_blades");
             Check(sp && sp->shape == "blades", "the Hail of Blades is a swarm of them");
             World w;
-            if (sp && field(w, "iron_staff", 70)) {
+            if (sp && field(w, "azuryte_staff", 70)) {
                 sturdy(w, 70.0f);
                 w.SetFlag("recipe:spell:hail_of_blades");
                 w.player.SetArcaneSpell("hail_of_blades");
@@ -24290,9 +26281,13 @@ int main(int argc, char** argv) {
     TestBalanceFixes(db);
     TestLateSpells(db);
     TestLateTreeRows(db);
+    TestSpellBoxes(db);
     TestLateGathering(db);
     TestMapsAndMonsters(db);
     TestDreamLands(db);
+    TestPrologue(db);
+    TestActOne(db);
+    TestActOneFights(db);
     TestMenuTheme();
 
     Section("the Brimstone Palace, and its king");

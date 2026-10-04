@@ -133,6 +133,8 @@ void Game::DrawXpLines(float x, float y) {
 }
 
 void Game::DrawHud() {
+    // A scene is on: the bars, not the HUD.
+    if (story.View().in_scene || story.View().bars > 0.02f) return;
     const Player& p = world->player;
     const Waypoint& waypoint = CurrentWaypoint();
 
@@ -329,7 +331,11 @@ void Game::DrawHud() {
                     moon ? "assets/icons/hud_moon.png" : "assets/icons/hud_sun.png");
         char line[96];
         SDL_Color col = Palette::TextDim;
-        if (world->InDream()) {
+        if (world->InDream() && world->StoryDream()) {
+            // A sleeper's dream is not the night's, and keeps no time.
+            SDL_snprintf(line, sizeof(line), "Dreaming    %s", world->Dream().locked ? "no way out but through" : "a sleeper's dream");
+            col = {206, 186, 250, 255};
+        } else if (world->InDream()) {
             const int s = static_cast<int>(c.SecondsToDawn());
             SDL_snprintf(line, sizeof(line), "Dreaming    dawn in %d:%02d", s / 60, s % 60);
             col = {206, 186, 250, 255};
@@ -553,6 +559,25 @@ void Game::DrawHud() {
                 const bool on = slotted ? (!arcane_on && !electric_on && p.SpellSlot() == i)
                                         : (kOrder[i] == p.SelectedElement());
                 const SDL_FRect r = {x0 + i * (box + gap), y0, box, box};
+                // A box the weapon in hand never opens -- the lightning's, to a
+                // staff given over to one element -- is only an empty frame.
+                if (p.BoxRank(i) < 0) {
+                    ui.Fill(r, {22, 20, 26, 110});
+                    ui.Outline(r, {44, 41, 48, 255}, 1.0f);
+                    continue;
+                }
+                // One a finer make would open (SPELL_BOXES): shut, with a
+                // padlock where its number would be.
+                if (!p.BoxOpen(i)) {
+                    const SDL_Color lock{116, 108, 100, 255}, dark{22, 20, 26, 255};
+                    ui.Fill(r, {22, 20, 26, 190});
+                    ui.Outline(r, {56, 52, 60, 255}, 1.0f);
+                    const float cx = r.x + r.w / 2.0f, cy = r.y + r.h / 2.0f + 3.0f;
+                    ui.Outline({cx - 4.0f, cy - 10.0f, 8.0f, 8.0f}, lock, 2.0f);   // the shackle
+                    ui.Fill({cx - 6.0f, cy - 4.0f, 12.0f, 9.0f}, lock);              // the body
+                    ui.Fill({cx - 1.0f, cy - 1.0f, 2.0f, 3.0f}, dark);               // the keyhole
+                    continue;
+                }
                 const SDL_Color c = ElementColor(slotted ? staff : kOrder[i]);
                 // The fifth box is lit once any ancient spell is known.
                 const SpellDef* known = kOrder[i] == Element::Arcane
@@ -664,7 +689,7 @@ void Game::DrawHud() {
             // nothing. It is what tells a player the thing in front of them is
             // not one of a pack, so the frame says so, in the gold a rare
             // thing is written in.
-            const bool boss = t->Def()->is_boss;
+            const bool boss = t->Def()->Boss();
             const string level_tag = string(boss ? "Boss   Lv " : "Lv ") + std::to_string(t->ShownLevel());
             const string tag = lock ? "LOCKED   " + level_tag : input.PromptFor(Action::Target) + " lock   " + level_tag;
             // As wide as the name and the tag need, and never narrower than it
@@ -725,10 +750,56 @@ void Game::DrawHud() {
     }
 
     // --- gathering -----------------------------------------------------------
-    if (live && world->Gathering()) {
+    // At the water there is no bar to fill: there is the bobber to watch, and
+    // once a fish is on, the gauge. See Gathering::Angler.
+    const World::AnglerView angling = live ? world->Angling() : World::AnglerView{};
+    if (live && world->Gathering() && !angling.on) {
         const SDL_FPoint anchor = UiPoint(p.x, p.y + 10.0f);
         const SDL_FRect bar = {anchor.x - 34.0f, anchor.y + 8.0f, 68.0f, 8.0f};
         ui.Bar(bar, world->GatherProgress(), Palette::Xp, {20, 30, 20, 220});
+    }
+    if (live && angling.on) {
+        using Phase = Gathering::Angler::Phase;
+        const SDL_FPoint anchor = UiPoint(p.x, p.y + 10.0f);
+        const string key = input.PromptFor(Action::Interact);
+        if (angling.phase != Phase::Reeling) {
+            // Waiting on it: the angler's lesson, said quietly under the feet.
+            ui.TextShadowed("Wait for the second dip, then " + key, anchor.x, anchor.y + 10.0f, TextSize::Small,
+                            {214, 222, 232, 220}, Align::Center);
+        } else {
+            // The fight: the gauge, the green the fish drags about it, the reel
+            // line on it, and under it how far in the fish is. Out of the green
+            // the line and the gauge's edge go red as the strain builds.
+            constexpr float W = 170.0f, H = 14.0f;
+            const SDL_FRect track = {roundf(anchor.x - W / 2.0f), roundf(anchor.y + 30.0f), W, H};
+            // The fish by its own name: "Raw Pike" is what it becomes in the bag.
+            const ItemDef* fish = items.Get(angling.fish);
+            string name = fish ? fish->name : string("Something heavy");
+            if (name.rfind("Raw ", 0) == 0) name = name.substr(4);
+            ui.TextShadowed(name + " on the line", track.x + track.w / 2.0f, track.y - 20.0f, TextSize::Small,
+                            {255, 226, 140, 255}, Align::Center);
+            ui.Fill({track.x - 2.0f, track.y - 2.0f, track.w + 4.0f, track.h + 4.0f}, {12, 14, 18, 225});
+            ui.Fill(track, {34, 40, 48, 235});
+            const float b0 = std::clamp(angling.band - angling.half, 0.0f, 1.0f);
+            const float b1 = std::clamp(angling.band + angling.half, 0.0f, 1.0f);
+            const bool in = std::fabs(angling.line - angling.band) <= angling.half;
+            ui.Fill({track.x + b0 * W, track.y, (b1 - b0) * W, H}, in ? SDL_Color{92, 206, 104, 235}
+                                                                       : SDL_Color{60, 150, 72, 220});
+            const float s = angling.strain;
+            const SDL_Color edge = {static_cast<Uint8>(90 + 165 * s), static_cast<Uint8>(96 - 40 * s),
+                                    static_cast<Uint8>(110 - 60 * s), 255};
+            ui.Outline({track.x - 2.0f, track.y - 2.0f, track.w + 4.0f, track.h + 4.0f}, edge, 1.0f + s);
+            // The reel line: a bright post across the gauge, shaking as it strains.
+            const float shake = in ? 0.0f : roundf(std::sin(state_time * 60.0f) * 1.5f * s);
+            const float lx = roundf(track.x + angling.line * W + shake);
+            ui.Fill({lx - 1.0f, track.y - 5.0f, 3.0f, H + 10.0f}, in ? SDL_Color{250, 246, 226, 255}
+                                                                     : SDL_Color{255, 120, 100, 255});
+            // How far in: a thin bar under it, filling as the fish comes.
+            const SDL_FRect landing = {track.x, track.y + H + 6.0f, W, 5.0f};
+            ui.Bar(landing, angling.progress, {120, 196, 255, 255}, {20, 26, 34, 220});
+            ui.TextShadowed("Hold " + key + " to reel. Keep the line in the green.", track.x + track.w / 2.0f,
+                            landing.y + 9.0f, TextSize::Small, {214, 222, 232, 220}, Align::Center);
+        }
     }
 
     // --- interact prompt -----------------------------------------------------

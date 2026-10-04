@@ -190,7 +190,8 @@ bool SaveSystem::Save(SlotRef slot, const World& world, const QuestLog& quests,
     const World::Camp& camp = world.PlayerCamp();
     if (camp.pitched) j["camp"] = {{"map", camp.map}, {"x", camp.x}, {"y", camp.y}};
     const World::DreamReturn& dream = world.Dream();
-    if (dream.active) j["dream_return"] = {{"map", dream.map}, {"x", dream.x}, {"y", dream.y}};
+    if (dream.active) j["dream_return"] = {{"map", dream.map}, {"x", dream.x}, {"y", dream.y},
+                                           {"story", dream.story}, {"locked", dream.locked}};
 
     j["shops"] = world.shops.ToJson();
     j["picked"] = json::object();
@@ -280,6 +281,9 @@ bool SaveSystem::Load(SlotRef slot, World& world, QuestLog& quests,
     std::set<string> flags;
     if (j.contains("flags"))
         for (const auto& f : j["flags"]) flags.insert(f.get<string>());
+    // The prologue's foyer was the screenplay's scene 14 and is its 15 now:
+    // a game saved before says so in the old name.
+    if (flags.count("PRO_14_FOYER_CLEARED")) flags.insert("PRO_15_FOYER_CLEARED");
     {
         std::map<string, int> slain;
         if (j.contains("slain") && j["slain"].is_object())
@@ -318,6 +322,8 @@ bool SaveSystem::Load(SlotRef slot, World& world, QuestLog& quests,
         dream.map = j["dream_return"].value("map", string("overworld"));
         dream.x = j["dream_return"].value("x", 0.0f);
         dream.y = j["dream_return"].value("y", 0.0f);
+        dream.story = j["dream_return"].value("story", false);
+        dream.locked = j["dream_return"].value("locked", false);
         dream.x += LayoutShiftX(dream.map, version);
     }
     world.SetDream(dream);

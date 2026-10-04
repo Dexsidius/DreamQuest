@@ -6974,5 +6974,558 @@
       196,
       255
     ]
+  },
+  "animated_armor": {
+    "name": "Animated Armor",
+    "sprite": "animated_armor",
+    "hp": 6,
+    "attack": 1,
+    "strength": 1,
+    "defence": 1,
+    "attack_bonus": 0,
+    "strength_bonus": 0,
+    "defence_bonus": 14,
+    "speed": 28,
+    "aggro": 260,
+    "attack_range": 54,
+    "attack_cooldown": 3.6,
+    "loot": "",
+    "kill_target": "animated_armor",
+    "foot_box": [
+      -10,
+      -12,
+      20,
+      12
+    ],
+    "body_box": [
+      -14,
+      -40,
+      28,
+      40
+    ],
+    "element": "earth",
+    "immune": [
+      "bleed",
+      "poison"
+    ],
+    "on_hit": {
+      "id": "concussed",
+      "chance": 0.1
+    },
+    "heavy": {
+      "windup": 1.7,
+      "damage": 1.0,
+      "cooldown": 6.0,
+      "knockback": 70
+    },
+    "eye_light": [
+      176,
+      160,
+      255
+    ],
+    "eye_height": 32
+  },
+  "hushed": {
+    "name": "Hushed",
+    "sprite": "hushed",
+    "hp": 6,
+    "attack": 1,
+    "strength": 1,
+    "defence": 1,
+    "attack_bonus": 1,
+    "strength_bonus": 1,
+    "defence_bonus": 1,
+    "speed": 34,
+    "aggro": 190,
+    "attack_range": 50,
+    "attack_cooldown": 2.2,
+    "loot": "",
+    "kill_target": "hushed",
+    "foot_box": [
+      -8,
+      -9,
+      16,
+      9
+    ],
+    "body_box": [
+      -10,
+      -36,
+      20,
+      36
+    ],
+    "element": "arcane",
+    "immune": [
+      "bleed",
+      "poison"
+    ],
+    "on_hit": {
+      "id": "chill",
+      "chance": 0.1
+    }
+  },
+  "ashen_vanguard": {
+    "name": "The Ashen Vanguard",
+    "sprite": "ashen_vanguard",
+    "hp": 22,
+    "attack": 3,
+    "strength": 3,
+    "defence": 2,
+    "attack_bonus": 4,
+    "strength_bonus": 5,
+    "defence_bonus": 12,
+    "speed": 50,
+    "aggro": 520,
+    "attack_range": 62,
+    "attack_cooldown": 2.0,
+    "heavy": {
+      "windup": 1.5,
+      "damage": 1.8,
+      "cooldown": 8.0,
+      "reach": 1.3,
+      "width": 0.9,
+      "knockback": 160,
+      "status": {
+        "id": "concussed",
+        "chance": 0.3
+      }
+    },
+    "moves": [
+      {
+        "kind": "charge",
+        "windup": 0.9,
+        "active": 0.85,
+        "recover": 1.1,
+        "cooldown": 7.0,
+        "opening": 3.0,
+        "damage": 1.3,
+        "speed": 3.4,
+        "knockback": 180,
+        "min_gap": 110,
+        "max_gap": 420,
+        "clip": "run"
+      },
+      {
+        "kind": "double",
+        "windup": 0.5,
+        "active": 0.6,
+        "recover": 0.9,
+        "cooldown": 5.0,
+        "opening": 5.0,
+        "damage": 0.85,
+        "knockback": 60,
+        "min_gap": 0,
+        "max_gap": 80
+      }
+    ],
+    "phase2": {
+      "at": 0.5,
+      "speed": 1.25,
+      "cooldown": 0.75,
+      "tint": [
+        255,
+        176,
+        140
+      ]
+    },
+    "loot": "",
+    "kill_target": "ashen_vanguard",
+    "story_boss": true,
+    "foot_box": [
+      -11,
+      -12,
+      22,
+      12
+    ],
+    "body_box": [
+      -16,
+      -58,
+      32,
+      58
+    ],
+    "element": "fire",
+    "immune": [
+      "bleed",
+      "poison"
+    ],
+    "on_hit": {
+      "id": "burn",
+      "chance": 0.15
+    }
+  },
+  "black_knight": {
+    "name": "Black Knight",
+    "sprite": "animated_armor",
+    "hp": 9,
+    "attack": 2,
+    "strength": 2,
+    "defence": 2,
+    "attack_bonus": 4,
+    "strength_bonus": 3,
+    "defence_bonus": 12,
+    "speed": 36,
+    "aggro": 420,
+    "attack_range": 56,
+    "attack_cooldown": 3.2,
+    "heavy": {
+      "windup": 1.5,
+      "damage": 1.2,
+      "cooldown": 6.0,
+      "knockback": 80
+    },
+    "loot": "",
+    "kill_target": "black_knight",
+    "foot_box": [
+      -11,
+      -13,
+      22,
+      13
+    ],
+    "body_box": [
+      -16,
+      -45,
+      32,
+      45
+    ],
+    "element": "earth",
+    "immune": [
+      "bleed",
+      "poison"
+    ],
+    "on_hit": {
+      "id": "concussed",
+      "chance": 0.12
+    },
+    "tint": [
+      74,
+      68,
+      96
+    ],
+    "scale": 1.12,
+    "eye_light": [
+      196,
+      120,
+      255
+    ],
+    "eye_height": 36
+  },
+  "forge_demon": {
+    "name": "The Forge Demon",
+    "sprite": "forge_demon",
+    "hp": 30,
+    "attack": 5,
+    "strength": 6,
+    "defence": 4,
+    "attack_bonus": 6,
+    "strength_bonus": 7,
+    "defence_bonus": 18,
+    "speed": 30,
+    "aggro": 600,
+    "attack_range": 92,
+    "attack_cooldown": 3.0,
+    "heavy": {
+      "windup": 1.4,
+      "damage": 1.5,
+      "cooldown": 7.5,
+      "reach": 1.4,
+      "width": 1.6,
+      "knockback": 200
+    },
+    "moves": [
+      {
+        "kind": "flame",
+        "windup": 1.1,
+        "active": 0.4,
+        "recover": 1.4,
+        "cooldown": 10.0,
+        "opening": 4.0,
+        "damage": 0.3,
+        "reach": 5,
+        "width": 70,
+        "shot": "demon_flame",
+        "min_gap": 50,
+        "max_gap": 280,
+        "clip": "flame"
+      },
+      {
+        "kind": "spin",
+        "windup": 1.2,
+        "active": 2.4,
+        "recover": 1.8,
+        "cooldown": 12.0,
+        "opening": 8.0,
+        "damage": 0.35,
+        "reach": 104,
+        "knockback": 110,
+        "min_gap": 0,
+        "max_gap": 150,
+        "clip": "spin"
+      }
+    ],
+    "phase2": {
+      "at": 0.5,
+      "speed": 1.2,
+      "cooldown": 0.8,
+      "fire_trail": true,
+      "tint": [
+        255,
+        200,
+        160
+      ]
+    },
+    "weak_after": 2.6,
+    "loot": "",
+    "kill_target": "forge_demon",
+    "story_boss": true,
+    "foot_box": [
+      -24,
+      -16,
+      48,
+      16
+    ],
+    "body_box": [
+      -32,
+      -112,
+      64,
+      112
+    ],
+    "element": "fire",
+    "immune": [
+      "burn",
+      "bleed",
+      "poison"
+    ],
+    "on_hit": {
+      "id": "burn",
+      "chance": 0.25
+    }
+  },
+  "nightmare_spider": {
+    "name": "Nightmare Spider",
+    "sprite": "spider",
+    "hp": 8,
+    "attack": 3,
+    "strength": 3,
+    "defence": 2,
+    "attack_bonus": 3,
+    "strength_bonus": 3,
+    "defence_bonus": 2,
+    "speed": 56,
+    "aggro": 220,
+    "attack_range": 54,
+    "attack_cooldown": 1.5,
+    "moves": [
+      {
+        "kind": "shot",
+        "windup": 0.55,
+        "active": 0.2,
+        "recover": 0.5,
+        "cooldown": 6.5,
+        "opening": 2.5,
+        "damage": 1.0,
+        "reach": 1,
+        "width": 0,
+        "shot": "web_shot",
+        "min_gap": 70,
+        "max_gap": 230
+      }
+    ],
+    "loot": "",
+    "kill_target": "nightmare_spider",
+    "foot_box": [
+      -10,
+      -8,
+      20,
+      8
+    ],
+    "body_box": [
+      -15,
+      -22,
+      30,
+      22
+    ],
+    "element": "earth",
+    "tint": [
+      92,
+      86,
+      112
+    ],
+    "on_hit": {
+      "id": "poison",
+      "chance": 0.3
+    }
+  },
+  "nightmare_spider_large": {
+    "name": "Great Nightmare Spider",
+    "sprite": "spider",
+    "hp": 14,
+    "attack": 3,
+    "strength": 3,
+    "defence": 2,
+    "attack_bonus": 3,
+    "strength_bonus": 3,
+    "defence_bonus": 2,
+    "speed": 46,
+    "aggro": 220,
+    "attack_range": 68,
+    "attack_cooldown": 1.8,
+    "moves": [
+      {
+        "kind": "shot",
+        "windup": 0.55,
+        "active": 0.2,
+        "recover": 0.5,
+        "cooldown": 5.0,
+        "opening": 2.5,
+        "damage": 1.0,
+        "reach": 1,
+        "width": 0,
+        "shot": "web_shot",
+        "min_gap": 70,
+        "max_gap": 230
+      }
+    ],
+    "loot": "",
+    "kill_target": "nightmare_spider",
+    "foot_box": [
+      -16,
+      -12,
+      32,
+      12
+    ],
+    "body_box": [
+      -25,
+      -36,
+      50,
+      36
+    ],
+    "element": "earth",
+    "tint": [
+      92,
+      86,
+      112
+    ],
+    "on_hit": {
+      "id": "poison",
+      "chance": 0.45
+    },
+    "scale": 1.7
+  },
+  "nightmare_wolf": {
+    "name": "Nightmare Wolf",
+    "sprite": "wolf",
+    "hp": 22,
+    "attack": 8,
+    "strength": 8,
+    "defence": 6,
+    "attack_bonus": 7,
+    "strength_bonus": 8,
+    "defence_bonus": 6,
+    "speed": 76,
+    "aggro": 320,
+    "attack_range": 54,
+    "attack_cooldown": 1.6,
+    "circles": true,
+    "moves": [
+      {
+        "kind": "howl",
+        "windup": 0.9,
+        "active": 6.0,
+        "recover": 0.3,
+        "cooldown": 20.0,
+        "opening": 6.0,
+        "min_gap": 80,
+        "max_gap": 420
+      }
+    ],
+    "loot": "",
+    "kill_target": "nightmare_wolf",
+    "foot_box": [
+      -10,
+      -8,
+      20,
+      8
+    ],
+    "body_box": [
+      -16,
+      -30,
+      32,
+      30
+    ],
+    "element": "water",
+    "tint": [
+      128,
+      124,
+      158
+    ],
+    "eye_light": [
+      226,
+      238,
+      255
+    ],
+    "eye_height": 22,
+    "on_hit": {
+      "id": "chill",
+      "chance": 0.15
+    }
+  },
+  "nightmare_anchor": {
+    "name": "The Nightmare Anchor",
+    "sprite": "nightmare_anchor",
+    "hp": 46,
+    "attack": 11,
+    "strength": 12,
+    "defence": 8,
+    "attack_bonus": 12,
+    "strength_bonus": 10,
+    "defence_bonus": 12,
+    "speed": 0,
+    "aggro": 700,
+    "attack_range": 120,
+    "attack_cooldown": 3.2,
+    "rooted": true,
+    "moves": [
+      {
+        "kind": "sweep",
+        "windup": 1.4,
+        "active": 0.3,
+        "recover": 1.2,
+        "cooldown": 4.4,
+        "opening": 2.0,
+        "damage": 1.1,
+        "reach": 176,
+        "width": 360,
+        "knockback": 220,
+        "min_gap": 0,
+        "max_gap": 176,
+        "clip": "attack"
+      }
+    ],
+    "loot": "",
+    "kill_target": "nightmare_anchor",
+    "story_boss": true,
+    "foot_box": [
+      -40,
+      -22,
+      80,
+      22
+    ],
+    "body_box": [
+      -48,
+      -112,
+      96,
+      112
+    ],
+    "element": "arcane",
+    "immune": [
+      "bleed",
+      "poison",
+      "burn",
+      "frozen",
+      "chill"
+    ],
+    "on_hit": {
+      "id": "rooted",
+      "chance": 0.2
+    }
   }
 }

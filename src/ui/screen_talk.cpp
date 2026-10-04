@@ -133,6 +133,50 @@ void Game::DrawDialogue() {
 //  Mission board
 // =============================================================================
 
+namespace {
+
+// The beast a Guild bounty is on, the way the Guild's page shows it: its own
+// figure, idling, in its own colours, on a dark stage -- as big as whole
+// pixels let it be in `box`, its drawn part (not its frame's empty sky)
+// centred. A beast too big for the box at its own size is drawn smaller.
+void DrawBeast(UI& ui, SDL_Renderer* r, TextureCache& cache, const SpriteLibrary& sprites, const EnemyDef& beast,
+               const SDL_FRect& box, float t) {
+    constexpr int kBands = 8;
+    for (int i = 0; i < kBands; ++i) {
+        const float k = static_cast<float>(i) / (kBands - 1);
+        const auto mix = [&](int a, int b) { return static_cast<Uint8>(a + (b - a) * k); };
+        ui.Fill({box.x, box.y + box.h * i / kBands, box.w, box.h / kBands + 1.0f},
+                {mix(22, 54), mix(18, 45), mix(20, 37), 245});
+    }
+    ui.Outline(box, Palette::BorderDim, 1.0f);
+
+    const SpriteDef* def = sprites.Get(beast.sprite);
+    const AnimClip* idle = def ? def->Find("idle") : nullptr;
+    if (!idle) return;
+    const SDL_Point sheet = cache.Size(idle->sheet);
+    const int fw = sheet.x / std::max(1, idle->frames), fh = sheet.y / std::max(1, def->rows);
+    if (fw <= 0 || fh <= 0) return;
+    // Measured on the first frame facing down -- the one the figure is drawn in.
+    const SDL_FRect seen = cache.OpaqueBoundsIn(idle->sheet, {0, 0, fw, fh});
+    const float room = box.h - 12.0f;
+    const float span = std::max({seen.w, seen.h, 1.0f});
+    const float scale = span > room ? room / span : std::min(6.0f, floorf(room / span));
+    const SDL_FRect dst = {floorf(box.x + box.w / 2.0f - (seen.x + seen.w / 2.0f) * scale),
+                           floorf(box.y + box.h / 2.0f - (seen.y + seen.h / 2.0f) * scale), fw * scale, fh * scale};
+    Sprite fig;
+    fig.SetDef(def);
+    fig.facing = FACE_DOWN;
+    fig.Play("idle");
+    fig.Update(t);
+    const SDL_Rect clip = {static_cast<int>(box.x) + 1, static_cast<int>(box.y) + 1, static_cast<int>(box.w) - 2,
+                           static_cast<int>(box.h) - 2};
+    SDL_SetRenderClipRect(r, &clip);
+    fig.DrawAt(r, cache, dst, beast.tint);
+    SDL_SetRenderClipRect(r, nullptr);
+}
+
+} // namespace
+
 vector<string> Game::BoardList() const {
     vector<string> out;
     const int combat = world->player.skills.CombatLevel();
@@ -198,15 +242,37 @@ void Game::DrawBoard() {
                                : string("Everything posted"),
                 panel.x + 20.0f, panel.y + 56.0f, TextSize::Small, board_in_range ? Palette::Xp : Palette::TextDim);
 
+    // The Guild's ledger: how much of it this character has closed, and
+    // whether it is open to them at all -- Guild Master Orlend opens it.
+    int ledger = 0, closed = 0;
+    bool ledger_open = false;
+    for (const string& id : board_quests) {
+        const QuestDef* q = quests->Definition(id);
+        if (!q || !q->guild_bounty) continue;
+        ++ledger;
+        if (quests->IsComplete(id)) ++closed;
+        bool ready = true;
+        for (const string& p : q->prerequisites) ready = ready && quests->IsComplete(p);
+        ledger_open = ledger_open || ready;
+    }
+    if (ledger > 0 && ledger_open)
+        ui.Text("Closed " + std::to_string(closed) + " of " + std::to_string(ledger), panel.x + 20.0f + list_w,
+                panel.y + 56.0f, TextSize::Small, closed == ledger ? Palette::Xp : Palette::TextDim, Align::Right);
+
     if (available.empty()) {
         const bool filtered = board_in_range && !board_orders;
+        const bool shut = ledger > 0 && !ledger_open, done = ledger > 0 && closed == ledger;
         ui.Text(board_orders ? "No orders for you today."
+                : shut       ? string("The Guild's ledger is not open to you.")
+                : done       ? string("Every bounty in the ledger is closed.")
                 : filtered   ? "Nothing posted within " + std::to_string(QuestLog::LEVEL_RANGE) + " levels of you."
                              : string("Nothing new is pinned up today."),
                 panel.x + panel.w / 2.0f,
                 panel.y + panel.h / 2.0f - 20.0f, TextSize::Body, Palette::TextDim,
                 Align::Center);
         ui.Text(board_orders ? "New orders come in at dawn. Anything you have taken is in your journal."
+                : shut       ? string("Speak to the Guild Master.")
+                : done       ? string("There is no name left in it the Guild can pay you for.")
                 : filtered   ? input.PromptFor(Action::Target) + " shows everything posted."
                              : string("Come back after you have finished what you already took on."),
                 panel.x + panel.w / 2.0f, panel.y + panel.h / 2.0f + 6.0f,
@@ -236,10 +302,11 @@ void Game::DrawBoard() {
             string tag;
             SDL_Color tone = Palette::TextDim;
             if (d) {
-                tag = string(d->bounty ? "bounty   " : d->daily ? (board_orders ? "order   " : "daily   ") : "") +
+                const bool bounty = d->bounty || d->guild_bounty;
+                tag = string(bounty ? "bounty   " : d->daily ? (board_orders ? "order   " : "daily   ") : "") +
                       "Lv " + std::to_string(d->recommended_level);
-                tone = !d->daily ? Palette::TextDim
-                     : !d->bounty ? Palette::Xp
+                tone = !bounty && !d->daily ? Palette::TextDim
+                     : !bounty ? Palette::Xp
                      : QuestLog::InRange(d->recommended_level, combat) ? Palette::Xp
                      : d->recommended_level > combat ? SDL_Color{235, 120, 100, 255}
                                                      : Palette::TextDim;
@@ -261,8 +328,31 @@ void Game::DrawBoard() {
             const float dw = panel.w - list_w - 64.0f;
             float y = panel.y + 62.0f;
 
-            y += ui.TextWrapped(d->name, dx, y, dw, TextSize::Body, Palette::Highlight) + 10.0f;
-            if (d->bounty) {
+            // A Guild bounty is a page of the Guild's ledger: the beast drawn
+            // beside its name, and where it lairs, so the page introduces it.
+            const EnemyDef* beast = nullptr;
+            string lair;
+            if (d->guild_bounty && !d->stages.empty()) {
+                const QuestStage& st = d->stages.front();
+                if (st.type == ObjectiveType::Kill) beast = enemy_db.Get(st.target);
+                const auto area = waypoints.Areas().find(st.where);
+                if (area != waypoints.Areas().end()) lair = area->second.name;
+            }
+            constexpr float kFigure = 104.0f;
+            const float top = y;
+            const float tw = beast ? dw - kFigure - 12.0f : dw;     // the text beside the figure
+            y += ui.TextWrapped(d->name, dx, y, tw, TextSize::Body, Palette::Highlight) + 10.0f;
+            if (d->guild_bounty) {
+                y += ui.TextWrapped("Guild bounty: taken once, and paid the day it falls, wherever it falls.", dx, y,
+                                    tw, TextSize::Small, Palette::Xp) + 4.0f;
+                if (!lair.empty())
+                    y += ui.TextWrapped("Lair: " + lair, dx, y, tw, TextSize::Small, Palette::TextDim) + 4.0f;
+                if (beast) {
+                    DrawBeast(ui, renderer, *textures, sprites, *beast, {dx + dw - kFigure, top, kFigure, kFigure},
+                              state_time);
+                    y = std::max(y, top + kFigure + 8.0f);
+                }
+            } else if (d->bounty) {
                 y += ui.TextWrapped("Bounty: tonight only. It lapses at dawn if it is not done.", dx, y, dw,
                                     TextSize::Small, Palette::Xp) + 4.0f;
             } else if (d->daily) {
@@ -637,6 +727,49 @@ void Game::DrawTotemRing() {
     }
     foot += input.PromptFor(Action::Back) + " leave";
     ui.Text(foot, panel.x + panel.w / 2.0f, panel.y + panel.h - 30.0f, TextSize::Small, Palette::TextDim, Align::Center);
+}
+
+void Game::UpdateAsk() {
+    MoveCursor(ask_cursor, 2);
+    const bool yes = (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) && ask_cursor == 0;
+    const bool no = ((input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) && ask_cursor == 1) ||
+                    input.Pressed(Action::Back) || input.Pressed(Action::Pause);
+    if (!yes && !no) return;
+    SetState(GameState::Play);
+    Audio::Play(yes ? Sfx::UiConfirm : Sfx::UiBack);
+    if (ask_story) {
+        story.Answer(yes);
+        ask_story = false;
+        return;
+    }
+    // A door's: ready, and through it.
+    if (yes && !ask_flag.empty()) {
+        world->SetFlag(ask_flag);
+        world->SettleStory();
+        world->TryInteract(ctx);
+    }
+}
+
+void Game::DrawAsk() {
+    ui.Dim(0.55f);
+    const float h = 150.0f + ui.WrappedHeight(ask_text, 440.0f, TextSize::Body);
+    const SDL_FRect panel = CenteredPanel(ui, 520.0f, h);
+    ui.Fill({panel.x + 3.0f, panel.y + 4.0f, panel.w, panel.h}, Palette::Shadow);
+    ui.Fill(panel, {214, 197, 158, 250});
+    ui.Outline(panel, {120, 96, 58, 255}, 2.0f);
+    ui.TextWrapped(ask_text, panel.x + 40.0f, panel.y + 26.0f, 440.0f, TextSize::Body, {68, 48, 28, 255});
+    const string answers[2] = {ask_yes.empty() ? string("Yes") : ask_yes, ask_no.empty() ? string("Not yet") : ask_no};
+    for (int i = 0; i < 2; ++i) {
+        const SDL_FRect row = {panel.x + 40.0f + i * 228.0f, panel.y + panel.h - 92.0f, 212.0f, 42.0f};
+        const bool on = i == ask_cursor;
+        if (on) { ui.Fill(row, {236, 222, 184, 255}); ui.Outline(row, {120, 96, 58, 255}, 2.0f); }
+        else    ui.Outline(row, {170, 148, 108, 255}, 1.0f);
+        ui.Text(ui.Fit(answers[i], row.w - 16.0f), row.x + row.w / 2.0f, row.y + 12.0f, TextSize::Body,
+                on ? SDL_Color{52, 34, 16, 255} : SDL_Color{88, 68, 42, 255}, Align::Center);
+    }
+    ui.Text(input.PromptFor(Action::Confirm) + " choose     " + input.PromptFor(Action::Back) + " " +
+                (ask_no.empty() ? string("not yet") : ask_no),
+            panel.x + panel.w / 2.0f, panel.y + panel.h - 30.0f, TextSize::Small, {96, 74, 44, 255}, Align::Center);
 }
 
 void Game::UpdateSleepPrompt() {

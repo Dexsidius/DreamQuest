@@ -1175,6 +1175,9 @@ void Game::UpdatePaused() {
                 // Save before leaving, so quitting never costs progress.
                 if (!never_save) WriteSlot(active_slot);
                 LeaveSplit();
+                // The story's scene and its music are the game's, not the menu's.
+                story.Stop(*world);
+                Audio::Music("", 0.6f);
                 has_session = false;
                 SetState(GameState::MainMenu);
                 break;
@@ -1234,8 +1237,13 @@ void Game::UpdateDeath(float dt) {
             return;
         }
         // Respawn at the town, keeping progress, the way a forgiving RPG does.
+        // In the prologue, where the story has them: the town is not theirs
+        // to wake up in yet.
         world->player.Respawn(0.0f, 0.0f);
-        if (!world->LoadMap("town_havenbrook", "respawn", ctx))
+        if (InPrologue()) {
+            const string here = world->MapId();
+            world->LoadMap(here, "respawn", ctx);
+        } else if (!world->LoadMap("town_havenbrook", "respawn", ctx))
             world->LoadMap("overworld", "start", ctx);
         world->player.Respawn(world->player.x, world->player.y);
         SetState(GameState::Play);

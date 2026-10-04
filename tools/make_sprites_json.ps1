@@ -128,6 +128,31 @@ $clipRules = @{
     shout    = @{ fps = 14; loop = $false }
     roll     = @{ fps = 22; loop = $false }
     backroll = @{ fps = 22; loop = $false }
+    # The prologue's: a sleeper's breath is slow, sitting up out of it is one
+    # movement, and shaking someone who will not wake is not.
+    lie    = @{ fps = 2; loop = $true  }
+    sit_up = @{ fps = 6; loop = $false }
+    slump  = @{ fps = 2; loop = $true  }
+    shake  = @{ fps = 6; loop = $true  }
+    # Act I's bosses (tools/blender_act1.py): the Ashen Vanguard's sunder and
+    # the Forge Demon's wide sweep -- the blade lands on the fifth frame -- and
+    # the demon drawing itself up to breathe flame, held on its last frame
+    # while the game draws the fire.
+    heavy  = @{ fps = 10; loop = $false }
+    flame  = @{ fps = 10; loop = $false }
+    # And the townsfolk's: a smith's hammer swung once, Elder Vask's fist held
+    # out and his fury, both held on their last frame, and hanging bound in
+    # an Anchor's thread, swaying.
+    swing  = @{ fps = 12; loop = $false }
+    fist   = @{ fps = 6;  loop = $false }
+    fury   = @{ fps = 8;  loop = $false }
+    hang   = @{ fps = 3;  loop = $true  }
+}
+
+# A clip name can mean something else for one sprite: the hero's spin is a
+# single turn of a combo, the Forge Demon's a whirlwind it keeps up.
+$spriteClipRules = @{
+    forge_demon = @{ spin = @{ fps = 14; loop = $true } }
 }
 
 # Filename slot -> the slot the engine knows about. The engine decides what to
@@ -160,7 +185,9 @@ foreach ($dir in (Get-ChildItem $charDir -Directory | Sort-Object Name)) {
         if ($null -eq $layout) { continue }
         $frameSize = $layout.frame
 
-        $rule = $clipRules[$sheet.BaseName]
+        $rule = $null
+        if ($spriteClipRules.ContainsKey($dir.Name)) { $rule = $spriteClipRules[$dir.Name][$sheet.BaseName] }
+        if ($null -eq $rule) { $rule = $clipRules[$sheet.BaseName] }
         if ($null -eq $rule) { $rule = @{ fps = 10; loop = $true } }
 
         $clip = [ordered]@{

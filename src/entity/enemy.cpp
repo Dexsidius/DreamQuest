@@ -73,9 +73,14 @@ bool EnemyDatabase::Load(const string& path) {
         d.attack_cooldown = o.value("attack_cooldown", 1.6f);
         d.xp_multiplier   = o.value("xp_mult", 1.0f);
         d.loot_table      = o.value("loot", string(""));
+        if (o.contains("eye_light") && o["eye_light"].is_array() && o["eye_light"].size() >= 3)
+            d.eye_light = {static_cast<Uint8>(o["eye_light"][0].get<int>()), static_cast<Uint8>(o["eye_light"][1].get<int>()),
+                           static_cast<Uint8>(o["eye_light"][2].get<int>()), 255};
+        d.eye_height      = o.value("eye_height", 30.0f);
         d.kill_target     = o.value("kill_target", d.id);
         d.scale           = o.value("scale", 1.0f);
         d.is_boss         = o.value("boss", false);
+        d.story_boss      = o.value("story_boss", false);
         d.swims           = o.value("swims", false);
         d.paddles         = o.value("paddles", d.swims);
         if (o.contains("immune") && o["immune"].is_array())
@@ -100,6 +105,42 @@ bool EnemyDatabase::Load(const string& path) {
             d.heavy.knockback = h.value("knockback", d.heavy.knockback);
             d.heavy.status    = StatusProcFromJson(h.contains("status") ? h["status"] : json());
         }
+        if (o.contains("moves") && o["moves"].is_array())
+            for (const json& mj : o["moves"]) {
+                EnemyMove m;
+                m.kind      = mj.value("kind", string(""));
+                m.windup    = std::max(0.1f, mj.value("windup", m.windup));
+                m.active    = mj.value("active", m.active);
+                m.recover   = mj.value("recover", m.recover);
+                m.cooldown  = mj.value("cooldown", m.cooldown);
+                m.opening   = mj.value("opening", m.opening);
+                m.damage    = mj.value("damage", m.damage);
+                m.reach     = mj.value("reach", m.reach);
+                m.width     = mj.value("width", m.width);
+                m.speed     = mj.value("speed", m.speed);
+                m.knockback = mj.value("knockback", m.knockback);
+                m.min_gap   = mj.value("min_gap", m.min_gap);
+                m.max_gap   = mj.value("max_gap", m.max_gap);
+                m.phase     = mj.value("phase", 0);
+                m.clip      = mj.value("clip", string(""));
+                m.shot      = mj.value("shot", string(""));
+                m.status    = StatusProcFromJson(mj.contains("status") ? mj["status"] : json());
+                if (!m.kind.empty()) d.moves.push_back(m);
+            }
+        if (o.contains("phase2") && o["phase2"].is_object()) {
+            const json& p2 = o["phase2"];
+            d.phase2.enabled    = true;
+            d.phase2.at         = p2.value("at", d.phase2.at);
+            d.phase2.speed      = p2.value("speed", d.phase2.speed);
+            d.phase2.cooldown   = p2.value("cooldown", d.phase2.cooldown);
+            d.phase2.fire_trail = p2.value("fire_trail", false);
+            if (p2.contains("tint") && p2["tint"].is_array() && p2["tint"].size() >= 3)
+                d.phase2.tint = {static_cast<Uint8>(p2["tint"][0].get<int>()), static_cast<Uint8>(p2["tint"][1].get<int>()),
+                                 static_cast<Uint8>(p2["tint"][2].get<int>()), 255};
+        }
+        d.rooted     = o.value("rooted", false);
+        d.circles    = o.value("circles", false);
+        d.weak_after = o.value("weak_after", 0.0f);
 
         d.foot_box = BoxFromJson(o.contains("foot_box") ? o["foot_box"] : json(), d.foot_box);
         d.body_box = BoxFromJson(o.contains("body_box") ? o["body_box"] : json(), d.body_box);
@@ -276,7 +317,7 @@ Status Enemy::Afflict(Status kind, int blow, const StatusDatabase& db) {
     // A charm or a confusion is the player's to suffer: nothing is ever cast
     // on a monster that would do either, and nothing on one would draw it.
     if (!d || ImmuneTo(kind) || d->players_only) return Status::COUNT;
-    const auto lasts = [&](const StatusDef& of) { return of.seconds * (def->is_boss ? of.boss_share : 1.0f); };
+    const auto lasts = [&](const StatusDef& of) { return of.seconds * (def->Boss() ? of.boss_share : 1.0f); };
 
     // A chill on something soaked is frozen -- where it can be: the great ones
     // are never held, and are chilled like anything else.
@@ -328,7 +369,10 @@ float Enemy::StatusInvites(Status s) const {
 }
 
 float Enemy::MoveSpeed() const {
+    if (def && def->rooted) return 0.0f;
     float speed = def ? def->speed : 0.0f;
+    if (phase_two && def) speed *= def->phase2.speed;
+    if (enraged > 0.0f) speed *= 1.3f;
     if (status_db)
         for (int i = 0; i < STATUS_COUNT; ++i)
             if (const StatusDef* d = statuses.left[i] > 0.0f ? status_db->Get(static_cast<Status>(i)) : nullptr)
@@ -338,6 +382,8 @@ float Enemy::MoveSpeed() const {
 
 float Enemy::AttackCooldown() const {
     float gap = def ? def->attack_cooldown : 1.6f;
+    if (phase_two && def) gap *= def->phase2.cooldown;
+    if (enraged > 0.0f) gap *= 0.6f;
     if (status_db)
         for (int i = 0; i < STATUS_COUNT; ++i)
             if (const StatusDef* d = statuses.left[i] > 0.0f ? status_db->Get(static_cast<Status>(i)) : nullptr)
@@ -363,6 +409,9 @@ void Enemy::Pose(const Posed& p) {
     else corpse_timer = 0.0f;
     if (lurks && state != State::Dead) emerge = p.alpha / 255.0f;
     hurt_flash = p.hurt ? std::max(hurt_flash, 0.08f) : 0.0f;
+    weak_left = p.weak ? 0.5f : 0.0f;
+    // Its second phase is its health: a friend's machine knows that much.
+    if (def && def->phase2.enabled && hp > 0 && hp <= static_cast<int>(max_hp * def->phase2.at)) phase_two = true;
     bar_revealed = p.bar;
     bar_trail = std::max(HealthFraction(), bar_trail - 0.02f);
     sprite.Play(p.clip.empty() ? string("idle") : p.clip);
@@ -380,6 +429,7 @@ Enemy::Posed Enemy::Told() const {
     p.alpha = (lurks && state != State::Dead) ? static_cast<uint8_t>(std::lround(emerge * 255.0f)) : CorpseAlpha();
     p.hurt = hurt_flash > 0.0f;
     p.bar = bar_revealed;
+    p.weak = Weak();
     p.hp = hp;
     p.clip = sprite.current;
     // A byte on the wire: what a monster can have is the first eight.
@@ -388,6 +438,11 @@ Enemy::Posed Enemy::Told() const {
 }
 
 float Enemy::HeavyCharge() const {
+    // A move's tell is shown the way a heavy's is: the bar filling, the glow.
+    if (state == State::Move && def && move_i >= 0 && move_i < static_cast<int>(def->moves.size())) {
+        const float w = def->moves[move_i].windup;
+        return move_t < w ? std::clamp(move_t / std::max(0.001f, w), 0.0f, 1.0f) : 0.0f;
+    }
     if (state != State::Heavy || !def || heavy_landed) return 0.0f;
     return std::clamp(state_timer / std::max(0.001f, def->heavy.windup), 0.0f, 1.0f);
 }
@@ -465,6 +520,15 @@ void Enemy::SetState(State s) {
         case State::Hurt:   sprite.Play("hurt", true); break;
         case State::Dead:   sprite.Play("death", true); break;
         case State::Return: sprite.Play("walk"); break;
+        case State::Move: {
+            move_t = 0.0f;
+            move_begun = move_hit = move_second = false;
+            spin_tick = 0.0f;
+            const EnemyMove* m = def && move_i >= 0 && move_i < static_cast<int>(def->moves.size()) ? &def->moves[move_i] : nullptr;
+            const string clip = m && !m->clip.empty() && sprite.Def() && sprite.Def()->Find(m->clip) ? m->clip : string("idle");
+            sprite.Play(clip, true);
+            break;
+        }
     }
 }
 
@@ -558,8 +622,26 @@ void Enemy::OnKilled(World& world, const GameContext& ctx) {
     }
 }
 
+void Enemy::WakeUp() {
+    if (!dormant) return;
+    dormant = false;
+    provoked = true;
+}
+
 void Enemy::Update(float dt, World& world, const GameContext& ctx) {
     if (puppet) return;
+    // Stood still on its pedestal: its first frame, no thought, no step.
+    // Struck, it wakes all the same.
+    if (dormant) {
+        if (hp < max_hp && state != State::Dead) WakeUp();
+        else {
+            sprite.Play("idle");
+            sprite.SetFrame(0);
+            return;
+        }
+    }
+    // Stepping down off it, once awake.
+    if (perch > 0.0f) perch = std::max(0.0f, perch - dt * 40.0f);
     marked   = std::max(0.0f, marked - dt);
     sundered = std::max(0.0f, sundered - dt);
     taunted  = std::max(0.0f, taunted - dt);
@@ -598,6 +680,21 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
     if (attack_timer > 0.0f) attack_timer -= dt;
     if (heavy_timer > 0.0f && state != State::Heavy) heavy_timer = std::max(0.0f, heavy_timer - dt);
     if (shoot_timer > 0.0f) shoot_timer = std::max(0.0f, shoot_timer - dt);
+    if (def && move_ready.size() != def->moves.size()) {
+        move_ready.assign(def->moves.size(), 0.0f);
+        for (size_t i = 0; i < def->moves.size(); ++i) move_ready[i] = def->moves[i].opening;
+    }
+    if (state != State::Move && state != State::Idle && state != State::Return)
+        for (float& t : move_ready) t = std::max(0.0f, t - dt);
+    weak_left = std::max(0.0f, weak_left - dt);
+    enraged = std::max(0.0f, enraged - dt);
+    // Half its health gone (or wherever its second phase says): it changes.
+    if (def && def->phase2.enabled && !phase_two && hp > 0 && hp <= static_cast<int>(max_hp * def->phase2.at)) {
+        phase_two = true;
+        Audio::PlayAt(Sfx::Roar, x, y, 1.0f, 0.7f);
+        world.Shock(x, y, 1.1f, 0.6f);
+        world.Smoke(x, y - 30.0f, 34.0f * def->scale, false);
+    }
 
     // --- health bar trail ---------------------------------------------------------
     // The fill is always exactly hp / max_hp; this only moves the lighter band
@@ -709,7 +806,8 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
     // Braced while winding up a heavy: knocked about, it would drift out of
     // the reach it is charging into and the blow would go wide of what the
     // bar promised.
-    if (state == State::Heavy) { knock_x *= 0.2f; knock_y *= 0.2f; }
+    if (state == State::Heavy || state == State::Move) { knock_x *= 0.2f; knock_y *= 0.2f; }
+    if (def->rooted) knock_x = knock_y = 0.0f;
     if (fabsf(knock_x) > 1.0f || fabsf(knock_y) > 1.0f) {
         const SDL_FPoint p = world.map.MoveWithCollision(Bounds(), knock_x * dt, knock_y * dt,
                                                         def->swims);
@@ -793,6 +891,12 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 break;
             }
 
+            // One of its own moves, when one is rested and it stands where
+            // that move is for (EnemyMove).
+            if (!def->moves.empty() && TryMove(world, ctx, gap)) {
+                chase_run = 0.0f;
+                break;
+            }
             // A leader with its heavy rested winds it up instead of a swing,
             // from a little further out -- the blow reaches further too.
             if (def->heavy.enabled && heavy_timer <= 0.0f &&
@@ -861,9 +965,19 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 // sharing a tile with them.
                 move_x = -(dx / dist) * MoveSpeed() * 0.5f;
                 move_y = -(dy / dist) * MoveSpeed() * 0.5f;
+            } else if (def->circles && dist > 0.5f && attack_timer > 0.0f) {
+                // A pack animal circles while its swing cools, each its own way
+                // round, so a pack comes at them from every side.
+                const float way = ((post < 0 ? 0 : post) % 2 == 0) ? 1.0f : -1.0f;
+                move_x = (-dy / dist) * way * MoveSpeed() * 0.7f;
+                move_y = ( dx / dist) * way * MoveSpeed() * 0.7f;
             }
             break;
         }
+
+        case State::Move:
+            UpdateMove(dt, world, ctx, dx, dy, dist, gap, move_x, move_y);
+            break;
 
         case State::Attack: {
             swing_timer += dt;
@@ -942,7 +1056,8 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                 sprite.Play("attack", true);
                 Audio::PlayAt(Sfx::Impact, x, y, 1.0f, 0.55f);
                 // The ground rings under it; a boss's shakes the screen.
-                world.Shock(x, y, def->is_boss ? 0.9f : 0.4f, def->is_boss ? 0.6f : 0.18f);
+                world.Shock(x, y, def->Boss() ? 0.9f : 0.4f, def->Boss() ? 0.6f : 0.18f);
+                if (phase_two && def->phase2.fire_trail) FireTrail(world);
                 if (ArcFinds(world, x, y, HeavyArc(), player)) {
                     const float len = std::max(1.0f, dist);
                     StatusProc leaves = def->heavy.status;
@@ -1121,6 +1236,180 @@ void Enemy::Paddle(World& world, const GameContext& ctx, float dt,
     move_y = wander_dy * pace;
 }
 
+bool Enemy::TryMove(World& world, const GameContext& ctx, float gap) {
+    (void)world;
+    vector<int> ready;
+    for (size_t i = 0; i < def->moves.size(); ++i) {
+        const EnemyMove& m = def->moves[i];
+        if (move_ready[i] > 0.0f || (m.phase == 2 && !phase_two)) continue;
+        if (gap < m.min_gap || gap > m.max_gap) continue;
+        ready.push_back(static_cast<int>(i));
+    }
+    if (ready.empty()) return false;
+    const int pick = ready[ctx.rng ? static_cast<int>((*ctx.rng)() % ready.size()) : 0];
+    move_i = pick;
+    SetState(State::Move);
+    const EnemyMove& m = def->moves[pick];
+    // The tell is heard as well as seen.
+    if (m.kind == "howl") Audio::PlayAt(Sfx::Howl, x, y, 0.9f, 1.0f);
+    else if (def->DragonVoice() || def->Boss()) Audio::PlayAt(Sfx::Roar, x, y, 0.7f, 0.8f);
+    else Audio::PlayAt(Sfx::SwingHeavy, x, y, 0.7f, 0.6f);
+    return true;
+}
+
+void Enemy::FireTrail(World& world) {
+    float fx = 0.0f, fy = 0.0f;
+    switch (facing) {
+        case FACE_UP: fy = -1.0f; break;
+        case FACE_DOWN: fy = 1.0f; break;
+        case FACE_LEFT: fx = -1.0f; break;
+        default: fx = 1.0f; break;
+    }
+    const int burn = std::max(1, static_cast<int>(std::lround(MaxHit(Profile(), 1.0f) * 0.12f)));
+    for (int k = 1; k <= 2; ++k) {
+        GroundEffect g;
+        g.x = x + fx * 38.0f * k;
+        g.y = y + fy * 38.0f * k;
+        g.radius = 20.0f;
+        g.life = g.max_life = 2.4f;
+        g.tick_interval = 0.75f;
+        g.damage = burn;
+        g.element = Element::Fire;
+        g.owner = Profile();
+        g.from_player = false;
+        world.AddGroundEffect(g);
+    }
+}
+
+void Enemy::UpdateMove(float dt, World& world, const GameContext& ctx, float dx, float dy, float dist, float gap,
+                       float& move_x, float& move_y) {
+    Player& player = world.player;
+    if (move_i < 0 || move_i >= static_cast<int>(def->moves.size()) || player.IsDead()) {
+        SetState(State::Chase);
+        return;
+    }
+    const EnemyMove& m = def->moves[move_i];
+    move_t += dt;
+    const float len = std::max(1.0f, dist);
+    // The tell: turning to follow for most of it, then committed to the line.
+    if (move_t < m.windup) {
+        if (move_t < m.windup * 0.7f) {
+            move_dx = dx / len;
+            move_dy = dy / len;
+            if (fabsf(dx) > fabsf(dy)) facing = (dx > 0) ? FACE_RIGHT : FACE_LEFT;
+            else                       facing = (dy > 0) ? FACE_DOWN  : FACE_UP;
+        }
+        return;
+    }
+    const float a = move_t - m.windup;
+    const auto blow = [&](float mult) {
+        std::uniform_real_distribution<float> roll(0.8f, 1.0f);
+        const float r = ctx.rng ? roll(*ctx.rng) : 0.9f;
+        return std::max(1, static_cast<int>(std::lround(MaxHit(Profile(), 1.0f) * mult * r)));
+    };
+    const auto strike = [&](bool heavy) {
+        if (heavy) {
+            world.HeavyHitPlayer(blow(m.damage), x, y, (dx / len) * m.knockback, (dy / len) * m.knockback,
+                                 m.status.Any() ? m.status : def->on_hit, this);
+        } else {
+            const DamageResult r = RollMonsterBlow(Profile(), player.Profile(), AttackStyle::Melee, m.damage, *ctx.rng);
+            world.HitPlayer(r.damage, Profile(), x, y, (dx / len) * m.knockback, (dy / len) * m.knockback,
+                            m.status.Any() ? m.status : def->on_hit, -1.0f, -1.0f, this);
+        }
+        // Fire along the ground with each blow of its second phase -- each
+        // blow, not each turn of a whirlwind, or the floor is nothing but fire.
+        if (phase_two && def->phase2.fire_trail && m.kind != "spin") FireTrail(world);
+    };
+
+    if (!move_begun) {
+        move_begun = true;
+        if (m.kind == "flame" || m.kind == "shot") {
+            // A fan of breath across the line it committed to -- or, a "shot",
+            // one thing spat along it: a spider's web.
+            const int n = std::max(1, static_cast<int>(m.reach));
+            const float spread = m.width * 3.14159265f / 180.0f;
+            const float base = atan2f(move_dy, move_dx);
+            const ProjectileDef* pd = ctx.projectiles ? ctx.projectiles->Get(m.shot) : nullptr;
+            for (int k = 0; k < n; ++k) {
+                const float t = n == 1 ? 0.0f : (static_cast<float>(k) / (n - 1) - 0.5f);
+                const float ang = base + t * spread;
+                world.SpawnProjectile(m.shot, x, y - 22.0f * def->scale, cosf(ang), sinf(ang),
+                                      Profile(), AttackStyle::Ranged, (pd ? pd->power : 1.0f) * m.damage, false, ctx);
+            }
+            if (pd && m.kind == "flame") {
+                Breathe(pd->element);
+                world.Shock(x, y, 0.6f, 0.25f);
+            } else {
+                Audio::PlayAt(Sfx::Throw, x, y, 0.6f, 1.3f);
+            }
+        } else if (m.kind == "sweep") {
+            // One lash of everything within reach, across its arc.
+            Audio::PlayAt(Sfx::Impact, x, y, 1.0f, 0.5f);
+            world.Shock(x, y, 1.0f, 0.5f);
+            for (int k = 0; k < 8; ++k) {
+                const float ang = k * 0.785398f;
+                world.Smoke(x + cosf(ang) * m.reach * 0.8f, y + sinf(ang) * m.reach * 0.5f, 14.0f, false);
+            }
+            const float to = atan2f(dy, dx) - atan2f(move_dy, move_dx);
+            const float off = fabsf(atan2f(sinf(to), cosf(to))) * 180.0f / 3.14159265f;
+            if (gap <= m.reach && (m.width >= 359.0f || off <= m.width * 0.5f)) strike(true);
+            else world.Dodged();
+        } else if (m.kind == "howl") {
+            // Every one of its own kind near enough is roused.
+            for (auto& e : world.enemies) {
+                if (!e || e->Dead() || e->Def() != def) continue;
+                if (Length(e->x - x, e->y - y) <= 320.0f) e->enraged = std::max(e->enraged, m.active);
+            }
+            world.Shock(x, y, 0.5f, 0.2f);
+        } else if (m.kind == "double") {
+            sprite.Play("attack", true);
+            Audio::PlayAt(Sfx::Swing, x, y, 0.65f, 0.75f);
+            if (ArcFinds(world, x, y, SwingArc(), player)) strike(false);
+        } else if (m.kind == "charge") {
+            Audio::PlayAt(Sfx::SwingHeavy, x, y, 0.8f, 0.5f);
+            if (sprite.Def() && sprite.Def()->Find("run")) sprite.Play("run");
+        } else if (m.kind == "spin") {
+            if (sprite.Def() && sprite.Def()->Find("spin")) sprite.Play("spin");
+        }
+    }
+
+    if (a < m.active) {
+        if (m.kind == "charge") {
+            // Headlong along the committed line, and one blow if it gets there.
+            move_x = move_dx * def->speed * m.speed;
+            move_y = move_dy * def->speed * m.speed;
+            if (!move_hit && RectsOverlap(BodyBox(), player.BodyBox())) {
+                move_hit = true;
+                strike(false);
+            }
+        } else if (m.kind == "double" && !move_second && a >= m.active * 0.5f) {
+            move_second = true;
+            sprite.Play("attack", true);
+            Audio::PlayAt(Sfx::Swing, x, y, 0.65f, 0.85f);
+            if (ArcFinds(world, x, y, SwingArc(), player)) strike(false);
+        } else if (m.kind == "spin") {
+            // Whirling, edging after them, striking all round every half second.
+            if (dist > 1.0f) {
+                move_x = (dx / dist) * MoveSpeed() * 0.45f;
+                move_y = (dy / dist) * MoveSpeed() * 0.45f;
+            }
+            spin_tick -= dt;
+            if (spin_tick <= 0.0f) {
+                spin_tick = 0.5f;
+                Audio::PlayAt(Sfx::Swing, x, y, 0.55f, 0.7f);
+                if (gap <= m.reach) strike(false);
+            }
+        }
+        return;
+    }
+    if (a >= m.active + m.recover) {
+        move_ready[move_i] = m.cooldown;
+        if ((m.kind == "spin" || m.kind == "flame") && def->weak_after > 0.0f) weak_left = def->weak_after;
+        attack_timer = std::max(attack_timer, AttackCooldown() * 0.5f);
+        SetState(State::Chase);
+    }
+}
+
 void Enemy::LieDead() {
     hp = 0;
     state = State::Dead;
@@ -1222,6 +1511,8 @@ void Enemy::Render(SDL_Renderer* r, TextureCache& cache, const Camera& cam) cons
     SDL_Color tint{255, 255, 255, shaded ? Uint8{255} : CorpseAlpha()};
     if (lurks && state != State::Dead) tint.a = static_cast<Uint8>(255.0f * std::clamp(emerge, 0.0f, 1.0f));
     if (def) tint = {def->tint.r, def->tint.g, def->tint.b, tint.a};
+    // In its second phase it wears that phase's colours.
+    if (def && phase_two) tint = {def->phase2.tint.r, def->phase2.tint.g, def->phase2.tint.b, tint.a};
     if (shaded) {
         fx.seed = static_cast<float>((static_cast<int>(home_x) * 31 + static_cast<int>(home_y) * 17) % 97);
         if (statuses.Any() && state != State::Dead) {
@@ -1285,9 +1576,20 @@ void Enemy::Render(SDL_Renderer* r, TextureCache& cache, const Camera& cam) cons
                 static_cast<Uint8>(tint.g * (1.0f - k)),
                 static_cast<Uint8>(tint.b * (1.0f - k)), tint.a};
     }
+    // Its seams soft after a spin or a flame: a slow gold throb round it,
+    // which says "now" -- every blow lands twice as hard.
+    if (charge <= 0.0f && Weak() && state != State::Dead) {
+        const float t = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+        const float pulse = 0.55f + 0.45f * sinf(t * 7.0f);
+        if (shaded)
+            fx.glow = {1.0f, 0.86f, 0.35f, std::clamp(0.75f * pulse, 0.0f, 1.0f)};
+        else
+            sprite.Draw(r, cache, cam, x, y - draw_lift, {255, 220, 90, static_cast<Uint8>(150.0f * pulse)},
+                        SDL_BLENDMODE_BLEND, 1.08f);
+    }
     // Lifted by the ground under it, as the player and NPCs are. This drew at
     // the raw feet position, so a monster up on a ledge sank into the cliff --
     // and a health bar placed from the terrain height would have floated off it.
-    sprite.Draw(r, cache, cam, x, y - draw_lift + sunk, tint, SDL_BLENDMODE_BLEND, 1.0f,
+    sprite.Draw(r, cache, cam, x, y - draw_lift - perch + sunk, tint, SDL_BLENDMODE_BLEND, 1.0f,
                 shaded && fx.Any() ? &fx : nullptr);
 }

@@ -28,7 +28,7 @@ static constexpr uint32_t PROTOCOL_MAGIC   = 0x31514448;   // "HDQ1", little-end
 // 2: M1's InputFrames, Snapshot, Enter, Outfit.
 // 3: the world shared -- monsters, shots and loot in the snapshot, Sheet,
 //    Action and Delta, a password at the door.
-static constexpr uint16_t PROTOCOL_VERSION = 21;  // 4: a patch says what kind it is. 5: a monster says what is on it. 6, 7: a slab swung, and one dropped. 8: a meteor falling, and a shield up. 9: a claw raked. 10: lightning -- an arc, a node, and a battery. 11: what is on a player, and where a charm draws them. 12: monsters tougher (Enemy::Toughness) -- an old guest would draw every bar wrong -- and a player gone through the ice (PlayerState::Under). 13: a combo's, a parry's and a riposte's marks (Delta::Mark), and a parry owed its riposte (Delta::parried). 14: three new sounds in Delta::Sound (Sfx::Throw, KnifeHit, Whiff) -- a guest on an older build takes an id it does not know for its last, QuestComplete, and would hear the quest fanfare on every knife. 15: a dragon's three (Sfx::Breath, Roar, Bite) -- an older guest would hear its last, Whiff, for a dragon's breath. 16: the techniques' and abilities' strike shapes (9 to 16, which an older guest drops), and what abilities a player has running (PlayerState::buffs). 17: three new skills, Tanning, the Clothier and Enchanting (SKILL_TANNING...), whose experience drops an older guest would not know the number of. 18: a boss's boon lasts a day, and the character sheet carries the hours each has left, which an older build would read as none. 19: a witch table's ring of fire (PatchState::RING), which an older guest would draw as a patch of burning ground and walk straight through. 20: a rain of knives (PatchState::RAIN_KNIVES), which an older guest would draw as the Hail of Blades' turning column. 21: a friend goes by a waystone (Action::Travel), and what their pack could not take goes on the ground (Action::Spill), both of which an older host would drop on the floor, and an inn's bed is paid at the host (Action::Sleep's a), which an older host would let a guest sleep in for nothing; and what is a character's own (a chest of theirs opened, "own:<id>") is told to them alone in Delta::flags, which an older guest would not keep with the character
+static constexpr uint16_t PROTOCOL_VERSION = 23;  // 4: a patch says what kind it is. 5: a monster says what is on it. 6, 7: a slab swung, and one dropped. 8: a meteor falling, and a shield up. 9: a claw raked. 10: lightning -- an arc, a node, and a battery. 11: what is on a player, and where a charm draws them. 12: monsters tougher (Enemy::Toughness) -- an old guest would draw every bar wrong -- and a player gone through the ice (PlayerState::Under). 13: a combo's, a parry's and a riposte's marks (Delta::Mark), and a parry owed its riposte (Delta::parried). 14: three new sounds in Delta::Sound (Sfx::Throw, KnifeHit, Whiff) -- a guest on an older build takes an id it does not know for its last, QuestComplete, and would hear the quest fanfare on every knife. 15: a dragon's three (Sfx::Breath, Roar, Bite) -- an older guest would hear its last, Whiff, for a dragon's breath. 16: the techniques' and abilities' strike shapes (9 to 16, which an older guest drops), and what abilities a player has running (PlayerState::buffs). 17: three new skills, Tanning, the Clothier and Enchanting (SKILL_TANNING...), whose experience drops an older guest would not know the number of. 18: a boss's boon lasts a day, and the character sheet carries the hours each has left, which an older build would read as none. 19: a witch table's ring of fire (PatchState::RING), which an older guest would draw as a patch of burning ground and walk straight through. 20: a rain of knives (PatchState::RAIN_KNIVES), which an older guest would draw as the Hail of Blades' turning column. 21: a friend goes by a waystone (Action::Travel), and what their pack could not take goes on the ground (Action::Spill), both of which an older host would drop on the floor, and an inn's bed is paid at the host (Action::Sleep's a), which an older host would let a guest sleep in for nothing; and what is a character's own (a chest of theirs opened, "own:<id>") is told to them alone in Delta::flags, which an older guest would not keep with the character 22: the prologue's and Act I's sounds (Sfx::Echo to Gust), which an older guest would hear as its last, Bite; a monster in one of its own moves (Enemy::State::Move, which an older guest draws as a heavy) and soft after a spin (EnemyState weak, bit 7); and a player webbed (Status::Rooted), a status an older build does not have 23: fishing's fight (Snapshot::angle_*, and every bobber on the map in Snapshot::bobbers), which an older guest would neither draw nor read, and its three sounds (Sfx::Plop, Reel, Snap), which it would hear as its last, Gust
 
 static constexpr int    MAX_SEATS     = 4;
 static constexpr size_t MAX_NAME      = 16;    // characters of a player's name
@@ -234,7 +234,7 @@ static constexpr size_t MAX_CLIP = 48;
 struct EnemyState {
     uint16_t id = 0;
     int16_t  x = 0, y = 0;
-    uint8_t  bits = 0;           // facing (2) | state (3) << 2 | hurt << 5 | bar shown << 6
+    uint8_t  bits = 0;           // facing (2) | state (3) << 2 | hurt << 5 | bar shown << 6 | weak << 7
     uint8_t  clip = 0;           // index into its sprite's clips, which are kept in name order
     uint8_t  frame = 0, heavy = 0, alpha = 255;
     uint8_t  statuses = 0;       // StatusSet::Bits: burning, soaked, concussed...
@@ -309,7 +309,20 @@ struct Snapshot {
     std::vector<PickupState> pickups;
     std::vector<ShotState>   shots;
     std::vector<PatchState>  patches;
+    // The receiver's own line in the water (World::AnglerView), played at the
+    // host: the phase (0 none), where the bobber floats and how far under it
+    // is, and with a fish on, the gauge -- the line, the green band's middle
+    // and half its width, how far in it is and how near the line is to going,
+    // each 0..255 of the whole -- and what is on the end of it.
+    uint8_t  angle_phase = 0;
+    int16_t  angle_x = 0, angle_y = 0;
+    uint8_t  angle_dip = 0, angle_line = 0, angle_band = 0, angle_half = 0, angle_progress = 0, angle_strain = 0;
+    std::string angle_fish;
+    // And everyone's bobber on the map, to draw: whose, where, how far under.
+    struct Bobber { uint8_t seat = 0; int16_t x = 0, y = 0; uint8_t dip = 0; };
+    std::vector<Bobber> bobbers;
 };
+static constexpr size_t MAX_BOBBERS_TOLD = 8;
 uint32_t MapTag(const std::string& map_id);
 
 // "Load this map and stand here." An empty map means the host has left the

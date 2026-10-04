@@ -2833,6 +2833,13 @@ SWIMMERS = {"duck": fowl_swim, "goose": fowl_swim}
 # waterline -- a disc of holdout at the ground of each cell hides whatever is
 # below it -- and throws no shadow, because nothing does on water.
 WATERLINE = set()
+
+# Clips of a creature's own, beyond the five every one has: {creature: {clip:
+# (pose, frames, loops)}}. A boss with a sunder or a whirlwind gets a sheet
+# for it under that name. One named like a common clip ("run") replaces the
+# common one for that creature alone -- a lurching sprint authored as itself
+# rather than a walk opened up. How fast each plays is make_sprites_json.ps1's.
+EXTRA_CLIPS = {}
 FACINGS = bc.FACINGS
 
 
@@ -2889,17 +2896,26 @@ def keep_in_cell(rig, cell, right, up, creature, clip, facing, col):
 
     dx, dy = shift(lo_x, hi_x, cx), shift(lo_y, hi_y, cy)
     if dx or dy:
+        # Said, because a nudge up the frame lifts the feet off the anchor:
+        # fine for a body in the air, a mistake for one standing on the ground.
+        print("  ~ %s %s %s frame %d nudged %+.0f, %+.0f px" % (creature, clip, facing, col,
+                                                              dx / UNITS_PER_PX, dy / UNITS_PER_PX))
         rig.root.location = rig.root.location + right * dx + up * dy
 
 
 def build_sheet(creature, clip_index):
     builder, frame_px, poses, shadow_r = CREATURES[creature]
-    clip, frames, loops = CLIP_FRAMES[clip_index]
-    # A run is made out of the creature's own walk rather than authored twice:
-    # see running().
-    if clip == "run":    pose_fn = running(poses[1], RUNNERS[creature])
-    elif clip == "swim": pose_fn = SWIMMERS[creature]
-    else:                pose_fn = poses[clip_index]
+    if isinstance(clip_index, str):
+        # One of the creature's own: see EXTRA_CLIPS.
+        clip = clip_index
+        pose_fn, frames, loops = EXTRA_CLIPS[creature][clip]
+    else:
+        clip, frames, loops = CLIP_FRAMES[clip_index]
+        # A run is made out of the creature's own walk rather than authored
+        # twice: see running().
+        if clip == "run":    pose_fn = running(poses[1], RUNNERS[creature])
+        elif clip == "swim": pose_fn = SWIMMERS[creature]
+        else:                pose_fn = poses[clip_index]
 
     bc.FRAME_PX = frame_px
     bc.FRAME_SPAN = UNITS_PER_PX * frame_px
@@ -2972,14 +2988,21 @@ def main():
         del args[i:i + 2]
     wanted = [a for a in args if a in CREATURES] or list(CREATURES)
     for creature in wanted:
+        own = EXTRA_CLIPS.get(creature, {})
         for index, (clip, _, _) in enumerate(CLIP_FRAMES):
             if clips and clip not in clips:
                 continue
+            if clip in own:
+                continue          # the creature's own version, below
             if clip == "run" and creature not in RUNNERS:
                 continue
             if clip == "swim" and creature not in SWIMMERS:
                 continue
             build_sheet(creature, index)
+        for clip in own:
+            if clips and clip not in clips:
+                continue
+            build_sheet(creature, clip)
 
 
 # The monsters that fill the level ladder -- the Bayou's, Hollowrest Crypt's and
@@ -3011,6 +3034,17 @@ blender_frostreach.register()
 import blender_primordium  # noqa: E402
 
 blender_primordium.register()
+
+# And the prologue's: the stranger, the armour in his foyer, and Vigil in his cell.
+import blender_prologue  # noqa: E402
+
+blender_prologue.register()
+
+# And Act I's: the Hushed, the Ashen Vanguard, the Forge Demon and the Guild
+# Hall's Anchor, with the bosses' own clips.
+import blender_act1  # noqa: E402
+
+blender_act1.register()
 
 
 if __name__ == "__main__":

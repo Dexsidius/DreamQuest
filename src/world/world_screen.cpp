@@ -154,8 +154,38 @@ Shaders::Frame World::ScreenFrame(TextureCache& cache) const {
               1.0f + 0.18f * warm - 0.32f * dark, 1.0f + 0.03f * warm, 0.012f * dark);
     }
 
-    f.flash[0] = flash_colour.r / 255.0f; f.flash[1] = flash_colour.g / 255.0f;
-    f.flash[2] = flash_colour.b / 255.0f; f.flash[3] = flash_amount * 0.8f;
+    // The Reverie seen from awake: its swimming edges and its colours, laid
+    // over a map that is not a dream, as strongly as the veil is drawn.
+    if (reverie_veil > 0.0f && !dreaming) {
+        const float v = reverie_veil;
+        f.dream = std::max(f.dream, v);
+        const auto toward = [&](float& at, float to) { at += (to - at) * v; };
+        toward(f.grade[0], 0.86f); toward(f.grade[1], 0.80f); toward(f.grade[2], 1.12f);
+        toward(f.grade[3], 1.18f); toward(f.contrast, 1.04f);
+    }
+    // The flip: going out, the ripple builds and the colours turn inside out,
+    // and the last of the dark is white rather than black; coming in, they
+    // settle back. The world changes under the white.
+    SDL_Color flash_c = flash_colour;
+    float flash_a = flash_amount;
+    if (flip && fade > 0.0f) {
+        f.ripple = std::clamp(fade * 1.3f, 0.0f, 1.0f);
+        f.invert = std::clamp((fade - 0.15f) / 0.55f, 0.0f, 1.0f);
+        const float white = std::clamp((fade - 0.7f) / 0.3f, 0.0f, 1.0f);
+        if (white > flash_a) { flash_c = {236, 228, 255, 255}; flash_a = std::min(1.25f, white * 1.25f); }
+        // Torn rather than rippled (TearInto): the colours snap inside out and
+        // back in jagged flickers, the picture shudders, and the last of it is
+        // a violet glare rather than a white one. Not sleep: something pulling.
+        if (tear) {
+            const Uint64 ms = SDL_GetTicks();
+            const bool snapped = ((ms / 70) * 2654435761u >> 7) % 3 != 0;
+            f.invert = snapped ? std::max(f.invert, 0.85f) : f.invert * 0.25f;
+            f.ripple = std::clamp(0.45f + fade * 1.6f, 0.0f, 1.0f);
+            if (flash_a > 0.0f) flash_c = {178, 120, 255, 255};
+        }
+    }
+    f.flash[0] = flash_c.r / 255.0f; f.flash[1] = flash_c.g / 255.0f;
+    f.flash[2] = flash_c.b / 255.0f; f.flash[3] = flash_a * 0.8f;
 
     // Shockwaves, in the view's own pixels: fast at first and slowing, and
     // weaker the further they have gone.

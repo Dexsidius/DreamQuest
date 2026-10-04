@@ -1310,7 +1310,8 @@ pixels to 531).
 
 Any staff chooses among the four elements with `1` to `4`, and throws each
 one's bolt. **A Fire Staff casts nothing but fire -- and `1` to `4` are fire's
-four spells.** Twelve new spells, three an element, at Magic 12, 24 and 36:
+four spells**, as many of them as its tier opens ([a caster's tier opens the
+spell bar](#a-casters-tier-opens-the-spell-bar)). Twelve new spells, three an element, at Magic 12, 24 and 36:
 
 | | 1 | 2 (Magic 12) | 3 (Magic 24) | 4 (Magic 36) |
 | --- | --- | --- | --- | --- |
@@ -1941,6 +1942,38 @@ It is one line of data per weapon --
 `"spells": { "fire": [1, 2, 3, 4], ... }` on the piece in `data/tiers.json`,
 read into `ItemDef::spell_slots` -- so a tenth magic weapon declares what it
 reaches and needs no code.
+
+### A caster's tier opens the spell bar
+
+The spell bar's six slots, `1` to `6`, are opened by the weapon in hand, left
+to right: **a wooden caster opens two, and every tier after wood one more** --
+bronze three, iron four, steel five, and azuryte and every tier after it all
+six. It is the same for every magic weapon: a plain staff, a wand, a grimoire,
+an orb and an element's own staff. A mage's next weapon is a spell more, and
+not only a bigger number.
+
+| Tier | Slots | A plain staff, wand, grimoire or orb | An element's own staff |
+| --- | --- | --- | --- |
+| Wooden | 2 | fire and water | its first two spells |
+| Bronze | 3 | and earth | and its third |
+| Iron (10) | 4 | and air | and its fourth |
+| Steel (20) | 5 | and the lightning | and the ancient magic: everything it ever casts |
+| Azuryte (30) and up | 6 | and the ancient magic | |
+
+An element's own staff casts nothing of another element, the lightning
+included, so the lightning's slot is never one of its -- it is drawn as an
+empty frame -- and the staff is complete a tier sooner, at steel.
+
+A shut slot has a padlock on the bar. Its key says what would open it ("Slot 4
+needs an iron wand or better"), stepping round the slots on a pad passes over
+it, and when a staff is put down for a plainer one the spell goes back to the
+first slot. The bag says how many slots a caster opens (`Spell slots  3 of 6`)
+and, beside the one worn, what a finer one adds. A staff made by hand rather
+than from a tier opens what its Magic requirement's tier would -- the Novice
+Staff two, the Apprentice Staff three, the Poppet Staff six -- unless its line
+says otherwise (`"spell_boxes"`). The rule is `SpellBoxesAtTier` in
+`src/systems/items.h`, settled for every item when the tiers load; the
+choosing keeps to it in `Player::BoxOpen`.
 
 ### The spellbook
 
@@ -3374,6 +3407,51 @@ fisher at 84 can stand there.
 Each spot gives up the best fish the level allows about a third of the time,
 more often the further past it the level is, and something lesser otherwise.
 Raw fish cook at any fire into food.
+
+#### The second dip, and the fight
+
+A catch is earned, the way the angler in Havenbrook teaches it ("Not yet. Wait
+for the second dip."). **Interact** at a spot casts: the line goes out to a
+red-and-white bobber, and the hint under your feet says what to do.
+
+1. **Wait.** After a while -- sooner for a better fisher, and a better rod --
+   the bobber **dips once**, a little: a nibble. Striking now, or before it,
+   spooks the fish ("Too soon -- it took fright"), and the cast is over.
+2. **Strike on the second dip.** A moment later the bobber is **pulled right
+   under**, with a deeper plop. Press Interact while it is under (about a
+   second for a minnow, seven tenths for the best fish). Miss it and "It got
+   away."
+3. **Fight it in.** Hooked, a **gauge** opens under you with the fish's name
+   over it: a **green band** the fish drags back and forth along it, and the
+   **reel line** on it. Holding Interact winds the line up the gauge; letting
+   go lets it drop back. Kept in the green, the bar under the gauge fills and
+   the fish comes in. Out of the green, the fish wins ground back, the line
+   turns red and shakes, the gauge's edge reddens -- and **out too long, the
+   line snaps** and the fish is gone. Walking away with it on lets it go.
+
+Whatever happens, the cast is over and the next one starts at the water. A
+landed fish is one, two or three by the milestones below, as it always was.
+
+**The better the fish, the harder the fight**: by the fish's own Fishing level
+the green narrows (from about half the gauge for a minnow to just over a
+quarter for the best), the fish drifts faster and bolts more often, it takes
+longer to bring in (two seconds in the green for a minnow, four and a half for
+the best), the line holds less long out of the green (2.6 seconds down to 1.7)
+and the bobber stays under for less time. A fisher ten levels or more past a
+fish has the green a point wider for every ten, to three, and nothing else.
+The numbers were tuned against a simulated player who sees the gauge a little
+late: a quick, steady one lands a minnow every time and the best fish about
+four times in five; a slower one four in five at 60 and one in five at 90;
+and nothing done, or the button simply held down, never lands anything.
+
+In company, a friend's cast is played at the host with the hands their
+machine sends, like the rest of a gather, and the snapshot carries it back:
+their own gauge, and every bobber on the map, so everyone sees everyone's
+line (protocol 23). `Gathering::Angler` is the cast and the fight on their
+own; `World::CastAt`, `StrikeAt` and `UpdateAngling` put them at the water;
+the gauge is in `screen_hud.cpp`. `--angle bite` or `--angle fight` (with
+`--scratch`) puts every cast straight there, for looking at it, and
+`bin\selftest.exe --only fishing` checks the rules, the tuning and the water.
 
 The **milestones** are the chance a cast brings up more than one fish. With
 Fishing selected in the Skills panel they are listed along the bottom:
@@ -5445,8 +5523,10 @@ with a small mixer.
 - **Progress:** level-up arpeggio, quest start and quest complete fanfares.
 - **Sleep:** a slow falling arpeggio as you drift off, and a rising one with a
   bell when you wake.
-- **Fishing:** a line going into the water, and the same splash, higher, when
-  something bites.
+- **Fishing:** a line going into the water; a small plop at the nibble and a
+  deep one as the bobber is pulled under (`Plop`); the reel's ratchet while it
+  is wound (`Reel`); the splash of a fish landed; and a twang and the whip of
+  slack when the line snaps (`Snap`).
 - **Menus:** cursor ticks, confirm, back and error, handled once in
   `Game::Update` rather than in every screen.
 
@@ -5600,18 +5680,401 @@ shoulder, the way a staff is. Halda's forge sells a bronze spear and Mossvale's
 smith an iron one, Halda posts orders for iron spears, and lizardmen now and
 then leave a bronze one behind.
 
+## The prologue
+
+A new game opens on **the prologue**, *The Town That Wouldn't Wake*, played
+from the screenplay written for it (`Screenplay.md`, scenes 1-16; the first
+draft, `DreamQuest — Prologue Script.md`, is kept beside it): cutscenes handing
+control back and forth with short stretches of play.
+
+1. **Found on the road.** The Sunken Road at the end of a night, seen through
+   the Reverie -- its colours, its swimming edges, its motes -- until dawn breaks
+   and it dissolves into daylight. Two villagers with a handcart lift the player
+   onto it and pull them toward the town.
+2. **The tavern.** They wake on a bed upstairs at the Barley and Bell, sit up,
+   and read a note: the Mayor wants to see them. At the foot of the stairs Bess
+   hurries over with two **Hearty Meals**, the first healing they have.
+3. **Havenbrook.** Out of the inn the camera pulls back and pans across the town
+   -- the Mayor's Hall, the guild hall, the homes, the well -- and it is thin: a
+   stall shut, a cart left in the road, one person sweeping an empty street, the
+   town's tune with half its instruments missing.
+4. **The Mayor's story.** Mayor Oswin Hale, who has not slept in days, tells it
+   and shows it: a montage, a day and a night passing over the town between each
+   shot, of the sleepers nobody can wake. He sends the player into a house on the
+   south street.
+5. **The stranger at the bedside.** The music cuts out. A tall robed figure stands
+   over the sleeper; he turns his head, says nothing, and goes to smoke. The
+   sleeper does not wake.
+6. **The silent town.** The Mayor asleep at his desk -- and all of Havenbrook asleep
+   where the night found it, in doorways, by the well, over a stall. In the
+   square the stranger is waiting. The player runs; he raises a hand.
+7. **The cell.** Under his house: *"Sleep here tonight, and let us see what
+   happens to you."*
+8. **The first Echo.** Asleep on the mattress, the player stands up in the same
+   cell in the Reverie -- the mattress afloat, the chains drifting, the bolt
+   rusted to nothing. Pushed, the door opens on a deep tone; a **Waking Stone**
+   at the end of the corridor brings them back to a cell door standing open.
+   What is changed in the Reverie carries over into the waking world: an
+   **Echo**.
+9. **Vigil.** The old prisoner down the corridor names it, and the player a
+   Dreamwalker; a chest across from his cell holds a weapon to choose; and he
+   names the stranger: **Vexel Von Finch**. Then, through the bars, the last
+   thing he has from the old days: a **Dreamcatcher** (a key item, kept), and
+   no word of what it does.
+10. **Escape.** Up into a hall of stained glass, where two suits of armour step
+    down off their pedestals -- the first fight, Level 1, every blow wound up long
+    enough to see -- and out into a storm, down a road walled in black iron. A
+    flash of lightning shows a figure at a lit window; the next, it is gone. The
+    title card, on the dark.
+11. **Havenbrook.** The path north of the guild hall in the morning light, the
+    town quiet round it, and the card held over it; then the dark, and
+    **ACT I -- Learning the Rules** (see [Act I](#act-i--learning-the-rules)).
+
+- **Havenbrook stays asleep** after it -- its people, its shops, its trades and
+  their quests -- until Act I wakes it, a few at a time (the `HAVENBROOK_ASLEEP`
+  flag, and a flag of its own for each waking: nothing is ever cleared). Its
+  gates are open, and the world past them is awake. A character from before the
+  prologue finds the town as it always was.
+- **Hold Back** -- K or Esc on the keys, B or Start on a pad -- to skip a scene:
+  it ends where it would have ended, with everything it gives given and every
+  flag set.
+- **Signs for what is new.** A sign comes up at the foot of the screen the first
+  time something needs saying, in the player's own keys or buttons: getting
+  about and the journal, eating what is to hand, the Reverie, the Waking Stone,
+  the Echo, fighting, and the sleeping town.
+- **The chest's choice** is the three starting kits -- the sword and the
+  cuirass, the bow and the rawhide, the staff and the homespun -- with the
+  player's own marked *recommended*, and 25 coins. The kit is taken from the
+  chest, not given at the start (see [Starting out](#starting-out)).
+- **Alone.** Play Together and Player Two open once the prologue is over, and
+  dying in it brings the player back on the map they fell on (its `respawn`
+  point) rather than in the town.
+- **The first fight** is two suits of armour at once, six hitpoints and a lot
+  of plate each, a blow every 3.6 seconds and a glowing heavy one every six.
+  Tried by standing in the middle with the hero's kit and swinging and nothing
+  else, it is won with three hitpoints of ten left: it can hurt, and Bess's two
+  meals and a step out of the glow are the margin.
+- **The music.** Six cues of its own, on the title theme's eight-bit voices
+  (`cue::Make` in `src/systems/audio.cpp`): the ominous one for the road and
+  the cell, the town's thin tune, the montage over a heartbeat, the hum when the
+  music cuts out, the dream's bent version of the cell's theme, and the escape.
+  Each is made on a thread the first time it is asked for, and the music fades
+  from one to the next. Act I adds three: the town's tune bent and slowed into
+  the Reverie's, the boss theme, and the trap the finale crunches into.
+
+### How a story is told
+
+Scenes are data. `data/story.json` holds every one: what starts it (`"on"`: a
+new game, walking into a map, coming near a mark, talking to somebody, using one
+of the story's things, a flag being set), when it may (`"when"`: flags), and its
+steps -- a line said or seen, a note, a walk, a pan, a fade, a pose, the
+stranger's smoke, the flip into a dream, a time-lapse, music, a flag, a quest,
+something given. `StoryDirector` (`src/world/story.h`) plays them; it knows
+nothing of the game's screens, so the self-test plays the whole prologue
+through. The lines are the script's own. The file is written by
+`tools/make_story.py`, which keeps each scene with its reasons: edit a scene
+there and run `python tools/make_story.py`.
+
+What a story makes of a place is written into the map as conditions on the
+flags (`FlagCond`): an NPC's `states` -- not there, moved, asleep in a pose with
+what is seen trying to wake them, another name, another conversation, a faint
+flickering shape -- a portal `shut` with what it says, an object there only
+`when`, a `door` that opens while its flag holds (and in the Reverie sets it,
+which is the Echo), a post that stands `dormant` until its flag. The world
+settles them whenever a flag changes, and a save loaded halfway finds things as
+they were left.
+
+The places are built in `tools/genmaps.cpp` (`namespace pro`): the sleeper's
+house, the cells awake and dreaming, the foyer, and the grounds and the gate
+road. The stranger, the armour and Vigil are creatures of the bestiary, and the
+sleeping poses -- lying, slumped, sitting up, shaking someone -- are clips of the
+character rig. They are shown side-on: from the front, a body lying on its back
+or slumped on the ground reads as somebody short standing there, so the town's
+sleepers each face left or right (which, the name decides) and the player lies
+side-on on the road, the cart and the mattress. The bed at the inn is the one
+front view, and it works because of the blanket: an actor that is the bed's own
+picture from its pillow down (`"from_row"`), laid over the player, so what shows
+is a head on a pillow.
+
+A camera step can name two things, `"at": ["player", "vexel"]`, for the point
+halfway between them -- the square is come into from any side.
+
+Three dev flags, with `--scratch`: `--prologue` plays it (a scratch character
+normally starts the old way), `--flags A,B` sets story flags, and `--scene id`
+begins a scene at once -- with `--prologue`, in place of the first, so
+`--prologue --map mansion_cells pro_cell_mid --flags ... --scene pro_11_sleep`
+looks at one scene as a new character would meet it. `bin\selftest.exe --only
+prologue` runs the data checks and the prologue's own section alone -- the
+whole story played twice, straight and skipped -- in about a minute.
+
+## Act I -- Learning the Rules
+
+The Havenbrook chapter, from `Screenplay.md` (scenes 17-50), with its lines as
+written. Everything below is the host's story; see [In company](#in-company).
+
+1. **Anyone Awake?** Everyone in town asleep but Elder Vask, rocking on the
+   guild hall's porch and arguing with someone only he can see. A little bell
+   hangs over him -- the mark for *something of the story's to do here* -- and,
+   once he has been seen, the button says **Use Dreamcatcher**.
+2. **Elder Vask's dream** (`prologue_dream_havenbrook`): the town copied as it
+   stands and made a nightmare of, violet, the well glowing, Vask at his chair
+   with his cane up against a ring of **Hushed**. The nearest two turn on the
+   player; three more drift about the square's north side. Three **Nightmare
+   Holds** -- by the trees, the water and the pit -- each guarded by a squad of
+   four; with the guards down, the knot can be released and its captive (the
+   woodcutter, the angler, the miner) says a line and goes to light. With all
+   three released the barrier round the square shatters; in the square the
+   **Ashen Vanguard** drags itself out of the Anchor round the well -- reckless
+   running charges, a quick double strike, a two-handed sunder, and quicker
+   still from half its health. It leaves a **Scorched Scale**. The Anchor
+   broken, the **Dawn Bells** are under it; rung, the Hushed go to dust, the
+   gatherers wake in Solace, and Vask -- awake, rocking easily -- holds out his
+   fist.
+3. **Learn to Gather**, in any order: each of the three gatherers sits groggy
+   at their post with a bell over them, and teaches their trade the way the
+   player will do it (the same clips, the same rhythm), hands over the tool --
+   an axe, a rod, a pickaxe -- and asks for three of what it gets. The
+   woodcutter's lesson ends with wolves heard down by the tannery: that is how
+   *The Haunted Hides* begins. The old lessons in the base game are not offered
+   to a character who learnt from these; a lesson's tool, lost before the
+   lesson is done, is given again, once.
+4. **Halda** (*The Silent Forge*): the forge's chimney is cold. Inside, she
+   hangs slumped in a chair in black chains, four **Black Knights** round her
+   that turn their helmets as one when the player crosses the threshold. With
+   them down to scrap, three tries to wake her, and the Dreamcatcher: a cavern
+   of slag (`dream_forge`) where she fights the **Forge Demon** on a platform
+   reached by one causeway. A wide flame from its belly, a great sweeping
+   blow, a whirlwind spin; after a flame or a spin it glows gold and every blow
+   lands twice as hard (*"Hit it where it glows!"*); at half its health it
+   ignites, and its blows leave fire on the ground. The anvil's knot broken,
+   the anvil rings into Solace and the forge is lit.
+5. **Bess** (*Where's Bess?*): the inn emptier than it was left, her apron on
+   its hook, the cellar door locked by three brass slots. A token is in the
+   stale loaf, one in the half-full mug, one under the candlestick upstairs;
+   the sampler over the hearth gives the order (*rise with the flame, break
+   bread by noon, raise a mug by the stars*). The lock is a conversation with
+   the door: candle, loaf, mug turns it; any other order clacks the tokens back
+   out. In the cellar **nightmare spiders** (10-15) drop from the rafters --
+   a poisonous bite, and a web shot that roots the player (*Webbed*: no
+   walking or rolling for a second or two, though they can still swing). Then
+   Bess, slumped in webbing, and her dream (`dream_cellar`): ten more spiders
+   round the **Dawn Chime**. She wakes owing the player a meal, and keeps her
+   word: *Supper at Bess's*, once a day, free.
+6. **The Tanner** (*The Haunted Hides*): Nessa's yard with frost on it in
+   daylight, claw marks, a howl from nowhere, Nessa bolt upright and asleep with
+   a knife in her fist. Her dream (`dream_tannery`) is a winter yard of frames
+   as tall as masts, and four **nightmare wolves** (10-15) that circle while
+   their bite cools, so they come from every side, and howl to rouse each
+   other. The Anchor is the thread binding her to a post.
+7. **The Mayor's Dream.** With Halda, Bess and the Tanner awake, the Mayor's
+   Hall door asks *Once you enter, you can't leave until it's done. Ready?* --
+   inside, his chair is empty and there is a note on the desk. *Boo.* The
+   picture tears (a violent inverted flicker, not the ripple of sleep) into the
+   hall as the Reverie bends it, knights forming out of the shadows one by one;
+   then the dreaming streets, Vask with his eyes open shouting the player into
+   the Guild Hall; a glimpse of Vexel Von Finch beside the Anchor before he is
+   smoke; six knights; and the **Nightmare Anchor** itself -- the last enemy,
+   rooted, lashing the whole hall. The last Dawn Bell wakes the town. The Mayor
+   gives a house (the bottom of the south street, the blue roof: a bed, a
+   hearth, a chest that keeps sixty things); the Guild gives a choice of a
+   **Guild Amulet**, **Ring** or **Hood**, the player's own affinity's marked
+   recommended. Stepping out onto the porch, a winged shadow slides over the
+   town, and Vask stops rocking.
+
+- **Who wakes when.** The gatherers at the Dawn Bells; Vask when the bells
+  have rung; Halda, Bess and the Tanner each in their own scene; the ten Dawn
+  Chime sleepers (Posy, Tobin, Hunter Ivo, Farmer Marrow, Wenna, Old Perrin,
+  Pip, Crier Bram, Hester, Hollis) one at a time; everyone else at the last
+  bell. Asleep, nobody trades: Halda's forge, Nessa's racks and Bess's hearth
+  say so when tried (`closed` on a station).
+- **Gathering** is locked for a character who woke in Havenbrook until Vask is
+  awake -- `"locks"` in `data/story.json` -- and their tools come from the
+  lessons. The Forge, the inn's cellar and the Mayor's finale are gated by the
+  story's own doors; the gates out of town never are.
+- **Dawn Chimes.** After the bells, each of the ten has a bell over them and
+  takes the Dreamcatcher: their home as they dream it (`chime_<name>`),
+  furniture stacked too high, a small Anchor, and three rounds of Hushed out of
+  the walls -- five to eight, five to eight, then ten, a breather between --
+  *fitted* to the player: their combat level, and at most three over it. A
+  string of chimes is left; rung, the sleeper wakes in Solace and presses
+  something into the player's hands.
+- **A sleeper's dream** (`EnterDream(..., story)`) keeps no hours -- noon does
+  not end it -- and has a Waking Stone near where the player lands. Falling in
+  one wakes the player beside the sleeper with every flag kept: the holds
+  released stay released, a boss comes back whole. The finale's is **locked**
+  (`TearInto`): its stones are cold, and a fall wakes the player at the Mayor's
+  desk, where the note takes them back to where they had got to.
+- **What the fights cost**, measured by the self-test (a character of the
+  level they are met at, standing still and swinging, never stepping out of a
+  glow or eating): the Ashen Vanguard about two lives' worth at level 6 with
+  the chest's wooden sword; a forge knight under one at level 7; the Forge
+  Demon about two at level 9; a nightmare spider or wolf about half a life at
+  11-12; a finale knight under half at 14; the Anchor about one and a half at
+  15. Bosses are meant to take a meal or two and some dodging, not to wall.
+- **Story bosses.** The Ashen Vanguard, the Forge Demon and the Anchor are
+  fought once, so they are `story_boss`: a boss's bar, roar and weight, and the
+  statuses a boss shrugs off, but no boon and point for the first kill, no
+  totem for the fifteenth, and no once-a-day.
+
+### How the chapter is built
+
+- **Monsters' own moves** (`EnemyMove` in `src/entity/enemy.h`): a charge, a
+  double strike, a spin, a flame (a fan of shots), a single *shot* (a web), a
+  sweep all round, a howl -- each with a tell (it glows and turns to follow,
+  then commits), an active part, a recovery, and a cooldown. A second phase at
+  a share of its health (`phase2`: quicker, its own colours, fire left on the
+  ground); soft seams after a spin or a flame (`weak_after`, drawn as a gold
+  glow, and sent to a friend's machine as a bit of the monster's state);
+  `rooted`; and `circles` for a pack.
+- **Story posts** (`EnemySpawnDef`): a `squad` sets its flag when every post of
+  it is down -- the holds' guards, the knights, the spiders, a boss -- which is
+  what moves the scenes and the quests on (a kill stage with an `or_flag`, so a
+  squad a friend finished first is not waited on forever); `appear` brings a
+  post out of smoke when its `when` comes to hold, `appear_after` seconds later
+  -- the Vanguard out of the knot, the knights one by one, a Dawn Chime's
+  rounds; `fit` fits its level to the player's.
+- **Counted flags** (`ACT1_03_HOLDS_CLEARED_1` to `_3`, the inn's tokens, a Dawn
+  Chime's rounds): a story step `count` sets the next, and a quest stage with a
+  count over one counts them.
+- **New story steps**: `wake` (out of a story's dream, under a white fade, to
+  wherever the scene says), `banish`, `tint`, `confirm` (a yes or no, asked in
+  its own panel), `count`, `dialogue` (a conversation with something that is not
+  anyone: the lock), and effects for the Dawn Bells' light, a barrier
+  shattering, steam, the tear, and a shadow passing over the world.
+  `FlagCond` can say "or" (`any`, `unless`), since nothing is ever cleared.
+- **The maps** are in `tools/genmaps.cpp`, `namespace act1`: the town and its
+  interiors as the chapter changes them, the dreams copied from the waking
+  maps they are of (`Dreamt`), the forge and the tannery dreams and the ten
+  homes built new. The art -- the Hushed, the Ashen Vanguard, the Forge Demon,
+  the Anchor, every prop and icon, the villagers' chop, fish, mine, swing and
+  hang clips, Vask's fist and fury -- is `tools/blender_act1.py` and
+  `tools/blender_act1_props.py`.
+- `bin\selftest.exe --only act1` plays the whole chapter through headless, in
+  order -- every dream, squad, door, lock, wake and gift -- then a fall in the
+  finale and the way back, then the fights above.
+
+### The town's last touches
+
+- **Chimney smoke.** Every stack a building's art shows has a `chimney` object
+  at its top (`MapBuilder::PlaceChimneys`, from a table measured off the art:
+  the stacks are grey stone), and `World::UpdateChimneys` puffs pale smoke from
+  each one on screen whose fire is lit, rising and drifting with a breeze that
+  turns slowly. In Havenbrook the story says when: out while the town sleeps,
+  the inn's back with Bess (`ECHO_BESS_CHIME`), the forge's back when Halda
+  lights it (`ECHO_HALDA_FORGE_RELIT`) -- so scene 30's "no smoke billows from
+  its chimney" is true until then -- and all of them with the last bell, so
+  scene 50's "smoke rises from the chimneys" is too. The forge's art has no
+  chimney, so a stone stack (`forge_chimney`, in `blender_act1_props.py`) stands
+  on its roof over the spot the scene's camera looks at. Mossvale's,
+  Fernhollow's and the trapper's cabin's chimneys always smoke; a dream's never.
+- **Leaning houses.** In the town dreamt (Vask's dream and the finale's
+  streets, `prologue_dream_havenbrook`, and the Reverie's Havenbrook) "houses
+  lean at wrong angles": every building leans five to eleven degrees, its own
+  way, its foot where it stands and its top pushed over -- sheared, not turned,
+  so its floors stay level -- swaying a degree as if the street were breathing.
+  A placement's lean is a fifth number in the map file (`TileInstance::lean`,
+  `MapBuilder::LeanHouses`); the wells, gates and lamps stand straight.
+- **The crowd looks up.** Scene 50's "The townsfolk freeze and look up" is a
+  story step, `crowd`: everybody in the street stops where they stand and turns
+  to the sky as the shadow goes over -- all but Vask, who is the scene's own --
+  and `crowd` with `release` lets them go again, to make up their rounds at a
+  brisk walk.
+- **The angler's demonstration** dips its bobber for real (a story step, `dip`:
+  a picture actor sunk into the water and let up, or held under), once for the
+  nibble and then pulled under for "Now!", the same two dips the player fishes
+  by; a card then says how it is done.
+- `bin\selftest.exe --only town` checks the chimneys against the story's flags
+  and that the smoke is there to see, the leans, and the crowd in scene 50.
+
+### In company
+
+Play Together opens after the prologue, as before. In Act I the story is the
+host's: the scenes play on the host's screen alone, the Dreamcatcher and the
+story's things are the host's to use (a friend is told *that is for your host
+to do*), and only the host is asked at the Mayor's door -- a friend walks
+through. Friends and Player Two play on in Solace meanwhile; a flag the host's
+story sets is everybody's. A friend's gathering is never locked.
+
+## Act II -- the Guild's ledger
+
+Act II is not scripted yet; it opens on the Guild Master. Once the dragon's
+shadow has crossed Havenbrook (`ACT1_DRAGON_SHADOW_SEEN`) -- or straight away,
+for a character from before the prologue, who has no Act I to finish --
+**Guild Master Orlend** has a bell over him at his desk in the Guild Hall, and
+what he wants to talk about is an old ledger: every beast big enough to have a
+name, where it lairs, what it has taken, and what the Guild will pay to see it
+gone. "Open the ledger to me" starts **The Guild's Ledger** (a story quest) and
+sets `ACT2_GUILD_BOUNTIES_OPEN`, which takes his bell away; he pins its first
+pages to the **bounty board** beside his desk, and reading it finishes the
+quest and opens the bounties. A card then says how they work. The board itself
+stands from the start of Act II, empty for anyone whose ledger is not open
+("Speak to the Guild Master"): it hangs on the act, not on the conversation,
+because a flag set in a friend's conversation stays on the friend's machine.
+
+**Guild Bounties** are one page a boss -- seventeen of them, every boss in the
+game but **Hoarfang**, who is Elder Vask's to send you after (*The Dragon of
+the Ice Spire*, and the dragon of Act II). Each page introduces its beast: the
+beast itself drawn beside its name, its lair, and a few lines on what it does
+-- what its blows leave you with, what does not touch it, when it is out.
+
+| Page | Lair | Lv |
+| --- | --- | --- |
+| The Broodmother | the Inn Cellar | 10 |
+| The Lizardman Chief | the Lizardmen's Camp, the Hollowmarch | 21 |
+| The Hollowrest Wight | Hollowrest Crypt's door, the Hollowmarch | 33 |
+| The Orc Warchief | Emberfell Mine, Lower Workings | 34 |
+| The Thing in the Spring | the Well, the Deep Cut | 40 |
+| The Den Mother | the Brackenwood | 41 |
+| The Sleepless | the Deep Reverie | 47 |
+| The Wyvern Matriarch | Ice Spire Peak | 49 |
+| The Pit Lord | the Infernal Pit | 55 |
+| The Mother of the Fen | the Bayou | 56 |
+| The Voodoo High Priest | the Sanctum, the Hexmire | 65 |
+| Cerberus | the Stronghold (six days in ten) | 70 |
+| Lord Ashcroft | Hollowrest Crypt, the Black Vault | 71 |
+| The Abominable Snowman | the Rimefall Glacier (rarely) | 74 |
+| The Unwaking | the Dreaming Dark | 79 |
+| The Cinder King | the Throne Room, the Brimstone Palace | 84 |
+| The Quintessence | the Conflux | 99 |
+
+- A page is **taken once** and never posted again once closed. It is **not
+  daily and never lapses**, unlike the Slate's.
+- The beast counts **wherever it falls** -- a boss out roaming another region
+  is still that boss -- but the arrow leads to its **lair** (the kill stage's
+  `where`, a map). A beast that only roams its lair (Cerberus, the Snowman) is
+  led to, and there the arrow is on it if it is out today, or says it is not.
+  A lair in the Reverie says how to get there.
+- It pays the moment it closes: coins (40 x level) and Hitpoints XP (30 x
+  level), and a choice of Attack and Strength (40 x level each), Ranged or
+  Magic (80 x level). The boss's own first-kill boon and point, its totem and
+  any quest of its own are untouched; one kill can close a page and a quest
+  together.
+- The board lists from the easiest down with **Closed n of 17** over it; a
+  page's level is green within ten of your Combat, red above (Orlend's "red
+  ink") and grey below, and **L** (RT) filters to within ten.
+- Somebody who comes after the ledger was opened -- Player Two, a friend --
+  opens it for themselves from Orlend's first line; the board is the world's.
+- Where it lives: `q_guild_ledger` and `q_guild_*` in `data/quests.json`
+  (`"guild_bounty": true`, `QuestDef::guild_bounty`); Orlend's lines are
+  `guildmaster_ledger*` in `data/dialogue.json`; his bell and the board are
+  `namespace act2` in `tools/genmaps.cpp`; the board's art is
+  `prop_guild_bounty_board`; the card is `act2_bounties_tip` in
+  `tools/make_story.py`. `bin\selftest.exe --only guild` checks that every
+  boss but Hoarfang has its page at its own lair and level, the ledger opens
+  only at the start of Act II, and a page closes on a kill anywhere.
+
 ## Starting out
 
-The first thing a new character sees, before the first step, is **a note of
-welcome** on the parchment a sign is read on: where they are standing, where
-the town, the mine and the trail are, what every key does -- named for the
-device in use, so a pad shows its buttons -- and that the night will take
-them somewhere else. Once, on a new game only; a load puts the player back
-mid-story.
+A new game plays [the prologue](#the-prologue), and the kit below comes out of
+the chest in the stranger's cells, the player's own chosen from the three. A
+character made with `--scratch` for looking at something starts the way every
+character used to: on the Sunken Road with **a note of welcome** on the
+parchment a sign is read on -- where they are standing, where the town, the
+mine and the trail are, what every key does, named for the device in use -- and
+the kit already worn.
 
-
-A new character starts with **25 coins, three cooked meat, and the wood tier's
-weapon of their affinity, worn with the wood tier's armour of their own kind**:
+That kit is **25 coins, three cooked meat, and the wood tier's weapon of their
+affinity, worn with the wood tier's armour of their own kind**:
 
 | | Weapon | Armour | And |
 | --- | --- | --- | --- |

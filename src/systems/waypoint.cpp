@@ -116,7 +116,12 @@ vector<WaypointIndex::Spot> WaypointIndex::SpotsFor(const QuestStage& stage, int
             break;
         case ObjectiveType::Kill:
             for (const auto& kv : areas) {
-                if (!stage.map_id.empty() && kv.first != stage.map_id) continue;
+                // On the map the stage names, if it names one -- or else on the
+                // one its `where` names: a Guild bounty's beast is looked for in
+                // its lair, though it counts wherever it falls.
+                const string& only = !stage.map_id.empty() ? stage.map_id
+                                   : areas.count(stage.where) ? stage.where : string();
+                if (!only.empty() && kv.first != only) continue;
                 for (const Post& post : kv.second.posts)
                     for (const string& type : post.types) {
                         const EnemyDef* def = enemies ? enemies->Get(type) : nullptr;
@@ -139,6 +144,16 @@ vector<WaypointIndex::Spot> WaypointIndex::SpotsFor(const QuestStage& stage, int
         }
         case ObjectiveType::Reach:
             break;      // a place is not a spot: Resolve takes the road to it
+        case ObjectiveType::Flag:
+            // A story's beat happens somewhere: wherever the stage says --
+            // somebody, by id; something, by id or kind; a map, which Resolve
+            // takes the road to the way it does a place to reach.
+            if (stage.where.empty()) break;
+            person(stage.where);
+            for (const auto& kv : areas)
+                for (const Thing& t : kv.second.things)
+                    if (t.id == stage.where || t.kind == stage.where) out.push_back({kv.first, t.x, t.y, t.title});
+            break;
         case ObjectiveType::Craft: {
             // Anywhere it can be made: the stations of the kind its recipe
             // wants. A fire is its own object type; everything else is a
@@ -219,20 +234,47 @@ Waypoint WaypointIndex::Resolve(const QuestLog& log, const string& quest_id, con
         return string();
     };
 
-    if (stage.type == ObjectiveType::Reach) {
-        const auto there = areas.find(stage.target);
-        if (there == areas.end() || stage.target == here) return w;
-        w.map = stage.target;
-        w.what = w.place = there->second.name;
-        if (!doors.count(stage.target)) { w.hint = no_road(stage.target); return w; }
-        w.maps_away = doors[stage.target];
-        w.found = way_out(stage.target, w.local_x, w.local_y, w.via);
+    // A place to reach -- or a story's beat that happens in one.
+    const string reach = stage.type == ObjectiveType::Reach ? stage.target
+                       : (stage.type == ObjectiveType::Flag && areas.count(stage.where)) ? stage.where : string();
+    const auto road_to = [&](const string& to) {
+        w.map = to;
+        w.what = w.place = areas.at(to).name;
+        if (!doors.count(to)) { w.hint = no_road(to); return w; }
+        w.maps_away = doors[to];
+        w.found = way_out(to, w.local_x, w.local_y, w.via);
         return w;
+    };
+    if (!reach.empty()) {
+        if (!areas.count(reach) || reach == here) return w;
+        return road_to(reach);
     }
 
     const int holding = stage.type == ObjectiveType::Deliver ? world.player.inventory.Count(stage.target) : 0;
     const vector<Spot> spots = SpotsFor(stage, holding, enemies, loot, items);
-    if (spots.empty()) return w;
+    if (spots.empty()) {
+        // A beast with a lair but no post the index keeps -- one that only
+        // roams it, out on some days and not others (route posts are left out
+        // of the index): the road to its lair, and there, the beast itself if
+        // it is out today.
+        const bool lair = stage.type == ObjectiveType::Kill && stage.map_id.empty() && areas.count(stage.where) > 0;
+        if (!lair) return w;
+        if (stage.where != here) return road_to(stage.where);
+        const EnemyDef* def = enemies ? enemies->Get(stage.target) : nullptr;
+        w.map = here;
+        w.place = here_area->second.name;
+        w.what = def ? def->name : stage.target;
+        float nearest = 1.0e18f;
+        for (const auto& e : world.enemies) {
+            if (e->Dead() || e->CurrentState() == Enemy::State::Dead || !e->Def()) continue;
+            if (e->TypeId() != stage.target && e->Def()->kill_target != stage.target) continue;
+            const float d = (e->x - px) * (e->x - px) + (e->y - py) * (e->y - py);
+            if (d < nearest) { nearest = d; w.x = w.local_x = e->x; w.y = w.local_y = e->y; w.what = e->Def()->name; }
+        }
+        w.found = w.here = nearest < 1.0e18f;
+        if (!w.found) w.hint = w.what + " is not out today. Try another day.";
+        return w;
+    }
 
     // The nearest: by doors first, and then by the walk on this map -- to the
     // thing if it is here, to the way out if it is not.

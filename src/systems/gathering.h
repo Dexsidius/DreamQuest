@@ -55,6 +55,85 @@ int CatchCount(int level, float roll);
 // Which fish a spot gives up: the best one the level allows a fair share of
 // the time, otherwise something lesser. Empty if the level allows none.
 string PickFish(const vector<string>& fish, int level, const ItemDatabase& db, std::mt19937& rng);
+
+// --- the second dip, and the fight ------------------------------------------------------
+//
+// A cast floats a bobber on the water. After a while it dips once -- a nibble,
+// nothing to strike at -- and a moment later it goes under: the bite. Strike
+// then (Interact) and the fish is hooked. Strike at the nibble, or before it,
+// and it takes fright; let the bite go by and it is gone. The angler in
+// Havenbrook teaches exactly this: "Not yet. Wait for the second dip."
+//
+// Hooked, the fish fights. There is a gauge with a green band the fish drags
+// back and forth along it, and on it the reel line, which the player holds:
+// the button held winds the line up the gauge, let go it drops back. Kept in
+// the green, the fish comes in a little at a time; out of the green too long,
+// the line snaps and the fish is gone. Either way the cast is over, and the
+// next one begins at the water again.
+//
+// The better the fish -- its Fishing level -- the narrower the band, the
+// quicker and more sudden the fish, the longer it takes to bring in and the
+// sooner the line goes. A fisher well past the fish's level has the band a
+// little wider for it, and that is all their level does in the fight.
+
+// One fish's fight, worked out from its level.
+struct Fight {
+    float band  = 0.24f;   // half the green band's width, as a share of the gauge
+    float speed = 0.14f;   // how fast the band drifts, in gauges a second
+    float darts = 0.25f;   // how often a second it bolts for somewhere new
+    float land  = 2.0f;    // seconds in the green that bring it in from nothing
+    float slip  = 0.3f;    // how much of that it wins back a second out of the green
+    float snap  = 2.6f;    // seconds out of the green that the line holds for
+    float bite  = 1.0f;    // seconds the bobber stays under, to strike in
+};
+Fight FightFor(int fish_level, int fishing_level);
+
+class Angler {
+public:
+    enum class Phase : uint8_t { Idle, Waiting, Nibble, Lull, Bite, Reeling };
+    enum class Outcome : uint8_t { None, Hooked, TooSoon, ReeledIn, Missed, Landed, Snapped };
+
+    // How the reel line moves: wound up while the button is held, dropping
+    // back while it is not, never faster than this.
+    static constexpr float REEL_ACCEL = 2.0f, FALL_ACCEL = 1.6f, LINE_TOP_SPEED = 1.0f;
+    // The first dip: how long it lasts. And the wait between it and the bite.
+    static constexpr float NIBBLE_TIME = 0.45f, LULL_MIN = 0.7f, LULL_MAX = 1.4f;
+    // Hooked, the fight starts this far in: a strike is worth something.
+    static constexpr float HEAD_START = 0.2f;
+
+    // A cast: the bobber afloat, the first dip `wait` seconds off, and the
+    // fight it will be if it comes to one.
+    void Cast(float wait, const Fight& f, std::mt19937& rng);
+    // The button pressed. On the bite it hooks the fish; before it the cast
+    // is spoilt (too soon) or simply wound in (before anything touched it).
+    // While the fish is on, a press is only part of reeling: None.
+    Outcome Strike();
+    // A step, with the button held or not. Missed, Landed or Snapped the
+    // moment one of them happens -- and the cast is over (Idle).
+    Outcome Update(float dt, bool reel, std::mt19937& rng);
+    void Stop() { phase = Phase::Idle; }
+
+    bool  Active() const { return phase != Phase::Idle; }
+    bool  Hooked() const { return phase == Phase::Reeling; }
+    bool  InBand() const { return std::fabs(line - band) <= fight.band; }
+    // How far under the bobber is, for drawing: 0 afloat, 1 right under.
+    float Dip() const;
+    // Out of the green: how near the line is to going, 0 to 1.
+    float Strain() const { return fight.snap > 0.0f ? std::clamp(strain / fight.snap, 0.0f, 1.0f) : 0.0f; }
+
+    Phase phase = Phase::Idle;
+    float t = 0.0f;          // into this phase
+    float length = 0.0f;     // how long this phase lasts, until the fish is on
+    Fight fight;
+    // The gauge, every part of it 0 at the left to 1 at the right.
+    float line = 0.5f, line_v = 0.0f;
+    float band = 0.5f, band_v = 0.0f, band_goal = 0.5f;
+    float progress = 0.0f;   // how far in it is: landed at 1
+    float strain = 0.0f;     // seconds out of the green, made up again in it
+
+private:
+    void NewGoal(std::mt19937& rng);
+};
 // --- foraging -------------------------------------------------------------------------
 // The chance a plant gives two herbs instead of one: nothing at its level,
 // rising a point for every level past it, to at most a half.

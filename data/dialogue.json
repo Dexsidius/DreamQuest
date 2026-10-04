@@ -309,6 +309,23 @@
     }
    },
    {
+    "text": "About the Guild's bounties.",
+    "next": "guildmaster_ledger_2",
+    "if": {
+     "quest": "q_guild_ledger",
+     "state": "available",
+     "flag": "ACT2_GUILD_BOUNTIES_OPEN"
+    }
+   },
+   {
+    "text": "About the bounties.",
+    "next": "guildmaster_bounties_about",
+    "if": {
+     "quest": "q_guild_ledger",
+     "state": "complete"
+    }
+   },
+   {
     "text": "Tell me about the guild.",
     "next": "guildmaster_about"
    },
@@ -513,6 +530,18 @@
   "speaker": "Innkeeper Bess",
   "text": "Sit anywhere. The fire is lit, and if you have anything raw in that pack you are welcome to use it.",
   "options": [
+   {
+    "text": "About that supper with my name on it...",
+    "next": "bess_supper",
+    "if": {
+     "flag": "ACT1_BESS_AWAKE",
+     "quest": "q_act1_supper",
+     "state": "available"
+    },
+    "action": {
+     "start_quest": "q_act1_supper"
+    }
+   },
    {
     "text": "What happened to the well in the square?",
     "next": "bess_well_offer",
@@ -2469,11 +2498,26 @@
   "text": "Mind the sawdust. That log has been on the trestles since dawn and it is winning.",
   "options": [
    {
+    "text": "I've lost the axe you gave me.",
+    "next": "act1_lost_axe",
+    "if": {
+     "quest": "q_act1_tut_wood",
+     "state": "active",
+     "lacks_item": "bronze_axe",
+     "no_flag": "ACT1_REPLACED_AXE"
+    },
+    "action": {
+     "give": "bronze_axe",
+     "set_flag": "ACT1_REPLACED_AXE"
+    }
+   },
+   {
     "text": "The sign says an axe is provided.",
     "next": "sawyer_offer",
     "if": {
      "quest": "q_learn_woodcutting",
-     "state": "available"
+     "state": "available",
+     "no_flag": "PROLOGUE"
     }
    },
    {
@@ -2640,11 +2684,26 @@
   "text": "Watch the face. It drops loose rock on people who stand about admiring it.",
   "options": [
    {
+    "text": "I've lost the pickaxe you gave me.",
+    "next": "act1_lost_pickaxe",
+    "if": {
+     "quest": "q_act1_tut_mine",
+     "state": "active",
+     "lacks_item": "bronze_pickaxe",
+     "no_flag": "ACT1_REPLACED_PICKAXE"
+    },
+    "action": {
+     "give": "bronze_pickaxe",
+     "set_flag": "ACT1_REPLACED_PICKAXE"
+    }
+   },
+   {
     "text": "Someone chalked that a pick is lent here.",
     "next": "pit_offer",
     "if": {
      "quest": "q_learn_mining",
-     "state": "available"
+     "state": "available",
+     "no_flag": "PROLOGUE"
     }
    },
    {
@@ -2811,11 +2870,26 @@
   "text": "Quietly, if you can. They can hear boots.",
   "options": [
    {
+    "text": "I've lost the rod you gave me.",
+    "next": "act1_lost_rod",
+    "if": {
+     "quest": "q_act1_tut_fish",
+     "state": "active",
+     "lacks_item": "fishing_rod",
+     "no_flag": "ACT1_REPLACED_ROD"
+    },
+    "action": {
+     "give": "fishing_rod",
+     "set_flag": "ACT1_REPLACED_ROD"
+    }
+   },
+   {
     "text": "Someone wrote that rods are lent here.",
     "next": "angler_offer",
     "if": {
      "quest": "q_learn_fishing",
-     "state": "available"
+     "state": "available",
+     "no_flag": "PROLOGUE"
     }
    },
    {
@@ -5889,6 +5963,374 @@
   "options": [
    {
     "text": "I will leave it.",
+    "next": "end"
+   }
+  ]
+ },
+ "pro_gate_root": {
+  "speaker": "Watchman",
+  "text": "You're the one they carted in at first light? The Mayor's been asking after you. His hall's on the square -- pale stone, green roof. Nobody goes out this gate till he says so.",
+  "options": [
+   {
+    "text": "I'll go and see him.",
+    "next": "end"
+   }
+  ]
+ },
+ "sweeper_root": {
+  "speaker": "Ada",
+  "text": "Sweeping keeps my eyes open, love. If I stop I'll sit down, and if I sit down...",
+  "options": [
+   {
+    "text": "Where is everyone?",
+    "next": "sweeper_where"
+   },
+   {
+    "text": "I'll leave you to it.",
+    "next": "end"
+   }
+  ]
+ },
+ "sweeper_where": {
+  "speaker": "Ada",
+  "text": "Asleep, the ones who'll never wake. Awake behind their doors, the ones who won't let themselves. Go and see the Mayor -- he tells it better than I do.",
+  "options": [
+   {
+    "text": "I'll go.",
+    "next": "end"
+   }
+  ]
+ },
+ "pro_bess_after": {
+  "speaker": "Innkeeper Bess",
+  "text": "Up the main road, the Mayor's Hall. He'll want to see you with his own eyes. Go on, now.",
+  "options": [
+   {
+    "text": "Thank you, Bess.",
+    "next": "end"
+   }
+  ]
+ },
+ "pro_mayor_after": {
+  "speaker": "Mayor Oswin Hale",
+  "text": "The house on the south street, with its door marked. Go in and try to wake whoever's there. Please.",
+  "options": [
+   {
+    "text": "I'm going.",
+    "next": "end"
+   }
+  ]
+ },
+ "inn_lock_1": {
+  "speaker": "Cellar Door",
+  "text": "Three brass slots, each stamped with a symbol: a candle, a loaf, a mug. Which token goes in first?",
+  "options": [
+   {
+    "text": "The candle.",
+    "next": "inn_lock_2c"
+   },
+   {
+    "text": "The loaf.",
+    "next": "inn_lock_2l"
+   },
+   {
+    "text": "The mug.",
+    "next": "inn_lock_2m"
+   },
+   {
+    "text": "Step back.",
+    "next": "end"
+   }
+  ]
+ },
+ "inn_lock_2c": {
+  "speaker": "Cellar Door",
+  "text": "The candle token sits in its slot. Which next?",
+  "options": [
+   {
+    "text": "The loaf.",
+    "next": "inn_lock_3cl"
+   },
+   {
+    "text": "The mug.",
+    "next": "inn_lock_3cm"
+   }
+  ]
+ },
+ "inn_lock_2l": {
+  "speaker": "Cellar Door",
+  "text": "The loaf token sits in its slot. Which next?",
+  "options": [
+   {
+    "text": "The candle.",
+    "next": "inn_lock_3_mug"
+   },
+   {
+    "text": "The mug.",
+    "next": "inn_lock_3_candle"
+   }
+  ]
+ },
+ "inn_lock_2m": {
+  "speaker": "Cellar Door",
+  "text": "The mug token sits in its slot. Which next?",
+  "options": [
+   {
+    "text": "The candle.",
+    "next": "inn_lock_3_loaf"
+   },
+   {
+    "text": "The loaf.",
+    "next": "inn_lock_3_candle"
+   }
+  ]
+ },
+ "inn_lock_3cl": {
+  "speaker": "Cellar Door",
+  "text": "Candle, then loaf. The mug token is the last.",
+  "options": [
+   {
+    "text": "Slot the mug token.",
+    "next": "inn_lock_open"
+   }
+  ]
+ },
+ "inn_lock_3cm": {
+  "speaker": "Cellar Door",
+  "text": "Candle, then mug. The loaf token is the last.",
+  "options": [
+   {
+    "text": "Slot the loaf token.",
+    "next": "inn_lock_wrong"
+   }
+  ]
+ },
+ "inn_lock_3_mug": {
+  "speaker": "Cellar Door",
+  "text": "One slot left. The mug token is the last.",
+  "options": [
+   {
+    "text": "Slot the mug token.",
+    "next": "inn_lock_wrong"
+   }
+  ]
+ },
+ "inn_lock_3_candle": {
+  "speaker": "Cellar Door",
+  "text": "One slot left. The candle token is the last.",
+  "options": [
+   {
+    "text": "Slot the candle token.",
+    "next": "inn_lock_wrong"
+   }
+  ]
+ },
+ "inn_lock_3_loaf": {
+  "speaker": "Cellar Door",
+  "text": "One slot left. The loaf token is the last.",
+  "options": [
+   {
+    "text": "Slot the loaf token.",
+    "next": "inn_lock_wrong"
+   }
+  ]
+ },
+ "inn_lock_wrong": {
+  "speaker": "Cellar Door",
+  "text": "Clack. The tokens drop back out of their slots and into your hand.",
+  "options": [
+   {
+    "text": "Gather them up.",
+    "next": "end"
+   }
+  ]
+ },
+ "inn_lock_open": {
+  "speaker": "Cellar Door",
+  "text": "Three soft clicks, and the lock turns.",
+  "action": {
+   "set_flag": "ACT1_INN_CELLAR_OPEN"
+  },
+  "options": [
+   {
+    "text": "Open the door.",
+    "next": "end"
+   }
+  ]
+ },
+ "bess_supper": {
+  "speaker": "Bess",
+  "text": "Sit. Eat. A proper one, not wrapped scraps -- and don't you dare reach for your purse.",
+  "options": [
+   {
+    "text": "Thank you, Bess.",
+    "next": "end",
+    "if": {
+     "quest": "q_act1_supper",
+     "state": "active"
+    },
+    "action": {
+     "advance": "npc_cook"
+    }
+   }
+  ]
+ },
+ "act1_lost_axe": {
+  "speaker": "Sawyer Jessa",
+  "text": "Lost it? Here -- take this one, and keep a tighter grip on it. I haven't got a third.",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "act1_lost_pickaxe": {
+  "speaker": "Pitmaster Dorn",
+  "text": "Lost it? Here -- take this one, and keep a tighter grip on it. I haven't got a third.",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "act1_lost_rod": {
+  "speaker": "Angler Sula",
+  "text": "Lost it? Here -- take this one, and keep a tighter grip on it. I haven't got a third.",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "act1_vask_dream": {
+  "speaker": "Elder Vask",
+  "text": "Three roots out along the edges, and one thick one in the square! Go on -- I'll keep this lot busy!",
+  "options": [
+   {
+    "text": "Go.",
+    "next": "end"
+   }
+  ]
+ },
+ "act1_vask_dream_inside": {
+  "speaker": "Elder Vask",
+  "text": "(jabbing his cane at the Guild Hall doors) Inside!",
+  "options": [
+   {
+    "text": "Go.",
+    "next": "end"
+   }
+  ]
+ },
+ "act1_halda_dream": {
+  "speaker": "Halda",
+  "text": "Hit it where it glows! The seams are soft!",
+  "options": [
+   {
+    "text": "Go.",
+    "next": "end"
+   }
+  ]
+ },
+ "act1_bess_dream": {
+  "speaker": "Bess",
+  "text": "Clear them out, and ring that chime! It's the only thing that'll end this!",
+  "options": [
+   {
+    "text": "Go.",
+    "next": "end"
+   }
+  ]
+ },
+ "act1_nessa_dream": {
+  "speaker": "Nessa",
+  "text": "Don't come closer... there's four of them!",
+  "options": [
+   {
+    "text": "Go.",
+    "next": "end"
+   }
+  ]
+ },
+ "act1_mayor_after": {
+  "speaker": "Mayor Hale",
+  "text": "The house is at the bottom of the south street, on the right -- the blue roof. The key's yours, and so is the bed.",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "act1_vask_awake": {
+  "speaker": "Elder Vask",
+  "text": "(Elder Vask rocks easily in his chair. He tips his head at you, and says nothing.)",
+  "options": [
+   {
+    "text": "Leave him to it.",
+    "next": "end"
+   }
+  ]
+ },
+ "guildmaster_ledger": {
+  "speaker": "Guild Master Orlend",
+  "text": "Orlend sets down his pen and reaches under the desk.\n\n\"There is the board outside, and there is this.\" He sets an old ledger in front of you, its spine mended twice over. \"Every beast big enough to have a name is in here -- the ones that walk in dreams too, these days: where it lairs, what it has taken, and what the Guild will pay to see it gone. Bounties. We have not had anybody worth showing it to in years.\"",
+  "options": [
+   {
+    "text": "Show me.",
+    "next": "guildmaster_ledger_2",
+    "if": {
+     "quest": "q_guild_ledger",
+     "state": "available"
+    }
+   },
+   {
+    "text": "Something else, first.",
+    "next": "guildmaster_root"
+   },
+   {
+    "text": "Another time.",
+    "next": "end"
+   }
+  ]
+ },
+ "guildmaster_ledger_2": {
+  "speaker": "Guild Master Orlend",
+  "text": "\"One page a beast. Take a page from the board by my desk and it is yours to close. Kill the thing -- wherever you find it, some of them walk -- and the Guild pays the day it falls. No heads on my floor. We will hear about it.\"\n\nHe turns the book round so you can read it. \"Front to back, they get worse. Red ink means it is still past you. Leave those a while.\"",
+  "options": [
+   {
+    "text": "Open the ledger to me.",
+    "next": "guildmaster_ledger_3",
+    "action": {
+     "start_quest": "q_guild_ledger",
+     "set_flag": "ACT2_GUILD_BOUNTIES_OPEN"
+    }
+   },
+   {
+    "text": "Not yet.",
+    "next": "end"
+   }
+  ]
+ },
+ "guildmaster_ledger_3": {
+  "speaker": "Guild Master Orlend",
+  "text": "Orlend tears the first pages out along a ruled line and pins them to the board beside his desk himself.\n\n\"There. Read them before you go. Every one of these has killed somebody who thought they were ready.\"",
+  "options": [
+   {
+    "text": "I will.",
+    "next": "end"
+   }
+  ]
+ },
+ "guildmaster_bounties_about": {
+  "speaker": "Guild Master Orlend",
+  "text": "\"The board by my desk. One page a beast; close it wherever the thing falls, and the Guild pays that day. Red ink is past you yet.\"\n\nHe does not look up. \"And read the page. The page is the part that keeps you alive.\"",
+  "options": [
+   {
+    "text": "Understood.",
     "next": "end"
    }
   ]

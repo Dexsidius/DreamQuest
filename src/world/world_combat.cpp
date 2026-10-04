@@ -69,6 +69,12 @@ void World::FirePlayerProjectile(const GameContext& ctx) {
     if (style == AttackStyle::Ranged) {
         projectile_id = "arrow";
     } else {
+        // A box the weapon in hand does not open casts nothing: see SPELL_BOXES.
+        if (!player.BoxOpen(player.SelectedBox())) {
+            AddText("Needs a finer weapon", player.x, player.y - 54.0f, {200, 200, 210, 255});
+            Audio::Play(Sfx::UiError);
+            return;
+        }
         const SpellDef* spell = nullptr;
         if (ctx.spells) {
             if (player.SelectedElement() == Element::Arcane) {
@@ -1428,6 +1434,8 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
     // A mark is on the monster, not on whoever made it: a friend's blow too.
     // Marked: a quarter harder -- and harder again from a warden with Deadly Mark.
     if (e.Marked()) damage_mult *= 1.0f + Enemy::MARK_DAMAGE + player.talents.Global("mark_bonus");
+    // Its seams soft after a spin or a flame (EnemyDef::weak_after): twice as hard.
+    if (e.Weak()) damage_mult *= Enemy::WEAK_DAMAGE;
     if (style == AttackStyle::Magic && ElementMultiplier(element, e.ElementOf()) > 1.05f)
         damage_mult *= 1.0f + player.talents.Effect("elemental", style);
 

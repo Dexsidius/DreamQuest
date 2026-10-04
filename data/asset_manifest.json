@@ -1692,6 +1692,10 @@
                                                      "w":  56,
                                                      "h":  56
                                                  },
+                   "objects/guild_bounty_board":  {
+                                                      "w":  56,
+                                                      "h":  56
+                                                  },
                    "objects/guild_cabinet":  {
                                                  "w":  56,
                                                  "h":  56
@@ -2072,6 +2076,10 @@
                                        "w":  48,
                                        "h":  48
                                    },
+                   "props/apron_hook":  {
+                                            "w":  20,
+                                            "h":  28
+                                        },
                    "props/armchair":  {
                                           "w":  64,
                                           "h":  64
@@ -2132,6 +2140,18 @@
                                             "w":  64,
                                             "h":  64
                                         },
+                   "props/bed_sleeper_elder":  {
+                                                   "w":  64,
+                                                   "h":  64
+                                               },
+                   "props/bed_sleeper_man":  {
+                                                 "w":  64,
+                                                 "h":  64
+                                             },
+                   "props/bed_sleeper_woman":  {
+                                                   "w":  64,
+                                                   "h":  64
+                                               },
                    "props/bee_shed":  {
                                           "w":  96,
                                           "h":  96
@@ -2164,14 +2184,30 @@
                                             "w":  112,
                                             "h":  112
                                         },
+                   "props/black_chains_chair":  {
+                                                    "w":  48,
+                                                    "h":  80
+                                                },
+                   "props/black_chains_chair_empty":  {
+                                                          "w":  48,
+                                                          "h":  80
+                                                      },
                    "props/boat_shed":  {
                                            "w":  128,
                                            "h":  128
                                        },
+                   "props/bobber":  {
+                                        "w":  8,
+                                        "h":  10
+                                    },
                    "props/bone_spire":  {
                                             "w":  102,
                                             "h":  102
                                         },
+                   "props/boo_note":  {
+                                          "w":  14,
+                                          "h":  10
+                                      },
                    "props/bookshelf":  {
                                            "w":  72,
                                            "h":  72
@@ -2212,6 +2248,18 @@
                                              "w":  64,
                                              "h":  64
                                          },
+                   "props/candlestick":  {
+                                             "w":  20,
+                                             "h":  28
+                                         },
+                   "props/cart_overturned":  {
+                                                 "w":  72,
+                                                 "h":  56
+                                             },
+                   "props/cask_stack_tall":  {
+                                                 "w":  48,
+                                                 "h":  128
+                                             },
                    "props/cauldron":  {
                                           "w":  48,
                                           "h":  48
@@ -2224,10 +2272,22 @@
                                            "w":  84,
                                            "h":  84
                                        },
+                   "props/cell_door_open":  {
+                                                "w":  84,
+                                                "h":  100
+                                            },
+                   "props/cell_door_rotted":  {
+                                                  "w":  84,
+                                                  "h":  84
+                                              },
                    "props/cellar_hatch":  {
                                               "w":  48,
                                               "h":  48
                                           },
+                   "props/cellar_lock":  {
+                                             "w":  40,
+                                             "h":  56
+                                         },
                    "props/chair":  {
                                        "w":  40,
                                        "h":  40
@@ -2244,6 +2304,10 @@
                                              "w":  48,
                                              "h":  48
                                          },
+                   "props/claw_marks":  {
+                                            "w":  24,
+                                            "h":  24
+                                        },
                    "props/clothier_shop":  {
                                                "w":  192,
                                                "h":  192
@@ -2360,6 +2424,26 @@
                                               "w":  186,
                                               "h":  186
                                           },
+                   "props/dawn_bell_great":  {
+                                                 "w":  80,
+                                                 "h":  96
+                                             },
+                   "props/dawn_bells":  {
+                                            "w":  64,
+                                            "h":  80
+                                        },
+                   "props/dawn_chime":  {
+                                            "w":  28,
+                                            "h":  40
+                                        },
+                   "props/dead_tree_twisted":  {
+                                                   "w":  96,
+                                                   "h":  128
+                                               },
+                   "props/dead_tree_twisted_b":  {
+                                                     "w":  80,
+                                                     "h":  112
+                                                 },
                    "props/demon_statue":  {
                                               "w":  96,
                                               "h":  96
@@ -2368,10 +2452,18 @@
                                               "w":  200,
                                               "h":  200
                                           },
+                   "props/desk_tilted":  {
+                                             "w":  56,
+                                             "h":  40
+                                         },
                    "props/dining_table":  {
                                               "w":  56,
                                               "h":  56
                                           },
+                   "props/dragon_shadow":  {
+                                               "w":  640,
+                                               "h":  320
+                                           },
                    "props/dragon_skull":  {
                                               "w":  180,
                                               "h":  180
@@ -2384,6 +2476,14 @@
                                             "w":  128,
                                             "h":  128
                                         },
+                   "props/dream_barrier":  {
+                                               "w":  64,
+                                               "h":  48
+                                           },
+                   "props/dream_barrier_v":  {
+                                                 "w":  24,
+                                                 "h":  64
+                                             },
                    "props/dream_ladder_down":  {
                                                    "w":  80,
                                                    "h":  80
@@ -2400,6 +2500,10 @@
                                            "w":  84,
                                            "h":  84
                                        },
+                   "props/drying_frame_tall":  {
+                                                   "w":  56,
+                                                   "h":  128
+                                               },
                    "props/dungeon_stairs_down":  {
                                                      "w":  80,
                                                      "h":  80
@@ -2452,6 +2556,10 @@
                                        "w":  96,
                                        "h":  96
                                    },
+                   "props/forge_chimney":  {
+                                               "w":  32,
+                                               "h":  32
+                                           },
                    "props/frost_barrow":  {
                                               "w":  176,
                                               "h":  176
@@ -2460,6 +2568,10 @@
                                                "w":  64,
                                                "h":  64
                                            },
+                   "props/frost_patch":  {
+                                             "w":  48,
+                                             "h":  32
+                                         },
                    "props/fulgurite_spire":  {
                                                  "w":  96,
                                                  "h":  96
@@ -2476,10 +2588,26 @@
                                        "w":  96,
                                        "h":  96
                                    },
+                   "props/giant_anvil":  {
+                                             "w":  112,
+                                             "h":  72
+                                         },
                    "props/giant_shell":  {
                                              "w":  80,
                                              "h":  80
                                          },
+                   "props/glass_light":  {
+                                             "w":  64,
+                                             "h":  48
+                                         },
+                   "props/grate_light":  {
+                                             "w":  96,
+                                             "h":  64
+                                         },
+                   "props/grate_light_dream":  {
+                                                   "w":  96,
+                                                   "h":  64
+                                               },
                    "props/grave_fence":  {
                                              "w":  72,
                                              "h":  72
@@ -2496,6 +2624,14 @@
                                                   "w":  52,
                                                   "h":  52
                                               },
+                   "props/great_anvil_bound":  {
+                                                   "w":  80,
+                                                   "h":  64
+                                               },
+                   "props/great_desk":  {
+                                            "w":  88,
+                                            "h":  48
+                                        },
                    "props/grindstone":  {
                                             "w":  48,
                                             "h":  48
@@ -2504,6 +2640,14 @@
                                              "w":  288,
                                              "h":  288
                                          },
+                   "props/handcart":  {
+                                          "w":  64,
+                                          "h":  56
+                                      },
+                   "props/hanging_hammer":  {
+                                                "w":  32,
+                                                "h":  96
+                                            },
                    "props/hay_rick":  {
                                           "w":  56,
                                           "h":  56
@@ -2720,6 +2864,14 @@
                                            "w":  76,
                                            "h":  76
                                        },
+                   "props/iron_fence_tall":  {
+                                                 "w":  64,
+                                                 "h":  80
+                                             },
+                   "props/iron_fence_tall_v":  {
+                                                   "w":  24,
+                                                   "h":  80
+                                               },
                    "props/keg_rack":  {
                                           "w":  72,
                                           "h":  72
@@ -2732,6 +2884,10 @@
                                            "w":  64,
                                            "h":  64
                                        },
+                   "props/knight_scrap":  {
+                                              "w":  36,
+                                              "h":  20
+                                          },
                    "props/lava_bridge":  {
                                              "w":  128,
                                              "h":  128
@@ -2756,6 +2912,10 @@
                                               "w":  56,
                                               "h":  56
                                           },
+                   "props/loaf_rack":  {
+                                           "w":  28,
+                                           "h":  20
+                                       },
                    "props/log_pile":  {
                                           "w":  48,
                                           "h":  48
@@ -2788,10 +2948,30 @@
                                                 "w":  64,
                                                 "h":  64
                                             },
+                   "props/mansion_doors":  {
+                                               "w":  112,
+                                               "h":  128
+                                           },
+                   "props/mansion_facade":  {
+                                                "w":  352,
+                                                "h":  320
+                                            },
+                   "props/mansion_gate":  {
+                                              "w":  128,
+                                              "h":  112
+                                          },
+                   "props/mansion_gate_open":  {
+                                                   "w":  128,
+                                                   "h":  112
+                                               },
                    "props/market_stall":  {
                                               "w":  80,
                                               "h":  80
                                           },
+                   "props/mattress":  {
+                                          "w":  40,
+                                          "h":  24
+                                      },
                    "props/mayor_hall":  {
                                             "w":  256,
                                             "h":  256
@@ -2808,6 +2988,10 @@
                                               "w":  80,
                                               "h":  80
                                           },
+                   "props/mini_anchor":  {
+                                             "w":  40,
+                                             "h":  52
+                                         },
                    "props/monolith":  {
                                           "w":  112,
                                           "h":  112
@@ -2816,10 +3000,18 @@
                                                 "w":  192,
                                                 "h":  192
                                             },
+                   "props/mug_half":  {
+                                          "w":  12,
+                                          "h":  12
+                                      },
                    "props/net_rack":  {
                                           "w":  64,
                                           "h":  64
                                       },
+                   "props/nightmare_hold":  {
+                                                "w":  48,
+                                                "h":  64
+                                            },
                    "props/nightstand":  {
                                             "w":  32,
                                             "h":  32
@@ -2900,10 +3092,22 @@
                                                "w":  64,
                                                "h":  64
                                            },
+                   "props/papers_drift":  {
+                                              "w":  40,
+                                              "h":  40
+                                          },
+                   "props/papers_scattered":  {
+                                                  "w":  48,
+                                                  "h":  32
+                                              },
                    "props/park_bench":  {
                                             "w":  56,
                                             "h":  56
                                         },
+                   "props/pedestal":  {
+                                          "w":  44,
+                                          "h":  32
+                                      },
                    "props/pelt_rack":  {
                                            "w":  72,
                                            "h":  72
@@ -2928,6 +3132,14 @@
                                                  "w":  192,
                                                  "h":  192
                                              },
+                   "props/prisoner_lying":  {
+                                                "w":  48,
+                                                "h":  28
+                                            },
+                   "props/prisoner_slumped":  {
+                                                  "w":  40,
+                                                  "h":  40
+                                              },
                    "props/purgatory_arch":  {
                                                 "w":  276,
                                                 "h":  276
@@ -2964,6 +3176,10 @@
                                              "w":  96,
                                              "h":  96
                                          },
+                   "props/sampler":  {
+                                         "w":  32,
+                                         "h":  24
+                                     },
                    "props/sawmill":  {
                                          "w":  144,
                                          "h":  144
@@ -2984,6 +3200,14 @@
                                           "w":  56,
                                           "h":  56
                                       },
+                   "props/skeleton_chained":  {
+                                                  "w":  40,
+                                                  "h":  56
+                                              },
+                   "props/skeleton_remains":  {
+                                                  "w":  48,
+                                                  "h":  32
+                                              },
                    "props/sky_rock":  {
                                           "w":  72,
                                           "h":  72
@@ -3012,10 +3236,18 @@
                                               "w":  112,
                                               "h":  112
                                           },
+                   "props/square_anchor":  {
+                                               "w":  170,
+                                               "h":  140
+                                           },
                    "props/stage":  {
                                        "w":  96,
                                        "h":  96
                                    },
+                   "props/stained_glass":  {
+                                               "w":  48,
+                                               "h":  112
+                                           },
                    "props/stairs_up":  {
                                            "w":  88,
                                            "h":  88
@@ -3024,10 +3256,18 @@
                                                 "w":  88,
                                                 "h":  88
                                             },
+                   "props/stall_closed":  {
+                                              "w":  80,
+                                              "h":  80
+                                          },
                    "props/steam_vent":  {
                                             "w":  90,
                                             "h":  90
                                         },
+                   "props/steaming_vat":  {
+                                              "w":  40,
+                                              "h":  36
+                                          },
                    "props/stockade_gate":  {
                                                "w":  220,
                                                "h":  220
@@ -3108,6 +3348,10 @@
                                              "w":  64,
                                              "h":  64
                                          },
+                   "props/tannery_post_bound":  {
+                                                    "w":  24,
+                                                    "h":  60
+                                                },
                    "props/tanning_rack":  {
                                               "w":  64,
                                               "h":  64
@@ -3144,6 +3388,10 @@
                                               "w":  56,
                                               "h":  56
                                           },
+                   "props/teacup":  {
+                                        "w":  12,
+                                        "h":  12
+                                    },
                    "props/tent":  {
                                       "w":  72,
                                       "h":  72
@@ -3296,6 +3544,10 @@
                                              "w":  56,
                                              "h":  56
                                          },
+                   "props/wall_chains":  {
+                                             "w":  32,
+                                             "h":  48
+                                         },
                    "props/wall_shackles":  {
                                                "w":  64,
                                                "h":  64
@@ -3328,6 +3580,14 @@
                                              "w":  72,
                                              "h":  72
                                          },
+                   "props/web_patch":  {
+                                           "w":  48,
+                                           "h":  40
+                                       },
+                   "props/web_strand":  {
+                                            "w":  16,
+                                            "h":  56
+                                        },
                    "props/well":  {
                                       "w":  56,
                                       "h":  56
@@ -3340,10 +3600,22 @@
                                            "w":  128,
                                            "h":  128
                                        },
+                   "props/window_curtained":  {
+                                                  "w":  48,
+                                                  "h":  48
+                                              },
+                   "props/window_silhouette":  {
+                                                   "w":  24,
+                                                   "h":  32
+                                               },
                    "props/witch_table":  {
                                              "w":  64,
                                              "h":  64
                                          },
+                   "props/wolf_pelt_rack":  {
+                                                "w":  48,
+                                                "h":  40
+                                            },
                    "props/woodpile":  {
                                           "w":  64,
                                           "h":  64

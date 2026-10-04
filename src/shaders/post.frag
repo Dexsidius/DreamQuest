@@ -13,6 +13,9 @@
 //   grading       each place and hour its own colour: the Ashen Path red,
 //                 the Ice Spire cold, dusk warm, the dead of night drained
 //   a flash       lightning, a waystone waking
+//   the flip      falling into the Reverie and waking out of it: the picture
+//                 ripples out from its middle and its colours turn inside out,
+//                 and settle into the other world's
 //
 // Every bend is rounded to whole world pixels, as the heat always was, so it
 // moves pixel art rather than smearing it.
@@ -29,7 +32,7 @@ layout(set = 3, binding = 0) uniform Post {
     vec4 target;     // the view's size in pixels
     vec4 opts;       // distortion on, fringing on, dream strength, lava heat on
     vec4 grade;      // rgb multiply; saturation
-    vec4 grade2;     // contrast, lift, 0, 0
+    vec4 grade2;     // contrast, lift, the flip's inversion, the flip's ripple
     vec4 flash;      // rgb, amount
     vec4 shocks[4];  // centre x, y in view pixels; radius in view pixels; strength
     vec4 heats[8];   // world x, y; radius in world px; strength
@@ -82,6 +85,16 @@ void main() {
         }
     }
 
+    // --- the flip: rings out from the middle -----------------------------------------------------
+    float flip = post.grade2.w;
+    if (bend && flip > 0.0) {
+        vec2 d = px - post.target.xy * 0.5;
+        float dist = length(d);
+        float wave = sin(dist / (14.0 * zoom) - t * 9.0);
+        if (dist > 0.5) offset += d / dist * wave * flip * 6.0 * zoom;
+        shock_fringe += flip * 0.6;
+    }
+
     // --- the dream: its edges swim ------------------------------------------------------------
     float dream = post.opts.z;
     if (bend && dream > 0.0) {
@@ -118,6 +131,9 @@ void main() {
     float lum = dot(col.rgb, vec3(0.299, 0.587, 0.114));
     col.rgb = mix(vec3(lum), col.rgb, post.grade.a);
     col.rgb = (col.rgb - 0.5) * post.grade2.x + 0.5 + post.grade2.y;
+
+    // --- the flip: inside out -----------------------------------------------------------------------
+    col.rgb = mix(col.rgb, vec3(1.0) - col.rgb, clamp(post.grade2.z, 0.0, 1.0));
 
     // --- a flash ------------------------------------------------------------------------------------
     col.rgb = mix(col.rgb, post.flash.rgb, post.flash.a);

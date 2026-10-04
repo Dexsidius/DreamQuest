@@ -847,7 +847,7 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
             }
             if (g.pull > 0.0f)
                 for (auto& e : enemies) {
-                    if (e->Dead() || e->CurrentState() == Enemy::State::Dead || e->Hidden() || e->Def() == nullptr || e->Def()->is_boss) continue;
+                    if (e->Dead() || e->CurrentState() == Enemy::State::Dead || e->Hidden() || e->Def() == nullptr || e->Def()->Boss()) continue;
                     const SDL_FPoint at = e->GroundCentre();
                     const float dx = g.x - at.x, dy = g.y - at.y, far = Length(dx, dy);
                     if (far > g.radius + e->GroundRadius() || far < 6.0f) continue;
@@ -928,7 +928,7 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
                     if (g.fling > 0.0f && ctx.rng && !e->Dead()) {
                         std::uniform_real_distribution<float> unit(0.0f, 1.0f);
                         const float a = unit(*ctx.rng) * 6.2831853f;
-                        const float hard = g.fling * (0.45f + 0.55f * unit(*ctx.rng)) * (e->Def() && e->Def()->is_boss ? 0.25f : 1.0f);
+                        const float hard = g.fling * (0.45f + 0.55f * unit(*ctx.rng)) * (e->Def() && e->Def()->Boss() ? 0.25f : 1.0f);
                         e->knock_x += cosf(a) * hard;
                         e->knock_y += sinf(a) * hard;
                         cast_next = g.cast_id;

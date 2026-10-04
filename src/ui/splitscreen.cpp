@@ -79,6 +79,10 @@ string Game::PlayerTwoPath() const {
 
 bool Game::JoinSplit(bool without_a_controller) {
     if (split_active) return true;
+    if (InPrologue()) {
+        PushToast("Player Two can join once the prologue is over.", Palette::TextDim);
+        return false;
+    }
     if (!has_session || guest_session) {
         PushToast("Player Two joins a game that is running: start or load one first.", Palette::TextDim);
         return false;

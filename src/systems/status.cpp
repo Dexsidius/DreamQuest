@@ -2,7 +2,7 @@
 #include <fstream>
 
 static const char* kStatusIds[STATUS_COUNT] = {"burn", "wet", "concussed", "bleed", "poison", "chill", "frozen",
-                                               "electrified", "charm", "confused"};
+                                               "electrified", "charm", "confused", "rooted"};
 
 const char* StatusId(Status s) {
     const int i = static_cast<int>(s);

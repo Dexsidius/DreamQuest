@@ -161,6 +161,22 @@ public:
     // A staff given over to one element, and which of its four spells is
     // chosen: see ItemDef::element. None, and 1 to 4 are the elements.
     Element StaffElement() const;
+    // The spell bar's six boxes (SPELL_BOXES): how many the weapon in hand
+    // opens, the box a choice sits in -- an element's own staff puts its four
+    // spells in the first four, anything else the four elements; the lightning
+    // and the ancient magic keep the fifth and sixth -- and whether it is open.
+    // Nothing chooses or casts from a box that is shut.
+    int   SpellBoxes() const;
+    int   BoxOf(Element e) const;
+    int   SelectedBox() const { return BoxOf(SelectedElement()); }
+    // A box's place in the order the weapon in hand opens them, or -1 for one
+    // it never does: an element's own staff casts nothing of another element,
+    // so the lightning's box is never its, and the ancient magic is its fifth.
+    int   BoxRank(int box) const;
+    bool  BoxOpen(int box) const { const int r = BoxRank(box); return r >= 0 && r < SpellBoxes(); }
+    // Back to the first box when the weapon in hand does not open the one
+    // chosen: a finer staff put down for a plainer one.
+    void  KeepSpellInReach();
     int   SpellSlot() const { return spell_slot; }
     void  SelectSlot(int slot) { spell_slot = std::clamp(slot, 0, 3); if (StaffElement() != Element::None) selected_element = StaffElement(); }
 
@@ -701,6 +717,16 @@ public:
     // Set by the world when input should not drive the player (dialogue, menus).
     bool input_locked = false;
 
+    // --- in a scene --------------------------------------------------------------
+    // A clip a scene holds the player in, in place of whatever they would be
+    // doing: lying on the road, sitting up in a bed, asleep on a mattress. A
+    // one-shot plays once and stays on its last frame. Empty: themselves.
+    string scene_clip;
+    // Not drawn at all, while a scene shows somewhere they are not.
+    bool   scene_hidden = false;
+    // Drawn this far above their feet: lying on a cart's bed rather than the road.
+    float  scene_lift = 0.0f;
+
     // --- seats -----------------------------------------------------------------
     // What this character's hands are doing this step; see player_input.h.
     // The world fills it from the device for the seat this machine drives,
@@ -744,6 +770,8 @@ public:
     bool  Afflicted(Status s) const { return statuses.Has(s); }
     bool  Charmed() const { return statuses.Has(Status::Charm); }
     bool  Confused() const { return statuses.Has(Status::Confused); }
+    // Webbed to the ground: no walking, no rolling, until it gives.
+    bool  Rooted() const { return statuses.Has(Status::Rooted); }
     bool  Held() const;                     // frozen: they cannot move or act
     // As Enemy::Afflict: the status that took (a chill on the soaked is a
     // frost), or COUNT if nothing did.

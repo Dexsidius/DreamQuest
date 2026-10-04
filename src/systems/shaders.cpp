@@ -313,7 +313,7 @@ void Upload() {
         Put(post.opts, g_options.distortion ? 1.0f : 0.0f, g_options.fringing ? 1.0f : 0.0f, f.dream,
             g_options.distortion ? 1.0f : 0.0f);
         Put(post.grade, f.grade[0], f.grade[1], f.grade[2], f.grade[3]);
-        Put(post.grade2, f.contrast, f.lift, 0.0f, 0.0f);
+        Put(post.grade2, f.contrast, f.lift, f.invert, f.ripple);
         if (g_options.flashes) Put(post.flash, f.flash[0], f.flash[1], f.flash[2], f.flash[3]);
         for (int i = 0; i < 4 && i < static_cast<int>(f.shocks.size()); ++i)
             Put(post.shocks[i], f.shocks[i].x, f.shocks[i].y, f.shocks[i].radius, f.shocks[i].strength);

@@ -3883,5 +3883,128 @@
   "value": 0,
   "keep": true,
   "icon": "assets/props/totem_quintessence.png"
+ },
+ "hearty_meal": {
+  "tags": [
+   "food"
+  ],
+  "name": "Hearty Meal",
+  "desc": "Bess's bread, a wedge of cheese and a crock of her stew, wrapped to carry. Restores 10 hitpoints.",
+  "stack": true,
+  "value": 14,
+  "consume": true,
+  "heal": 10,
+  "icon": "assets/icons/hearty_meal.png"
+ },
+ "vigil_dreamcatcher": {
+  "name": "Dreamcatcher",
+  "desc": "A worn hoop of thread and feathers. It hums faintly, as if listening.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/vigil_dreamcatcher.png",
+  "keep": true,
+  "tags": [
+   "story"
+  ]
+ },
+ "scorched_scale": {
+  "name": "Scorched Scale",
+  "desc": "Dark as char and hard as slate, its edges still warm. The Ashen Vanguard left it on the stones when it fell. Whatever it came from was large.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/scorched_scale.png",
+  "keep": true,
+  "tags": [
+   "story"
+  ]
+ },
+ "token_candle": {
+  "name": "Brass Token: Candle",
+  "desc": "A round brass token stamped with a candle. It was under the candlestick in the room you woke in.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/token_candle.png",
+  "keep": true,
+  "tags": [
+   "story"
+  ]
+ },
+ "token_loaf": {
+  "name": "Brass Token: Loaf",
+  "desc": "A round brass token stamped with a loaf. It fell out of a stale loaf in the inn's kitchen.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/token_loaf.png",
+  "keep": true,
+  "tags": [
+   "story"
+  ]
+ },
+ "token_mug": {
+  "name": "Brass Token: Mug",
+  "desc": "A round brass token stamped with a mug. It was at the bottom of a half-full mug on the bar.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/token_mug.png",
+  "keep": true,
+  "tags": [
+   "story"
+  ]
+ },
+ "havenbrook_house_key": {
+  "name": "Havenbrook House Key",
+  "desc": "Mayor Hale's key to a house on Havenbrook's south street, with a good bed in it. It's yours, free, for as long as you want it.",
+  "stack": false,
+  "value": 0,
+  "icon": "assets/icons/house_key.png",
+  "keep": true,
+  "tags": [
+   "story"
+  ]
+ },
+ "guild_amulet": {
+  "name": "Guild Amulet",
+  "desc": "Silver on a fine chain, the Havenbrook Guild's lantern worked into its face. Made for the Guild's finest; Orlend would not take no for an answer.",
+  "slot": "amulet",
+  "value": 640,
+  "bonus": {
+   "magic": 12,
+   "defence": 6
+  },
+  "icon": "assets/icons/guild_amulet.png"
+ },
+ "guild_ring": {
+  "name": "Guild Ring",
+  "desc": "A heavy band of blackened silver with the Guild's lantern cut into the bezel. Made for the Guild's finest; Orlend would not take no for an answer.",
+  "slot": "ring",
+  "value": 640,
+  "bonus": {
+   "attack": 9,
+   "strength": 9
+  },
+  "icon": "assets/icons/guild_ring.png"
+ },
+ "guild_hood": {
+  "name": "Guild Hood",
+  "desc": "Deep green wool lined with oiled leather, the Guild's lantern stitched over the brow. Made for the Guild's finest; Orlend would not take no for an answer.",
+  "slot": "head",
+  "value": 640,
+  "bonus": {
+   "ranged": 12,
+   "defence": 8
+  },
+  "icon": "assets/icons/guild_hood.png"
+ },
+ "bess_supper": {
+  "tags": [
+   "food"
+  ],
+  "name": "Bess's Supper",
+  "desc": "A proper hot meal from Bess's bar, with your name on it -- not wrapped scraps. Restores 22 hitpoints.",
+  "stack": true,
+  "value": 0,
+  "consume": true,
+  "heal": 22,
+  "icon": "assets/icons/bess_supper.png"
  }
 }

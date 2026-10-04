@@ -238,6 +238,17 @@ Bytes Encode(const Snapshot& m) {
         w.I16(g.x); w.I16(g.y); w.U16(g.radius); w.U8(g.element); w.U8(g.life); w.U8(g.max_life);
         w.Bool(g.active); w.Bool(g.from_player); w.U8(g.kind);
     }
+    w.U8(m.angle_phase);
+    w.I16(m.angle_x); w.I16(m.angle_y);
+    w.U8(m.angle_dip); w.U8(m.angle_line); w.U8(m.angle_band); w.U8(m.angle_half);
+    w.U8(m.angle_progress); w.U8(m.angle_strain);
+    w.Str(m.angle_fish, MAX_ITEM_ID);
+    const size_t bobbers = m.bobbers.size() < MAX_BOBBERS_TOLD ? m.bobbers.size() : MAX_BOBBERS_TOLD;
+    w.U8(static_cast<uint8_t>(bobbers));
+    for (size_t i = 0; i < bobbers; ++i) {
+        const Snapshot::Bobber& b = m.bobbers[i];
+        w.U8(b.seat); w.I16(b.x); w.I16(b.y); w.U8(b.dip);
+    }
     return w.Take();
 }
 
@@ -303,6 +314,19 @@ bool Decode(const Bytes& b, Snapshot& out) {
         g.x = r.I16(); g.y = r.I16(); g.radius = r.U16(); g.element = r.U8(); g.life = r.U8(); g.max_life = r.U8();
         g.active = r.Bool(); g.from_player = r.Bool(); g.kind = r.U8();
         out.patches.push_back(g);
+    }
+    out.angle_phase = r.U8();
+    out.angle_x = r.I16(); out.angle_y = r.I16();
+    out.angle_dip = r.U8(); out.angle_line = r.U8(); out.angle_band = r.U8(); out.angle_half = r.U8();
+    out.angle_progress = r.U8(); out.angle_strain = r.U8();
+    out.angle_fish = r.Str(MAX_ITEM_ID);
+    const uint8_t bobbers = r.U8();
+    if (!r.Ok() || bobbers > MAX_BOBBERS_TOLD) return false;
+    out.bobbers.clear();
+    for (uint8_t i = 0; i < bobbers; ++i) {
+        Snapshot::Bobber b;
+        b.seat = r.U8(); b.x = r.I16(); b.y = r.I16(); b.dip = r.U8();
+        out.bobbers.push_back(b);
     }
     return r.Done();
 }

@@ -542,14 +542,23 @@ float Game::DrawItemStats(const ItemDef& d, float x, float y, float w) {
     const Player& p = world->player;
     const float top = y;
     const float row = 16.0f;
-    // Three columns: what the stat is, what this piece gives, and the change.
-    // The two numbers sit near each other rather than at opposite ends of the
-    // pane, because they are the pair being compared.
-    const float value_x = x + w * 0.58f;
-    const float delta_x = x + w * 0.88f;
-
     const ItemDef* worn = WornAgainst(d);
     const bool compare = (d.slot != SLOT_NONE) && !GoesInOtherHand(d);
+    const vector<ItemStat> rows = ItemStatLines(d, worn, compare);
+
+    // Three columns: what the stat is, what this piece gives, and the change.
+    // The two numbers sit near each other rather than at opposite ends of the
+    // pane, because they are the pair being compared -- but never so near the
+    // names that a long one runs into its number: a reward card is narrow, and
+    // "Spell slots" met "4 of 6" in it at the larger text sizes.
+    float label_w = 0.0f, value_w = 0.0f, delta_w = 0.0f;
+    for (const ItemStat& r : rows) {
+        label_w = std::max(label_w, ui.Measure(r.label, TextSize::Small).x);
+        value_w = std::max(value_w, ui.Measure(r.value, TextSize::Small).x);
+        delta_w = std::max(delta_w, ui.Measure(r.delta, TextSize::Small).x);
+    }
+    const float value_x = std::max(x + w * 0.58f, x + label_w + 10.0f + value_w);
+    const float delta_x = std::min(x + w, std::max(x + w * 0.88f, value_x + 10.0f + delta_w));
 
     if (d.slot != SLOT_NONE) {
         // The longest names in the game are enchanted gloves -- "Instead of
@@ -563,7 +572,7 @@ float Game::DrawItemStats(const ItemDef& d, float x, float y, float w) {
             y += ui.TextWrapped(head, x, y, w, TextSize::Small, Palette::TextDim) + 2.0f;
         }
     }
-    for (const ItemStat& r : ItemStatLines(d, worn, compare)) {
+    for (const ItemStat& r : rows) {
         ui.Text(r.label, x, y, TextSize::Small, Palette::Text);
         ui.Text(r.value, value_x, y, TextSize::Small,
                 r.value == "+0" ? Palette::TextDim : Palette::Xp, Align::Right);

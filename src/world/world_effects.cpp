@@ -420,6 +420,86 @@ void World::ShedFromStatuses(float dt) {
     }
 }
 
+void World::Smoke(float x, float y, float radius, bool gather) {
+    const SDL_Color from = {70, 46, 104, 230}, to = {22, 14, 34, 0};
+    for (int i = 0; i < 34; ++i) {
+        const float a = Between(0.0f, 6.2831853f);
+        const float r = radius * Between(0.55f, 1.15f);
+        const float h = Between(0.0f, 60.0f);           // up the height of a figure
+        float sx = x, sy = y, vx = 0, vy = 0;
+        if (gather) {
+            // From round the figure, in toward its middle and up.
+            sx = x + cosf(a) * r;
+            sy = y - h * 0.4f + sinf(a) * r * 0.5f;
+            vx = (x - sx) * Between(1.4f, 2.2f);
+            vy = (y - h * 0.6f - sy) * Between(1.4f, 2.2f);
+        } else {
+            // Let out from where it stands.
+            sx = x + Between(-6.0f, 6.0f);
+            sy = y - h * 0.5f;
+            vx = cosf(a) * Between(30.0f, 70.0f);
+            vy = sinf(a) * Between(14.0f, 34.0f);
+        }
+        Mote m = Speck(sx, sy, vx, vy, Between(0.6f, 1.2f), Chance(0.4f) ? 3.0f : 2.0f, from, to);
+        m.grow = Between(3.0f, 7.0f);
+        m.drag = 1.6f;
+        m.gravity = -22.0f;
+        motes.push_back(m);
+    }
+    // A breath of it closing (or opening): one dark ring.
+    Mote ring = Speck(x, y - 24.0f, 0.0f, 0.0f, 0.5f, gather ? radius * 0.8f : 4.0f, {96, 66, 140, 160}, {30, 20, 46, 0});
+    ring.kind = Mote::Kind::Ring;
+    ring.grow = gather ? -radius * 1.4f : radius * 1.6f;
+    motes.push_back(ring);
+}
+
+void World::UpdateChimneys(float dt) {
+    // A puff from each chimney every third of a second or so, rising and
+    // spreading and drifting off with the breeze -- which turns, slowly -- and
+    // gone in three or four. Only what is on screen: nothing anybody can see
+    // is worth the motes.
+    const auto& objects = map.Objects();
+    if (chimney_timers.size() != objects.size()) chimney_timers.assign(objects.size(), 0.0f);
+    const SDL_FRect view = camera.VisibleWorldRect(96.0f);
+    const float now = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+    for (size_t i = 0; i < objects.size(); ++i) {
+        const MapObject& o = objects[i];
+        if (o.type != "chimney") continue;
+        if (o.x < view.x || o.x > view.x + view.w || o.y < view.y - 120.0f || o.y > view.y + view.h) continue;
+        if ((chimney_timers[i] -= dt) > 0.0f) continue;
+        chimney_timers[i] = Between(0.18f, 0.30f);
+        // A cold hearth -- a town asleep, a forge gone out -- has nothing to give.
+        if (!ObjectPresent(o)) continue;
+        const float breeze = 7.0f + 4.0f * sinf(now * 0.23f + o.x * 0.003f);
+        Mote m = Speck(o.x + Between(-1.5f, 1.5f), o.y, breeze * Between(0.6f, 1.2f), -Between(13.0f, 19.0f),
+                       Between(2.6f, 3.6f), 3.0f, {226, 226, 232, 215}, {150, 152, 162, 0});
+        m.grow = Between(3.2f, 5.0f);
+        m.drag = 0.12f;
+        m.gravity = -2.0f;
+        motes.push_back(m);
+    }
+}
+
+void World::Ripple(float x, float y, float size) {
+    // A pale ring opening on the water, flat as the water is, and gone in a breath.
+    Mote ring = Speck(x, y, 0.0f, 0.0f, 0.7f, 2.0f, {226, 242, 255, 210}, {180, 214, 240, 0});
+    ring.kind = Mote::Kind::Ring;
+    ring.grow = size * 1.6f;
+    motes.push_back(ring);
+}
+
+void World::Steam(float x, float y, float size) {
+    // Pale wisps curling up off somebody: a temper, a cold breath.
+    for (int i = 0; i < 14; ++i) {
+        Mote m = Speck(x + Between(-size, size), y - Between(0.0f, size), Between(-10.0f, 10.0f), Between(-26.0f, -12.0f),
+                       Between(0.8f, 1.4f), Chance(0.5f) ? 3.0f : 2.0f, {236, 236, 240, 200}, {200, 204, 214, 0});
+        m.grow = Between(2.0f, 5.0f);
+        m.drag = 1.2f;
+        m.gravity = -10.0f;
+        motes.push_back(m);
+    }
+}
+
 void World::UpdateMotes(float dt) {
     for (Mote& m : motes) {
         m.life -= dt;

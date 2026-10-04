@@ -1253,6 +1253,24 @@ void Host::Tell(float dt, net::Server& server, World& home) {
             snap.gather = static_cast<uint8_t>(std::clamp(state.gather_timer / state.gather_needed, 0.0f, 1.0f) * 255.0f);
             snap.gather_clip = me->GatherClip() + "|" + me->GatherModel();
         }
+        // Their line in the water, played here with their hands: what they see of it.
+        const auto share = [](float v) { return static_cast<uint8_t>(std::clamp(v, 0.0f, 1.0f) * 255.0f + 0.5f); };
+        if (state.gather_index >= 0 && state.angler.Active()) {
+            const Gathering::Angler& a = state.angler;
+            snap.angle_phase = static_cast<uint8_t>(a.phase);
+            snap.angle_x = Px(state.angler_x);
+            snap.angle_y = Px(state.angler_y);
+            snap.angle_dip = share(a.Dip());
+            snap.angle_line = share(a.line);
+            snap.angle_band = share(a.band);
+            snap.angle_half = share(a.fight.band);
+            snap.angle_progress = share(a.progress);
+            snap.angle_strain = share(a.Strain());
+            if (a.Hooked()) snap.angle_fish = state.angler_fish;
+        }
+        for (const World::Bobber& b : w.Bobbers())
+            if (snap.bobbers.size() < net::MAX_BOBBERS_TOLD)
+                snap.bobbers.push_back({b.seat, Px(b.x), Px(b.y), share(b.dip)});
         if (&w == &home && !home.player.absent) snap.players.push_back(StateOf(home.player, host_seat));
         for (const auto& g : w.guests)
             if (!g->puppet && !g->away && snap.players.size() < static_cast<size_t>(net::MAX_SEATS))
@@ -1266,7 +1284,8 @@ void Host::Tell(float dt, net::Server& server, World& home) {
             net::EnemyState es;
             es.id = static_cast<uint16_t>(i + 1);
             es.x = Px(told.x); es.y = Px(told.y);
-            es.bits = static_cast<uint8_t>((told.facing & 3) | ((told.state & 7) << 2) | (told.hurt ? 32 : 0) | (told.bar ? 64 : 0));
+            es.bits = static_cast<uint8_t>((told.facing & 3) | ((told.state & 7) << 2) | (told.hurt ? 32 : 0) | (told.bar ? 64 : 0) |
+                                           (told.weak ? 128 : 0));
             es.clip = ClipIndex(e.sprite.Def(), told.clip);
             es.frame = told.frame; es.heavy = told.heavy; es.alpha = told.alpha;
             es.statuses = told.statuses;
@@ -1647,6 +1666,26 @@ void Guest::OnSnapshot(const net::Snapshot& snap, net::Client& client, World& wo
         const string model = bar == string::npos ? string() : snap.gather_clip.substr(bar + 1);
         world.ShowGather(snap.gather / 255.0f, clip, model);
     }
+    {
+        // My own line in the water, as the host plays it, and everybody's bobber.
+        World::AnglerView v;
+        v.on = snap.angle_phase != 0;
+        v.phase = static_cast<Gathering::Angler::Phase>(std::min<uint8_t>(snap.angle_phase, 5));
+        v.x = snap.angle_x;
+        v.y = snap.angle_y;
+        v.dip = snap.angle_dip / 255.0f;
+        v.line = snap.angle_line / 255.0f;
+        v.band = snap.angle_band / 255.0f;
+        v.half = snap.angle_half / 255.0f;
+        v.progress = snap.angle_progress / 255.0f;
+        v.strain = snap.angle_strain / 255.0f;
+        v.fish = snap.angle_fish;
+        world.HearOfAngler(v);
+        vector<World::Bobber> bobbers;
+        for (const net::Snapshot::Bobber& b : snap.bobbers)
+            bobbers.push_back({b.seat, static_cast<float>(b.x), static_cast<float>(b.y), b.dip / 255.0f});
+        world.HearOfBobbers(std::move(bobbers));
+    }
 
     for (const net::PlayerState& st : snap.players) {
         if (st.seat != client.Seat()) {
@@ -1889,6 +1928,7 @@ void Guest::PoseBeasts(float dt, World& world) {
         p.state = (a.bits >> 2) & 7;
         p.hurt = (a.bits & 32) != 0;
         p.bar = (a.bits & 64) != 0;
+        p.weak = (a.bits & 128) != 0;
         p.frame = a.frame; p.heavy = a.heavy; p.alpha = a.alpha;
         p.statuses = a.statuses;
         p.hp = a.hp;

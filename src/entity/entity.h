@@ -57,7 +57,11 @@ public:
     // Larger box used for weapon hits and interaction range.
     virtual SDL_FRect BodyBox() const;
 
-    float SortY() const { return y; }
+    float SortY() const { return y + sort_bias; }
+    // Drawn as though this much further down the screen: a figure laid on a
+    // bed or a cart, in front of what it lies on though its feet are above
+    // the bed's own foot.
+    float sort_bias = 0.0f;
     // Where it stands, for everything that is decided on the ground -- a swing,
     // a slam, burning earth: the middle of its feet, and half its width.
     SDL_FPoint GroundCentre() const {

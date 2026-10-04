@@ -39,6 +39,7 @@ static void ReadArmoury(const json& o, ItemDef& d) {
     d.mana_mult = o.value("mana", 1.0f);
     d.homing    = o.value("homing", 0.0f);
     d.element   = ElementFromName(o.value("element", string("none")));
+    d.spell_boxes = std::clamp(o.value("spell_boxes", 0), 0, SPELL_BOXES);
     // "spells": { "fire": [1, 2, 4], ... } -- which of each element's four this
     // weapon reaches. See ItemDef::spell_slots.
     if (o.contains("spells") && o["spells"].is_object()) {
@@ -637,6 +638,23 @@ bool ItemDatabase::LoadTiers(const string& path) {
         ++index;
     }
 
+    // How many of the spell bar's boxes each caster opens (SPELL_BOXES): a
+    // tier's from its place among the tiers; one made by hand from where its
+    // Magic requirement would put it -- none at all is a wooden one's, a
+    // requirement of 34 an azuryte one's. What a line says itself stands.
+    for (auto& [id, d] : defs) {
+        if (d.kind != WeaponKind::Staff || d.slot != SLOT_WEAPON || d.spell_boxes > 0) continue;
+        int at = d.tier_index;
+        if (at < 0) {
+            const auto req = d.requirements.find(SKILL_MAGIC);
+            const int level = req == d.requirements.end() ? 0 : req->second;
+            at = 0;
+            for (size_t i = 1; i < tiers.size(); ++i)
+                if (tiers[i].level <= level) at = static_cast<int>(i);
+        }
+        d.spell_boxes = SpellBoxesAtTier(at);
+    }
+
     SettleCraftValues();
     SDL_Log("ItemDatabase: %d tiers, %d recipes (%s)",
             static_cast<int>(tiers.size()), static_cast<int>(recipes.size()), path.c_str());
@@ -741,6 +759,21 @@ vector<ItemStat> ItemStatLines(const ItemDef& d, const ItemDef* worn, bool compa
             ItemStat r;
             r.label = "Reach";
             r.value = v;
+            rows.push_back(r);
+        }
+        // A caster: how many of the spell bar's boxes it opens (SPELL_BOXES).
+        if (d.kind == WeaponKind::Staff && d.slot == SLOT_WEAPON) {
+            ItemStat r;
+            r.label = "Spell slots";
+            const int mine = std::min(d.SpellBoxes(), d.SpellBoxTotal());
+            r.value = std::to_string(mine) + " of " + std::to_string(d.SpellBoxTotal());
+            if (compare && worn && worn->kind == WeaponKind::Staff) {
+                const int change = mine - std::min(worn->SpellBoxes(), worn->SpellBoxTotal());
+                char c[32];
+                SDL_snprintf(c, sizeof(c), "(%+d)", change);
+                r.delta = change == 0 ? "( -- )" : c;
+                r.verdict = change > 0 ? 1 : (change < 0 ? -1 : 0);
+            }
             rows.push_back(r);
         }
         // A dagger: what a second one in the other hand does to the first.

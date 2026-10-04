@@ -7949,5 +7949,2067 @@
    ]
   },
   "completion": "The name runs off the slate like water."
+ },
+ "q_pro_meet_mayor": {
+  "name": "Meet the Mayor",
+  "source": "npc",
+  "giver": "npc_mayor",
+  "level": 1,
+  "major": true,
+  "summary": "A note by the bed you woke in: \"If you wake before I come to see you, come to the Mayor's Hall. We must speak!\"",
+  "stages": [
+   {
+    "desc": "Find the Mayor at the Mayor's Hall",
+    "type": "flag",
+    "target": "PRO_05_MAYOR_TALK",
+    "count": 1,
+    "where": "npc_mayor"
+   }
+  ],
+  "rewards": {}
+ },
+ "q_pro_wake_sleeper": {
+  "name": "Wake a Sleeper",
+  "source": "npc",
+  "giver": "npc_mayor",
+  "level": 1,
+  "major": true,
+  "summary": "Every morning fewer doors in Havenbrook open. Mayor Hale wants to know if you, who went down and came back up, can wake one of those who did not.",
+  "stages": [
+   {
+    "desc": "Enter a villager's home and try to wake them",
+    "type": "flag",
+    "target": "PRO_07_SLEEPER_FAIL",
+    "count": 1,
+    "where": "house_sleeper"
+   },
+   {
+    "desc": "Report to the Mayor",
+    "type": "flag",
+    "target": "PRO_08_MAYOR_ASLEEP",
+    "count": 1,
+    "where": "npc_mayor"
+   }
+  ],
+  "rewards": {}
+ },
+ "q_pro_experiment": {
+  "name": "The Experiment",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": true,
+  "summary": "The stranger has locked you in a cell under his house. \"Sleep here tonight, and let us see what happens to you.\"",
+  "stages": [
+   {
+    "desc": "Rest on the mattress",
+    "type": "flag",
+    "target": "PRO_11_FIRST_REVERIE",
+    "count": 1,
+    "where": "pro_mattress"
+   },
+   {
+    "desc": "Explore the dream",
+    "type": "flag",
+    "target": "PRO_12_WAKING_STONE",
+    "count": 1,
+    "where": "pro_waking_stone"
+   }
+  ],
+  "rewards": {}
+ },
+ "q_pro_arm": {
+  "name": "Arm Yourself",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": true,
+  "summary": "The old man in the cell down the corridor says there is a chest in the cell across from his. \"Take a weapon. Your dreams can turn dangerous.\"",
+  "stages": [
+   {
+    "desc": "Open the chest in the cell across from the old man",
+    "type": "interact",
+    "target": "pro_chest_arms",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "coins": 25,
+   "choices": [
+    {
+     "style": "melee",
+     "label": "Sword and shield",
+     "items": [
+      {
+       "id": "wood_sword",
+       "qty": 1
+      },
+      {
+       "id": "wood_body",
+       "qty": 1
+      },
+      {
+       "id": "wooden_shield",
+       "qty": 1
+      }
+     ]
+    },
+    {
+     "style": "ranged",
+     "label": "Bow and rawhide",
+     "items": [
+      {
+       "id": "oak_shortbow",
+       "qty": 1
+      },
+      {
+       "id": "wood_hide_head",
+       "qty": 1
+      },
+      {
+       "id": "wood_hide_body",
+       "qty": 1
+      },
+      {
+       "id": "wood_hide_legs",
+       "qty": 1
+      },
+      {
+       "id": "hide_boots",
+       "qty": 1
+      }
+     ]
+    },
+    {
+     "style": "magic",
+     "label": "Staff and homespun",
+     "items": [
+      {
+       "id": "wood_staff",
+       "qty": 1
+      },
+      {
+       "id": "wood_robe_head",
+       "qty": 1
+      },
+      {
+       "id": "wood_robe_body",
+       "qty": 1
+      },
+      {
+       "id": "wood_robe_legs",
+       "qty": 1
+      },
+      {
+       "id": "wooden_shield",
+       "qty": 1
+      }
+     ]
+    }
+   ]
+  },
+  "choice_flag": "WEAPON_CHOSEN",
+  "completion": "Whoever packed this chest meant it to be found."
+ },
+ "q_pro_escape": {
+  "name": "Escape the Mansion",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": true,
+  "summary": "Vigil: \"Take the stairs up. Get out of this house.\"",
+  "stages": [
+   {
+    "desc": "Climb the stairs",
+    "type": "reach",
+    "target": "mansion_foyer",
+    "count": 1
+   },
+   {
+    "desc": "Get out of the house",
+    "type": "reach",
+    "target": "mansion_grounds",
+    "count": 1
+   },
+   {
+    "desc": "Run down the gate road",
+    "type": "flag",
+    "target": "PRO_COMPLETE",
+    "count": 1,
+    "where": "mansion_grounds"
+   }
+  ],
+  "rewards": {}
+ },
+ "q_pro_first_blood": {
+  "name": "First Blood",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": true,
+  "summary": "Two suits of armour stepped down off their pedestals in the stranger's foyer. The doors will not open while they stand.",
+  "stages": [
+   {
+    "desc": "Defeat the animated armor",
+    "type": "kill",
+    "target": "animated_armor",
+    "map": "mansion_foyer",
+    "count": 2
+   }
+  ],
+  "rewards": {},
+  "sets_flag": "PRO_15_FOYER_CLEARED"
+ },
+ "q_pro_anyone_awake": {
+  "name": "Anyone Awake?",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": true,
+  "summary": "Havenbrook is silent: everyone you have found is asleep where they sat down. Somebody must still be awake.",
+  "stages": [
+   {
+    "desc": "Search Havenbrook for a villager who is still awake",
+    "type": "flag",
+    "target": "ACT1_01_VASK_FOUND",
+    "count": 1,
+    "where": "town_havenbrook"
+   }
+  ],
+  "rewards": {}
+ },
+ "q_act1_vask": {
+  "name": "What Troubles Elder Vask",
+  "source": "npc",
+  "giver": "npc_vask_porch",
+  "level": 1,
+  "major": true,
+  "summary": "Elder Vask rocks on the guild hall's porch, eyes shut, arguing with someone only he can see. He is half in the Reverie, and fighting something there.",
+  "stages": [
+   {
+    "desc": "Use the Dreamcatcher on Elder Vask",
+    "type": "flag",
+    "target": "ACT1_02_DREAM_ENTERED",
+    "count": 1,
+    "where": "npc_vask_porch"
+   },
+   {
+    "desc": "Free Elder Vask from what holds his dream",
+    "type": "flag",
+    "target": "ACT1_06_VASK_AWAKE",
+    "count": 1,
+    "where": "npc_vask_porch"
+   }
+  ],
+  "rewards": {}
+ },
+ "q_act1_break_hold": {
+  "name": "Break the Hold",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": true,
+  "summary": "In his dream, Elder Vask: \"I can feel the roots: three out along the edges and one thick one in the square. Cut them loose, whoever you are.\"",
+  "stages": [
+   {
+    "desc": "Clear the Hushed in the streets",
+    "type": "flag",
+    "target": "ACT1_STREETS_CLEARED",
+    "count": 1,
+    "where": "dream_guild_door"
+   },
+   {
+    "desc": "Release the Nightmare Holds",
+    "type": "flag",
+    "target": "ACT1_03_HOLDS_CLEARED",
+    "count": 3,
+    "where": "nightmare_hold"
+   },
+   {
+    "desc": "Destroy the Nightmare Anchor in the town square",
+    "type": "flag",
+    "target": "ACT1_05_ANCHOR_DOWN",
+    "count": 1,
+    "where": "square_anchor"
+   }
+  ],
+  "rewards": {},
+  "then": "q_act1_bells"
+ },
+ "q_act1_bells": {
+  "name": "Ring the Dawn Bells",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": true,
+  "summary": "Where the Anchor stood, the dark peeled off an old bell frame hidden at the centre of the square: the Dawn Bells, pale, and glowing faintly.",
+  "stages": [
+   {
+    "desc": "Ring the Dawn Bells in the town square",
+    "type": "flag",
+    "target": "ECHO_HAVENBROOK_BELLS",
+    "count": 1,
+    "where": "dawn_bells"
+   }
+  ],
+  "rewards": {}
+ },
+ "q_act1_gather": {
+  "name": "Learn to Gather",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": true,
+  "summary": "Woken by the Dawn Bells, Havenbrook's woodcutter, angler and miner each want to repay you the only way they know how: by teaching you their trade.",
+  "stages": [
+   {
+    "desc": "Learn from the woodcutter, the angler and the miner",
+    "type": "flag",
+    "target": "ACT1_LEARN",
+    "count": 3,
+    "where": "town_havenbrook"
+   }
+  ],
+  "rewards": {
+   "coins": 40
+  },
+  "sets_flag": "ACT1_LEARN_TO_GATHER_DONE",
+  "completion": "Three trades, three teachers. The town is starting to feel like somewhere you could live."
+ },
+ "q_act1_tut_wood": {
+  "name": "Woodcutting",
+  "source": "npc",
+  "giver": "npc_sawyer",
+  "level": 1,
+  "major": false,
+  "summary": "Sawyer Jessa: \"Now you. Do just what I did.\"",
+  "stages": [
+   {
+    "desc": "Chop the marked tree",
+    "type": "collect",
+    "target": "logs",
+    "count": 3,
+    "where": "act1_tree_marked"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Woodcutting": 150,
+    "Crafting": 30
+   },
+   "coins": 20
+  },
+  "sets_flag": "ACT1_TUT_WOODCUTTING_DONE"
+ },
+ "q_act1_tut_fish": {
+  "name": "Fishing",
+  "source": "npc",
+  "giver": "npc_angler",
+  "level": 1,
+  "major": false,
+  "summary": "Angler Sula: \"Patience first, quick hands second. Now you try.\"",
+  "stages": [
+   {
+    "desc": "Catch fish from the mill pond",
+    "type": "collect",
+    "target": "raw_minnow",
+    "count": 3
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Fishing": 140,
+    "Cooking": 40
+   },
+   "coins": 20
+  },
+  "sets_flag": "ACT1_TUT_FISHING_DONE"
+ },
+ "q_act1_tut_mine": {
+  "name": "Mining",
+  "source": "npc",
+  "giver": "npc_pitmaster",
+  "level": 1,
+  "major": false,
+  "summary": "Pitmaster Dorn: \"Two taps to find the crack, one hard strike to finish it. Now you.\"",
+  "stages": [
+   {
+    "desc": "Mine the marked vein",
+    "type": "collect",
+    "target": "copper_ore",
+    "count": 3,
+    "where": "act1_rock_marked"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Mining": 160,
+    "Smithing": 40
+   },
+   "coins": 20
+  },
+  "sets_flag": "ACT1_TUT_MINING_DONE"
+ },
+ "q_act1_forge": {
+  "name": "The Silent Forge",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": true,
+  "summary": "No smoke rises from the forge's chimney. A forge is never meant to be cold.",
+  "stages": [
+   {
+    "desc": "Investigate the forge",
+    "type": "flag",
+    "target": "ACT1_FORGE_ENTERED",
+    "count": 1,
+    "where": "house_smith"
+   },
+   {
+    "desc": "Defeat the Black Knights",
+    "type": "kill",
+    "target": "black_knight",
+    "map": "house_smith",
+    "count": 4,
+    "or_flag": "ACT1_FORGE_KNIGHTS_DOWN"
+   },
+   {
+    "desc": "Check on Halda",
+    "type": "flag",
+    "target": "ACT1_HALDA_STILL_DREAMING",
+    "count": 1,
+    "where": "npc_smith"
+   }
+  ],
+  "rewards": {},
+  "then": "q_act1_save_halda"
+ },
+ "q_act1_save_halda": {
+  "name": "Save Halda",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": true,
+  "summary": "The knights were only her jailers. Halda is still in the Reverie, gripping a hammer that isn't there.",
+  "stages": [
+   {
+    "desc": "Use the Dreamcatcher on Halda",
+    "type": "flag",
+    "target": "ACT1_HALDA_DREAM_ENTERED",
+    "count": 1,
+    "where": "npc_smith"
+   },
+   {
+    "desc": "Cross the causeway to the platform",
+    "type": "flag",
+    "target": "ACT1_HALDA_DEMON_START",
+    "count": 1,
+    "where": "forge_anchor"
+   },
+   {
+    "desc": "Defeat the Forge Demon",
+    "type": "kill",
+    "target": "forge_demon",
+    "map": "dream_forge",
+    "count": 1,
+    "or_flag": "ACT1_HALDA_DEMON_DOWN"
+   },
+   {
+    "desc": "Break the Anchor",
+    "type": "flag",
+    "target": "ECHO_HALDA_FORGE_RELIT",
+    "count": 1,
+    "where": "forge_anchor"
+   },
+   {
+    "desc": "See how Halda is",
+    "type": "flag",
+    "target": "ACT1_HALDA_AWAKE",
+    "count": 1,
+    "where": "npc_smith"
+   }
+  ],
+  "rewards": {
+   "coins": 120,
+   "xp": {
+    "Smithing": 200
+   }
+  },
+  "completion": "Halda's forge is lit again, and her anvil rings for the first time in days. Her smithing is yours to call on."
+ },
+ "q_act1_bess": {
+  "name": "Where's Bess?",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": true,
+  "summary": "The tavern is as you left it, only emptier: stools overturned, a half-full mug on the bar, Bess's apron on its hook. Bess herself is nowhere.",
+  "stages": [
+   {
+    "desc": "Find Bess",
+    "type": "flag",
+    "target": "ACT1_INN_LOCK_SEEN",
+    "count": 1,
+    "where": "inn_cellar_lock"
+   },
+   {
+    "desc": "Find the three brass tokens hidden around the inn",
+    "type": "flag",
+    "target": "ACT1_INN_TOKENS_FOUND",
+    "count": 3,
+    "where": "inn_token"
+   },
+   {
+    "desc": "Open the cellar door",
+    "type": "flag",
+    "target": "ACT1_INN_CELLAR_OPEN",
+    "count": 1,
+    "where": "inn_cellar_lock"
+   },
+   {
+    "desc": "Clear the cellar of nightmare spiders",
+    "type": "kill",
+    "target": "nightmare_spider",
+    "map": "house_inn_cellar",
+    "count": 8,
+    "or_flag": "ACT1_INN_CELLAR_CLEARED"
+   },
+   {
+    "desc": "Find Bess",
+    "type": "flag",
+    "target": "ACT1_BESS_STILL_DREAMING",
+    "count": 1,
+    "where": "npc_bess_cellar"
+   }
+  ],
+  "rewards": {},
+  "then": "q_act1_save_bess"
+ },
+ "q_act1_save_bess": {
+  "name": "Save Bess",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": true,
+  "summary": "Bess lies tangled in webbing at the foot of the cellar stairs, counting something in her sleep.",
+  "stages": [
+   {
+    "desc": "Use the Dreamcatcher on Bess",
+    "type": "flag",
+    "target": "ACT1_BESS_DREAM_ENTERED",
+    "count": 1,
+    "where": "npc_bess_cellar"
+   },
+   {
+    "desc": "Clear the nightmare spiders",
+    "type": "kill",
+    "target": "nightmare_spider",
+    "map": "dream_cellar",
+    "count": 10,
+    "or_flag": "ACT1_BESS_SPIDERS_DOWN"
+   },
+   {
+    "desc": "Ring the Dawn Chime",
+    "type": "flag",
+    "target": "ECHO_BESS_CHIME",
+    "count": 1,
+    "where": "bess_chime"
+   },
+   {
+    "desc": "See how Bess is",
+    "type": "flag",
+    "target": "ACT1_BESS_AWAKE",
+    "count": 1,
+    "where": "npc_bess_cellar"
+   }
+  ],
+  "rewards": {
+   "coins": 100,
+   "items": [
+    {
+     "id": "bess_supper",
+     "qty": 2
+    }
+   ]
+  },
+  "completion": "Bess is up and about, and whenever you're hungry there's a hot meal at her bar with your name on it. No arguments."
+ },
+ "q_act1_supper": {
+  "name": "Supper at Bess's",
+  "source": "npc",
+  "giver": "npc_cook",
+  "level": 1,
+  "repeat": "daily",
+  "pool": "bess_supper",
+  "posts": 1,
+  "summary": "A hot meal at Bess's bar with your name on it.",
+  "stages": [
+   {
+    "desc": "Sit down at Bess's bar",
+    "type": "talk",
+    "target": "npc_cook",
+    "count": 1
+   }
+  ],
+  "rewards": {
+   "items": [
+    {
+     "id": "bess_supper",
+     "qty": 1
+    }
+   ]
+  },
+  "completion": "Bess sets a plate down in front of you and dares you to reach for your purse."
+ },
+ "q_act1_hides": {
+  "name": "The Haunted Hides",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": true,
+  "summary": "The woodcutter: \"All those nights I lay dreaming, I swear I heard wolves, circling down by the tannery. Might be worth looking in on the Tanner.\"",
+  "stages": [
+   {
+    "desc": "Investigate the tannery",
+    "type": "flag",
+    "target": "ACT1_TANNER_SEEN",
+    "count": 1,
+    "where": "npc_nessa"
+   },
+   {
+    "desc": "Try to wake the Tanner",
+    "type": "flag",
+    "target": "ACT1_TANNER_STILL_DREAMING",
+    "count": 1,
+    "where": "npc_nessa"
+   }
+  ],
+  "rewards": {},
+  "then": "q_act1_save_tanner"
+ },
+ "q_act1_save_tanner": {
+  "name": "Save the Tanner",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": true,
+  "summary": "Nessa sits bolt upright at her bench with a skinning knife clenched in her fist, her breath fogging in the warm air as if she stood in a winter wood.",
+  "stages": [
+   {
+    "desc": "Use the Dreamcatcher on the Tanner",
+    "type": "flag",
+    "target": "ACT1_TANNER_DREAM_ENTERED",
+    "count": 1,
+    "where": "npc_nessa"
+   },
+   {
+    "desc": "Defeat the four nightmare wolves",
+    "type": "kill",
+    "target": "nightmare_wolf",
+    "map": "dream_tannery",
+    "count": 4,
+    "or_flag": "ACT1_TANNER_WOLVES_DOWN"
+   },
+   {
+    "desc": "Break the Anchor",
+    "type": "flag",
+    "target": "ECHO_TANNER_HOWL_FADES",
+    "count": 1,
+    "where": "tannery_anchor"
+   },
+   {
+    "desc": "See how the Tanner is",
+    "type": "flag",
+    "target": "ACT1_TANNER_AWAKE",
+    "count": 1,
+    "where": "npc_nessa"
+   }
+  ],
+  "rewards": {
+   "coins": 100,
+   "items": [
+    {
+     "id": "hide",
+     "qty": 6
+    }
+   ]
+  },
+  "completion": "\"Anything you need cured or tanned, it's on me.\" Nessa's tannery is open again."
+ },
+ "q_act1_finale": {
+  "name": "The Mayor's Dream",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": true,
+  "summary": "Halda, Bess and the Tanner are awake. Mayor Hale is still asleep at his desk -- or he was.",
+  "stages": [
+   {
+    "desc": "Go to the Mayor's Hall",
+    "type": "flag",
+    "target": "ACT1_FINALE_TRAPPED",
+    "count": 1,
+    "where": "mayor_hall"
+   },
+   {
+    "desc": "Defeat the Black Knights to escape",
+    "type": "kill",
+    "target": "black_knight",
+    "map": "dream_mayor_hall",
+    "count": 5,
+    "or_flag": "ACT1_MAYOR_HALL_CLEARED"
+   },
+   {
+    "desc": "Go inside the Guild Hall",
+    "type": "flag",
+    "target": "ACT1_FINALE_GUILD_ENTERED",
+    "count": 1,
+    "where": "dream_guild_door"
+   },
+   {
+    "desc": "Defeat the Black Knights",
+    "type": "kill",
+    "target": "black_knight",
+    "map": "dream_guild_hall",
+    "count": 6,
+    "or_flag": "ACT1_GUILD_KNIGHTS_DOWN"
+   },
+   {
+    "desc": "Strike down the Anchor",
+    "type": "flag",
+    "target": "ACT1_FINALE_ANCHOR_DOWN",
+    "count": 1,
+    "where": "npc_finale_anchor"
+   },
+   {
+    "desc": "Ring the last Dawn Bell",
+    "type": "flag",
+    "target": "ECHO_HAVENBROOK_FINAL_BELL",
+    "count": 1,
+    "where": "guild_dawn_bell"
+   },
+   {
+    "desc": "Wake with Havenbrook",
+    "type": "flag",
+    "target": "ACT1_FINALE_THANKED",
+    "count": 1,
+    "where": "guild_hall"
+   }
+  ],
+  "rewards": {
+   "coins": 300,
+   "items": [
+    {
+     "id": "havenbrook_house_key",
+     "qty": 1
+    }
+   ],
+   "choices": [
+    {
+     "style": "magic",
+     "label": "Guild Amulet",
+     "items": [
+      {
+       "id": "guild_amulet",
+       "qty": 1
+      }
+     ]
+    },
+    {
+     "style": "melee",
+     "label": "Guild Ring",
+     "items": [
+      {
+       "id": "guild_ring",
+       "qty": 1
+      }
+     ]
+    },
+    {
+     "style": "ranged",
+     "label": "Guild Hood",
+     "items": [
+      {
+       "id": "guild_hood",
+       "qty": 1
+      }
+     ]
+    }
+   ]
+  },
+  "choice_flag": "ACT1_FINALE_GIFT_CHOSEN",
+  "completion": "A house in Havenbrook with a good bed in it, and the Guild's gift. Havenbrook is awake."
+ },
+ "q_chime_posy": {
+  "name": "Dawn Chimes: Posy",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": false,
+  "summary": "Posy is asleep, and dreaming something that hums. The Dreamcatcher tugs toward them.",
+  "stages": [
+   {
+    "desc": "Break the mini anchor",
+    "type": "flag",
+    "target": "CHIME_POSY_R",
+    "count": 3,
+    "where": "mini_anchor"
+   },
+   {
+    "desc": "Ring the Dawn Chimes",
+    "type": "flag",
+    "target": "SIDE_CHIMES_DONE_POSY",
+    "count": 1,
+    "where": "chime_posy_chimes"
+   },
+   {
+    "desc": "See how Posy is",
+    "type": "flag",
+    "target": "CHIME_POSY_THANKED",
+    "count": 1,
+    "where": "npc_posy"
+   }
+  ],
+  "rewards": {
+   "coins": 60,
+   "items": [
+    {
+     "id": "cooked_minnow",
+     "qty": 2
+    }
+   ],
+   "xp": {
+    "Hitpoints": 120
+   }
+  },
+  "completion": "Posy is awake, and back about their day."
+ },
+ "q_chime_tobin": {
+  "name": "Dawn Chimes: Tobin",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": false,
+  "summary": "Tobin is asleep, and dreaming something that hums. The Dreamcatcher tugs toward them.",
+  "stages": [
+   {
+    "desc": "Break the mini anchor",
+    "type": "flag",
+    "target": "CHIME_TOBIN_R",
+    "count": 3,
+    "where": "mini_anchor"
+   },
+   {
+    "desc": "Ring the Dawn Chimes",
+    "type": "flag",
+    "target": "SIDE_CHIMES_DONE_TOBIN",
+    "count": 1,
+    "where": "chime_tobin_chimes"
+   },
+   {
+    "desc": "See how Tobin is",
+    "type": "flag",
+    "target": "CHIME_TOBIN_THANKED",
+    "count": 1,
+    "where": "npc_tobin"
+   }
+  ],
+  "rewards": {
+   "coins": 80,
+   "items": [
+    {
+     "id": "cooked_meat",
+     "qty": 2
+    }
+   ],
+   "xp": {
+    "Hitpoints": 120
+   }
+  },
+  "completion": "Tobin is awake, and back about their day."
+ },
+ "q_chime_ivo": {
+  "name": "Dawn Chimes: Hunter Ivo",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": false,
+  "summary": "Hunter Ivo is asleep, and dreaming something that hums. The Dreamcatcher tugs toward them.",
+  "stages": [
+   {
+    "desc": "Break the mini anchor",
+    "type": "flag",
+    "target": "CHIME_IVO_R",
+    "count": 3,
+    "where": "mini_anchor"
+   },
+   {
+    "desc": "Ring the Dawn Chimes",
+    "type": "flag",
+    "target": "SIDE_CHIMES_DONE_IVO",
+    "count": 1,
+    "where": "chime_ivo_chimes"
+   },
+   {
+    "desc": "See how Hunter Ivo is",
+    "type": "flag",
+    "target": "CHIME_IVO_THANKED",
+    "count": 1,
+    "where": "npc_hunter"
+   }
+  ],
+  "rewards": {
+   "coins": 50,
+   "items": [
+    {
+     "id": "wolf_pelt",
+     "qty": 2
+    }
+   ],
+   "xp": {
+    "Hitpoints": 120
+   }
+  },
+  "completion": "Hunter Ivo is awake, and back about their day."
+ },
+ "q_chime_marrow": {
+  "name": "Dawn Chimes: Farmer Marrow",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": false,
+  "summary": "Farmer Marrow is asleep, and dreaming something that hums. The Dreamcatcher tugs toward them.",
+  "stages": [
+   {
+    "desc": "Break the mini anchor",
+    "type": "flag",
+    "target": "CHIME_MARROW_R",
+    "count": 3,
+    "where": "mini_anchor"
+   },
+   {
+    "desc": "Ring the Dawn Chimes",
+    "type": "flag",
+    "target": "SIDE_CHIMES_DONE_MARROW",
+    "count": 1,
+    "where": "chime_marrow_chimes"
+   },
+   {
+    "desc": "See how Farmer Marrow is",
+    "type": "flag",
+    "target": "CHIME_MARROW_THANKED",
+    "count": 1,
+    "where": "npc_marrow"
+   }
+  ],
+  "rewards": {
+   "coins": 60,
+   "items": [
+    {
+     "id": "cooked_boar",
+     "qty": 2
+    }
+   ],
+   "xp": {
+    "Hitpoints": 120
+   }
+  },
+  "completion": "Farmer Marrow is awake, and back about their day."
+ },
+ "q_chime_wenna": {
+  "name": "Dawn Chimes: Wenna",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": false,
+  "summary": "Wenna is asleep, and dreaming something that hums. The Dreamcatcher tugs toward them.",
+  "stages": [
+   {
+    "desc": "Break the mini anchor",
+    "type": "flag",
+    "target": "CHIME_WENNA_R",
+    "count": 3,
+    "where": "mini_anchor"
+   },
+   {
+    "desc": "Ring the Dawn Chimes",
+    "type": "flag",
+    "target": "SIDE_CHIMES_DONE_WENNA",
+    "count": 1,
+    "where": "chime_wenna_chimes"
+   },
+   {
+    "desc": "See how Wenna is",
+    "type": "flag",
+    "target": "CHIME_WENNA_THANKED",
+    "count": 1,
+    "where": "npc_wenna"
+   }
+  ],
+  "rewards": {
+   "coins": 70,
+   "items": [
+    {
+     "id": "thread",
+     "qty": 6
+    }
+   ],
+   "xp": {
+    "Hitpoints": 120
+   }
+  },
+  "completion": "Wenna is awake, and back about their day."
+ },
+ "q_chime_perrin": {
+  "name": "Dawn Chimes: Old Perrin",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": false,
+  "summary": "Old Perrin is asleep, and dreaming something that hums. The Dreamcatcher tugs toward them.",
+  "stages": [
+   {
+    "desc": "Break the mini anchor",
+    "type": "flag",
+    "target": "CHIME_PERRIN_R",
+    "count": 3,
+    "where": "mini_anchor"
+   },
+   {
+    "desc": "Ring the Dawn Chimes",
+    "type": "flag",
+    "target": "SIDE_CHIMES_DONE_PERRIN",
+    "count": 1,
+    "where": "chime_perrin_chimes"
+   },
+   {
+    "desc": "See how Old Perrin is",
+    "type": "flag",
+    "target": "CHIME_PERRIN_THANKED",
+    "count": 1,
+    "where": "npc_perrin"
+   }
+  ],
+  "rewards": {
+   "coins": 90,
+   "items": [
+    {
+     "id": "logs",
+     "qty": 6
+    }
+   ],
+   "xp": {
+    "Hitpoints": 120
+   }
+  },
+  "completion": "Old Perrin is awake, and back about their day."
+ },
+ "q_chime_pip": {
+  "name": "Dawn Chimes: Pip",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": false,
+  "summary": "Pip is asleep, and dreaming something that hums. The Dreamcatcher tugs toward them.",
+  "stages": [
+   {
+    "desc": "Break the mini anchor",
+    "type": "flag",
+    "target": "CHIME_PIP_R",
+    "count": 3,
+    "where": "mini_anchor"
+   },
+   {
+    "desc": "Ring the Dawn Chimes",
+    "type": "flag",
+    "target": "SIDE_CHIMES_DONE_PIP",
+    "count": 1,
+    "where": "chime_pip_chimes"
+   },
+   {
+    "desc": "See how Pip is",
+    "type": "flag",
+    "target": "CHIME_PIP_THANKED",
+    "count": 1,
+    "where": "npc_pip"
+   }
+  ],
+  "rewards": {
+   "coins": 40,
+   "items": [
+    {
+     "id": "copper_ore",
+     "qty": 5
+    }
+   ],
+   "xp": {
+    "Hitpoints": 120
+   }
+  },
+  "completion": "Pip is awake, and back about their day."
+ },
+ "q_chime_bram": {
+  "name": "Dawn Chimes: Crier Bram",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": false,
+  "summary": "Crier Bram is asleep, and dreaming something that hums. The Dreamcatcher tugs toward them.",
+  "stages": [
+   {
+    "desc": "Break the mini anchor",
+    "type": "flag",
+    "target": "CHIME_BRAM_R",
+    "count": 3,
+    "where": "mini_anchor"
+   },
+   {
+    "desc": "Ring the Dawn Chimes",
+    "type": "flag",
+    "target": "SIDE_CHIMES_DONE_BRAM",
+    "count": 1,
+    "where": "chime_bram_chimes"
+   },
+   {
+    "desc": "See how Crier Bram is",
+    "type": "flag",
+    "target": "CHIME_BRAM_THANKED",
+    "count": 1,
+    "where": "npc_crier"
+   }
+  ],
+  "rewards": {
+   "coins": 75,
+   "items": [
+    {
+     "id": "cooked_trout",
+     "qty": 2
+    }
+   ],
+   "xp": {
+    "Hitpoints": 120
+   }
+  },
+  "completion": "Crier Bram is awake, and back about their day."
+ },
+ "q_chime_hester": {
+  "name": "Dawn Chimes: Hester",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": false,
+  "summary": "Hester is asleep, and dreaming something that hums. The Dreamcatcher tugs toward them.",
+  "stages": [
+   {
+    "desc": "Break the mini anchor",
+    "type": "flag",
+    "target": "CHIME_HESTER_R",
+    "count": 3,
+    "where": "mini_anchor"
+   },
+   {
+    "desc": "Ring the Dawn Chimes",
+    "type": "flag",
+    "target": "SIDE_CHIMES_DONE_HESTER",
+    "count": 1,
+    "where": "chime_hester_chimes"
+   },
+   {
+    "desc": "See how Hester is",
+    "type": "flag",
+    "target": "CHIME_HESTER_THANKED",
+    "count": 1,
+    "where": "npc_hester"
+   }
+  ],
+  "rewards": {
+   "coins": 65,
+   "items": [
+    {
+     "id": "hearty_meal",
+     "qty": 1
+    }
+   ],
+   "xp": {
+    "Hitpoints": 120
+   }
+  },
+  "completion": "Hester is awake, and back about their day."
+ },
+ "q_chime_hollis": {
+  "name": "Dawn Chimes: Hollis",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": false,
+  "summary": "Hollis is asleep, and dreaming something that hums. The Dreamcatcher tugs toward them.",
+  "stages": [
+   {
+    "desc": "Break the mini anchor",
+    "type": "flag",
+    "target": "CHIME_HOLLIS_R",
+    "count": 3,
+    "where": "mini_anchor"
+   },
+   {
+    "desc": "Ring the Dawn Chimes",
+    "type": "flag",
+    "target": "SIDE_CHIMES_DONE_HOLLIS",
+    "count": 1,
+    "where": "chime_hollis_chimes"
+   },
+   {
+    "desc": "See how Hollis is",
+    "type": "flag",
+    "target": "CHIME_HOLLIS_THANKED",
+    "count": 1,
+    "where": "npc_carter"
+   }
+  ],
+  "rewards": {
+   "coins": 85,
+   "items": [
+    {
+     "id": "iron_ore",
+     "qty": 3
+    }
+   ],
+   "xp": {
+    "Hitpoints": 120
+   }
+  },
+  "completion": "Hollis is awake, and back about their day."
+ },
+ "q_guild_ledger": {
+  "name": "The Guild's Ledger",
+  "source": "npc",
+  "giver": "npc_guildmaster",
+  "level": 15,
+  "major": true,
+  "summary": "Guild Master Orlend has opened the Guild's ledger of named beasts to you: a bounty on each of the Hollowmarch's worst, posted on the board beside his desk, and paid the day the beast falls.",
+  "stages": [
+   {
+    "desc": "Read the bounties on the board beside Orlend's desk",
+    "type": "interact",
+    "target": "board_bounties"
+   }
+  ],
+  "completion": "The first pages are pinned up in his own hand. Every name on them has killed somebody who thought they were ready."
+ },
+ "q_guild_broodmother": {
+  "name": "Bounty: The Broodmother",
+  "source": "board",
+  "giver": "board_bounties",
+  "guild_bounty": true,
+  "level": 10,
+  "prereq": [
+   "q_guild_ledger"
+  ],
+  "summary": "A spider the size of a cartwheel has nested in the cellar under the Barley and Bell, among Bess's kegs. Her bite poisons, and when she rears back, the bite that follows poisons worse. Take food down with you.",
+  "stages": [
+   {
+    "desc": "Slay the Broodmother in the cellar under the Barley and Bell",
+    "type": "kill",
+    "target": "broodmother",
+    "count": 1,
+    "where": "house_inn_cellar"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 300
+   },
+   "coins": 400,
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 400,
+      "Strength": 400
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 800
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 800
+     }
+    }
+   ]
+  },
+  "completion": "Struck from the ledger. Bess has her cellar back, and says she will believe it when she has been down there."
+ },
+ "q_guild_lizardman_chief": {
+  "name": "Bounty: The Lizardman Chief",
+  "source": "board",
+  "giver": "board_bounties",
+  "guild_bounty": true,
+  "level": 21,
+  "prereq": [
+   "q_guild_ledger"
+  ],
+  "summary": "The lizardmen camped north-west of Havenbrook, on the way to the Bayou, answer to a chief half again the size of the rest. He keeps his warriors close: thin them out before you call him. His cuts bleed, and his heavy blow leaves your head ringing.",
+  "stages": [
+   {
+    "desc": "Slay the Lizardman Chief at the Lizardmen's Camp",
+    "type": "kill",
+    "target": "lizardman_chief",
+    "count": 1,
+    "where": "overworld"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 630
+   },
+   "coins": 840,
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 840,
+      "Strength": 840
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 1680
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 1680
+     }
+    }
+   ]
+  },
+  "completion": "Struck from the ledger. The camp will find another chief. The Guild will find another bounty."
+ },
+ "q_guild_barrow_wight": {
+  "name": "Bounty: The Hollowrest Wight",
+  "source": "board",
+  "giver": "board_bounties",
+  "guild_bounty": true,
+  "level": 33,
+  "prereq": [
+   "q_guild_ledger"
+  ],
+  "summary": "Something keeps the door of Hollowrest Crypt, in the graveyard west of Havenbrook, and lets nobody past who is still breathing. It is cold to stand near and colder to be struck by, and it does not bleed or sicken.",
+  "stages": [
+   {
+    "desc": "Slay the Hollowrest Wight at the door of Hollowrest Crypt",
+    "type": "kill",
+    "target": "barrow_wight",
+    "count": 1,
+    "where": "overworld"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 990
+   },
+   "coins": 1320,
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 1320,
+      "Strength": 1320
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 2640
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 2640
+     }
+    }
+   ]
+  },
+  "completion": "Struck from the ledger. The crypt door stands open for anyone foolish enough to want it."
+ },
+ "q_guild_orc3": {
+  "name": "Bounty: The Orc Warchief",
+  "source": "board",
+  "giver": "board_bounties",
+  "guild_bounty": true,
+  "level": 34,
+  "prereq": [
+   "q_guild_ledger"
+  ],
+  "summary": "The orcs who took Emberfell Mine are led from its lower workings by a warchief who has never lost a fight he started. He sees you coming a long way off. His blade burns, and his heavy blow can leave you seeing double.",
+  "stages": [
+   {
+    "desc": "Slay the Orc Warchief in Emberfell Mine's lower workings",
+    "type": "kill",
+    "target": "orc3",
+    "count": 1,
+    "where": "dungeon_emberfell_2"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 1020
+   },
+   "coins": 1360,
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 1360,
+      "Strength": 1360
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 2720
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 2720
+     }
+    }
+   ]
+  },
+  "completion": "Struck from the ledger. Without him, the mine's orcs will be at each other's throats inside a week."
+ },
+ "q_guild_well_warden": {
+  "name": "Bounty: The Thing in the Spring",
+  "source": "board",
+  "giver": "board_bounties",
+  "guild_bounty": true,
+  "level": 40,
+  "prereq": [
+   "q_guild_ledger"
+  ],
+  "summary": "Havenbrook's well ran dry the bad year, and this is why. Down the Deep Cut, where the spring used to rise, something waits in the water's place. It reaches further than it looks, every blow it lands leaves you soaked, and it does not bleed.",
+  "stages": [
+   {
+    "desc": "Slay the Thing in the Spring at the bottom of the Deep Cut",
+    "type": "kill",
+    "target": "well_warden",
+    "count": 1,
+    "where": "well_deep"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 1200
+   },
+   "coins": 1600,
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 1600,
+      "Strength": 1600
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 3200
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 3200
+     }
+    }
+   ]
+  },
+  "completion": "Struck from the ledger. The Guild has paid for stranger news, but not lately."
+ },
+ "q_guild_den_mother": {
+  "name": "Bounty: The Den Mother",
+  "source": "board",
+  "giver": "board_bounties",
+  "guild_bounty": true,
+  "level": 41,
+  "prereq": [
+   "q_guild_ledger"
+  ],
+  "summary": "Hale the Trapper's she-bear: three lines of traps and one good dog, so far. She dens in the Brackenwood and does not care for visitors. Her claws open you up, and her heavy blow knocks the sense out of you.",
+  "stages": [
+   {
+    "desc": "Slay the Den Mother in the Brackenwood",
+    "type": "kill",
+    "target": "den_mother",
+    "count": 1,
+    "where": "brackenwood"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 1230
+   },
+   "coins": 1640,
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 1640,
+      "Strength": 1640
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 3280
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 3280
+     }
+    }
+   ]
+  },
+  "completion": "Struck from the ledger. Hale the Trapper will want to hear it from you."
+ },
+ "q_guild_wyvern_matriarch": {
+  "name": "Bounty: The Wyvern Matriarch",
+  "source": "board",
+  "giver": "board_bounties",
+  "guild_bounty": true,
+  "level": 49,
+  "prereq": [
+   "q_guild_ledger"
+  ],
+  "summary": "She nests at the top of the Ice Spire and hunts the whole climb below it. Her strikes come cold enough to slow you, and slow is how people come off that mountain. Mind the summit: she is not the only thing that nests up there.",
+  "stages": [
+   {
+    "desc": "Slay the Wyvern Matriarch on the Ice Spire's summit",
+    "type": "kill",
+    "target": "wyvern_matriarch",
+    "count": 1,
+    "where": "ice_spire_peak"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 1470
+   },
+   "coins": 1960,
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 1960,
+      "Strength": 1960
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 3920
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 3920
+     }
+    }
+   ]
+  },
+  "completion": "Struck from the ledger. The climb is no safer for it, but it is quieter."
+ },
+ "q_guild_pit_lord": {
+  "name": "Bounty: The Pit Lord",
+  "source": "board",
+  "giver": "board_bounties",
+  "guild_bounty": true,
+  "level": 55,
+  "prereq": [
+   "q_guild_ledger"
+  ],
+  "summary": "A demon of the old kind, at the bottom of the Infernal Pit. It knows you are there long before you know where it is, and every blow it lands sets you alight. Some days it walks out across the Ashen Path; the Guild pays wherever it falls.",
+  "stages": [
+   {
+    "desc": "Slay the Pit Lord at the bottom of the Infernal Pit",
+    "type": "kill",
+    "target": "pit_lord",
+    "count": 1,
+    "where": "dungeon_infernal"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 1650
+   },
+   "coins": 2200,
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 2200,
+      "Strength": 2200
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 4400
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 4400
+     }
+    }
+   ]
+  },
+  "completion": "Struck from the ledger. The Guild has no record of anybody doing that before, so it has started one."
+ },
+ "q_guild_bayou_matriarch": {
+  "name": "Bounty: The Mother of the Fen",
+  "source": "board",
+  "giver": "board_bounties",
+  "guild_bounty": true,
+  "level": 56,
+  "prereq": [
+   "q_guild_ledger"
+  ],
+  "summary": "The lizardfolk of the Bayou have a mother, and she keeps to the deep water at its far western end. Poison does not touch her, and water is her own. She is quick for her size, and whatever she catches bleeds.",
+  "stages": [
+   {
+    "desc": "Slay the Mother of the Fen in the Bayou",
+    "type": "kill",
+    "target": "bayou_matriarch",
+    "count": 1,
+    "where": "bayou"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 1680
+   },
+   "coins": 2240,
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 2240,
+      "Strength": 2240
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 4480
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 4480
+     }
+    }
+   ]
+  },
+  "completion": "Struck from the ledger. The fen is quieter. The Guild does not trust a quiet fen."
+ },
+ "q_guild_hex_priest": {
+  "name": "Bounty: The Voodoo High Priest",
+  "source": "board",
+  "giver": "board_bounties",
+  "guild_bounty": true,
+  "level": 65,
+  "prereq": [
+   "q_guild_ledger"
+  ],
+  "summary": "The cult in the Hexmire kneels to a priest who never leaves his sanctum. He fights from arm's length: hexes, pins, a word that turns your feet the wrong way. Close the distance and stay close, and mind the blow that throws you clear.",
+  "stages": [
+   {
+    "desc": "Slay the Voodoo High Priest in the Hexmire's sanctum",
+    "type": "kill",
+    "target": "hex_priest",
+    "count": 1,
+    "where": "hex_sanctum"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 1950
+   },
+   "coins": 2600,
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 2600,
+      "Strength": 2600
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 5200
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 5200
+     }
+    }
+   ]
+  },
+  "completion": "Struck from the ledger. The cult will want another priest. Let it want."
+ },
+ "q_guild_cerberus": {
+  "name": "Bounty: Cerberus",
+  "source": "board",
+  "giver": "board_bounties",
+  "guild_bounty": true,
+  "level": 70,
+  "prereq": [
+   "q_guild_ledger"
+  ],
+  "summary": "Three heads and one temper, prowling the Stronghold on Purgatory's Plateau -- though not every day: the Guild's scouts count six days in ten. It is faster than you, it breathes fire from a distance, and fire does not burn it. There is no outrunning it, so do not try.",
+  "stages": [
+   {
+    "desc": "Slay Cerberus in the Plateau's Stronghold",
+    "type": "kill",
+    "target": "cerberus",
+    "count": 1,
+    "where": "plateau_stronghold"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 2100
+   },
+   "coins": 2800,
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 2800,
+      "Strength": 2800
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 5600
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 5600
+     }
+    }
+   ]
+  },
+  "completion": "Struck from the ledger. All three heads, the Guild's clerk insists on writing."
+ },
+ "q_guild_vampire_lord": {
+  "name": "Bounty: Lord Ashcroft",
+  "source": "board",
+  "giver": "board_bounties",
+  "guild_bounty": true,
+  "level": 71,
+  "prereq": [
+   "q_guild_ledger"
+  ],
+  "summary": "The last lord of the house under Hollowrest, dead before anyone now living was born, and not as dead as the ledger used to say. He keeps the Black Vault at the bottom of the crypt. He is quick, he draws blood, and nothing that bleeds, sickens or chills the living troubles him.",
+  "stages": [
+   {
+    "desc": "Slay Lord Ashcroft in the Black Vault of Hollowrest Crypt",
+    "type": "kill",
+    "target": "vampire_lord",
+    "count": 1,
+    "where": "crypt_3"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 2130
+   },
+   "coins": 2840,
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 2840,
+      "Strength": 2840
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 5680
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 5680
+     }
+    }
+   ]
+  },
+  "completion": "Struck from the ledger in Orlend's own hand. The page is older than he is."
+ },
+ "q_guild_abominable_snowman": {
+  "name": "Bounty: The Abominable Snowman",
+  "source": "board",
+  "giver": "board_bounties",
+  "guild_bounty": true,
+  "level": 74,
+  "prereq": [
+   "q_guild_ledger"
+  ],
+  "summary": "The trappers of the Frostreach swear it is real, and nobody else believes them. It is seen on the Rimefall Glacier now and then, and on the Glass Mere less often than that. It throws ice at anything that moves, hits harder than anything else up there, and frost does not slow it.",
+  "stages": [
+   {
+    "desc": "Slay the Abominable Snowman in the Frostreach",
+    "type": "kill",
+    "target": "abominable_snowman",
+    "count": 1,
+    "where": "frost_glacier"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 2220
+   },
+   "coins": 2960,
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 2960,
+      "Strength": 2960
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 5920
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 5920
+     }
+    }
+   ]
+  },
+  "completion": "Struck from the ledger. The Guild owes the trappers of the Frostreach an apology, and has decided to owe it."
+ },
+ "q_guild_cinder_king": {
+  "name": "Bounty: The Cinder King",
+  "source": "board",
+  "giver": "board_bounties",
+  "guild_bounty": true,
+  "level": 84,
+  "prereq": [
+   "q_guild_ledger"
+  ],
+  "summary": "He holds court at the far end of the Ashen Path, in the Brimstone Palace, from a throne nobody has walked away from. Everything about him burns, fire does not touch him, and his heavy blow throws you across the room.",
+  "stages": [
+   {
+    "desc": "Slay the Cinder King on his throne in the Brimstone Palace",
+    "type": "kill",
+    "target": "cinder_king",
+    "count": 1,
+    "where": "palace_throne"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 2520
+   },
+   "coins": 3360,
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 3360,
+      "Strength": 3360
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 6720
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 6720
+     }
+    }
+   ]
+  },
+  "completion": "Struck from the ledger. The Guild has had the page framed."
+ },
+ "q_guild_nightmare_troll": {
+  "name": "Bounty: The Sleepless",
+  "source": "board",
+  "giver": "board_bounties",
+  "guild_bounty": true,
+  "level": 47,
+  "prereq": [
+   "q_guild_ledger"
+  ],
+  "summary": "Not everything the Guild pays for walks the waking world. The Sleepless keeps to the Deep Reverie, a ladder below the first, though some days it walks out into the far fens and the high country. It is slow, and its heavy blow leaves you reeling. Dying in a dream only wakes you.",
+  "stages": [
+   {
+    "desc": "Slay the Sleepless in the Deep Reverie",
+    "type": "kill",
+    "target": "nightmare_troll",
+    "count": 1,
+    "where": "dreamworld_2"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 1410
+   },
+   "coins": 1880,
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 1880,
+      "Strength": 1880
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 3760
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 3760
+     }
+    }
+   ]
+  },
+  "completion": "Struck from the ledger. The clerk asked how the Guild is to know. Orlend told him the Guild knows."
+ },
+ "q_guild_nightmare_dragon": {
+  "name": "Bounty: The Unwaking",
+  "source": "board",
+  "giver": "board_bounties",
+  "guild_bounty": true,
+  "level": 79,
+  "prereq": [
+   "q_guild_ledger"
+  ],
+  "summary": "At the bottom of the Reverie, in the Dreaming Dark, a dragon that has never woken fights in its sleep. It reaches further than anything you will have fought, its cold slows you, and its heavy blow can freeze you where you stand. Dying in a dream only wakes you: bring enough to try again.",
+  "stages": [
+   {
+    "desc": "Slay the Unwaking in the Dreaming Dark",
+    "type": "kill",
+    "target": "nightmare_dragon",
+    "count": 1,
+    "where": "dreamworld_3"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 2370
+   },
+   "coins": 3160,
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 3160,
+      "Strength": 3160
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 6320
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 6320
+     }
+    }
+   ]
+  },
+  "completion": "Struck from the ledger. Orlend reads the line twice, and leaves it."
+ },
+ "q_guild_quintessence": {
+  "name": "Bounty: The Quintessence",
+  "source": "board",
+  "giver": "board_bounties",
+  "guild_bounty": true,
+  "level": 99,
+  "prereq": [
+   "q_guild_ledger"
+  ],
+  "summary": "Past the rift in the Stronghold, at the heart of the Primordium where the five elements run together, something is made of all of them at once. It casts each of them in turn, and fire, frost and lightning slide off it. The last page in the ledger. The Guild has never paid it.",
+  "stages": [
+   {
+    "desc": "Slay the Quintessence at the Conflux",
+    "type": "kill",
+    "target": "quintessence",
+    "count": 1,
+    "where": "prim_conflux"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 2970
+   },
+   "coins": 3960,
+   "choices": [
+    {
+     "style": "melee",
+     "xp": {
+      "Attack": 3960,
+      "Strength": 3960
+     }
+    },
+    {
+     "style": "ranged",
+     "xp": {
+      "Ranged": 7920
+     }
+    },
+    {
+     "style": "magic",
+     "xp": {
+      "Magic": 7920
+     }
+    }
+   ]
+  },
+  "completion": "The last page in the ledger, struck through. Orlend closes the book and does not open it again that day."
  }
 }

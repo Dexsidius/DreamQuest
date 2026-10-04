@@ -27,6 +27,7 @@
 #    acid_glob, acid_wake   the Acid Spray's gouts: the water orb and its wake, in green
 #    blood_orb, blood_wake  the Vampiric Touch: the same, in red
 #    hex_rot, hex_charm, hex_befuddle (+ _wake)   the Swamp Hag's three hexes
+#    web_glob (+ _wake)     a nightmare spider's web shot, in pale silk
 #    frost_shard            the Ice Touch: the stone shard, cut in ice
 #    throwing_knife         a knife going end over end
 #    air_slash              the Air Slash: the greater gust's edge, with nothing behind it
@@ -691,6 +692,13 @@ $muddle  = [System.Drawing.Color[]]@((Argb 255 56 24 108), (Argb 236 108 58 188)
 $muddleW = [System.Drawing.Color[]]@((Argb 255 255 244 190), (Argb 240 214 170 250), (Argb 235 136 88 214), (Argb 235 70 34 128))
 Save-Strip "hex_befuddle"      ([Fx]::Orb(16, 6.4, $N, 97, $muddle)) 8 8
 Save-Strip "hex_befuddle_wake" ([Fx]::Wake(24, 12, 18.0, 6.0, 6.4, $N, 101, $muddleW, (Argb 200 50 20 96))) 18 6
+
+# --- a nightmare spider's web shot (Act I): a pale ball of black-thread silk,
+#     and the strand it pays out behind it. Whoever it lands on is Webbed.
+$silk  = [System.Drawing.Color[]]@((Argb 255 58 54 72), (Argb 236 140 136 156), (Argb 232 200 198 214), (Argb 240 234 234 242), (Argb 255 255 255 255))
+$silkW = [System.Drawing.Color[]]@((Argb 255 255 255 255), (Argb 240 222 222 232), (Argb 235 172 170 188), (Argb 235 96 92 112))
+Save-Strip "web_glob"      ([Fx]::Orb(14, 5.6, $N, 113, $silk)) 7 7
+Save-Strip "web_glob_wake" ([Fx]::Wake(24, 12, 18.0, 6.0, 5.6, $N, 117, $silkW, (Argb 200 36 34 48))) 18 6
 
 $ice = [System.Drawing.Color[]]@((Argb 255 244 252 255), (Argb 255 190 230 252), (Argb 250 128 186 236), (Argb 250 78 130 204))
 Save-Strip "frost_shard" ([Fx]::Shard(20, 6.6, $N, 47, $ice, (Argb 255 255 255 255), (Argb 255 40 72 130))) 10 10

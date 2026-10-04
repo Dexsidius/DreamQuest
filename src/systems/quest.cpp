@@ -10,6 +10,7 @@ static ObjectiveType ObjectiveFromName(const string& s) {
     if (s == "interact") return ObjectiveType::Interact;
     if (s == "deliver")  return ObjectiveType::Deliver;
     if (s == "craft" || s == "cook" || s == "make") return ObjectiveType::Craft;
+    if (s == "flag")     return ObjectiveType::Flag;
     return ObjectiveType::Talk;
 }
 
@@ -47,6 +48,8 @@ bool QuestLog::LoadDefinitions(const string& path) {
         d.tutorial = o.value("tutorial", false);
         d.completion_text   = o.value("completion", string(""));
         d.then              = o.value("then", string(""));
+        d.sets_flag         = o.value("sets_flag", string(""));
+        d.choice_flag       = o.value("choice_flag", string(""));
 
         if (o.contains("req"))
             for (auto r = o["req"].begin(); r != o["req"].end(); ++r) {
@@ -57,6 +60,7 @@ bool QuestLog::LoadDefinitions(const string& path) {
         d.daily = o.value("repeat", string("")) == "daily";
         d.bounty = o.value("bounty", false);
         if (d.bounty) d.daily = true;
+        d.guild_bounty = o.value("guild_bounty", false) && !d.bounty;
         // Whatever the file says, nothing off a board and nothing repeatable
         // is a story quest: those are what the side tab exists for.
         if (d.source == QuestSource::Board || d.daily) { d.major = false; d.tutorial = false; }
@@ -79,6 +83,7 @@ bool QuestLog::LoadDefinitions(const string& path) {
                 st.start       = std::clamp(s.value("start", 0), 0, st.count - 1);
                 st.where       = s.value("where", string(""));
                 st.hidden      = s.value("hidden", false);
+                st.or_flag     = s.value("or_flag", string(""));
                 d.stages.push_back(st);
             }
 
@@ -392,6 +397,7 @@ void QuestLog::AdvanceStage(const string& id, const Inventory& inv) {
             ++p.completions;
             if (!d->rewards.choices.empty()) ++p.owed;
             just_completed.push_back(id);
+            if (!d->sets_flag.empty()) flags_to_set.push_back(d->sets_flag);
             // What it leads to begins once whatever is walking the journal
             // has finished with it: see BeginFollowUps.
             if (!d->then.empty()) follow_ups.push_back(d->then);
@@ -427,6 +433,46 @@ void QuestLog::Notify(const QuestEvent& e, const Inventory& inv) {
         // the waves it had got through -- but never below nothing.
         p.counter = std::clamp(p.counter + e.amount, 0, st.count);
         AdvanceStage(kv.first, inv);
+    }
+    BeginFollowUps();
+}
+
+void QuestLog::RefreshFlagObjectives(const std::function<bool(const string&)>& has, const Inventory& inv) {
+    if (relay) return;
+    vector<string> active;
+    for (const auto& kv : progress)
+        if (kv.second.status == QuestStatus::Active) active.push_back(kv.first);
+    for (const auto& id : active) {
+        const QuestDef* d = Definition(id);
+        if (!d) continue;
+        // One flag stage after another may already be done: walk them all.
+        for (int guard = 0; guard < 16; ++guard) {
+            QuestProgress& p = progress[id];
+            if (p.status != QuestStatus::Active || p.stage >= static_cast<int>(d->stages.size())) break;
+            const QuestStage& st = d->stages[p.stage];
+            // A stage of another kind that a flag also finishes (or_flag).
+            if (st.type != ObjectiveType::Flag) {
+                if (st.or_flag.empty() || !has(st.or_flag)) break;
+                p.counter = st.count;
+                const int was = p.stage;
+                AdvanceStage(id, inv);
+                if (progress[id].stage == was) break;
+                continue;
+            }
+            // A stage of more than one counts flags: target_1, target_2...
+            // however many of them are set, in whatever order (a Nightmare
+            // Hold released, a brass token found) -- see the story's "count".
+            if (st.count > 1) {
+                int got = 0;
+                for (int n = 1; n <= st.count; ++n) got += has(st.target + "_" + std::to_string(n)) ? 1 : 0;
+                p.counter = got;
+                if (got < st.count) break;
+            } else if (!has(st.target)) break;
+            p.counter = st.count;
+            const int was = p.stage;
+            AdvanceStage(id, inv);
+            if (progress[id].stage == was) break;
+        }
     }
     BeginFollowUps();
 }

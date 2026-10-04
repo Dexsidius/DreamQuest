@@ -102,6 +102,130 @@ string PickFish(const vector<string>& fish, int level, const ItemDatabase& db, s
     return open.back()->id;
 }
 
+// --- the second dip, and the fight ------------------------------------------------------
+
+Fight FightFor(int fish_level, int fishing_level) {
+    // From a minnow (1) to the best of the deep water (90 and over).
+    const float d = std::clamp((fish_level - 1) / 89.0f, 0.0f, 1.0f);
+    const auto lerp = [&](float easy, float hard) { return easy + (hard - easy) * d; };
+    Fight f;
+    // A fisher far past the fish: a point of band for every ten levels, to three.
+    const float mastery = std::min(0.03f, std::max(0, fishing_level - fish_level) * 0.001f);
+    // Tuned against a simulated player who sees the gauge a little late
+    // (tools/selftest's TestFishing holds it there): an attentive one lands a
+    // minnow every time and the best fish four times in five, an ordinary one
+    // four in five at 60 and one in five at 90, and one who does nothing, or
+    // holds the button down, never lands anything.
+    f.band  = lerp(0.24f, 0.14f) + mastery;
+    f.speed = lerp(0.14f, 0.38f);
+    f.darts = lerp(0.25f, 0.75f);
+    f.land  = lerp(2.0f, 4.5f);
+    f.slip  = lerp(0.30f, 0.60f);
+    f.snap  = lerp(2.6f, 1.7f);
+    f.bite  = lerp(1.0f, 0.7f);
+    return f;
+}
+
+void Angler::Cast(float wait, const Fight& f, std::mt19937& rng) {
+    (void)rng;
+    fight = f;
+    phase = Phase::Waiting;
+    t = 0.0f;
+    length = std::max(0.5f, wait);
+    line = 0.5f; line_v = 0.0f;
+    band = band_goal = 0.5f; band_v = 0.0f;
+    progress = 0.0f;
+    strain = 0.0f;
+}
+
+Angler::Outcome Angler::Strike() {
+    switch (phase) {
+        case Phase::Idle:    return Outcome::None;
+        case Phase::Reeling: return Outcome::None;
+        case Phase::Waiting: phase = Phase::Idle; return Outcome::ReeledIn;
+        case Phase::Nibble:
+        case Phase::Lull:    phase = Phase::Idle; return Outcome::TooSoon;
+        case Phase::Bite:
+            phase = Phase::Reeling;
+            t = 0.0f;
+            line = 0.5f; line_v = 0.0f;
+            band = band_goal = 0.5f; band_v = 0.0f;
+            progress = HEAD_START;
+            strain = 0.0f;
+            return Outcome::Hooked;
+    }
+    return Outcome::None;
+}
+
+void Angler::NewGoal(std::mt19937& rng) {
+    // Somewhere else on the gauge -- the harder the fish, the further it
+    // tends to bolt -- and never so near an end that the band runs off it.
+    std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+    const float lo = fight.band, hi = 1.0f - fight.band;
+    float goal = lo + (hi - lo) * unit(rng);
+    if (std::fabs(goal - band) < 0.15f) goal = band + (goal < band ? -0.15f : 0.15f);
+    band_goal = std::clamp(goal, lo, hi);
+}
+
+Angler::Outcome Angler::Update(float dt, bool reel, std::mt19937& rng) {
+    if (phase == Phase::Idle) return Outcome::None;
+    t += dt;
+    std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+
+    // --- waiting for it: the float, the nibble, the lull, the bite -----------------------
+    if (phase != Phase::Reeling) {
+        if (t < length) return Outcome::None;
+        t = 0.0f;
+        switch (phase) {
+            case Phase::Waiting: phase = Phase::Nibble; length = NIBBLE_TIME; break;
+            case Phase::Nibble:  phase = Phase::Lull; length = LULL_MIN + (LULL_MAX - LULL_MIN) * unit(rng); break;
+            case Phase::Lull:    phase = Phase::Bite; length = fight.bite; break;
+            case Phase::Bite:    phase = Phase::Idle; return Outcome::Missed;
+            default: break;
+        }
+        return Outcome::None;
+    }
+
+    // --- the fight ------------------------------------------------------------------------
+    // The fish: towards where it is making for, picking up speed and losing it
+    // again the way a pulled line does, and every so often bolting elsewhere.
+    if (std::fabs(band_goal - band) < 0.02f || unit(rng) < fight.darts * dt) NewGoal(rng);
+    const float want = (band_goal > band ? 1.0f : -1.0f) * fight.speed;
+    band_v += (want - band_v) * std::min(1.0f, dt * 5.0f);
+    band = std::clamp(band + band_v * dt, fight.band, 1.0f - fight.band);
+
+    // The line: wound up while the button is held, dropping back while not,
+    // and stopped dead -- not bounced -- at either end.
+    line_v = std::clamp(line_v + (reel ? REEL_ACCEL : -FALL_ACCEL) * dt, -LINE_TOP_SPEED, LINE_TOP_SPEED);
+    line += line_v * dt;
+    if (line < 0.0f) { line = 0.0f; line_v = std::max(0.0f, line_v); }
+    if (line > 1.0f) { line = 1.0f; line_v = std::min(0.0f, line_v); }
+
+    // In the green it comes in, and the line eases; out of it the fish wins
+    // ground back and the strain builds until the line goes.
+    if (InBand()) {
+        progress += dt / fight.land;
+        strain = std::max(0.0f, strain - dt * 2.0f);
+    } else {
+        progress = std::max(0.0f, progress - fight.slip * dt / fight.land);
+        strain += dt;
+        if (strain >= fight.snap) { phase = Phase::Idle; return Outcome::Snapped; }
+    }
+    if (progress >= 1.0f) { progress = 1.0f; phase = Phase::Idle; return Outcome::Landed; }
+    return Outcome::None;
+}
+
+float Angler::Dip() const {
+    constexpr float PI = 3.1415926f;
+    switch (phase) {
+        case Phase::Nibble:  return 0.35f * std::sin(PI * std::clamp(t / NIBBLE_TIME, 0.0f, 1.0f));
+        case Phase::Bite:    return std::min(1.0f, t / 0.08f);
+        // On the line, it thrashes: mostly under, now and then up.
+        case Phase::Reeling: return 0.72f + 0.28f * std::sin(t * 17.0f);
+        default:             return 0.0f;
+    }
+}
+
 bool Depletes(float chance, float roll) {
     return chance > 0.0f && roll < chance;
 }

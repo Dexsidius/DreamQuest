@@ -6096,6 +6096,38 @@ def prop_guild_noticeboard():
     return 1.9
 
 
+def prop_guild_bounty_board():
+    """The Guild's bounty board (Act II), pinned up beside Orlend's desk: a dark
+    board under a header with a red band across it, on two posts, with four
+    wanted posters on it -- each a beast's black shape under a red wax seal. It
+    has to read as something other than the notice board by the door, so it is
+    darker, taller, carries no roof, and the red is what the eye finds."""
+    for sx in (-1, 1):
+        cyl("post_%d" % sx, 0.065, 1.42, (sx * 0.60, 0.06, 0.71), "oak", verts=8)
+        blk("foot_%d" % sx, (0.26, 0.26, 0.08), (sx * 0.60, 0.06, 0.04), "iron")
+    blk("board", (1.26, 0.08, 0.92), (0, 0, 0.86), "soot", bev=0.02)
+    blk("board_face", (1.18, 0.02, 0.84), (0, -0.045, 0.86), "oak", bev=0.01)
+    blk("sill", (1.40, 0.12, 0.08), (0, -0.02, 0.38), "oak")
+    blk("header", (1.50, 0.12, 0.22), (0, -0.02, 1.40), "oak", bev=0.02)
+    blk("header_band", (1.34, 0.02, 0.11), (0, -0.09, 1.40), "cloth_red", bev=0.004)
+    for sx in (-1, 1):
+        blk("bracket_%d" % sx, (0.08, 0.04, 0.26), (sx * 0.71, -0.07, 1.36), "iron")
+    tilts = (-0.07, 0.05, 0.04, -0.06)
+    for k in range(4):
+        x = -0.29 + (k % 2) * 0.58
+        z = 1.07 - (k // 2) * 0.43
+        tilt = tilts[k]
+        blk("poster_%d" % k, (0.44, 0.02, 0.36), (x, -0.065, z), "paper", rot=(0, tilt, 0), bev=0.004)
+        # The beast: a black shape, broad at the shoulders, with ears or horns.
+        blk("beast_%d" % k, (0.22, 0.012, 0.13), (x, -0.08, z - 0.06), "soot", rot=(0, tilt, 0), bev=0.01)
+        for e in (-1, 1):
+            blk("ear_%d_%d" % (k, e), (0.05, 0.012, 0.07), (x + e * 0.07, -0.08, z + 0.03), "soot",
+                rot=(0, tilt + e * 0.3, 0), bev=0.004)
+        # And the Guild's red seal at its head.
+        cyl("seal_%d" % k, 0.055, 0.03, (x, -0.085, z + 0.13), "cloth_red", rot=(math.radians(90), 0, 0), verts=12)
+    return 2.05
+
+
 def prop_guild_couch():
     """A padded couch: a frame, two cushions and a rolled arm at each end."""
     blk("frame", (1.30, 0.66, 0.16), (0, 0, 0.26), "oak")
@@ -6137,6 +6169,7 @@ STRUCTURES = {
     # The guild hall's insides. Most of it is furniture this file already
     # builds, so the hall matches the inn across the square.
     "guild_noticeboard": (prop_guild_noticeboard, 48),
+    "guild_bounty_board": (prop_guild_bounty_board, 56),
     "guild_couch":       (prop_guild_couch,       56),
     "guild_bench":       (prop_bench,             48),
     "guild_settle":      (prop_tavern_bench,      48),
@@ -6230,6 +6263,19 @@ PROPS.update(blender_town_props.PROPS)
 import blender_primordium_props  # noqa: E402
 
 PROPS.update(blender_primordium_props.PROPS)
+
+# And the prologue's -- the handcart, the town asleep, the stranger's dungeon
+# and his house, inside and out.
+import blender_prologue_props  # noqa: E402
+
+PROPS.update(blender_prologue_props.PROPS)
+
+# And Act I's -- the Reverie's knots and barrier, the Dawn Bells and Chimes,
+# Halda's chair and dream forge, the dream tannery, Bess's inn and cellar, the
+# Tanner's yard, the knights' scrap and the Mayor's and the Guild's desks.
+import blender_act1_props  # noqa: E402
+
+PROPS.update(blender_act1_props.PROPS)
 
 
 def main():

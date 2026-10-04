@@ -42,10 +42,19 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
         best.distance = d;
     };
 
-    for (size_t i = 0; i < npcs.size(); ++i)
-        if (!npcs[i]->Away()) consider(InteractTarget::Npc, static_cast<int>(i),
-                 "Talk to " + npcs[i]->Name() + (npcs[i]->Shop().empty() ? "" : "  -  trades"),
-                 npcs[i]->x, npcs[i]->y);
+    for (size_t i = 0; i < npcs.size(); ++i) {
+        const Npc& n = *npcs[i];
+        // Somebody a scene made, or holds: nobody to talk to.
+        if (n.Away() || n.actor || n.scripted || n.alpha < 0.5f) continue;
+        // The story's prompt -- "Use Dreamcatcher" -- is the host's own: a
+        // friend sees only somebody asleep.
+        const bool story = !n.Prompt().empty() && !visiting && !Acting();
+        consider(InteractTarget::Npc, static_cast<int>(i),
+                 story ? n.Prompt()
+                 : n.Asleep() ? "Try to wake " + n.Name()
+                            : "Talk to " + n.Name() + (n.Shop().empty() ? "" : "  -  trades"),
+                 n.x, n.y);
+    }
 
     const auto& objects = map.Objects();
     for (size_t i = 0; i < objects.size(); ++i) {
@@ -84,6 +93,13 @@ void World::ResolveInteractTarget(const GameContext& ctx) {
             label = clock.CanSleep() ? "Sleep at your camp" : "Pack up your camp";
         } else if (o.type == "dream_wake") {
             label = "Touch the stone and wake";
+        } else if (o.type == "door") {
+            // Shut, it is something to try; open, it is a way through and
+            // nothing to press.
+            label = Holds(o.open_if) ? string() : (o.title.empty() ? string("Try the door") : o.title);
+        } else if (o.type == "story") {
+            // Something a scene answers: a sleeper to shake, a mattress to lie on.
+            label = o.title;
         } else if (o.type == "range" || o.type == "workbench") {
             // Map titles are written as names ("Kitchen fire", "Anvil"), but
             // here they follow "the" mid-sentence.
@@ -184,8 +200,15 @@ void World::TryInteract(const GameContext& ctx) {
     // Lying down, E gets up.
     if (player.resting) { player.resting = false; return; }
 
-    // Interrupting a gather is what the button does while one is running.
-    if (gather_index >= 0) { gather_index = -1; return; }
+    // Interrupting a gather is what the button does while one is running --
+    // except at the water, where it is the strike: on the second dip it hooks
+    // the fish, before it the cast is spoilt, and with the fish on it is only
+    // the reel, which is the button held (UpdateGathering).
+    if (gather_index >= 0) {
+        if (angler.Active()) StrikeAt(ctx);
+        else gather_index = -1;
+        return;
+    }
 
     const InteractTarget& t = player.interact;
 
@@ -193,9 +216,11 @@ void World::TryInteract(const GameContext& ctx) {
         case InteractTarget::Npc: {
             if (t.index < 0 || t.index >= static_cast<int>(npcs.size())) break;
             Npc& npc = *npcs[t.index];
-            npc.FaceToward(player.x, player.y);
+            // Asleep, they do not turn; the game decides what trying to wake
+            // them comes to (a scene, or only what is seen).
+            if (!npc.Asleep()) npc.FaceToward(player.x, player.y);
 
-            if (npc.DialogueRoot().empty()) {
+            if (npc.DialogueRoot().empty() && !npc.Asleep()) {
                 AddText("...", npc.x, npc.y - 48.0f, {200, 200, 210, 255});
                 break;
             }
@@ -213,6 +238,40 @@ void World::TryInteract(const GameContext& ctx) {
             if (t.index < 0 || t.index >= static_cast<int>(objects.size())) break;
             const MapObject& o = objects[t.index];
 
+            // Not to be used yet: its owner is still asleep.
+            if (!o.closed.Empty() && Holds(o.closed)) {
+                AddText(o.closed_text.empty() ? string("Not now.") : o.closed_text, o.x, o.y - 40.0f,
+                        {235, 200, 160, 255}, 2.4f);
+                Audio::Play(Sfx::Locked);
+                break;
+            }
+
+            if (o.type == "door") {
+                if (Holds(o.open_if) || !ObjectPresent(o)) break;
+                if (!o.opens.empty()) {
+                    // It gives: the flag that holds it open is set, and in the
+                    // next settle its solid box goes out of the way.
+                    SetFlag(o.opens);
+                    SettleStory();
+                    Audio::Play(o.echo ? Sfx::Echo : Sfx::Door);
+                    if (o.echo) AddText("...", o.x, o.y - 40.0f, {210, 190, 255, 255}, 1.6f);
+                } else {
+                    AddText(o.text.empty() ? string("It will not open.") : o.text, o.x, o.y - 40.0f,
+                            {235, 200, 160, 255}, 2.4f);
+                    Audio::Play(Sfx::Locked);
+                }
+                break;
+            }
+            if (o.type == "story") {
+                // The story is the host's: a friend, or Player Two, is told so
+                // rather than starting a scene for somebody else.
+                if (visiting || Acting()) {
+                    AddText("That is for your host to do.", o.x, o.y - 40.0f, {206, 196, 232, 255}, 2.0f);
+                    break;
+                }
+                if (ObjectPresent(o)) story_uses.push_back(o.id);
+                break;
+            }
             if (o.type == "lever") {
                 if (Used(o) || !ObjectPresent(o)) break;
                 MarkUsed(o);
@@ -293,6 +352,13 @@ void World::TryInteract(const GameContext& ctx) {
                     Audio::Play(Sfx::Pickup);
                 }
             } else if (o.type == "dream_wake") {
+                // A dream with no way out but through: the stone is cold.
+                if (dream.locked) {
+                    AddText("The stone is cold. Something holds this dream shut.", o.x, o.y - 40.0f,
+                            {206, 186, 250, 255}, 2.4f);
+                    Audio::Play(Sfx::Locked);
+                    break;
+                }
                 if (ctx.quests) {
                     QuestEvent e;
                     e.type = ObjectiveType::Interact;
@@ -410,6 +476,15 @@ void World::TryInteract(const GameContext& ctx) {
                 requests.push_back(r);
                 MarkUsed(o);
             } else if (o.type == "board") {
+                // Reading a board can be what a quest asks for too: the Guild's
+                // ledger is opened by reading its first pages.
+                if (ctx.quests) {
+                    QuestEvent e;
+                    e.type = ObjectiveType::Interact;
+                    e.target = o.id;
+                    e.map_id = map_id;
+                    ctx.quests->Notify(e, player.inventory);
+                }
                 WorldRequest r;
                 r.type  = WorldRequest::Type::Board;
                 r.id    = o.id;
@@ -435,6 +510,13 @@ void World::TryInteract(const GameContext& ctx) {
                 const int s = SkillFromName(o.skill);
                 if (s < 0 || !ctx.items) break;
                 if (Spent(o)) break;
+                // Not theirs yet, by the story: the host's story, so a friend works on.
+                if (!visiting && !Acting())
+                    if (const string* why = SkillLocked(o.skill)) {
+                        AddText(*why, player.x, player.y - 54.0f, {255, 200, 160, 255}, 2.4f);
+                        Audio::Play(Sfx::UiError);
+                        break;
+                    }
                 if (player.skills.Level(s) < o.skill_level) {
                     AddText("Level too low", o.x, o.y - 34.0f, {255, 140, 140, 255});
                     Audio::Play(Sfx::UiError);
@@ -461,7 +543,8 @@ void World::TryInteract(const GameContext& ctx) {
                 // The level and the tool together decide the pace, down to a floor.
                 gather_needed = Gathering::WorkTime(o.gather_time, player.skills.Level(s), tool->tool_speed);
                 player.StartGathering(Gathering::ClipFor(o.skill), tool->model, o.x, o.y);
-                if (o.skill == "Fishing") Audio::PlayAt(Sfx::Splash, o.x, o.y);
+                // At the water the pace is how long until something bites.
+                if (o.skill == "Fishing") CastAt(o, gather_needed, ctx);
             }
             break;
         }
@@ -469,6 +552,23 @@ void World::TryInteract(const GameContext& ctx) {
         case InteractTarget::PortalDoor: {
             const Portal* p = map.PortalAt(player.BodyBox());
             if (!p) break;
+            const Portal::ShutRule* rule = p->ShutRuleBy([&](const string& f) { return Flagged(f); });
+            // A door that asks: the host is asked whether they are ready, and a
+            // friend goes through without being asked -- it is the host's story.
+            if (rule && !rule->ask.empty() && !visiting && !Acting()) {
+                WorldRequest r;
+                r.type = WorldRequest::Type::Ask;
+                r.id = rule->ask;
+                r.text = rule->text;
+                requests.push_back(r);
+                break;
+            }
+            if (rule && (rule->ask.empty() || (!visiting && !Acting()))) {
+                AddText(rule->text.empty() ? string("It will not open.") : rule->text, player.x, player.y - 52.0f,
+                        {235, 200, 160, 255}, 2.4f);
+                Audio::Play(Sfx::Locked);
+                break;
+            }
             if (!p->locked_by.empty() && !player.inventory.Has(p->locked_by)) {
                 AddText("It is locked.", player.x, player.y - 52.0f, {255, 150, 150, 255});
                 Audio::Play(Sfx::Locked);
@@ -579,7 +679,9 @@ bool World::Spent(const MapObject& o) const {
 }
 
 void World::UpdateGathering(float dt, const GameContext& ctx) {
-    if (gather_index < 0) return;
+    // A line in the water goes with the work at it: whatever ended the one
+    // (a step, a blow, a door) ends the other.
+    if (gather_index < 0) { angler.Stop(); return; }
 
     const auto& objects = map.Objects();
     if (gather_index >= static_cast<int>(objects.size())) { gather_index = -1; return; }
@@ -589,19 +691,25 @@ void World::UpdateGathering(float dt, const GameContext& ctx) {
     // standing still.
     if (Length(o.x - player.x, o.y - player.y) > INTERACT_RANGE + 12.0f || player.Moving() ||
         player.Attacking() || player.IsJumping()) {
+        if (angler.Hooked()) AddText("You let the line go.", player.x, player.y - 54.0f, {220, 210, 190, 255}, 1.6f);
         gather_index = -1;
+        angler.Stop();
+        return;
+    }
+
+    // At the water: the float, the two dips and the fight. See Gathering::Angler.
+    if (o.skill == "Fishing") {
+        UpdateAngling(dt, ctx);
         return;
     }
 
     // A strike every so often while the work goes on, not just at the end.
-    // Fishing is quiet until something bites, and so is picking -- a plant, a
-    // bug out of the air, honey out of a hive.
+    // Picking is quiet -- a plant, a bug out of the air, honey out of a hive.
     const bool by_hand = o.type == "herb" || o.type == "bug" || o.type == "hive";
-    const bool fishing = o.skill == "Fishing" || by_hand;
     constexpr float STRIKE = 0.62f;
     const float before = gather_timer;
     gather_timer += dt;
-    if (!fishing && (std::floor(before / STRIKE) != std::floor(gather_timer / STRIKE) || before == 0.0f))
+    if (!by_hand && (std::floor(before / STRIKE) != std::floor(gather_timer / STRIKE) || before == 0.0f))
         Audio::PlayAt(o.skill == "Mining" ? Sfx::Mine : Sfx::Chop, o.x, o.y);
     if (gather_timer < gather_needed) return;
 
@@ -638,28 +746,6 @@ void World::UpdateGathering(float dt, const GameContext& ctx) {
         Pick(o);
         if (ctx.quests) ctx.quests->RefreshCollectObjectives(player.inventory);
         gather_index = -1;
-        return;
-    }
-
-    if (fishing && ctx.items && ctx.rng) {
-        const int level = player.skills.Level(SKILL_FISHING);
-        const string fish = Gathering::PickFish(o.fish, level, *ctx.items, *ctx.rng);
-        const ItemDef* d = ctx.items->Get(fish);
-        if (!d) { gather_index = -1; return; }
-        std::uniform_real_distribution<float> unit(0.0f, 1.0f);
-        const int count = Gathering::CatchCount(level, unit(*ctx.rng));
-        const int added = player.inventory.Add(fish, count);
-        if (added <= 0) {
-            AddText("Inventory full", player.x, player.y - 54.0f, {255, 160, 160, 255});
-            gather_index = -1;
-            return;
-        }
-        player.GrantXp(SKILL_FISHING, d->fish_xp * added);
-        AddText("+ " + (count > 1 ? std::to_string(count) + " " : string("")) + d->name,
-                player.x, player.y - 54.0f, count > 1 ? SDL_Color{255, 230, 140, 255} : SDL_Color{200, 255, 200, 255});
-        Audio::PlayAt(Sfx::Splash, o.x, o.y, 1.0f, 1.2f);
-        if (ctx.quests) ctx.quests->RefreshCollectObjectives(player.inventory);
-        gather_timer = 0.0f;
         return;
     }
 
@@ -703,6 +789,186 @@ void World::UpdateGathering(float dt, const GameContext& ctx) {
 
     // Keep going until the player moves or presses the button again.
     gather_timer = 0.0f;
+}
+
+// -----------------------------------------------------------------------------
+//  Fishing: the second dip, and the fight
+//
+//  The angler in Havenbrook teaches it: cast, and wait. The bobber dips once
+//  -- not yet -- and then a second time, and that is the moment. Hooked, the
+//  fish fights, and the reel is the button held: see Gathering::Angler for the
+//  rules and the gauge, and the HUD (screen_hud.cpp) for how it is shown.
+//
+//  All of it is the seat's own, like the rest of a gather (SeatState): a
+//  friend's cast is played here, on the host, with the hands their machine
+//  sends, and what they see of it goes back in the snapshot.
+// -----------------------------------------------------------------------------
+
+void World::CastAt(const MapObject& o, float pace, const GameContext& ctx) {
+    std::mt19937& dice = ctx.rng ? *ctx.rng : angler_dice;
+    const int level = player.skills.Level(SKILL_FISHING);
+    // What will take the bait is settled as the line goes in: how it fights,
+    // and how long it holds the bobber under, are its own.
+    angler_fish = ctx.items ? Gathering::PickFish(o.fish, level, *ctx.items, dice) : string();
+    const ItemDef* d = ctx.items ? ctx.items->Get(angler_fish) : nullptr;
+    if (!d) {
+        AddText("Nothing here will take your bait yet.", player.x, player.y - 54.0f, {220, 210, 190, 255}, 1.8f);
+        gather_index = -1;
+        return;
+    }
+    std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+    // The first dip a little sooner than a catch used to take, since the fight
+    // comes after it: a better fisher, and a better rod, are bitten sooner.
+    const float wait = pace * (0.5f + 0.5f * unit(dice)) + 0.5f;
+    angler.Cast(wait, Gathering::FightFor(d->fish_level, level), dice);
+    if (dev_angle == "bite" || dev_angle == "fight") {
+        // Looking at it (--angle): the dips already past, the bobber under.
+        angler.phase = Gathering::Angler::Phase::Bite;
+        angler.t = 0.0f;
+        angler.length = 30.0f;
+        if (dev_angle == "fight") angler.Strike();
+    }
+    // Out on the spot, a little either way of it.
+    angler_x = o.x + (unit(dice) - 0.5f) * 14.0f;
+    angler_y = o.y + (unit(dice) - 0.5f) * 6.0f;
+    reel_click = 0.0f;
+    Audio::PlayAt(Sfx::Splash, angler_x, angler_y);
+    Ripple(angler_x, angler_y, 7.0f);
+}
+
+void World::StrikeAt(const GameContext& ctx) {
+    using Outcome = Gathering::Angler::Outcome;
+    switch (angler.Strike()) {
+        case Outcome::Hooked: {
+            const ItemDef* d = ctx.items ? ctx.items->Get(angler_fish) : nullptr;
+            AddText(d ? "Hooked: " + d->name + "!" : string("Hooked!"), player.x, player.y - 54.0f,
+                    {255, 226, 140, 255}, 1.4f);
+            Audio::PlayAt(Sfx::Splash, angler_x, angler_y, 1.0f, 0.75f);
+            Ripple(angler_x, angler_y, 12.0f);
+            break;
+        }
+        case Outcome::TooSoon:
+            AddText("Too soon -- it took fright.", player.x, player.y - 54.0f, {235, 200, 160, 255}, 1.8f);
+            Audio::PlayAt(Sfx::Splash, angler_x, angler_y, 0.5f, 1.5f);
+            gather_index = -1;
+            break;
+        case Outcome::ReeledIn:
+            // Wound in before anything had touched it: nothing lost but the cast.
+            gather_index = -1;
+            break;
+        default:
+            // The fish is on, and the button is the reel's: held, not pressed.
+            break;
+    }
+}
+
+void World::UpdateAngling(float dt, const GameContext& ctx) {
+    using Phase = Gathering::Angler::Phase;
+    using Outcome = Gathering::Angler::Outcome;
+    if (!angler.Active()) { gather_index = -1; return; }
+    std::mt19937& dice = ctx.rng ? *ctx.rng : angler_dice;
+    const Phase before = angler.phase;
+    const bool reel = player.hands.Down(PlayerInput::Interact);
+    const Outcome out = angler.Update(dt, reel, dice);
+
+    // What the water does as it goes: a small plop at the nibble, a deep one
+    // as it goes under.
+    if (angler.phase != before) {
+        if (angler.phase == Phase::Nibble) {
+            Audio::PlayAt(Sfx::Plop, angler_x, angler_y, 0.55f, 1.3f);
+            Ripple(angler_x, angler_y, 6.0f);
+        } else if (angler.phase == Phase::Bite) {
+            Audio::PlayAt(Sfx::Plop, angler_x, angler_y, 1.0f, 0.8f);
+            Ripple(angler_x, angler_y, 11.0f);
+        }
+    }
+    // The reel's ratchet while it is wound in, and spray off the fish.
+    if (angler.Hooked()) {
+        if (reel && (reel_click -= dt) <= 0.0f) {
+            reel_click = 0.16f;
+            Audio::PlayAt(Sfx::Reel, player.x, player.y, 0.4f);
+        }
+        if ((angler.t * 3.0f) - std::floor(angler.t * 3.0f) < dt * 3.0f) Ripple(angler_x, angler_y, 5.0f);
+    }
+
+    switch (out) {
+        case Outcome::Missed:
+            AddText("It got away.", player.x, player.y - 54.0f, {220, 210, 190, 255}, 1.6f);
+            gather_index = -1;
+            break;
+        case Outcome::Snapped:
+            AddText("The line snaps!", player.x, player.y - 54.0f, {255, 150, 130, 255}, 1.8f);
+            Audio::PlayAt(Sfx::Snap, player.x, player.y);
+            Ripple(angler_x, angler_y, 14.0f);
+            gather_index = -1;
+            break;
+        case Outcome::Landed: {
+            // In: one fish, or at the milestones two or three.
+            gather_index = -1;
+            const ItemDef* d = ctx.items ? ctx.items->Get(angler_fish) : nullptr;
+            if (!d) break;
+            std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+            const int count = Gathering::CatchCount(player.skills.Level(SKILL_FISHING), unit(dice));
+            const int added = player.inventory.Add(angler_fish, count);
+            if (added <= 0) {
+                AddText("Inventory full -- you let it go.", player.x, player.y - 54.0f, {255, 160, 160, 255});
+                break;
+            }
+            player.GrantXp(SKILL_FISHING, d->fish_xp * added);
+            AddText("+ " + (added > 1 ? std::to_string(added) + " " : string("")) + d->name,
+                    player.x, player.y - 54.0f, added > 1 ? SDL_Color{255, 230, 140, 255} : SDL_Color{200, 255, 200, 255});
+            Audio::PlayAt(Sfx::Splash, angler_x, angler_y, 1.0f, 1.2f);
+            Ripple(angler_x, angler_y, 10.0f);
+            if (ctx.quests) ctx.quests->RefreshCollectObjectives(player.inventory);
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+World::AnglerView World::Angling() const {
+    if (visiting) return shown_angler;
+    AnglerView v;
+    if (gather_index < 0 || !angler.Active()) return v;
+    v.on = true;
+    v.phase = angler.phase;
+    v.x = angler_x;
+    v.y = angler_y;
+    v.dip = angler.Dip();
+    v.line = angler.line;
+    v.band = angler.band;
+    v.half = angler.fight.band;
+    v.progress = angler.progress;
+    v.strain = angler.Strain();
+    if (angler.Hooked()) v.fish = angler_fish;
+    return v;
+}
+
+vector<World::Bobber> World::Bobbers() {
+    if (visiting) return heard_bobbers;
+    vector<Bobber> out;
+    if (!player.absent && gather_index >= 0 && angler.Active())
+        out.push_back({player.seat, angler_x, angler_y, angler.Dip()});
+    for (const auto& g : guests) {
+        if (g->puppet) continue;
+        const auto s = seat_states.find(g->seat);
+        if (s == seat_states.end() || s->second.gather_index < 0 || !s->second.angler.Active()) continue;
+        out.push_back({g->seat, s->second.angler_x, s->second.angler_y, s->second.angler.Dip()});
+    }
+    return out;
+}
+
+SDL_FPoint World::RodTip(const Player& p) {
+    // The rod's far end in the fish clip, from the feet: held low and out in
+    // front facing down, out to the side facing left or right, up over the
+    // shoulder facing away. Measured off layers/fish_4_weapon_rod.png.
+    switch (p.facing) {
+        case FACE_LEFT:  return {p.x - 22.0f, p.y - 29.0f};
+        case FACE_RIGHT: return {p.x + 22.0f, p.y - 21.0f};
+        case FACE_UP:    return {p.x + 7.0f,  p.y - 40.0f};
+        default:         return {p.x - 8.0f,  p.y - 7.0f};
+    }
 }
 
 void World::ShowGather(float progress, const string& clip, const string& model) {

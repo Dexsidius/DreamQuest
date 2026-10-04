@@ -120,6 +120,9 @@ struct Frame {
     vector<Shock> shocks;
     vector<HeatSpot> heats;
     float dream = 0.0f;            // how far down the Reverie, as a strength
+    // The flip between the waking world and the Reverie: the picture's colours
+    // turned inside out (0..1), and a ripple out from the middle of the view.
+    float invert = 0.0f, ripple = 0.0f;
 };
 void SetFrame(const Frame& frame);
 

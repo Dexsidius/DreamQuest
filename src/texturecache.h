@@ -19,6 +19,10 @@ public:
     // canvas, so anything that asks "is this in front of that" wants this
     // rather than the canvas. Worked out once per image from its pixels.
     SDL_FRect OpaqueBounds(const string& path);
+    // The same for one cell of a sheet -- a frame of an animation -- in pixels
+    // from the cell's own corner: the whole cell when nothing in it is drawn,
+    // or the file cannot be read.
+    SDL_FRect OpaqueBoundsIn(const string& path, const SDL_Rect& cell);
 
     // The average colour of everything drawn in the image, ignoring what is
     // transparent. The minimap paints a whole map out of these, so it is worked
@@ -31,6 +35,7 @@ private:
     SDL_Renderer* renderer;
     unordered_map<string, SDL_Texture*> textures;
     unordered_map<string, SDL_FRect> opaque;
+    unordered_map<string, SDL_FRect> opaque_cells;
     unordered_map<string, SDL_Color> average;
     unordered_map<string, bool> warned;
 };

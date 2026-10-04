@@ -83,6 +83,59 @@ each keeps a backup, the game saves itself every two minutes and when the
 window is closed, and the load screen can delete a slot.
 
 
+THE PROLOGUE
+
+A new game begins with the prologue, "The Town That Wouldn't Wake": you are
+found on the road at the end of a night and carted into Havenbrook, where
+people have been falling asleep and not waking. It is cutscenes and short
+stretches of play between them; hold Esc (B on a pad) to skip a scene.
+Signs at the foot of the screen say how to do each new thing as it comes up.
+You choose your weapon and armour from a chest partway through.
+
+When it is over Havenbrook is asleep, all of it, until the story wakes it: its
+shops and trades will keep. Its gates are open and the rest of the world is
+awake. Play Together and Player Two open once the prologue is done.
+
+
+ACT I -- LEARNING THE RULES
+
+Vigil gave you a Dreamcatcher. Somebody in Havenbrook with a story of theirs
+to finish has a little bell over them; walk up and the button says Use
+Dreamcatcher, and it takes you into their dream. Elder Vask, rocking on the
+guild hall's porch, is the first. In a sleeper's dream you cannot die: if it
+goes badly you wake beside them with everything you changed still changed,
+and a Waking Stone lets you out sooner.
+
+Then, in any order: the smith Halda (the forge's chimney is cold), Bess (the
+inn is emptier than you left it) and the Tanner (the woodcutter heard wolves).
+Each of them wakes with their trade open to you again. The woodcutter, the
+angler and the miner teach you their gathering trades once Vask is awake --
+until then you have no idea how. Ten other sleepers can be woken with a Dawn
+Chime: three waves of Hushed in their dream, always about as strong as you.
+
+When all three are saved, the Mayor's Hall asks if you are ready. Once in, you
+cannot leave until it is done; fall, and you wake at his desk, and the note
+takes you back in. The town's gifts are a house in Havenbrook and your pick of
+three pieces the Guild made for its finest.
+
+Bosses glow red before a big move: step out of the glow. The Forge Demon glows
+gold for a moment after its flame or its spin -- hit it then, and it hurts.
+A nightmare spider's web can root you where you stand for a second or two.
+
+
+ACT II -- THE GUILD'S LEDGER
+
+When the dragon's shadow has passed over Havenbrook, Guild Master Orlend has a
+bell over him at his desk in the Guild Hall. (A character from before the
+prologue finds him with it straight away.) He opens the Guild's ledger to you:
+a board beside his desk with a bounty on every named beast in the game but one
+-- seventeen of them, from the spider under the inn to the Quintessence. Each
+page shows the beast, says where it lairs and what it does, and is taken once.
+The arrow leads to its lair, but it counts wherever it falls, and the Guild
+pays the moment it does. Levels in red are still past you; L (RT on a pad) on
+the board shows only what is within ten levels of you.
+
+
 CONTROLS
 
 Keyboard and controller both work; the game follows whichever you touch.
@@ -145,6 +198,11 @@ and [ and ] step through an element's spells as your Magic level opens them.
 A staff, a wand, a grimoire and an orb each reach a different part of every
 element. Lightning has its own battery, which only Zap fills. The ancient
 magic is learned from tomes; the College at Fernhollow sells them.
+
+Your weapon opens the six spell slots from the left: a wooden staff two,
+and each finer tier one more -- bronze three, iron four, steel five, azuryte
+all six. A shut slot shows a padlock. An element's own staff fills its slots
+with that element's spells, then the ancient magic, and never casts lightning.
 
 
 THE BAG, FOOD AND POTIONS
@@ -216,6 +274,12 @@ at a tanning rack), the Clothier's robes (a loom; Wynn's is in her shop at
 Mossvale), Brewing (a cauldron) and Cooking (a fire) make; and Enchanting
 works charms into gear at an enchanting table. At any station, hold sprint and
 confirm to make as many as you have the materials for.
+
+Fishing is earned. Cast with E at a spot and watch the bobber: it dips once --
+not yet -- and then goes right under. Press E then. With the fish on, hold E to
+reel and keep the line inside the green band as the fish drags it about; the
+bar under it fills as the fish comes in. Out of the green too long and the line
+snaps. The better the fish, the narrower the green and the harder it pulls.
 
 Halda the smith, Nessa the tanner and Innkeeper Bess in Havenbrook, Wynn and
 Oona at Mossvale, and Old Wendel at Fernhollow keep order books: things to

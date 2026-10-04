@@ -59,6 +59,42 @@ SDL_FRect TextureCache::OpaqueBounds(const string& path) {
     return out;
 }
 
+SDL_FRect TextureCache::OpaqueBoundsIn(const string& path, const SDL_Rect& cell) {
+    const string key = path + "#" + std::to_string(cell.x) + "," + std::to_string(cell.y) + "," +
+                       std::to_string(cell.w) + "," + std::to_string(cell.h);
+    auto it = opaque_cells.find(key);
+    if (it != opaque_cells.end()) return it->second;
+
+    SDL_FRect out{0.0f, 0.0f, static_cast<float>(cell.w), static_cast<float>(cell.h)};
+    if (SDL_Surface* loaded = IMG_Load(path.c_str())) {
+        if (SDL_Surface* s = SDL_ConvertSurface(loaded, SDL_PIXELFORMAT_RGBA32)) {
+            if (SDL_LockSurface(s)) {
+                const int x0 = std::clamp(cell.x, 0, s->w), y0 = std::clamp(cell.y, 0, s->h);
+                const int x1 = std::clamp(cell.x + cell.w, 0, s->w), y1 = std::clamp(cell.y + cell.h, 0, s->h);
+                int minx = x1, miny = y1, maxx = -1, maxy = -1;
+                const Uint8* px = static_cast<const Uint8*>(s->pixels);
+                for (int y = y0; y < y1; ++y) {
+                    const Uint8* row = px + y * s->pitch;
+                    for (int x = x0; x < x1; ++x) {
+                        // As OpaqueBounds: a faint fringe or a shadow is not the figure.
+                        if (row[x * 4 + 3] <= 24) continue;
+                        minx = std::min(minx, x); maxx = std::max(maxx, x);
+                        miny = std::min(miny, y); maxy = std::max(maxy, y);
+                    }
+                }
+                SDL_UnlockSurface(s);
+                if (maxx >= minx && maxy >= miny)
+                    out = {static_cast<float>(minx - cell.x), static_cast<float>(miny - cell.y),
+                           static_cast<float>(maxx - minx + 1), static_cast<float>(maxy - miny + 1)};
+            }
+            SDL_DestroySurface(s);
+        }
+        SDL_DestroySurface(loaded);
+    }
+    opaque_cells[key] = out;
+    return out;
+}
+
 SDL_Color TextureCache::AverageColor(const string& path) {
     auto it = average.find(path);
     if (it != average.end()) return it->second;
@@ -98,5 +134,6 @@ void TextureCache::Clear() {
     textures.clear();
     warned.clear();
     opaque.clear();
+    opaque_cells.clear();
     average.clear();
 }

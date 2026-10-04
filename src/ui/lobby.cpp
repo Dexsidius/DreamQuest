@@ -393,6 +393,10 @@ void Game::UpdateSession(float dt) {
 // -----------------------------------------------------------------------------
 
 void Game::OpenMultiplayer() {
+    if (InPrologue()) {
+        PushToast("Play Together opens once the prologue is over.", Palette::TextDim);
+        return;
+    }
     mp_name = settings.player_name;
     if (mp_password.empty()) mp_password = settings.host_password;
     if (mp_address.empty() && !settings.recent_hosts.empty()) mp_address = settings.recent_hosts.front();

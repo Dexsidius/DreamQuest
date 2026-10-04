@@ -225,6 +225,8 @@ void Game::UpdateRewardChoice() {
 
     if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
         if (const QuestRewardChoice* c = quests->TakeChoice(reward_quest, reward_cursor)) {
+            if (const QuestDef* qd = quests->Definition(reward_quest); qd && !qd->choice_flag.empty())
+                world->SetFlag(qd->choice_flag);
             GiveRewards(c->xp, c->items, c->coins);
             quests->RefreshCollectObjectives(world->player.inventory);
             PushToast("Taken: " + ChoiceContents(*c, items) + ".", Palette::Xp);
@@ -305,7 +307,7 @@ void Game::DrawRewardChoice() {
         y += 26.0f;
         // The character's own: said, and lit first.
         if (!style.empty() && style == mine) {
-            ui.Text("your affinity", card.x + 12.0f, y, TextSize::Small, tone);
+            ui.Text("recommended", card.x + 12.0f, y, TextSize::Small, tone);
             y += 20.0f;
         }
         y += 4.0f;

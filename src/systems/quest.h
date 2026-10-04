@@ -24,7 +24,11 @@ enum class ObjectiveType {
     //
     // Last in the list on purpose. The number goes over the wire and into
     // nothing else, and everything before it keeps the value it had.
-    Craft
+    Craft,
+    // Done when the world's flag `target` is set: a story's beat -- the Mayor
+    // heard out, a sleeper tried, the dream walked. See RefreshFlagObjectives.
+    // After Craft for the same reason Craft is last.
+    Flag
 };
 
 enum class QuestSource { Board, Npc, Note };
@@ -42,9 +46,17 @@ struct QuestStage {
     // What the waypoint points at while this stage is current, for a stage
     // whose target is something that happens rather than something that is
     // there -- a ritual's waves are fought at a witch's table: an object's id,
-    // or a kind of object. Empty: the target itself.
+    // or a kind of object. Empty: the target itself. For a kill it can be a
+    // map: where the waypoint looks for what is to be killed, without the kill
+    // having to be made there -- a Guild bounty's beast lairs in one place and
+    // counts wherever it falls (`map_id` is the one that restricts the kill).
     string        where;
     bool          hidden = false;   // not listed until it becomes current
+    // Done, whatever its count, once this world flag is set: a kill count
+    // whose monsters are a story's squad (EnemySpawnDef::squad), so a stage
+    // that was not yet current when they fell -- a friend got there first --
+    // is not left waiting on kills that can never come again.
+    string        or_flag;
 };
 
 // One of the rewards a quest lets the player choose between: a sword for a
@@ -92,7 +104,19 @@ struct QuestDef {
     // DreamBounties), in no pool's turn, and which lapses at dawn if it is not
     // done -- the monsters it was for are not there the next night.
     bool   bounty = false;
+    // A Guild bounty: one page of the Guild's ledger of named beasts (Act II,
+    // Guild Master Orlend), posted on the board beside his desk. Unlike the
+    // Slate's it is not daily and never lapses: taken once, closed once, the
+    // beast it names killed wherever it is found. Its first stage's `where`
+    // is the beast's lair, for the waypoint and the board.
+    bool   guild_bounty = false;
     vector<string> prerequisites; // quest ids that must be complete first
+    // A flag set in the world when it is done: what a story waits on -- the
+    // foyer's doors stand locked until both suits of armour are down.
+    string sets_flag;
+    // And one set when its reward is chosen (rewards.choices): the weapon in
+    // the cell's chest taken, not merely found.
+    string choice_flag;
     vector<QuestStage> stages;
     QuestRewards rewards;
     string completion_text;
@@ -211,6 +235,11 @@ public:
     void Notify(const QuestEvent& e, const class Inventory& inv);
     // Collect objectives are satisfied by holding items, so re-check on pickup.
     void RefreshCollectObjectives(const class Inventory& inv);
+    // Flag stages done by what the world's flags say now: asked every frame,
+    // so a stage begun after its flag was set is done the moment it begins.
+    void RefreshFlagObjectives(const std::function<bool(const string&)>& has, const class Inventory& inv);
+    // Flags quests finished since this was last asked want set (QuestDef::sets_flag).
+    vector<string> TakeFlagsToSet() { vector<string> out; out.swap(flags_to_set); return out; }
     // A strange thing found starts what it starts by being in the bag, however
     // it got there: every quest a thing held names (`starts_quest`) that has not
     // been begun is begun, and the things that began them are handed back so
@@ -268,6 +297,7 @@ private:
 
     map<string, QuestDef>      defs;
     map<string, QuestProgress> progress;
+    vector<string> flags_to_set;
     vector<string> just_completed;
     vector<string> just_started;
     int today = 1;

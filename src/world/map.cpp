@@ -26,6 +26,39 @@ string Map::ResolveAsset(const string& rel) const {
     return rel;
 }
 
+FlagCond FlagCond::FromJson(const json& j) {
+    FlagCond c;
+    const auto add = [&](const string& f) {
+        if (f.empty()) return;
+        if (f[0] == '!') { if (f.size() > 1) c.none.push_back(f.substr(1)); }
+        else             c.all.push_back(f);
+    };
+    if (j.is_string()) add(j.get<string>());
+    else if (j.is_array()) { for (const auto& v : j) if (v.is_string()) add(v.get<string>()); }
+    else if (j.is_object()) {
+        const auto list = [](const json& v, vector<string>& out) {
+            if (v.is_string()) out.push_back(v.get<string>());
+            else if (v.is_array()) for (const auto& s : v) if (s.is_string()) out.push_back(s.get<string>());
+        };
+        if (j.contains("flags")) list(j["flags"], c.all);
+        if (j.contains("not"))   list(j["not"], c.none);
+        if (j.contains("any"))   list(j["any"], c.any);
+        if (j.contains("unless")) {
+            const json& u = j["unless"];
+            if (u.is_array()) { for (const auto& v : u) c.unless.push_back(FromJson(v)); }
+            else              c.unless.push_back(FromJson(u));
+        }
+    }
+    return c;
+}
+
+static Facing FacingFromJson(const json& j, Facing fallback) {
+    if (j.is_number_integer()) return static_cast<Facing>(std::clamp(j.get<int>(), 0, 3));
+    if (!j.is_string()) return fallback;
+    const string s = j.get<string>();
+    return s == "left" ? FACE_LEFT : s == "right" ? FACE_RIGHT : s == "up" ? FACE_UP : s == "down" ? FACE_DOWN : fallback;
+}
+
 // One monster's post, as a map file has it.
 static EnemySpawnDef PostFromJson(const json& e) {
     EnemySpawnDef d;
@@ -45,6 +78,14 @@ static EnemySpawnDef PostFromJson(const json& e) {
     d.shown   = std::max(0, e.value("shown", 0));
     d.ritual  = e.value("ritual", string(""));
     d.wave    = std::max(0, e.value("wave", 0));
+    if (e.contains("when")) d.when = FlagCond::FromJson(e["when"]);
+    d.dormant = e.value("dormant", string(""));
+    d.perch   = e.value("perch", 10.0f);
+    d.squad   = e.value("squad", string(""));
+    d.appear  = e.value("appear", false);
+    d.appear_after = std::max(0.0f, e.value("appear_after", 0.0f));
+    d.fitted  = e.contains("fit");
+    d.fit     = e.value("fit", 0);
     if (e.contains("route") && e["route"].is_array())
         for (const auto& p : e["route"])
             if (p.is_array() && p.size() >= 2)
@@ -177,6 +218,7 @@ bool Map::Load(const string& path) {
                 TileInstance t;
                 // Centre-anchored in the file, top-left in memory.
                 t.rect  = {cx - w / 2.0f, cy - h / 2.0f, w, h};
+                if (loc.size() >= 5 && loc[4].is_number()) t.lean = loc[4].get<float>();
                 t.tex   = tex_index;
                 t.layer = std::clamp(layer, 0, 2);
                 t.sort_y = t.rect.y + t.rect.h;
@@ -286,6 +328,10 @@ bool Map::Load(const string& path) {
             portal.locked_by        = p.value("locked_by", string(""));
             portal.danger_level     = p.value("level", 0);
             portal.min_combat       = p.value("min_combat", 0);
+            if (p.contains("shut") && p["shut"].is_array())
+                for (const auto& s : p["shut"])
+                    portal.shut.push_back({FlagCond::FromJson(s.value("when", json())), s.value("text", string("")),
+                                           s.value("ask", string(""))});
             portals.push_back(portal);
         }
 
@@ -311,12 +357,18 @@ bool Map::Load(const string& path) {
             thin_ice.push_back(ice);
         }
 
-    // ---- spawn points --------------------------------------------------------
+    // ---- spawn points, and the story's marks -----------------------------------
     if (dq.contains("spawns"))
         for (auto it = dq["spawns"].begin(); it != dq["spawns"].end(); ++it) {
             const json& v = it.value();
             if (v.is_array() && v.size() >= 2)
                 spawns[it.key()] = {v[0].get<float>(), v[1].get<float>()};
+        }
+    if (dq.contains("marks"))
+        for (auto it = dq["marks"].begin(); it != dq["marks"].end(); ++it) {
+            const json& v = it.value();
+            if (v.is_array() && v.size() >= 2)
+                marks[it.key()] = {v[0].get<float>(), v[1].get<float>()};
         }
 
     // ---- enemies -------------------------------------------------------------
@@ -365,6 +417,31 @@ bool Map::Load(const string& path) {
             if (n.contains("tint") && n["tint"].size() >= 3)
                 d.tint = {static_cast<Uint8>(n["tint"][0].get<int>()), static_cast<Uint8>(n["tint"][1].get<int>()),
                           static_cast<Uint8>(n["tint"][2].get<int>()), 255};
+            if (n.contains("states") && n["states"].is_array())
+                for (const auto& s : n["states"]) {
+                    NpcState st;
+                    st.when   = FlagCond::FromJson(s.value("when", json()));
+                    st.hidden = s.value("hidden", false);
+                    if (s.contains("at") && s["at"].is_array() && s["at"].size() >= 2) {
+                        st.moved = true;
+                        st.x = s["at"][0].get<float>();
+                        st.y = s["at"][1].get<float>();
+                    }
+                    if (s.contains("facing")) { st.turned = true; st.facing = FacingFromJson(s["facing"], FACE_DOWN); }
+                    st.pose = s.value("pose", string(""));
+                    if (s.contains("asleep")) {
+                        st.asleep = s["asleep"].is_string() || (s["asleep"].is_boolean() && s["asleep"].get<bool>());
+                        if (s["asleep"].is_string()) st.asleep_text = s["asleep"].get<string>();
+                    }
+                    st.name      = s.value("name", string(""));
+                    st.dialogue  = s.value("dialogue", string(""));
+                    st.alpha     = std::clamp(s.value("alpha", 1.0f), 0.0f, 1.0f);
+                    st.flicker   = s.value("flicker", false);
+                    st.sort_bias = s.value("lift", 0.0f);
+                    st.prompt    = s.value("prompt", string(""));
+                    st.mark      = s.value("mark", false);
+                    d.states.push_back(st);
+                }
             npcs.push_back(d);
         }
 
@@ -403,12 +480,31 @@ bool Map::Load(const string& path) {
             if (!m.sprite_open.empty()) m.sprite_open = ResolveAsset(m.sprite_open);
             if (o.contains("quests"))
                 for (const auto& q : o["quests"]) m.quests.push_back(q.get<string>());
+            if (o.contains("when"))    m.when    = FlagCond::FromJson(o["when"]);
+            if (o.contains("open_if")) m.open_if = FlagCond::FromJson(o["open_if"]);
+            m.opens     = o.value("opens", string(""));
+            m.echo      = o.value("echo", false);
+            m.dream_map = o.value("dream", string(""));
+            m.any_hour  = o.value("any_hour", false);
+            m.lift      = o.value("lift", 0.0f);
+            if (o.contains("closed")) m.closed = FlagCond::FromJson(o["closed"]);
+            m.closed_text = o.value("closed_text", string(""));
+            if (o.contains("light") && o["light"].is_object()) {
+                const json& l = o["light"];
+                if (l.contains("colour") && l["colour"].is_array() && l["colour"].size() >= 3)
+                    m.light = {static_cast<Uint8>(l["colour"][0].get<int>()), static_cast<Uint8>(l["colour"][1].get<int>()),
+                               static_cast<Uint8>(l["colour"][2].get<int>()), 255};
+                m.light_radius   = l.value("radius", 110.0f);
+                m.light_height   = l.value("height", 20.0f);
+                m.light_strength = l.value("strength", 0.9f);
+                m.light_flicker  = l.value("flicker", false);
+            }
             if (o.contains("solid")) {
                 const json& s = o["solid"];
                 if (s.is_array() && s.size() >= 4) {
                     m.solid = {s[0].get<float>(), s[1].get<float>(),
                                s[2].get<float>(), s[3].get<float>()};
-                    AddCollider(m.solid);
+                    m.collider = AddCollider(m.solid);
                 }
             }
             objects.push_back(m);
@@ -441,9 +537,9 @@ void Map::Unload() {
     ring_on = false;
     textures.clear(); surfaces.clear(); arts.clear(); tiles.clear(); colliders.clear();
     fog = Shaders::Fog{};
-    collider_water.clear(); water_count = 0;
+    collider_water.clear(); collider_off.clear(); water_count = 0;
     portals.clear(); enemies.clear(); npcs.clear(); objects.clear();
-    spawns.clear(); chunks.clear();
+    spawns.clear(); marks.clear(); chunks.clear();
     bounds_w = bounds_h = 0;
     chunk_cols = chunk_rows = 0;
     id.clear(); display_name.clear(); source_dir.clear(); subtitle.clear();
@@ -468,11 +564,13 @@ void Map::Unload() {
     dress = Dress{};
 }
 
-void Map::AddCollider(const SDL_FRect& r, bool water) {
-    if (r.w <= 0 || r.h <= 0) return;
+int Map::AddCollider(const SDL_FRect& r, bool water) {
+    if (r.w <= 0 || r.h <= 0) return -1;
     colliders.push_back(r);
     collider_water.push_back(water ? 1 : 0);
+    collider_off.push_back(0);
     if (water) ++water_count;
+    return static_cast<int>(colliders.size()) - 1;
 }
 
 // Bucket static geometry into a uniform grid once at load time, so drawing and
@@ -859,6 +957,24 @@ void Map::RenderTile(SDL_Renderer* r, TextureCache& cache, const Camera& cam,
     const SDL_FRect dst = cam.ToScreenRect(world);
     const Shaders::PropKind kind = ArtOf(t.tex).kind;
     if (kind != Shaders::PROP_NONE) Shaders::UseTile(r, Shaders::PLAIN, kind);
+    if (t.lean != 0.0f) {
+        // A house in a dream leans: its foot where it stands, its top pushed
+        // over -- sheared, not turned, so its floors stay level -- and swaying
+        // a degree either way, slowly, as if the street were breathing.
+        const float now = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+        const float degrees = t.lean + 1.0f * sinf(now * 0.5f + t.rect.x * 0.013f);
+        const float over = tanf(degrees * 0.01745329f) * dst.h;
+        const SDL_FColor c = {dyed ? dye.r / 255.0f : 1.0f, dyed ? dye.g / 255.0f : 1.0f, dyed ? dye.b / 255.0f : 1.0f,
+                              alpha / 255.0f};
+        const SDL_Vertex v[4] = {{{dst.x + over, dst.y}, c, {0.0f, 0.0f}},
+                                 {{dst.x + dst.w + over, dst.y}, c, {1.0f, 0.0f}},
+                                 {{dst.x + dst.w, dst.y + dst.h}, c, {1.0f, 1.0f}},
+                                 {{dst.x, dst.y + dst.h}, c, {0.0f, 1.0f}}};
+        const int idx[6] = {0, 1, 2, 0, 2, 3};
+        SDL_RenderGeometry(r, tex, v, 4, idx, 6);
+        if (kind != Shaders::PROP_NONE) Shaders::UsePlain(r);
+        return;
+    }
     if (alpha != 255) SDL_SetTextureAlphaMod(tex, alpha);
     if (dyed) SDL_SetTextureColorMod(tex, dye.r, dye.g, dye.b);
     SDL_RenderTexture(r, tex, nullptr, &dst);
@@ -934,6 +1050,7 @@ bool Map::Blocked(const SDL_FRect& box, bool swims) const {
         if (hit) return;
         for (int idx : c.colliders) {
             if (swims && collider_water[idx]) continue;
+            if (collider_off[idx]) continue;
             if (RectsOverlap(box, colliders[idx])) { hit = true; return; }
         }
     });
@@ -1074,6 +1191,13 @@ const Portal* Map::PortalAt(const SDL_FRect& box) const {
 bool Map::Spawn(const string& name, SDL_FPoint& out) const {
     auto it = spawns.find(name);
     if (it == spawns.end()) return false;
+    out = it->second;
+    return true;
+}
+
+bool Map::Mark(const string& name, SDL_FPoint& out) const {
+    auto it = marks.find(name);
+    if (it == marks.end()) return false;
     out = it->second;
     return true;
 }

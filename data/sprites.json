@@ -155,6 +155,44 @@
                                          }
                             }
               },
+    "animated_armor":  {
+                           "dir":  "assets/characters/animated_armor/",
+                           "rows":  4,
+                           "anchor_y":  81,
+                           "scale":  1,
+                           "clips":  {
+                                         "attack":  {
+                                                        "sheet":  "attack.png",
+                                                        "frames":  6,
+                                                        "fps":  16,
+                                                        "loop":  false
+                                                    },
+                                         "death":  {
+                                                       "sheet":  "death.png",
+                                                       "frames":  6,
+                                                       "fps":  9,
+                                                       "loop":  false
+                                                   },
+                                         "hurt":  {
+                                                      "sheet":  "hurt.png",
+                                                      "frames":  3,
+                                                      "fps":  12,
+                                                      "loop":  false
+                                                  },
+                                         "idle":  {
+                                                      "sheet":  "idle.png",
+                                                      "frames":  4,
+                                                      "fps":  8,
+                                                      "loop":  true
+                                                  },
+                                         "walk":  {
+                                                      "sheet":  "walk.png",
+                                                      "frames":  6,
+                                                      "fps":  10,
+                                                      "loop":  true
+                                                  }
+                                     }
+                       },
     "ankou":  {
                   "dir":  "assets/characters/ankou/",
                   "rows":  4,
@@ -273,6 +311,56 @@
                                               }
                                  }
                    },
+    "ashen_vanguard":  {
+                           "dir":  "assets/characters/ashen_vanguard/",
+                           "rows":  4,
+                           "anchor_y":  122,
+                           "scale":  1,
+                           "clips":  {
+                                         "attack":  {
+                                                        "sheet":  "attack.png",
+                                                        "frames":  6,
+                                                        "fps":  16,
+                                                        "loop":  false
+                                                    },
+                                         "death":  {
+                                                       "sheet":  "death.png",
+                                                       "frames":  6,
+                                                       "fps":  9,
+                                                       "loop":  false
+                                                   },
+                                         "heavy":  {
+                                                       "sheet":  "heavy.png",
+                                                       "frames":  6,
+                                                       "fps":  10,
+                                                       "loop":  false
+                                                   },
+                                         "hurt":  {
+                                                      "sheet":  "hurt.png",
+                                                      "frames":  3,
+                                                      "fps":  12,
+                                                      "loop":  false
+                                                  },
+                                         "idle":  {
+                                                      "sheet":  "idle.png",
+                                                      "frames":  4,
+                                                      "fps":  8,
+                                                      "loop":  true
+                                                  },
+                                         "run":  {
+                                                     "sheet":  "run.png",
+                                                     "frames":  6,
+                                                     "fps":  13,
+                                                     "loop":  true
+                                                 },
+                                         "walk":  {
+                                                      "sheet":  "walk.png",
+                                                      "frames":  6,
+                                                      "fps":  10,
+                                                      "loop":  true
+                                                  }
+                                     }
+                       },
     "banshee":  {
                     "dir":  "assets/characters/banshee/",
                     "rows":  4,
@@ -797,6 +885,54 @@
                      "anchor_y":  54,
                      "scale":  1,
                      "clips":  {
+                                   "chop":  {
+                                                "sheet":  "chop.png",
+                                                "frames":  8,
+                                                "fps":  10,
+                                                "loop":  true,
+                                                "layers":  [
+                                                               {
+                                                                   "slot":  "shadow",
+                                                                   "sheet":  "layers/chop_1_shadow.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "body",
+                                                                   "sheet":  "layers/chop_3_body.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "weapon_front",
+                                                                   "sheet":  "layers/chop_4_weapon_front.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "head",
+                                                                   "sheet":  "layers/chop_5_head.png"
+                                                               }
+                                                           ]
+                                            },
+                                   "fish":  {
+                                                "sheet":  "fish.png",
+                                                "frames":  8,
+                                                "fps":  6,
+                                                "loop":  true,
+                                                "layers":  [
+                                                               {
+                                                                   "slot":  "shadow",
+                                                                   "sheet":  "layers/fish_1_shadow.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "body",
+                                                                   "sheet":  "layers/fish_3_body.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "weapon_front",
+                                                                   "sheet":  "layers/fish_4_weapon_front.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "head",
+                                                                   "sheet":  "layers/fish_5_head.png"
+                                                               }
+                                                           ]
+                                            },
                                    "idle":  {
                                                 "sheet":  "idle.png",
                                                 "frames":  8,
@@ -821,6 +957,102 @@
                                                                }
                                                            ]
                                             },
+                                   "lie":  {
+                                               "sheet":  "lie.png",
+                                               "frames":  4,
+                                               "fps":  2,
+                                               "loop":  true,
+                                               "layers":  [
+                                                              {
+                                                                  "slot":  "shadow",
+                                                                  "sheet":  "layers/lie_1_shadow.png"
+                                                              },
+                                                              {
+                                                                  "slot":  "body",
+                                                                  "sheet":  "layers/lie_3_body.png"
+                                                              },
+                                                              {
+                                                                  "slot":  "weapon_front",
+                                                                  "sheet":  "layers/lie_4_weapon_front.png"
+                                                              },
+                                                              {
+                                                                  "slot":  "head",
+                                                                  "sheet":  "layers/lie_5_head.png"
+                                                              }
+                                                          ]
+                                           },
+                                   "mine":  {
+                                                "sheet":  "mine.png",
+                                                "frames":  8,
+                                                "fps":  9,
+                                                "loop":  true,
+                                                "layers":  [
+                                                               {
+                                                                   "slot":  "shadow",
+                                                                   "sheet":  "layers/mine_1_shadow.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "body",
+                                                                   "sheet":  "layers/mine_3_body.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "weapon_front",
+                                                                   "sheet":  "layers/mine_4_weapon_front.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "head",
+                                                                   "sheet":  "layers/mine_5_head.png"
+                                                               }
+                                                           ]
+                                            },
+                                   "shake":  {
+                                                 "sheet":  "shake.png",
+                                                 "frames":  4,
+                                                 "fps":  6,
+                                                 "loop":  true,
+                                                 "layers":  [
+                                                                {
+                                                                    "slot":  "shadow",
+                                                                    "sheet":  "layers/shake_1_shadow.png"
+                                                                },
+                                                                {
+                                                                    "slot":  "body",
+                                                                    "sheet":  "layers/shake_3_body.png"
+                                                                },
+                                                                {
+                                                                    "slot":  "weapon_front",
+                                                                    "sheet":  "layers/shake_4_weapon_front.png"
+                                                                },
+                                                                {
+                                                                    "slot":  "head",
+                                                                    "sheet":  "layers/shake_5_head.png"
+                                                                }
+                                                            ]
+                                             },
+                                   "slump":  {
+                                                 "sheet":  "slump.png",
+                                                 "frames":  4,
+                                                 "fps":  2,
+                                                 "loop":  true,
+                                                 "layers":  [
+                                                                {
+                                                                    "slot":  "shadow",
+                                                                    "sheet":  "layers/slump_1_shadow.png"
+                                                                },
+                                                                {
+                                                                    "slot":  "body",
+                                                                    "sheet":  "layers/slump_3_body.png"
+                                                                },
+                                                                {
+                                                                    "slot":  "weapon_front",
+                                                                    "sheet":  "layers/slump_4_weapon_front.png"
+                                                                },
+                                                                {
+                                                                    "slot":  "head",
+                                                                    "sheet":  "layers/slump_5_head.png"
+                                                                }
+                                                            ]
+                                             },
                                    "walk":  {
                                                 "sheet":  "walk.png",
                                                 "frames":  8,
@@ -853,6 +1085,78 @@
                      "anchor_y":  54,
                      "scale":  1,
                      "clips":  {
+                                   "chop":  {
+                                                "sheet":  "chop.png",
+                                                "frames":  8,
+                                                "fps":  10,
+                                                "loop":  true,
+                                                "layers":  [
+                                                               {
+                                                                   "slot":  "shadow",
+                                                                   "sheet":  "layers/chop_1_shadow.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "body",
+                                                                   "sheet":  "layers/chop_3_body.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "weapon_front",
+                                                                   "sheet":  "layers/chop_4_weapon_front.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "head",
+                                                                   "sheet":  "layers/chop_5_head.png"
+                                                               }
+                                                           ]
+                                            },
+                                   "fish":  {
+                                                "sheet":  "fish.png",
+                                                "frames":  8,
+                                                "fps":  6,
+                                                "loop":  true,
+                                                "layers":  [
+                                                               {
+                                                                   "slot":  "shadow",
+                                                                   "sheet":  "layers/fish_1_shadow.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "body",
+                                                                   "sheet":  "layers/fish_3_body.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "weapon_front",
+                                                                   "sheet":  "layers/fish_4_weapon_front.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "head",
+                                                                   "sheet":  "layers/fish_5_head.png"
+                                                               }
+                                                           ]
+                                            },
+                                   "hang":  {
+                                                "sheet":  "hang.png",
+                                                "frames":  4,
+                                                "fps":  3,
+                                                "loop":  true,
+                                                "layers":  [
+                                                               {
+                                                                   "slot":  "shadow",
+                                                                   "sheet":  "layers/hang_1_shadow.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "body",
+                                                                   "sheet":  "layers/hang_3_body.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "weapon_front",
+                                                                   "sheet":  "layers/hang_4_weapon_front.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "head",
+                                                                   "sheet":  "layers/hang_5_head.png"
+                                                               }
+                                                           ]
+                                            },
                                    "idle":  {
                                                 "sheet":  "idle.png",
                                                 "frames":  8,
@@ -877,6 +1181,126 @@
                                                                }
                                                            ]
                                             },
+                                   "lie":  {
+                                               "sheet":  "lie.png",
+                                               "frames":  4,
+                                               "fps":  2,
+                                               "loop":  true,
+                                               "layers":  [
+                                                              {
+                                                                  "slot":  "shadow",
+                                                                  "sheet":  "layers/lie_1_shadow.png"
+                                                              },
+                                                              {
+                                                                  "slot":  "body",
+                                                                  "sheet":  "layers/lie_3_body.png"
+                                                              },
+                                                              {
+                                                                  "slot":  "weapon_front",
+                                                                  "sheet":  "layers/lie_4_weapon_front.png"
+                                                              },
+                                                              {
+                                                                  "slot":  "head",
+                                                                  "sheet":  "layers/lie_5_head.png"
+                                                              }
+                                                          ]
+                                           },
+                                   "mine":  {
+                                                "sheet":  "mine.png",
+                                                "frames":  8,
+                                                "fps":  9,
+                                                "loop":  true,
+                                                "layers":  [
+                                                               {
+                                                                   "slot":  "shadow",
+                                                                   "sheet":  "layers/mine_1_shadow.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "body",
+                                                                   "sheet":  "layers/mine_3_body.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "weapon_front",
+                                                                   "sheet":  "layers/mine_4_weapon_front.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "head",
+                                                                   "sheet":  "layers/mine_5_head.png"
+                                                               }
+                                                           ]
+                                            },
+                                   "shake":  {
+                                                 "sheet":  "shake.png",
+                                                 "frames":  4,
+                                                 "fps":  6,
+                                                 "loop":  true,
+                                                 "layers":  [
+                                                                {
+                                                                    "slot":  "shadow",
+                                                                    "sheet":  "layers/shake_1_shadow.png"
+                                                                },
+                                                                {
+                                                                    "slot":  "body",
+                                                                    "sheet":  "layers/shake_3_body.png"
+                                                                },
+                                                                {
+                                                                    "slot":  "weapon_front",
+                                                                    "sheet":  "layers/shake_4_weapon_front.png"
+                                                                },
+                                                                {
+                                                                    "slot":  "head",
+                                                                    "sheet":  "layers/shake_5_head.png"
+                                                                }
+                                                            ]
+                                             },
+                                   "slump":  {
+                                                 "sheet":  "slump.png",
+                                                 "frames":  4,
+                                                 "fps":  2,
+                                                 "loop":  true,
+                                                 "layers":  [
+                                                                {
+                                                                    "slot":  "shadow",
+                                                                    "sheet":  "layers/slump_1_shadow.png"
+                                                                },
+                                                                {
+                                                                    "slot":  "body",
+                                                                    "sheet":  "layers/slump_3_body.png"
+                                                                },
+                                                                {
+                                                                    "slot":  "weapon_front",
+                                                                    "sheet":  "layers/slump_4_weapon_front.png"
+                                                                },
+                                                                {
+                                                                    "slot":  "head",
+                                                                    "sheet":  "layers/slump_5_head.png"
+                                                                }
+                                                            ]
+                                             },
+                                   "swing":  {
+                                                 "sheet":  "swing.png",
+                                                 "frames":  6,
+                                                 "fps":  12,
+                                                 "loop":  false,
+                                                 "layers":  [
+                                                                {
+                                                                    "slot":  "shadow",
+                                                                    "sheet":  "layers/swing_1_shadow.png"
+                                                                },
+                                                                {
+                                                                    "slot":  "body",
+                                                                    "sheet":  "layers/swing_3_body.png"
+                                                                },
+                                                                {
+                                                                    "slot":  "weapon_front",
+                                                                    "sheet":  "layers/swing_4_weapon_front.png"
+                                                                },
+                                                                {
+                                                                    "slot":  "head",
+                                                                    "sheet":  "layers/swing_5_head.png"
+                                                                }
+                                                            ]
+                                             },
                                    "walk":  {
                                                 "sheet":  "walk.png",
                                                 "frames":  8,
@@ -1841,6 +2265,30 @@
                      "anchor_y":  54,
                      "scale":  1,
                      "clips":  {
+                                   "hang":  {
+                                                "sheet":  "hang.png",
+                                                "frames":  4,
+                                                "fps":  3,
+                                                "loop":  true,
+                                                "layers":  [
+                                                               {
+                                                                   "slot":  "shadow",
+                                                                   "sheet":  "layers/hang_1_shadow.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "body",
+                                                                   "sheet":  "layers/hang_3_body.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "weapon_front",
+                                                                   "sheet":  "layers/hang_4_weapon_front.png"
+                                                               },
+                                                               {
+                                                                   "slot":  "head",
+                                                                   "sheet":  "layers/hang_5_head.png"
+                                                               }
+                                                           ]
+                                            },
                                    "idle":  {
                                                 "sheet":  "idle.png",
                                                 "frames":  8,
@@ -1865,6 +2313,78 @@
                                                                }
                                                            ]
                                             },
+                                   "lie":  {
+                                               "sheet":  "lie.png",
+                                               "frames":  4,
+                                               "fps":  2,
+                                               "loop":  true,
+                                               "layers":  [
+                                                              {
+                                                                  "slot":  "shadow",
+                                                                  "sheet":  "layers/lie_1_shadow.png"
+                                                              },
+                                                              {
+                                                                  "slot":  "body",
+                                                                  "sheet":  "layers/lie_3_body.png"
+                                                              },
+                                                              {
+                                                                  "slot":  "weapon_front",
+                                                                  "sheet":  "layers/lie_4_weapon_front.png"
+                                                              },
+                                                              {
+                                                                  "slot":  "head",
+                                                                  "sheet":  "layers/lie_5_head.png"
+                                                              }
+                                                          ]
+                                           },
+                                   "shake":  {
+                                                 "sheet":  "shake.png",
+                                                 "frames":  4,
+                                                 "fps":  6,
+                                                 "loop":  true,
+                                                 "layers":  [
+                                                                {
+                                                                    "slot":  "shadow",
+                                                                    "sheet":  "layers/shake_1_shadow.png"
+                                                                },
+                                                                {
+                                                                    "slot":  "body",
+                                                                    "sheet":  "layers/shake_3_body.png"
+                                                                },
+                                                                {
+                                                                    "slot":  "weapon_front",
+                                                                    "sheet":  "layers/shake_4_weapon_front.png"
+                                                                },
+                                                                {
+                                                                    "slot":  "head",
+                                                                    "sheet":  "layers/shake_5_head.png"
+                                                                }
+                                                            ]
+                                             },
+                                   "slump":  {
+                                                 "sheet":  "slump.png",
+                                                 "frames":  4,
+                                                 "fps":  2,
+                                                 "loop":  true,
+                                                 "layers":  [
+                                                                {
+                                                                    "slot":  "shadow",
+                                                                    "sheet":  "layers/slump_1_shadow.png"
+                                                                },
+                                                                {
+                                                                    "slot":  "body",
+                                                                    "sheet":  "layers/slump_3_body.png"
+                                                                },
+                                                                {
+                                                                    "slot":  "weapon_front",
+                                                                    "sheet":  "layers/slump_4_weapon_front.png"
+                                                                },
+                                                                {
+                                                                    "slot":  "head",
+                                                                    "sheet":  "layers/slump_5_head.png"
+                                                                }
+                                                            ]
+                                             },
                                    "walk":  {
                                                 "sheet":  "walk.png",
                                                 "frames":  8,
@@ -1891,6 +2411,62 @@
                                             }
                                }
                  },
+    "forge_demon":  {
+                        "dir":  "assets/characters/forge_demon/",
+                        "rows":  4,
+                        "anchor_y":  216,
+                        "scale":  1,
+                        "clips":  {
+                                      "attack":  {
+                                                     "sheet":  "attack.png",
+                                                     "frames":  6,
+                                                     "fps":  16,
+                                                     "loop":  false
+                                                 },
+                                      "death":  {
+                                                    "sheet":  "death.png",
+                                                    "frames":  6,
+                                                    "fps":  9,
+                                                    "loop":  false
+                                                },
+                                      "flame":  {
+                                                    "sheet":  "flame.png",
+                                                    "frames":  6,
+                                                    "fps":  10,
+                                                    "loop":  false
+                                                },
+                                      "heavy":  {
+                                                    "sheet":  "heavy.png",
+                                                    "frames":  6,
+                                                    "fps":  10,
+                                                    "loop":  false
+                                                },
+                                      "hurt":  {
+                                                   "sheet":  "hurt.png",
+                                                   "frames":  3,
+                                                   "fps":  12,
+                                                   "loop":  false
+                                               },
+                                      "idle":  {
+                                                   "sheet":  "idle.png",
+                                                   "frames":  4,
+                                                   "fps":  8,
+                                                   "loop":  true
+                                               },
+                                      "spin":  {
+                                                   "sheet":  "spin.png",
+                                                   "frames":  8,
+                                                   "fps":  14,
+                                                   "loop":  true
+                                               },
+                                      "walk":  {
+                                                   "sheet":  "walk.png",
+                                                   "frames":  6,
+                                                   "fps":  10,
+                                                   "loop":  true
+                                               }
+                                  }
+                    },
     "fox":  {
                 "dir":  "assets/characters/fox/",
                 "rows":  4,
@@ -2607,6 +3183,44 @@
                                          }
                             }
               },
+    "hushed":  {
+                   "dir":  "assets/characters/hushed/",
+                   "rows":  4,
+                   "anchor_y":  68,
+                   "scale":  1,
+                   "clips":  {
+                                 "attack":  {
+                                                "sheet":  "attack.png",
+                                                "frames":  6,
+                                                "fps":  16,
+                                                "loop":  false
+                                            },
+                                 "death":  {
+                                               "sheet":  "death.png",
+                                               "frames":  6,
+                                               "fps":  9,
+                                               "loop":  false
+                                           },
+                                 "hurt":  {
+                                              "sheet":  "hurt.png",
+                                              "frames":  3,
+                                              "fps":  12,
+                                              "loop":  false
+                                          },
+                                 "idle":  {
+                                              "sheet":  "idle.png",
+                                              "frames":  4,
+                                              "fps":  8,
+                                              "loop":  true
+                                          },
+                                 "walk":  {
+                                              "sheet":  "walk.png",
+                                              "frames":  6,
+                                              "fps":  10,
+                                              "loop":  true
+                                          }
+                             }
+               },
     "ice_troll":  {
                       "dir":  "assets/characters/ice_troll/",
                       "rows":  4,
@@ -2957,6 +3571,44 @@
                              "dir":  "assets/characters/monolith_conjure/",
                              "rows":  4,
                              "anchor_y":  122,
+                             "scale":  1,
+                             "clips":  {
+                                           "attack":  {
+                                                          "sheet":  "attack.png",
+                                                          "frames":  6,
+                                                          "fps":  16,
+                                                          "loop":  false
+                                                      },
+                                           "death":  {
+                                                         "sheet":  "death.png",
+                                                         "frames":  6,
+                                                         "fps":  9,
+                                                         "loop":  false
+                                                     },
+                                           "hurt":  {
+                                                        "sheet":  "hurt.png",
+                                                        "frames":  3,
+                                                        "fps":  12,
+                                                        "loop":  false
+                                                    },
+                                           "idle":  {
+                                                        "sheet":  "idle.png",
+                                                        "frames":  4,
+                                                        "fps":  8,
+                                                        "loop":  true
+                                                    },
+                                           "walk":  {
+                                                        "sheet":  "walk.png",
+                                                        "frames":  6,
+                                                        "fps":  10,
+                                                        "loop":  true
+                                                    }
+                                       }
+                         },
+    "nightmare_anchor":  {
+                             "dir":  "assets/characters/nightmare_anchor/",
+                             "rows":  4,
+                             "anchor_y":  135,
                              "scale":  1,
                              "clips":  {
                                            "attack":  {
@@ -11448,6 +12100,122 @@
                                                                   }
                                                               ]
                                                },
+                                      "lie":  {
+                                                  "sheet":  "lie.png",
+                                                  "frames":  4,
+                                                  "fps":  2,
+                                                  "loop":  true,
+                                                  "layers":  [
+                                                                 {
+                                                                     "slot":  "shadow",
+                                                                     "sheet":  "layers/lie_1_shadow.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "body",
+                                                                     "sheet":  "layers/lie_3_body.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "weapon_front",
+                                                                     "sheet":  "layers/lie_4_weapon_front.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "head",
+                                                                     "sheet":  "layers/lie_5_head.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_legs",
+                                                                     "sheet":  "layers/lie_6_armour_legs.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_legs_hide",
+                                                                     "sheet":  "layers/lie_6_armour_legs_hide.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_legs_light",
+                                                                     "sheet":  "layers/lie_6_armour_legs_light.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_legs_ornate",
+                                                                     "sheet":  "layers/lie_6_armour_legs_ornate.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_legs_robe",
+                                                                     "sheet":  "layers/lie_6_armour_legs_robe.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_body",
+                                                                     "sheet":  "layers/lie_7_armour_body.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_body_hide",
+                                                                     "sheet":  "layers/lie_7_armour_body_hide.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_body_light",
+                                                                     "sheet":  "layers/lie_7_armour_body_light.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_body_ornate",
+                                                                     "sheet":  "layers/lie_7_armour_body_ornate.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_body_robe",
+                                                                     "sheet":  "layers/lie_7_armour_body_robe.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_hands",
+                                                                     "sheet":  "layers/lie_8_armour_hands.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_hands_hide",
+                                                                     "sheet":  "layers/lie_8_armour_hands_hide.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_hands_light",
+                                                                     "sheet":  "layers/lie_8_armour_hands_light.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_hands_ornate",
+                                                                     "sheet":  "layers/lie_8_armour_hands_ornate.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_hands_robe",
+                                                                     "sheet":  "layers/lie_8_armour_hands_robe.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_head",
+                                                                     "sheet":  "layers/lie_9_armour_head.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_head_hide",
+                                                                     "sheet":  "layers/lie_9_armour_head_hide.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_head_light",
+                                                                     "sheet":  "layers/lie_9_armour_head_light.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_head_ornate",
+                                                                     "sheet":  "layers/lie_9_armour_head_ornate.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_head_robe",
+                                                                     "sheet":  "layers/lie_9_armour_head_robe.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_shield",
+                                                                     "sheet":  "layers/lie_10_armour_shield.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_shield_light",
+                                                                     "sheet":  "layers/lie_10_armour_shield_light.png"
+                                                                 },
+                                                                 {
+                                                                     "slot":  "armour_shield_ornate",
+                                                                     "sheet":  "layers/lie_10_armour_shield_ornate.png"
+                                                                 }
+                                                             ]
+                                              },
                                       "mine":  {
                                                    "sheet":  "mine.png",
                                                    "frames":  8,
@@ -15181,6 +15949,122 @@
                                                                    }
                                                                ]
                                                 },
+                                      "sit_up":  {
+                                                     "sheet":  "sit_up.png",
+                                                     "frames":  5,
+                                                     "fps":  6,
+                                                     "loop":  false,
+                                                     "layers":  [
+                                                                    {
+                                                                        "slot":  "shadow",
+                                                                        "sheet":  "layers/sit_up_1_shadow.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "body",
+                                                                        "sheet":  "layers/sit_up_3_body.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "weapon_front",
+                                                                        "sheet":  "layers/sit_up_4_weapon_front.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "head",
+                                                                        "sheet":  "layers/sit_up_5_head.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_legs",
+                                                                        "sheet":  "layers/sit_up_6_armour_legs.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_legs_hide",
+                                                                        "sheet":  "layers/sit_up_6_armour_legs_hide.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_legs_light",
+                                                                        "sheet":  "layers/sit_up_6_armour_legs_light.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_legs_ornate",
+                                                                        "sheet":  "layers/sit_up_6_armour_legs_ornate.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_legs_robe",
+                                                                        "sheet":  "layers/sit_up_6_armour_legs_robe.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_body",
+                                                                        "sheet":  "layers/sit_up_7_armour_body.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_body_hide",
+                                                                        "sheet":  "layers/sit_up_7_armour_body_hide.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_body_light",
+                                                                        "sheet":  "layers/sit_up_7_armour_body_light.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_body_ornate",
+                                                                        "sheet":  "layers/sit_up_7_armour_body_ornate.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_body_robe",
+                                                                        "sheet":  "layers/sit_up_7_armour_body_robe.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_hands",
+                                                                        "sheet":  "layers/sit_up_8_armour_hands.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_hands_hide",
+                                                                        "sheet":  "layers/sit_up_8_armour_hands_hide.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_hands_light",
+                                                                        "sheet":  "layers/sit_up_8_armour_hands_light.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_hands_ornate",
+                                                                        "sheet":  "layers/sit_up_8_armour_hands_ornate.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_hands_robe",
+                                                                        "sheet":  "layers/sit_up_8_armour_hands_robe.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_head",
+                                                                        "sheet":  "layers/sit_up_9_armour_head.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_head_hide",
+                                                                        "sheet":  "layers/sit_up_9_armour_head_hide.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_head_light",
+                                                                        "sheet":  "layers/sit_up_9_armour_head_light.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_head_ornate",
+                                                                        "sheet":  "layers/sit_up_9_armour_head_ornate.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_head_robe",
+                                                                        "sheet":  "layers/sit_up_9_armour_head_robe.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_shield",
+                                                                        "sheet":  "layers/sit_up_10_armour_shield.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_shield_light",
+                                                                        "sheet":  "layers/sit_up_10_armour_shield_light.png"
+                                                                    },
+                                                                    {
+                                                                        "slot":  "armour_shield_ornate",
+                                                                        "sheet":  "layers/sit_up_10_armour_shield_ornate.png"
+                                                                    }
+                                                                ]
+                                                 },
                                       "spin":  {
                                                    "sheet":  "spin.png",
                                                    "frames":  8,
@@ -20508,6 +21392,122 @@
                                                                     }
                                                                 ]
                                                  },
+                                        "lie":  {
+                                                    "sheet":  "lie.png",
+                                                    "frames":  4,
+                                                    "fps":  2,
+                                                    "loop":  true,
+                                                    "layers":  [
+                                                                   {
+                                                                       "slot":  "shadow",
+                                                                       "sheet":  "layers/lie_1_shadow.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "body",
+                                                                       "sheet":  "layers/lie_3_body.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "weapon_front",
+                                                                       "sheet":  "layers/lie_4_weapon_front.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "head",
+                                                                       "sheet":  "layers/lie_5_head.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_legs",
+                                                                       "sheet":  "layers/lie_6_armour_legs.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_legs_hide",
+                                                                       "sheet":  "layers/lie_6_armour_legs_hide.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_legs_light",
+                                                                       "sheet":  "layers/lie_6_armour_legs_light.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_legs_ornate",
+                                                                       "sheet":  "layers/lie_6_armour_legs_ornate.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_legs_robe",
+                                                                       "sheet":  "layers/lie_6_armour_legs_robe.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_body",
+                                                                       "sheet":  "layers/lie_7_armour_body.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_body_hide",
+                                                                       "sheet":  "layers/lie_7_armour_body_hide.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_body_light",
+                                                                       "sheet":  "layers/lie_7_armour_body_light.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_body_ornate",
+                                                                       "sheet":  "layers/lie_7_armour_body_ornate.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_body_robe",
+                                                                       "sheet":  "layers/lie_7_armour_body_robe.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_hands",
+                                                                       "sheet":  "layers/lie_8_armour_hands.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_hands_hide",
+                                                                       "sheet":  "layers/lie_8_armour_hands_hide.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_hands_light",
+                                                                       "sheet":  "layers/lie_8_armour_hands_light.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_hands_ornate",
+                                                                       "sheet":  "layers/lie_8_armour_hands_ornate.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_hands_robe",
+                                                                       "sheet":  "layers/lie_8_armour_hands_robe.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_head",
+                                                                       "sheet":  "layers/lie_9_armour_head.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_head_hide",
+                                                                       "sheet":  "layers/lie_9_armour_head_hide.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_head_light",
+                                                                       "sheet":  "layers/lie_9_armour_head_light.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_head_ornate",
+                                                                       "sheet":  "layers/lie_9_armour_head_ornate.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_head_robe",
+                                                                       "sheet":  "layers/lie_9_armour_head_robe.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_shield",
+                                                                       "sheet":  "layers/lie_10_armour_shield.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_shield_light",
+                                                                       "sheet":  "layers/lie_10_armour_shield_light.png"
+                                                                   },
+                                                                   {
+                                                                       "slot":  "armour_shield_ornate",
+                                                                       "sheet":  "layers/lie_10_armour_shield_ornate.png"
+                                                                   }
+                                                               ]
+                                                },
                                         "mine":  {
                                                      "sheet":  "mine.png",
                                                      "frames":  8,
@@ -21553,6 +22553,122 @@
                                                                      }
                                                                  ]
                                                   },
+                                        "sit_up":  {
+                                                       "sheet":  "sit_up.png",
+                                                       "frames":  5,
+                                                       "fps":  6,
+                                                       "loop":  false,
+                                                       "layers":  [
+                                                                      {
+                                                                          "slot":  "shadow",
+                                                                          "sheet":  "layers/sit_up_1_shadow.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "body",
+                                                                          "sheet":  "layers/sit_up_3_body.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "weapon_front",
+                                                                          "sheet":  "layers/sit_up_4_weapon_front.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "head",
+                                                                          "sheet":  "layers/sit_up_5_head.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_legs",
+                                                                          "sheet":  "layers/sit_up_6_armour_legs.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_legs_hide",
+                                                                          "sheet":  "layers/sit_up_6_armour_legs_hide.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_legs_light",
+                                                                          "sheet":  "layers/sit_up_6_armour_legs_light.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_legs_ornate",
+                                                                          "sheet":  "layers/sit_up_6_armour_legs_ornate.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_legs_robe",
+                                                                          "sheet":  "layers/sit_up_6_armour_legs_robe.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_body",
+                                                                          "sheet":  "layers/sit_up_7_armour_body.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_body_hide",
+                                                                          "sheet":  "layers/sit_up_7_armour_body_hide.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_body_light",
+                                                                          "sheet":  "layers/sit_up_7_armour_body_light.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_body_ornate",
+                                                                          "sheet":  "layers/sit_up_7_armour_body_ornate.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_body_robe",
+                                                                          "sheet":  "layers/sit_up_7_armour_body_robe.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_hands",
+                                                                          "sheet":  "layers/sit_up_8_armour_hands.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_hands_hide",
+                                                                          "sheet":  "layers/sit_up_8_armour_hands_hide.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_hands_light",
+                                                                          "sheet":  "layers/sit_up_8_armour_hands_light.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_hands_ornate",
+                                                                          "sheet":  "layers/sit_up_8_armour_hands_ornate.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_hands_robe",
+                                                                          "sheet":  "layers/sit_up_8_armour_hands_robe.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_head",
+                                                                          "sheet":  "layers/sit_up_9_armour_head.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_head_hide",
+                                                                          "sheet":  "layers/sit_up_9_armour_head_hide.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_head_light",
+                                                                          "sheet":  "layers/sit_up_9_armour_head_light.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_head_ornate",
+                                                                          "sheet":  "layers/sit_up_9_armour_head_ornate.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_head_robe",
+                                                                          "sheet":  "layers/sit_up_9_armour_head_robe.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_shield",
+                                                                          "sheet":  "layers/sit_up_10_armour_shield.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_shield_light",
+                                                                          "sheet":  "layers/sit_up_10_armour_shield_light.png"
+                                                                      },
+                                                                      {
+                                                                          "slot":  "armour_shield_ornate",
+                                                                          "sheet":  "layers/sit_up_10_armour_shield_ornate.png"
+                                                                      }
+                                                                  ]
+                                                   },
                                         "spin":  {
                                                      "sheet":  "spin.png",
                                                      "frames":  8,
@@ -24817,6 +25933,122 @@
                                                                       }
                                                                   ]
                                                    },
+                                          "lie":  {
+                                                      "sheet":  "lie.png",
+                                                      "frames":  4,
+                                                      "fps":  2,
+                                                      "loop":  true,
+                                                      "layers":  [
+                                                                     {
+                                                                         "slot":  "shadow",
+                                                                         "sheet":  "layers/lie_1_shadow.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "body",
+                                                                         "sheet":  "layers/lie_3_body.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "weapon_front",
+                                                                         "sheet":  "layers/lie_4_weapon_front.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "head",
+                                                                         "sheet":  "layers/lie_5_head.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_legs",
+                                                                         "sheet":  "layers/lie_6_armour_legs.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_legs_hide",
+                                                                         "sheet":  "layers/lie_6_armour_legs_hide.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_legs_light",
+                                                                         "sheet":  "layers/lie_6_armour_legs_light.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_legs_ornate",
+                                                                         "sheet":  "layers/lie_6_armour_legs_ornate.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_legs_robe",
+                                                                         "sheet":  "layers/lie_6_armour_legs_robe.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_body",
+                                                                         "sheet":  "layers/lie_7_armour_body.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_body_hide",
+                                                                         "sheet":  "layers/lie_7_armour_body_hide.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_body_light",
+                                                                         "sheet":  "layers/lie_7_armour_body_light.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_body_ornate",
+                                                                         "sheet":  "layers/lie_7_armour_body_ornate.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_body_robe",
+                                                                         "sheet":  "layers/lie_7_armour_body_robe.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_hands",
+                                                                         "sheet":  "layers/lie_8_armour_hands.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_hands_hide",
+                                                                         "sheet":  "layers/lie_8_armour_hands_hide.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_hands_light",
+                                                                         "sheet":  "layers/lie_8_armour_hands_light.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_hands_ornate",
+                                                                         "sheet":  "layers/lie_8_armour_hands_ornate.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_hands_robe",
+                                                                         "sheet":  "layers/lie_8_armour_hands_robe.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_head",
+                                                                         "sheet":  "layers/lie_9_armour_head.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_head_hide",
+                                                                         "sheet":  "layers/lie_9_armour_head_hide.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_head_light",
+                                                                         "sheet":  "layers/lie_9_armour_head_light.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_head_ornate",
+                                                                         "sheet":  "layers/lie_9_armour_head_ornate.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_head_robe",
+                                                                         "sheet":  "layers/lie_9_armour_head_robe.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_shield",
+                                                                         "sheet":  "layers/lie_10_armour_shield.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_shield_light",
+                                                                         "sheet":  "layers/lie_10_armour_shield_light.png"
+                                                                     },
+                                                                     {
+                                                                         "slot":  "armour_shield_ornate",
+                                                                         "sheet":  "layers/lie_10_armour_shield_ornate.png"
+                                                                     }
+                                                                 ]
+                                                  },
                                           "mine":  {
                                                        "sheet":  "mine.png",
                                                        "frames":  8,
@@ -25862,6 +27094,122 @@
                                                                        }
                                                                    ]
                                                     },
+                                          "sit_up":  {
+                                                         "sheet":  "sit_up.png",
+                                                         "frames":  5,
+                                                         "fps":  6,
+                                                         "loop":  false,
+                                                         "layers":  [
+                                                                        {
+                                                                            "slot":  "shadow",
+                                                                            "sheet":  "layers/sit_up_1_shadow.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "body",
+                                                                            "sheet":  "layers/sit_up_3_body.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "weapon_front",
+                                                                            "sheet":  "layers/sit_up_4_weapon_front.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "head",
+                                                                            "sheet":  "layers/sit_up_5_head.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_legs",
+                                                                            "sheet":  "layers/sit_up_6_armour_legs.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_legs_hide",
+                                                                            "sheet":  "layers/sit_up_6_armour_legs_hide.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_legs_light",
+                                                                            "sheet":  "layers/sit_up_6_armour_legs_light.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_legs_ornate",
+                                                                            "sheet":  "layers/sit_up_6_armour_legs_ornate.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_legs_robe",
+                                                                            "sheet":  "layers/sit_up_6_armour_legs_robe.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_body",
+                                                                            "sheet":  "layers/sit_up_7_armour_body.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_body_hide",
+                                                                            "sheet":  "layers/sit_up_7_armour_body_hide.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_body_light",
+                                                                            "sheet":  "layers/sit_up_7_armour_body_light.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_body_ornate",
+                                                                            "sheet":  "layers/sit_up_7_armour_body_ornate.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_body_robe",
+                                                                            "sheet":  "layers/sit_up_7_armour_body_robe.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_hands",
+                                                                            "sheet":  "layers/sit_up_8_armour_hands.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_hands_hide",
+                                                                            "sheet":  "layers/sit_up_8_armour_hands_hide.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_hands_light",
+                                                                            "sheet":  "layers/sit_up_8_armour_hands_light.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_hands_ornate",
+                                                                            "sheet":  "layers/sit_up_8_armour_hands_ornate.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_hands_robe",
+                                                                            "sheet":  "layers/sit_up_8_armour_hands_robe.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_head",
+                                                                            "sheet":  "layers/sit_up_9_armour_head.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_head_hide",
+                                                                            "sheet":  "layers/sit_up_9_armour_head_hide.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_head_light",
+                                                                            "sheet":  "layers/sit_up_9_armour_head_light.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_head_ornate",
+                                                                            "sheet":  "layers/sit_up_9_armour_head_ornate.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_head_robe",
+                                                                            "sheet":  "layers/sit_up_9_armour_head_robe.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_shield",
+                                                                            "sheet":  "layers/sit_up_10_armour_shield.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_shield_light",
+                                                                            "sheet":  "layers/sit_up_10_armour_shield_light.png"
+                                                                        },
+                                                                        {
+                                                                            "slot":  "armour_shield_ornate",
+                                                                            "sheet":  "layers/sit_up_10_armour_shield_ornate.png"
+                                                                        }
+                                                                    ]
+                                                     },
                                           "spin":  {
                                                        "sheet":  "spin.png",
                                                        "frames":  8,
@@ -27249,6 +28597,62 @@
                                              }
                                 }
                   },
+    "sweeper":  {
+                    "dir":  "assets/characters/sweeper/",
+                    "rows":  4,
+                    "anchor_y":  54,
+                    "scale":  1,
+                    "clips":  {
+                                  "idle":  {
+                                               "sheet":  "idle.png",
+                                               "frames":  8,
+                                               "fps":  8,
+                                               "loop":  true,
+                                               "layers":  [
+                                                              {
+                                                                  "slot":  "shadow",
+                                                                  "sheet":  "layers/idle_1_shadow.png"
+                                                              },
+                                                              {
+                                                                  "slot":  "body",
+                                                                  "sheet":  "layers/idle_3_body.png"
+                                                              },
+                                                              {
+                                                                  "slot":  "weapon_front",
+                                                                  "sheet":  "layers/idle_4_weapon_front.png"
+                                                              },
+                                                              {
+                                                                  "slot":  "head",
+                                                                  "sheet":  "layers/idle_5_head.png"
+                                                              }
+                                                          ]
+                                           },
+                                  "walk":  {
+                                               "sheet":  "walk.png",
+                                               "frames":  8,
+                                               "fps":  10,
+                                               "loop":  true,
+                                               "layers":  [
+                                                              {
+                                                                  "slot":  "shadow",
+                                                                  "sheet":  "layers/walk_1_shadow.png"
+                                                              },
+                                                              {
+                                                                  "slot":  "body",
+                                                                  "sheet":  "layers/walk_3_body.png"
+                                                              },
+                                                              {
+                                                                  "slot":  "weapon_front",
+                                                                  "sheet":  "layers/walk_4_weapon_front.png"
+                                                              },
+                                                              {
+                                                                  "slot":  "head",
+                                                                  "sheet":  "layers/walk_5_head.png"
+                                                              }
+                                                          ]
+                                           }
+                              }
+                },
     "thunder_conjure":  {
                             "dir":  "assets/characters/thunder_conjure/",
                             "rows":  4,
@@ -27457,6 +28861,18 @@
                                              "fps":  9,
                                              "loop":  false
                                          },
+                               "fist":  {
+                                            "sheet":  "fist.png",
+                                            "frames":  4,
+                                            "fps":  6,
+                                            "loop":  false
+                                        },
+                               "fury":  {
+                                            "sheet":  "fury.png",
+                                            "frames":  4,
+                                            "fps":  8,
+                                            "loop":  false
+                                        },
                                "hurt":  {
                                             "sheet":  "hurt.png",
                                             "frames":  3,
@@ -27477,6 +28893,82 @@
                                         }
                            }
              },
+    "vexel":  {
+                  "dir":  "assets/characters/vexel/",
+                  "rows":  4,
+                  "anchor_y":  95,
+                  "scale":  1,
+                  "clips":  {
+                                "attack":  {
+                                               "sheet":  "attack.png",
+                                               "frames":  6,
+                                               "fps":  16,
+                                               "loop":  false
+                                           },
+                                "death":  {
+                                              "sheet":  "death.png",
+                                              "frames":  6,
+                                              "fps":  9,
+                                              "loop":  false
+                                          },
+                                "hurt":  {
+                                             "sheet":  "hurt.png",
+                                             "frames":  3,
+                                             "fps":  12,
+                                             "loop":  false
+                                         },
+                                "idle":  {
+                                             "sheet":  "idle.png",
+                                             "frames":  4,
+                                             "fps":  8,
+                                             "loop":  true
+                                         },
+                                "walk":  {
+                                             "sheet":  "walk.png",
+                                             "frames":  6,
+                                             "fps":  10,
+                                             "loop":  true
+                                         }
+                            }
+              },
+    "vigil":  {
+                  "dir":  "assets/characters/vigil/",
+                  "rows":  4,
+                  "anchor_y":  54,
+                  "scale":  1,
+                  "clips":  {
+                                "attack":  {
+                                               "sheet":  "attack.png",
+                                               "frames":  6,
+                                               "fps":  16,
+                                               "loop":  false
+                                           },
+                                "death":  {
+                                              "sheet":  "death.png",
+                                              "frames":  6,
+                                              "fps":  9,
+                                              "loop":  false
+                                          },
+                                "hurt":  {
+                                             "sheet":  "hurt.png",
+                                             "frames":  3,
+                                             "fps":  12,
+                                             "loop":  false
+                                         },
+                                "idle":  {
+                                             "sheet":  "idle.png",
+                                             "frames":  4,
+                                             "fps":  8,
+                                             "loop":  true
+                                         },
+                                "walk":  {
+                                             "sheet":  "walk.png",
+                                             "frames":  6,
+                                             "fps":  10,
+                                             "loop":  true
+                                         }
+                            }
+              },
     "voodoo_shaman":  {
                           "dir":  "assets/characters/voodoo_shaman/",
                           "rows":  4,

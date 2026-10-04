@@ -572,6 +572,172 @@ Buf Make(Sfx s) {
         LowpassAll(b, 9000.0f);
         Normalize(b, 0.55f);
         break;
+    case Sfx::Echo:
+        // The cell door opened in the dream: a deep tone that goes on, as if
+        // it were heard in another room -- in the waking one. A low bell over
+        // a sine and its octave, sinking a little, and the stone answering.
+        // Under three seconds, as every effect is: 1.6 of tone, and the
+        // echoes' 1.26 after it.
+        b = Blank(1.6f);
+        Tone(b, 0.0f, 1.58f, 98.0f, 94.0f, 0.55f, 0.04f, 1.0f);
+        Tone(b, 0.0f, 1.45f, 196.0f, 189.0f, 0.28f, 0.03f, 0.9f, TRI);
+        Bell(b, 0.02f, 294.0f, 0.22f, 1.2f);
+        Bell(b, 0.05f, 147.0f, 0.18f, 1.5f);
+        Echo(b, 0.42f, 0.34f, 3);
+        LowpassAll(b, 2600.0f);
+        Normalize(b, 0.55f);
+        break;
+    case Sfx::Grind:
+        // A suit of armour stepping down off its pedestal: plate scraping on
+        // plate, a groan of old joints, and a clank as it finds its feet.
+        b = Blank(1.3f);
+        Hiss(b, 0.00f, 0.90f, 0.9f, 0.08f, 0.50f, 2400.0f, 1100.0f, 700.0f, 131);
+        Growl(b, 0.05f, 0.80f, 180.0f, 240.0f, 150.0f, 0.4f, 0.45f, 0.10f, 0.40f, 0.9f, 132);
+        Tone(b, 0.88f, 0.12f, 900.0f, 520.0f, 0.7f, 0.001f, 0.05f, TRI);
+        Tone(b, 0.90f, 0.20f, 140.0f, 90.0f, 0.6f, 0.002f, 0.10f);
+        Hiss(b, 0.88f, 0.06f, 1.0f, 0.0005f, 0.02f, 6000.0f, 3000.0f, 1500.0f, 133);
+        LowpassAll(b, 7000.0f);
+        Normalize(b, 0.50f);
+        break;
+    case Sfx::Vanish:
+        // The stranger drawn in to smoke: a breath sucked in, swelling to
+        // nothing, and a low note let go under it.
+        b = Blank(1.2f);
+        Hiss(b, 0.00f, 0.95f, 1.0f, 0.70f, 0.06f, 300.0f, 2600.0f, 120.0f, 141);
+        Tone(b, 0.10f, 1.00f, 150.0f, 70.0f, 0.45f, 0.40f, 0.35f, TRI);
+        Tone(b, 0.10f, 1.00f, 225.0f, 104.0f, 0.18f, 0.40f, 0.35f);
+        LowpassAll(b, 3000.0f);
+        Normalize(b, 0.45f);
+        break;
+    case Sfx::Thunder:
+        // A crack, and the rumble after it rolling away.
+        b = Blank(2.9f);
+        Hiss(b, 0.00f, 0.18f, 1.3f, 0.002f, 0.07f, 7000.0f, 2500.0f, 800.0f, 151);
+        Hiss(b, 0.05f, 2.80f, 1.0f, 0.12f, 1.00f, 420.0f, 160.0f, 20.0f, 152);
+        Hiss(b, 0.30f, 2.20f, 0.6f, 0.30f, 0.75f, 260.0f, 120.0f, 20.0f, 153);
+        Tone(b, 0.05f, 2.60f, 46.0f, 31.0f, 0.5f, 0.15f, 0.85f);
+        LowpassAll(b, 5000.0f);
+        Normalize(b, 0.60f);
+        break;
+    case Sfx::Bell:
+        // A Dawn Bell: one deep, clear toll that hangs in the air and rolls
+        // away -- the fundamental, the bell's own partials, a hum under them.
+        b = Blank(2.2f);
+        Bell(b, 0.00f, 196.0f, 0.60f, 0.85f);
+        Bell(b, 0.00f, 98.0f, 0.38f, 1.00f);
+        Tone(b, 0.00f, 2.15f, 98.0f, 97.0f, 0.22f, 0.01f, 1.10f);
+        Hiss(b, 0.00f, 0.06f, 0.30f, 0.001f, 0.02f, 4000.0f, 2000.0f, 600.0f, 161);
+        Echo(b, 0.30f, 0.28f, 2);
+        LowpassAll(b, 4200.0f);
+        Normalize(b, 0.62f);
+        break;
+    case Sfx::Chime:
+        // The Dawn Chimes: three small bronze chimes, high and sweet, one after
+        // another, much smaller than the bells.
+        b = Blank(1.4f);
+        Bell(b, 0.00f, 1318.0f, 0.36f, 0.34f);
+        Bell(b, 0.09f, 1568.0f, 0.30f, 0.30f);
+        Bell(b, 0.18f, 1760.0f, 0.26f, 0.30f);
+        Echo(b, 0.18f, 0.24f, 2);
+        LowpassAll(b, 9000.0f);
+        Normalize(b, 0.48f);
+        break;
+    case Sfx::Anvil:
+        // One clean anvil strike: the clang of the face, its ring, and the
+        // weight of the hammer under it.
+        b = Blank(2.0f);
+        Hiss(b, 0.00f, 0.05f, 0.9f, 0.001f, 0.015f, 9000.0f, 5000.0f, 1500.0f, 171);
+        Bell(b, 0.00f, 440.0f, 0.50f, 0.45f);
+        Bell(b, 0.00f, 623.0f, 0.30f, 0.38f);
+        Bell(b, 0.00f, 1187.0f, 0.18f, 0.25f);
+        Tone(b, 0.00f, 0.30f, 140.0f, 90.0f, 0.45f, 0.001f, 0.10f);
+        Echo(b, 0.24f, 0.30f, 2);
+        LowpassAll(b, 7000.0f);
+        Normalize(b, 0.58f);
+        break;
+    case Sfx::Howl:
+        // A long, mournful wolf's howl rising and falling away into silence.
+        b = Blank(2.8f);
+        Tone(b, 0.00f, 0.80f, 300.0f, 520.0f, 0.42f, 0.25f, 2.0f, TRI);
+        Tone(b, 0.00f, 0.80f, 303.0f, 526.0f, 0.20f, 0.25f, 2.0f);
+        Tone(b, 0.72f, 2.00f, 520.0f, 270.0f, 0.42f, 0.04f, 0.95f, TRI);
+        Tone(b, 0.72f, 2.00f, 526.0f, 273.0f, 0.20f, 0.04f, 0.95f);
+        Hiss(b, 0.00f, 2.60f, 0.10f, 0.30f, 1.20f, 1600.0f, 900.0f, 300.0f, 181);
+        LowpassAll(b, 2600.0f);
+        Normalize(b, 0.50f);
+        break;
+    case Sfx::Laugh:
+        // A low laugh from nowhere: five rough syllables, falling, and the
+        // room giving them back.
+        b = Blank(1.6f);
+        for (int k = 0; k < 5; ++k)
+            Growl(b, 0.04f + k * 0.21f, 0.16f, 150.0f - k * 8.0f, 178.0f - k * 9.0f, 120.0f - k * 6.0f, 0.3f,
+                  0.55f - k * 0.05f, 0.02f, 0.08f, 0.35f, 191 + k);
+        LowpassAll(b, 1500.0f);
+        Echo(b, 0.35f, 0.32f, 3);
+        Normalize(b, 0.55f);
+        break;
+    case Sfx::Tear:
+        // The Reverie torn open: a harsh snap, and a zap falling through the
+        // floor of hearing.
+        b = Blank(1.0f);
+        Hiss(b, 0.00f, 0.22f, 1.2f, 0.001f, 0.08f, 9000.0f, 1200.0f, 400.0f, 201);
+        Tone(b, 0.00f, 0.60f, 1800.0f, 70.0f, 0.55f, 0.001f, 0.30f, SAW);
+        Tone(b, 0.02f, 0.70f, 900.0f, 45.0f, 0.35f, 0.001f, 0.35f, TRI);
+        Echo(b, 0.12f, 0.35f, 3);
+        LowpassAll(b, 8000.0f);
+        Normalize(b, 0.60f);
+        break;
+    case Sfx::Bump:
+        // A fist bumped: a soft knock of knuckles.
+        b = Blank(0.25f);
+        Tone(b, 0.00f, 0.10f, 190.0f, 120.0f, 0.70f, 0.001f, 0.04f);
+        Hiss(b, 0.00f, 0.05f, 0.40f, 0.001f, 0.02f, 3000.0f, 1500.0f, 300.0f, 211);
+        Normalize(b, 0.40f);
+        break;
+    case Sfx::Shatter:
+        // A barrier of black thread breaking like glass: a crack, and shards
+        // tinkling down after it.
+        b = Blank(1.3f);
+        Hiss(b, 0.00f, 0.30f, 1.0f, 0.001f, 0.10f, 9000.0f, 3000.0f, 1200.0f, 221);
+        for (int k = 0; k < 9; ++k)
+            Bell(b, 0.04f + k * 0.09f, 1900.0f + (k * 577 % 1700), 0.14f, 0.12f + (k % 3) * 0.04f);
+        LowpassAll(b, 11000.0f);
+        Normalize(b, 0.52f);
+        break;
+    case Sfx::Gust:
+        // A gust of wind snapping past, as something vast goes overhead.
+        b = Blank(1.8f);
+        Hiss(b, 0.00f, 1.75f, 1.0f, 0.45f, 0.80f, 500.0f, 1700.0f, 180.0f, 231);
+        Hiss(b, 0.25f, 1.20f, 0.5f, 0.30f, 0.60f, 1200.0f, 2600.0f, 600.0f, 232);
+        Normalize(b, 0.50f);
+        break;
+    case Sfx::Plop:
+        // A bobber pulled under: a round, falling gulp and a little spray.
+        b = Blank(0.45f);
+        Tone(b, 0.00f, 0.14f, 420.0f, 120.0f, 0.9f, 0.002f, 0.07f);
+        Tone(b, 0.02f, 0.10f, 900.0f, 300.0f, 0.25f, 0.002f, 0.05f, TRI);
+        Hiss(b, 0.03f, 0.22f, 0.35f, 0.004f, 0.08f, 2600.0f, 800.0f, 300.0f, 241);
+        LowpassAll(b, 3500.0f);
+        Normalize(b, 0.34f);
+        break;
+    case Sfx::Reel:
+        // One tooth of the reel's ratchet: a dry little click.
+        b = Blank(0.06f);
+        Hiss(b, 0.0f, 0.02f, 1.0f, 0.0005f, 0.006f, 7000.0f, 5000.0f, 1800.0f, 251);
+        Tone(b, 0.0f, 0.02f, 2400.0f, 1900.0f, 0.3f, 0.0005f, 0.006f, SAW);
+        Normalize(b, 0.16f);
+        break;
+    case Sfx::Snap:
+        // A line going: a bright twang that drops away, and the whip of the
+        // slack after it.
+        b = Blank(0.6f);
+        Tone(b, 0.00f, 0.32f, 1300.0f, 480.0f, 0.6f, 0.001f, 0.14f, TRI);
+        Tone(b, 0.00f, 0.20f, 2600.0f, 900.0f, 0.25f, 0.001f, 0.08f, SAW);
+        Hiss(b, 0.02f, 0.28f, 0.7f, 0.002f, 0.10f, 6000.0f, 1500.0f, 900.0f, 261);
+        LowpassAll(b, 7000.0f);
+        Normalize(b, 0.40f);
+        break;
     default:
         b = Blank(0.01f);
         break;
@@ -981,6 +1147,456 @@ size_t LoopFrame() { return static_cast<size_t>(At(LOOP_BAR, 0) * RATE); }
 
 }  // namespace theme
 
+// --- the story's music -------------------------------------------------------------
+//
+// The prologue's cues, written for it on the theme's own voices (squares, the
+// stepped triangle, the noise drums), each a loop with its tail folded back
+// onto its start so it goes round without a seam:
+//
+//   ominous  the road at the end of the night, the cell: a low pedal, a dark
+//            pad swelling in and out, and a bell that keeps leaning a semitone
+//            the wrong way (A minor, with the Phrygian B flat)
+//   town     Havenbrook's own tune, warm and simple in G -- and thin: no drums,
+//            no harmony to speak of, bars where the tune itself is missing
+//   montage  the ominous theme again over a slow heartbeat, the bell an
+//            octave down and hummed
+//   hum      the music gone: a low drone, two notes beating against each other
+//   dream    the cell's theme as the Reverie bends it: slower, every voice
+//            wavering, a glittering arpeggio and its echoes, the bell scooping
+//            up into each note
+//   escape   the run down the gate road: D minor at a gallop, a driving bass,
+//            the drums, and a tune that will not settle
+//
+// And Act I's:
+//
+//   dream_town  Havenbrook's tune bent and slowed into the Reverie: down a
+//            fourth, every note scooped into and wavering, an echo of it on
+//            the other side, the band gone to a high pad, glints over it
+//   boss     E minor at a drive: a galloping bass leaping to the octave, the
+//            chords stabbed on the off-beats, toms rolling every fourth bar
+//   trap     the finale's snap into the Reverie: a tritone bass, diminished
+//            arpeggios racing, a shrieking tune -- all of it bit-crushed
+//
+// Each takes a moment to make, so it is made on a thread when it is first
+// asked for (Audio::Music), and the deck changes to it when it is ready and
+// the cue before has faded out.
+
+namespace cue {
+
+using theme::Stereo;
+using theme::Square;
+using theme::PlaySquare;
+using theme::PlayBass;
+using theme::PlayKick;
+using theme::PlayNoise;
+
+struct Beat {
+    float bpm, swing = 0.0f;
+    float Step() const { return 60.0f / bpm / 4.0f; }
+    float At(int bar, float step) const {
+        const int whole = static_cast<int>(step);
+        return (bar * 16 + step) * Step() + ((whole & 1) ? Step() * swing : 0.0f);
+    }
+    float Len(float steps) const { return steps * Step(); }
+};
+
+// What rings past the end goes back over the start; then the console's own
+// output, and a level the theme's.
+Buf Fold(Stereo& out, size_t frames, float peak_to) {
+    for (size_t i = frames * 2; i < out.s.size(); ++i) out.s[(i - frames * 2) % (frames * 2)] += out.s[i];
+    out.s.resize(frames * 2);
+    float hp[2] = {0, 0}, lp[2] = {0, 0}, peak = 0.0f;
+    const float c_hp = Coef(30.0f), c_lp = Coef(11000.0f);
+    // Twice round, so the filters start the loop where they finish it.
+    for (int pass = 0; pass < 2; ++pass)
+        for (size_t i = 0; i < out.s.size(); ++i) {
+            const int ch = static_cast<int>(i & 1);
+            const float v = out.s[i];
+            hp[ch] += (v - hp[ch]) * c_hp;
+            lp[ch] += ((v - hp[ch]) - lp[ch]) * c_lp;
+            if (pass == 1) { out.s[i] = lp[ch]; peak = std::max(peak, std::fabs(lp[ch])); }
+        }
+    if (peak > 0.0f) for (float& v : out.s) v *= peak_to / peak;
+    return out.s;
+}
+
+Stereo Blank(const Beat& b, int bars, float tail) {
+    Stereo out;
+    out.s.assign(static_cast<size_t>((bars * 16 * b.Step() + tail) * RATE) * 2, 0.0f);
+    return out;
+}
+
+struct Note { int bar; float step, len; int note; };
+
+// --- ominous, and the montage and the dream made of it ---------------------------------
+// Am Am F F Dm Dm Bb E: the bass a pedal, the chords a pad, the bell the tune.
+struct DarkChord { int bass; int tones[3]; };
+const DarkChord kDark[8] = {
+    {33, {57, 60, 64}}, {33, {57, 60, 64}}, {29, {57, 60, 65}}, {29, {57, 60, 65}},
+    {38, {57, 62, 65}}, {38, {57, 62, 65}}, {34, {58, 62, 65}}, {28, {56, 59, 64}},
+};
+const Note kBell[] = {
+    {0, 8, 6, 76}, {1, 0, 4, 74}, {1, 8, 8, 69},
+    {3, 4, 10, 77}, {4, 8, 4, 76}, {5, 0, 4, 76}, {5, 8, 8, 72},
+    {6, 4, 10, 70}, {7, 0, 14, 68},
+};
+
+Buf Dark(float bpm, int shade) {
+    // shade 0 ominous, 1 the montage, 2 the dream
+    const Beat b{bpm};
+    const int bars = 8;
+    Stereo out = Blank(b, bars, 4.0f);
+    Square pad;
+    pad.duty = 0.5f; pad.amp = shade == 2 ? 0.032f : 0.03f; pad.attack = 1.4f; pad.decay = 9.0f; pad.release = 1.2f;
+    pad.vibrato = shade == 2 ? 0.28f : 0.0f;
+    for (int bar = 0; bar < bars; ++bar) {
+        const DarkChord& c = kDark[bar];
+        // The pedal, under everything; a semitone of dread in bar 6.
+        PlayBass(out, b.At(bar, 0), b.Len(16) - 0.05f, c.bass, shade == 1 ? 0.7f : 0.55f);
+        if (bar % 2 == 0)
+            for (int k = 0; k < 3; ++k) {
+                pad.pan = -0.5f + 0.5f * k;
+                PlaySquare(out, b.At(bar, 0), b.Len(32) - 0.2f, c.tones[k] + (shade == 2 ? 12 : 0), 0.85f, pad);
+            }
+    }
+    // The bell: a thin square, plucked and left to ring -- in the montage an
+    // octave down and hummed, in the dream scooping up into each note.
+    Square bell;
+    bell.duty = 0.125f; bell.amp = 0.09f; bell.attack = 0.004f; bell.decay = 1.1f; bell.release = 0.4f;
+    bell.pan = 0.2f;
+    if (shade == 1) { bell.duty = 0.25f; bell.decay = 2.0f; bell.vibrato = 0.2f; bell.attack = 0.04f; }
+    if (shade == 2) { bell.scoop = 1.2f; bell.vibrato = 0.35f; bell.decay = 1.6f; }
+    Square echo = bell;
+    echo.pan = -0.5f;
+    for (const Note& n : kBell) {
+        const int note = n.note + (shade == 1 ? -12 : shade == 2 ? 5 : 0);
+        PlaySquare(out, b.At(n.bar, n.step), b.Len(n.len), note, 1.0f, bell);
+        PlaySquare(out, b.At(n.bar, n.step + 3), b.Len(n.len), note, 0.32f, echo);
+    }
+    if (shade == 1) {
+        // A heartbeat: two soft thumps a bar.
+        for (int bar = 0; bar < bars; ++bar) {
+            PlayKick(out, b.At(bar, 0), 0.55f);
+            PlayKick(out, b.At(bar, 3), 0.35f);
+            PlayKick(out, b.At(bar, 8), 0.55f);
+            PlayKick(out, b.At(bar, 11), 0.35f);
+        }
+    }
+    if (shade == 2) {
+        // Glitter: chord tones two octaves up, and their echoes wandering the room.
+        Square glint;
+        glint.duty = 0.125f; glint.amp = 0.035f; glint.attack = 0.002f; glint.decay = 0.18f; glint.release = 0.05f;
+        static const int order[8] = {0, 2, 1, 2, 0, 1, 2, 1};
+        for (int bar = 0; bar < bars; ++bar)
+            for (int st = 0; st < 16; st += 2) {
+                const int note = kDark[bar].tones[order[(st / 2) % 8]] + 24;
+                glint.pan = std::sin((bar * 16 + st) * 0.7f) * 0.8f;
+                PlaySquare(out, b.At(bar, static_cast<float>(st)), b.Len(1.5f), note, 0.8f, glint);
+                PlaySquare(out, b.At(bar, st + 5.0f), b.Len(1.5f), note, 0.3f, glint);
+            }
+    }
+    return Fold(out, static_cast<size_t>(bars * 16 * b.Step() * RATE), shade == 1 ? 0.36f : 0.32f);
+}
+
+// --- the town, thin ----------------------------------------------------------------------
+// And `dream`: the same tune bent and slowed into the Reverie's -- every note
+// scooped up into from below and left wavering, an echo of it wandering the
+// other side, the band gone to a pad an octave up, and glints over the top.
+Buf Town(bool dream = false) {
+    const Beat b{dream ? 62.0f : 96.0f, dream ? 0.0f : 0.08f};
+    const int bars = 16;
+    Stereo out = Blank(b, bars, 3.0f);
+    // G D/F# Em C | G D C D | Em C G D | C D G G
+    static const int roots[16] = {43, 42, 40, 36, 43, 38, 36, 38, 40, 36, 43, 38, 36, 38, 43, 43};
+    static const int fifths[16] = {50, 45, 47, 43, 50, 45, 43, 45, 47, 43, 50, 45, 43, 45, 50, 50};
+    for (int bar = 0; bar < bars; ++bar) {
+        if (dream) {
+            // A pedal that leans flat in the bars the dream turns over.
+            PlayBass(out, b.At(bar, 0), b.Len(15), roots[bar] - ((bar % 4 == 3) ? 1 : 0), 0.55f);
+            continue;
+        }
+        PlayBass(out, b.At(bar, 0), b.Len(6), roots[bar], 0.75f);
+        PlayBass(out, b.At(bar, 8), b.Len(6), fifths[bar], 0.6f);
+    }
+    // The tune -- and the two bars where it is not.
+    static const Note tune[] = {
+        {0, 0, 4, 74}, {0, 4, 2, 71}, {0, 6, 2, 67}, {0, 8, 4, 69}, {0, 12, 4, 71},
+        {1, 0, 6, 69}, {1, 6, 2, 66}, {1, 8, 4, 69}, {1, 12, 4, 74},
+        {2, 0, 4, 67}, {2, 4, 4, 71}, {2, 8, 6, 76}, {2, 14, 2, 74},
+        {3, 0, 8, 72}, {3, 8, 4, 71}, {3, 12, 4, 69},
+        {4, 0, 4, 71}, {4, 4, 4, 74}, {4, 8, 6, 79}, {4, 14, 2, 78},
+        {5, 0, 4, 76}, {5, 4, 4, 74}, {5, 8, 8, 69},
+        {6, 0, 4, 67}, {6, 4, 2, 69}, {6, 6, 2, 71}, {6, 8, 4, 72}, {6, 12, 4, 76},
+        {7, 0, 12, 74},
+        {8, 0, 4, 76}, {8, 4, 4, 74}, {8, 8, 8, 71},
+        {9, 0, 6, 72}, {9, 6, 2, 76}, {9, 8, 8, 79},
+        {10, 0, 4, 74}, {10, 4, 4, 71}, {10, 8, 8, 67},
+        {12, 0, 4, 76}, {12, 4, 4, 79}, {12, 8, 4, 76}, {12, 12, 4, 72},
+        {13, 0, 4, 74}, {13, 4, 4, 78}, {13, 8, 8, 81},
+        {14, 0, 12, 79},
+    };
+    Square lead;
+    lead.duty = 0.25f; lead.amp = 0.12f; lead.attack = 0.02f; lead.decay = 1.8f; lead.release = 0.08f;
+    lead.vibrato = 0.12f; lead.pan = -0.1f;
+    if (dream) {
+        lead.duty = 0.125f; lead.amp = 0.10f; lead.attack = 0.06f; lead.decay = 2.6f; lead.release = 0.5f;
+        lead.vibrato = 0.4f; lead.scoop = 1.6f; lead.pan = -0.25f;
+        Square echo = lead;
+        echo.pan = 0.45f; echo.scoop = 2.4f;
+        // Down a fourth, which turns the major tune's light into dusk.
+        for (const Note& n : tune) {
+            PlaySquare(out, b.At(n.bar, n.step), b.Len(n.len) - 0.03f, n.note - 5, 1.0f, lead);
+            PlaySquare(out, b.At(n.bar, n.step + 3), b.Len(n.len), n.note - 5 + 12, 0.28f, echo);
+        }
+        Square pad;
+        pad.duty = 0.5f; pad.amp = 0.026f; pad.attack = 1.2f; pad.decay = 8.0f; pad.release = 1.0f; pad.vibrato = 0.3f;
+        static const int third[16] = {59, 57, 55, 52, 59, 54, 52, 54, 55, 52, 59, 54, 52, 54, 59, 59};
+        for (int bar = 0; bar < bars; bar += 2) {
+            pad.pan = bar % 4 ? 0.5f : -0.5f;
+            PlaySquare(out, b.At(bar, 0), b.Len(30), third[bar] + 7, 0.8f, pad);
+            PlaySquare(out, b.At(bar, 0), b.Len(30), roots[bar] + 19, 0.6f, pad);
+        }
+        Square glint;
+        glint.duty = 0.125f; glint.amp = 0.03f; glint.attack = 0.002f; glint.decay = 0.2f; glint.release = 0.05f;
+        for (int bar = 0; bar < bars; ++bar)
+            for (int st = 2; st < 16; st += 4) {
+                glint.pan = std::sin((bar * 16 + st) * 0.9f) * 0.8f;
+                PlaySquare(out, b.At(bar, static_cast<float>(st)), b.Len(1.5f), third[bar] + 31, 0.7f, glint);
+            }
+        return Fold(out, static_cast<size_t>(bars * 16 * b.Step() * RATE), 0.30f);
+    }
+    for (const Note& n : tune) PlaySquare(out, b.At(n.bar, n.step), b.Len(n.len) - 0.03f, n.note, 1.0f, lead);
+    // A few chords, softly, in the second half: what is left of the band.
+    Square pad;
+    pad.duty = 0.5f; pad.amp = 0.022f; pad.attack = 0.4f; pad.decay = 4.0f; pad.release = 0.4f;
+    static const int third[16] = {59, 57, 55, 52, 59, 54, 52, 54, 55, 52, 59, 54, 52, 54, 59, 59};
+    for (int bar = 8; bar < bars; bar += 2) {
+        pad.pan = 0.4f;
+        PlaySquare(out, b.At(bar, 0), b.Len(14), third[bar] + 12, 0.8f, pad);
+    }
+    return Fold(out, static_cast<size_t>(bars * 16 * b.Step() * RATE), 0.30f);
+}
+
+// --- the hum ------------------------------------------------------------------------------
+// Eight seconds of two low notes beating: whole cycles of each in the loop, so
+// it goes round with no seam.
+Buf Hum() {
+    const size_t frames = static_cast<size_t>(8.0f * RATE);
+    Buf b(frames * 2, 0.0f);
+    const float f1 = 55.0f, f2 = 55.75f, f3 = 110.25f;   // 440, 446 and 882 cycles in eight seconds
+    for (size_t i = 0; i < frames; ++i) {
+        const float t = static_cast<float>(i) / RATE;
+        const float v = std::sin(t * TAU * f1) * 0.55f + std::sin(t * TAU * f2) * 0.45f +
+                        std::sin(t * TAU * f3) * 0.12f;
+        const float swell = 0.75f + 0.25f * std::sin(t * TAU / 8.0f);
+        b[i * 2]     = v * swell;
+        b[i * 2 + 1] = v * swell;
+    }
+    float peak = 0.0f;
+    for (float v : b) peak = std::max(peak, std::fabs(v));
+    if (peak > 0.0f) for (float& v : b) v *= 0.22f / peak;
+    return b;
+}
+
+// --- the escape ---------------------------------------------------------------------------
+Buf Escape() {
+    const Beat b{152.0f};
+    const int bars = 16;
+    Stereo out = Blank(b, bars, 2.0f);
+    // Dm Dm Bb C | Dm Dm Bb A, twice.
+    static const int roots[8] = {38, 38, 34, 36, 38, 38, 34, 33};
+    static const int tones[8][3] = {{62, 65, 69}, {62, 65, 69}, {62, 65, 70}, {64, 67, 72},
+                                    {62, 65, 69}, {62, 65, 69}, {62, 65, 70}, {61, 64, 69}};
+    uint32_t seed = 9101;
+    Square arp;
+    arp.duty = 0.125f; arp.amp = 0.06f; arp.attack = 0.002f; arp.decay = 0.07f; arp.release = 0.02f; arp.pan = 0.35f;
+    static const int arp_order[16] = {0, 1, 2, 1, 0, 1, 2, 1, 0, 2, 1, 2, 0, 2, 1, 2};
+    for (int bar = 0; bar < bars; ++bar) {
+        const int c = bar % 8;
+        // The bass, galloping on eighths, the octave on the last.
+        for (int st = 0; st < 16; st += 2)
+            PlayBass(out, b.At(bar, static_cast<float>(st)), b.Len(1.6f), roots[c] + (st == 14 ? 12 : 0), st % 4 == 0 ? 1.0f : 0.8f);
+        for (int st = 0; st < 16; ++st)
+            PlaySquare(out, b.At(bar, static_cast<float>(st)), b.Len(0.9f), tones[c][arp_order[st]] + 12,
+                       bar >= 8 ? 0.95f : 0.8f, arp);
+        // The drums.
+        PlayKick(out, b.At(bar, 0), 1.0f);
+        PlayKick(out, b.At(bar, 6), 0.7f);
+        PlayKick(out, b.At(bar, 8), 0.9f);
+        if (bar % 2) PlayKick(out, b.At(bar, 10), 0.7f);
+        PlayNoise(out, b.At(bar, 4), 0.05f, 9000.0f, 0.22f, 0.0f, 190.0f, seed++);
+        PlayNoise(out, b.At(bar, 12), 0.05f, 9000.0f, 0.22f, 0.0f, 190.0f, seed++);
+        for (int st = 0; st < 16; st += bar >= 8 ? 1 : 2)
+            PlayNoise(out, b.At(bar, static_cast<float>(st)), 0.01f, RATE, st % 2 ? 0.025f : 0.045f, -0.3f, 0.0f, seed++);
+        if (bar % 4 == 3)
+            for (int st = 12; st < 16; ++st)
+                PlayNoise(out, b.At(bar, static_cast<float>(st)), 0.03f, 9000.0f, 0.10f + 0.03f * (st - 12), 0.0f, 200.0f, seed++);
+    }
+    // The tune that will not settle.
+    static const Note tune[] = {
+        {0, 0, 2, 74}, {0, 2, 2, 77}, {0, 4, 4, 81}, {0, 8, 2, 79}, {0, 10, 2, 77}, {0, 12, 4, 76},
+        {1, 0, 4, 77}, {1, 4, 4, 74}, {1, 8, 8, 69},
+        {2, 0, 2, 70}, {2, 2, 2, 74}, {2, 4, 4, 77}, {2, 8, 4, 76}, {2, 12, 4, 74},
+        {3, 0, 6, 76}, {3, 6, 2, 79}, {3, 8, 4, 76}, {3, 12, 4, 72},
+        {4, 0, 2, 74}, {4, 2, 2, 77}, {4, 4, 4, 81}, {4, 8, 2, 79}, {4, 10, 2, 77}, {4, 12, 4, 76},
+        {5, 0, 4, 81}, {5, 4, 2, 79}, {5, 6, 2, 77}, {5, 8, 8, 76},
+        {6, 0, 4, 74}, {6, 4, 4, 77}, {6, 8, 8, 82},
+        {7, 0, 8, 81}, {7, 8, 4, 73}, {7, 12, 4, 76},
+    };
+    Square lead;
+    lead.duty = 0.25f; lead.amp = 0.11f; lead.attack = 0.01f; lead.decay = 0.9f; lead.release = 0.05f;
+    lead.vibrato = 0.14f; lead.pan = -0.15f;
+    for (int half = 0; half < 2; ++half) {
+        lead.duty = half ? 0.5f : 0.25f;
+        for (const Note& n : tune)
+            PlaySquare(out, b.At(n.bar + half * 8, n.step), b.Len(n.len) - 0.02f, n.note, 1.0f, lead);
+    }
+    return Fold(out, static_cast<size_t>(bars * 16 * b.Step() * RATE), 0.36f);
+}
+
+// --- the boss -------------------------------------------------------------------------------
+// E minor, driving: a bass that gallops on the root and stabs up to the
+// octave, toms rolling at the end of every fourth bar, a pulse of chords on
+// the off-beats, and a tune that climbs as if to stand its ground -- a
+// first real fight, telegraphed and fair.
+Buf Boss() {
+    const Beat b{164.0f};
+    const int bars = 16;
+    Stereo out = Blank(b, bars, 2.0f);
+    // Em Em C D | Em Em C B, twice; the second time a step higher in the tune.
+    static const int roots[8] = {40, 40, 36, 38, 40, 40, 36, 35};
+    static const int tones[8][3] = {{64, 67, 71}, {64, 67, 71}, {64, 67, 72}, {62, 66, 69},
+                                    {64, 67, 71}, {64, 67, 71}, {64, 67, 72}, {63, 66, 71}};
+    uint32_t seed = 7717;
+    Square stab;
+    stab.duty = 0.5f; stab.amp = 0.045f; stab.attack = 0.003f; stab.decay = 0.12f; stab.release = 0.03f;
+    for (int bar = 0; bar < bars; ++bar) {
+        const int c = bar % 8;
+        for (int st = 0; st < 16; ++st) {
+            const bool up = st == 6 || st == 14;
+            if (st % 2 == 0 || st == 15)
+                PlayBass(out, b.At(bar, static_cast<float>(st)), b.Len(0.9f), roots[c] + (up ? 12 : 0), st % 4 == 0 ? 1.0f : 0.75f);
+        }
+        for (int st = 2; st < 16; st += 4)
+            for (int k = 0; k < 3; ++k) {
+                stab.pan = -0.4f + 0.4f * k;
+                PlaySquare(out, b.At(bar, static_cast<float>(st)), b.Len(1.0f), tones[c][k], 0.9f, stab);
+            }
+        PlayKick(out, b.At(bar, 0), 1.0f);
+        PlayKick(out, b.At(bar, 3), 0.6f);
+        PlayKick(out, b.At(bar, 8), 1.0f);
+        PlayKick(out, b.At(bar, 10), 0.6f);
+        PlayNoise(out, b.At(bar, 4), 0.06f, 8000.0f, 0.26f, 0.0f, 180.0f, seed++);
+        PlayNoise(out, b.At(bar, 12), 0.06f, 8000.0f, 0.26f, 0.0f, 180.0f, seed++);
+        for (int st = 0; st < 16; st += 2)
+            PlayNoise(out, b.At(bar, static_cast<float>(st)), 0.012f, RATE, 0.035f, 0.3f, 0.0f, seed++);
+        if (bar % 4 == 3)
+            for (int st = 8; st < 16; ++st) {
+                // The toms: kicks pitched by the noise's tone, falling.
+                PlayNoise(out, b.At(bar, static_cast<float>(st)), 0.09f, 2200.0f - st * 90.0f, 0.18f,
+                          -0.5f + (st - 8) * 0.14f, 90.0f + (16 - st) * 14.0f, seed++);
+            }
+    }
+    static const Note tune[] = {
+        {0, 0, 6, 76}, {0, 6, 2, 79}, {0, 8, 4, 83}, {0, 12, 4, 81},
+        {1, 0, 4, 79}, {1, 4, 4, 78}, {1, 8, 8, 76},
+        {2, 0, 4, 72}, {2, 4, 4, 76}, {2, 8, 4, 79}, {2, 12, 4, 84},
+        {3, 0, 8, 81}, {3, 8, 4, 78}, {3, 12, 4, 74},
+        {4, 0, 6, 76}, {4, 6, 2, 79}, {4, 8, 4, 83}, {4, 12, 4, 86},
+        {5, 0, 4, 84}, {5, 4, 4, 83}, {5, 8, 8, 79},
+        {6, 0, 4, 81}, {6, 4, 4, 79}, {6, 8, 4, 76}, {6, 12, 4, 72},
+        {7, 0, 8, 75}, {7, 8, 8, 78},
+    };
+    Square lead;
+    lead.duty = 0.25f; lead.amp = 0.11f; lead.attack = 0.01f; lead.decay = 1.2f; lead.release = 0.05f;
+    lead.vibrato = 0.16f; lead.pan = -0.1f;
+    Square harm = lead;
+    harm.duty = 0.125f; harm.amp = 0.05f; harm.pan = 0.4f;
+    for (int half = 0; half < 2; ++half)
+        for (const Note& n : tune) {
+            PlaySquare(out, b.At(n.bar + half * 8, n.step), b.Len(n.len) - 0.02f, n.note, 1.0f, lead);
+            // The second time round, a third under it.
+            if (half) PlaySquare(out, b.At(n.bar + 8, n.step), b.Len(n.len) - 0.02f, n.note - 4, 0.9f, harm);
+        }
+    return Fold(out, static_cast<size_t>(bars * 16 * b.Step() * RATE), 0.38f);
+}
+
+// --- the trap -------------------------------------------------------------------------------
+// The finale's: no smooth ripple of sleep but a snap, and the music crunched
+// into a wrong 8-bit loop -- a tritone in the bass, diminished arpeggios
+// racing over it, and the whole of it bit-crushed and sample-held into grit.
+Buf Trap() {
+    const Beat b{138.0f};
+    const int bars = 8;
+    Stereo out = Blank(b, bars, 1.5f);
+    // C, F#, C, F#... then Eb and A: never anywhere to rest.
+    static const int roots[8] = {36, 42, 36, 42, 39, 45, 39, 35};
+    static const int dim[8][4] = {{60, 63, 66, 69}, {66, 69, 72, 75}, {60, 63, 66, 69}, {66, 69, 72, 75},
+                                  {63, 66, 69, 72}, {69, 72, 75, 78}, {63, 66, 69, 72}, {59, 62, 65, 68}};
+    uint32_t seed = 6661;
+    Square arp;
+    arp.duty = 0.125f; arp.amp = 0.07f; arp.attack = 0.001f; arp.decay = 0.06f; arp.release = 0.01f; arp.pan = 0.3f;
+    static const int order[16] = {0, 1, 2, 3, 2, 1, 0, 3, 0, 2, 1, 3, 2, 0, 3, 1};
+    for (int bar = 0; bar < bars; ++bar) {
+        for (int st = 0; st < 16; st += 2)
+            PlayBass(out, b.At(bar, static_cast<float>(st)), b.Len(1.4f), roots[bar] + ((st / 2) % 4 == 3 ? 6 : 0), 1.0f);
+        for (int st = 0; st < 16; ++st)
+            PlaySquare(out, b.At(bar, static_cast<float>(st)), b.Len(0.8f), dim[bar][order[st]] + 12, 0.9f, arp);
+        PlayKick(out, b.At(bar, 0), 1.0f);
+        PlayKick(out, b.At(bar, 7), 0.8f);
+        PlayKick(out, b.At(bar, 10), 0.9f);
+        PlayNoise(out, b.At(bar, 4), 0.07f, 6000.0f, 0.30f, 0.0f, 150.0f, seed++);
+        PlayNoise(out, b.At(bar, 12), 0.07f, 6000.0f, 0.30f, 0.0f, 150.0f, seed++);
+    }
+    // A shriek of a tune, high and narrow.
+    static const Note tune[] = {
+        {0, 0, 4, 84}, {0, 4, 4, 83}, {0, 8, 8, 78},
+        {1, 0, 4, 84}, {1, 4, 4, 83}, {1, 8, 8, 77},
+        {2, 0, 2, 84}, {2, 2, 2, 87}, {2, 4, 4, 90}, {2, 8, 8, 84},
+        {3, 0, 16, 78},
+        {4, 0, 4, 87}, {4, 4, 4, 86}, {4, 8, 8, 81},
+        {5, 0, 4, 87}, {5, 4, 4, 86}, {5, 8, 8, 80},
+        {6, 0, 2, 87}, {6, 2, 2, 90}, {6, 4, 4, 93}, {6, 8, 8, 87},
+        {7, 0, 8, 83}, {7, 8, 8, 77},
+    };
+    Square lead;
+    lead.duty = 0.5f; lead.amp = 0.08f; lead.attack = 0.002f; lead.decay = 0.8f; lead.release = 0.03f;
+    lead.vibrato = 0.5f; lead.pan = -0.2f;
+    for (const Note& n : tune) PlaySquare(out, b.At(n.bar, n.step), b.Len(n.len) - 0.02f, n.note, 1.0f, lead);
+    // The crunch: held every fourth sample, cut to a handful of levels, and
+    // driven into the stops.
+    float peak = 0.0f;
+    for (float v : out.s) peak = std::max(peak, std::fabs(v));
+    if (peak > 0.0f) {
+        const float drive = 2.2f / peak;
+        float held[2] = {0.0f, 0.0f};
+        for (size_t i = 0; i < out.s.size(); ++i) {
+            const int ch = static_cast<int>(i & 1);
+            if ((i / 2) % 4 == 0) {
+                const float v = std::clamp(out.s[i] * drive, -1.0f, 1.0f);
+                held[ch] = std::round(v * 7.0f) / 7.0f;
+            }
+            out.s[i] = held[ch];
+        }
+    }
+    return Fold(out, static_cast<size_t>(bars * 16 * b.Step() * RATE), 0.30f);
+}
+
+Buf Make(const string& name) {
+    if (name == "boss")       return Boss();
+    if (name == "trap")       return Trap();
+    if (name == "dream_town") return Town(true);
+    if (name == "ominous") return Dark(56.0f, 0);
+    if (name == "montage") return Dark(64.0f, 1);
+    if (name == "dream")   return Dark(44.0f, 2);
+    if (name == "town")    return Town();
+    if (name == "hum")     return Hum();
+    if (name == "escape")  return Escape();
+    return {};
+}
+
+}  // namespace cue
+
 // --- mixer state --------------------------------------------------------------------
 
 struct Voice {
@@ -1020,7 +1636,16 @@ struct State {
     std::thread theme_maker;
     std::atomic<bool> theme_ready{false};
     void ThemeMade() { if (theme_maker.joinable()) theme_maker.join(); }
-    ~State() { ThemeMade(); }
+
+    // The story's music (Audio::Music): the cue playing, and the next one as
+    // it is made on a thread. Both swapped and read with the stream locked.
+    Buf story, story_next;
+    string story_cue, story_next_cue, story_want;
+    size_t story_pos = 0;
+    float  story_g = 0.0f, story_fade = 1.5f;
+    std::thread story_maker;
+    void StoryMade() { if (story_maker.joinable()) story_maker.join(); }
+    ~State() { ThemeMade(); StoryMade(); }
 
     static constexpr int VOICES = 32;
     Voice voices[VOICES];
@@ -1133,6 +1758,8 @@ bool InitOffline() {
 
 void Shutdown() {
     g.ThemeMade();
+    // A cue still being made locks the stream when it is done: wait for it first.
+    g.StoryMade();
     if (g.stream) {
         SDL_DestroyAudioStream(g.stream);
         g.stream = nullptr;
@@ -1303,6 +1930,10 @@ void Mix(float* out, int frames) {
     const float sfx_bus = g.master * g.sfx;
     const float amb_bus = g.master * g.amb;
     const bool theme_ready = g.theme_ready.load(std::memory_order_acquire);
+    // The story's cue: going quiet before the next comes in, or the next made
+    // and waiting for the old one to be quiet.
+    const bool story_change = g.story_want != g.story_cue;
+    const float story_step = 1.0f / (std::max(0.05f, g.story_fade) * RATE);
     constexpr float SMOOTH = 1.0f / (0.8f * RATE);   // layers fade over most of a second
 
     for (int i = 0; i < frames; ++i) {
@@ -1367,6 +1998,27 @@ void Mix(float* out, int frames) {
             g.theme_on = false;
         }
 
+        // The story's music, faded to and from; changed while it is silent.
+        if (story_change) {
+            g.story_g = std::max(0.0f, g.story_g - story_step);
+            if (g.story_g <= 0.0f) {
+                if (g.story_want.empty()) {
+                    g.story_cue.clear();
+                } else if (g.story_next_cue == g.story_want) {
+                    std::swap(g.story, g.story_next);
+                    std::swap(g.story_cue, g.story_next_cue);
+                    g.story_pos = 0;
+                }
+            }
+        } else if (!g.story.empty() && !g.story_cue.empty()) {
+            g.story_g = std::min(1.0f, g.story_g + story_step);
+        }
+        if (!g.story_cue.empty() && !g.story.empty() && g.story_g > 0.0f) {
+            l += g.story[g.story_pos * 2] * g.story_g * 0.9f;
+            r += g.story[g.story_pos * 2 + 1] * g.story_g * 0.9f;
+            if (++g.story_pos * 2 >= g.story.size()) g.story_pos = 0;
+        }
+
         // A hearth: a low rumble under the crackles.
         if (g.fire_g > 0.0005f) {
             const float c = Coef(160.0f);
@@ -1397,5 +2049,34 @@ void Mix(float* out, int frames) {
         out[i * 2 + 1] = std::tanh(r);
     }
 }
+
+// The story's music: the cue asked for, faded to. A cue not yet made is made
+// on a thread, and the mixer changes to it once it is ready and the one before
+// has faded out (Mix).
+namespace { string g_music_cue; }
+
+void Music(const string& cue, float fade) {
+    g_music_cue = cue;
+    // One made at a time: the cue before this one finishes first.
+    g.StoryMade();
+    bool make = false;
+    {
+        Lock lock;
+        g.story_want = cue;
+        g.story_fade = std::max(0.05f, fade);
+        make = !cue.empty() && cue != g.story_cue && cue != g.story_next_cue;
+    }
+    if (!make) return;
+    g.story_maker = std::thread([cue] {
+        Buf made = cue::Make(cue);
+        Lock lock;
+        g.story_next = std::move(made);
+        g.story_next_cue = cue;
+    });
+}
+
+const string& MusicCue() { return g_music_cue; }
+
+vector<float> MakeMusic(const string& cue) { return cue::Make(cue); }
 
 }  // namespace Audio

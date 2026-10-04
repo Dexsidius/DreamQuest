@@ -58,25 +58,59 @@ bool Player::SpendMana(int cost) {
     return true;
 }
 
+int Player::SpellBoxes() const {
+    const ItemDef* w = equipment.Weapon();
+    return (w && w->kind == WeaponKind::Staff) ? w->SpellBoxes() : SPELL_BOXES;
+}
+
+int Player::BoxOf(Element e) const {
+    if (e == Element::Electric) return 4;
+    if (e == Element::Arcane)   return 5;
+    if (StaffElement() != Element::None) return std::clamp(spell_slot, 0, 3);
+    return std::clamp(static_cast<int>(e) - FIRST_ELEMENT, 0, 3);
+}
+
+int Player::BoxRank(int box) const {
+    if (box < 0 || box >= SPELL_BOXES) return -1;
+    if (StaffElement() == Element::None) return box;
+    if (box == BoxOf(Element::Electric)) return -1;
+    return box == BoxOf(Element::Arcane) ? 4 : box;
+}
+
+void Player::KeepSpellInReach() {
+    if (Style() != AttackStyle::Magic || BoxOpen(SelectedBox())) return;
+    if (StaffElement() != Element::None) { selected_element = StaffElement(); spell_slot = 0; }
+    else selected_element = Element::Fire;
+}
+
 void Player::CycleElement(int delta) {
     // An element's own staff steps through its four spells, and then the
-    // ancient magic if there is any on the fifth slot.
+    // ancient magic if there is any -- over the boxes the staff opens, and no
+    // others. It casts nothing of another element, the lightning included.
     if (StaffElement() != Element::None) {
-        const int count = 4 + (arcane_spell.empty() ? 0 : 1);
-        int index = selected_element == Element::Arcane ? 4 : spell_slot;
-        index = ((index + delta) % count + count) % count;
-        if (index == 4) selected_element = Element::Arcane;
-        else SelectSlot(index);
+        vector<int> round;
+        for (int slot = 0; slot < 4; ++slot) if (BoxOpen(slot)) round.push_back(slot);
+        const int ancient = BoxOf(Element::Arcane);
+        if (!arcane_spell.empty() && BoxOpen(ancient)) round.push_back(ancient);
+        if (round.empty()) return;
+        const auto it = std::find(round.begin(), round.end(), SelectedBox());
+        const int at = it == round.end() ? 0 : static_cast<int>(it - round.begin());
+        const int n = static_cast<int>(round.size());
+        const int next = round[((at + delta) % n + n) % n];
+        if (next == ancient) selected_element = Element::Arcane;
+        else                 SelectSlot(next);
         return;
     }
     // The four, then the lightning if any of it is reached, then the ancient
     // magic if any of it is known. Stepping is over what is actually there --
-    // a pad has one button for this and it must not land on an empty school.
+    // a pad has one button for this and it must not land on an empty school,
+    // or on one the weapon in hand does not open.
     vector<Element> round;
     for (int i = FIRST_ELEMENT; i <= LAST_ELEMENT; ++i) {
         const Element e = static_cast<Element>(i);
         if (e == Element::Arcane && arcane_spell.empty()) continue;
         if (e == Element::Electric && electric_spell.empty()) continue;
+        if (!BoxOpen(BoxOf(e))) continue;
         round.push_back(e);
     }
     if (round.empty()) return;
@@ -153,11 +187,14 @@ vector<const SpellDef*> Player::SpellChoices(const SpellBook& book, const vector
     } else if (e == Element::Electric) {
         known(electric);
     } else if (StaffElement() != Element::None) {
-        // An element's own staff: its four spells are its four slots.
-        for (int slot = 0; slot < 4; ++slot)
+        // An element's own staff: its four spells are its four slots -- as
+        // many of them as it opens.
+        for (int slot = 0; slot < 4; ++slot) {
+            if (!BoxOpen(slot)) continue;
             if (const SpellDef* s = slot == 0 ? book.Chosen(StaffElement(), magic, HeldSpell(StaffElement()))
                                               : book.ForSlot(StaffElement(), slot + 1, magic))
                 out.push_back(s);
+        }
     } else {
         const vector<int>& slots = SpellSlots(e);
         const vector<const SpellDef*> offered = slots.empty() ? book.Of(e) : book.ForWeapon(e, slots, magic);
@@ -186,8 +223,8 @@ bool Player::StepSpell(int step, const SpellBook& book, const vector<string>& ar
         // The slots with a spell on them, and from the one chosen.
         vector<int> open;
         for (int slot = 0; slot < 4; ++slot)
-            if (slot == 0 ? book.Chosen(StaffElement(), magic, HeldSpell(StaffElement())) != nullptr
-                          : book.ForSlot(StaffElement(), slot + 1, magic) != nullptr)
+            if (BoxOpen(slot) && (slot == 0 ? book.Chosen(StaffElement(), magic, HeldSpell(StaffElement())) != nullptr
+                                            : book.ForSlot(StaffElement(), slot + 1, magic) != nullptr))
                 open.push_back(slot);
         const int m = static_cast<int>(open.size());
         int at = 0;
@@ -1586,6 +1623,7 @@ bool Player::RollsOnGuard() const {
 
 bool Player::TryRoll() {
     if (dead || jumping || resting || roll_timer > 0.0f || roll_recover > 0.0f || !gather_clip.empty()) return false;
+    if (Rooted()) return false;
     if (winded || stamina < ROLL_STAMINA) return false;
     // The way the stick is pushed, facing it; standing still, back the way
     // they came, heels over head.
@@ -1831,6 +1869,12 @@ bool Player::HoldingDraw(const Vec2& move) const {
 
 void Player::UpdateAnimation(const Vec2& move) {
     if (dead) { sprite.Play("death"); return; }
+    if (!scene_clip.empty()) {
+        // A rig without the clip stands in its idle rather than in nothing.
+        sprite.Play(sprite.Def() && sprite.Def()->Find(scene_clip) ? scene_clip : string("idle"));
+        sprite.speed_scale = 1.0f;
+        return;
+    }
     if (attack.Active()) return;                     // attack clip owns the frames
     if (ability_pose > 0.0f && !ability_clip.empty()) {
         sprite.Play(ability_clip);                   // an ability's moment: see StrikePose
@@ -1888,6 +1932,8 @@ void Player::UpdateAnimation(const Vec2& move) {
 }
 
 void Player::Update(float dt, World& world, const GameContext& ctx) {
+    // A plainer weapon taken up than the one the spell was chosen with.
+    KeepSpellInReach();
     // What abilities and their passives leave running.
     since_hurt += dt;
     if (ability_pose > 0.0f && (ability_pose -= dt) <= 0.0f) {
@@ -2322,6 +2368,7 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
 }
 
 void Player::Render(SDL_Renderer* r, TextureCache& cache, const Camera& cam) const {
+    if (scene_hidden) return;
     SDL_Color tint{255, 255, 255, 255};
     // Struck: a flash, a red one -- white would say they had struck something.
     // Drawn by the sprite shader when it can, else as the red tint it was.
@@ -2365,8 +2412,8 @@ void Player::Render(SDL_Renderer* r, TextureCache& cache, const Camera& cam) con
         // Beguiled, they are a little flushed.
         if (Charmed()) tint = {tint.r, static_cast<Uint8>(tint.g * 0.84f), static_cast<Uint8>(tint.b * 0.92f), tint.a};
     }
-    sprite.Draw(r, cache, cam, x, y - draw_lift, tint, SDL_BLENDMODE_BLEND, 1.0f, fx.Any() ? &fx : nullptr);
-    if (!dead && (Charmed() || Confused())) DrawDazes(r, cam);
+    sprite.Draw(r, cache, cam, x, y - draw_lift - scene_lift, tint, SDL_BLENDMODE_BLEND, 1.0f, fx.Any() ? &fx : nullptr);
+    if (!dead && (Charmed() || Confused() || Rooted())) DrawDazes(r, cam);
 }
 
 void Player::DrawDazes(SDL_Renderer* r, const Camera& cam) const {
@@ -2383,6 +2430,26 @@ void Player::DrawDazes(SDL_Renderer* r, const Camera& cam) const {
         const SDL_FRect d = {roundf(at.x / z) * z + px * z, roundf(at.y / z) * z + py * z, z, z};
         SDL_RenderFillRect(r, &d);
     };
+    if (Rooted()) {
+        // Webbed: pale strands from their feet out to the ground, in whole
+        // art pixels, a ragged star of them.
+        SDL_SetRenderDrawColor(r, 232, 232, 240, 220);
+        for (int k = 0; k < 8; ++k) {
+            const float a = k * 0.785398f + 0.3f;
+            const int len = 9 + (k * 5) % 4;
+            for (int s = 3; s < len; ++s)
+                pixel(x + cosf(a) * s, y + sinf(a) * s * 0.55f, 0, 0);
+        }
+        for (int k = 0; k < 3; ++k) {
+            const float ring = 5.0f + k * 3.0f;
+            for (int s = 0; s < 10; ++s) {
+                const float a = s * 0.628f + k * 0.2f;
+                pixel(x + cosf(a) * ring, y + sinf(a) * ring * 0.55f, 0, 0);
+            }
+        }
+        // And up their legs.
+        for (int s = 0; s < 6; ++s) pixel(x - 3.0f + (s % 2) * 6.0f, y - 2.0f - s * 2.0f, 0, 0);
+    }
     if (Charmed()) {
         // .X.X.
         // XXXXX

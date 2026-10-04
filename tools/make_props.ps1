@@ -169,6 +169,27 @@ $sizes = @{
     coral_spire = 96; kelp_stand = 72; giant_shell = 80; tide_well = 160
     wind_arch = 128; cloud_pillar = 96; sky_rock = 72; gale_well = 160
     fulgurite_spire = 96; storm_rod = 80; thunder_stone = 72; storm_well = 160
+    # The prologue (tools/blender_prologue_props.py). The ones that are not
+    # square are cut to their width and height by $CROP below.
+    handcart = 64; stall_closed = 80
+    bed_sleeper_man = 64; bed_sleeper_woman = 64; bed_sleeper_elder = 64
+    window_curtained = 48; papers_scattered = 48; teacup = 12
+    cell_door_open = 100; cell_door_rotted = 84; mattress = 40; wall_chains = 48
+    skeleton_remains = 48; skeleton_chained = 56; prisoner_slumped = 40; prisoner_lying = 48
+    stained_glass = 112; pedestal = 44; mansion_doors = 128; iron_fence_tall = 80; iron_fence_tall_v = 80
+    mansion_gate = 128; mansion_gate_open = 128; dead_tree_twisted = 128; dead_tree_twisted_b = 112
+    cart_overturned = 72; mansion_facade = 352; window_silhouette = 352
+    # Act I (tools/blender_act1_props.py). Most are cut to size by $CROP below.
+    nightmare_hold = 64; mini_anchor = 56; square_anchor = 176; dream_barrier = 64; dream_barrier_v = 64
+    dawn_bells = 80; dawn_chime = 40; dawn_bell_great = 96
+    black_chains_chair = 80; black_chains_chair_empty = 80
+    giant_anvil = 112; hanging_hammer = 96; great_anvil_bound = 80
+    drying_frame_tall = 128; tannery_post_bound = 64; steaming_vat = 40
+    cask_stack_tall = 128; web_patch = 48; web_strand = 56
+    apron_hook = 28; mug_half = 12; loaf_rack = 28; candlestick = 28; sampler = 32; cellar_lock = 56
+    claw_marks = 24; wolf_pelt_rack = 48; frost_patch = 48; knight_scrap = 36
+    boo_note = 14; desk_tilted = 56; papers_drift = 40; great_desk = 88
+    forge_chimney = 32
 }
 
 # Pieces the game colours itself, as two pictures laid one on the other: the
@@ -179,6 +200,83 @@ $sizes = @{
 # throws a shadow, and the two are sat on the floor by the same amount, or the
 # trim lands a pixel off the cloth it was worked on.
 $LAYERED = @{ house_rug = "house_rug_trim"; tapestry_house = "tapestry_house_trim" }
+
+# Props drawn to a size that is not square. They are rendered square at the
+# longer side like everything else (that is the number in $sizes), sat on the
+# floor, and then cut to this width and height: the bottom rows kept, because
+# the bottom edge is where a prop stands, and the middle columns, because a
+# prop is modelled about the middle. So a cart is 64 by 56 in the manifest
+# rather than 64 by 64 with eight rows of nothing over it -- and a flat thing
+# laid centred on the floor is centred on its own pixels, not on a margin.
+$CROP = @{
+    handcart = @(64, 56); cart_overturned = @(72, 56)
+    papers_scattered = @(48, 32); mattress = @(40, 24); wall_chains = @(32, 48); cell_door_open = @(84, 100)
+    skeleton_remains = @(48, 32); skeleton_chained = @(40, 56); prisoner_lying = @(48, 28)
+    stained_glass = @(48, 112); pedestal = @(44, 32); mansion_doors = @(112, 128)
+    mansion_facade = @(352, 320); mansion_gate = @(128, 112); mansion_gate_open = @(128, 112)
+    iron_fence_tall = @(64, 80); iron_fence_tall_v = @(24, 80)
+    dead_tree_twisted = @(96, 128); dead_tree_twisted_b = @(80, 112)
+    # Act I.
+    nightmare_hold = @(48, 64); mini_anchor = @(40, 52); square_anchor = @(170, 140)
+    dream_barrier = @(64, 48); dream_barrier_v = @(24, 64)
+    dawn_bells = @(64, 80); dawn_chime = @(28, 40); dawn_bell_great = @(80, 96)
+    black_chains_chair = @(48, 80); black_chains_chair_empty = @(48, 80)
+    giant_anvil = @(112, 72); hanging_hammer = @(32, 96); great_anvil_bound = @(80, 64)
+    drying_frame_tall = @(56, 128); tannery_post_bound = @(24, 60); steaming_vat = @(40, 36)
+    cask_stack_tall = @(48, 128); web_patch = @(48, 40); web_strand = @(16, 56)
+    apron_hook = @(20, 28); loaf_rack = @(28, 20); candlestick = @(20, 28); sampler = @(32, 24)
+    cellar_lock = @(40, 56); wolf_pelt_rack = @(48, 40); frost_patch = @(48, 32); knight_scrap = @(36, 20)
+    boo_note = @(14, 10); desk_tilted = @(56, 40); great_desk = @(88, 48)
+}
+
+# Pictures that throw no contact shadow: decals laid over something else
+# (claw marks on a door frame, webbing over casks, frost on the stones) and
+# things hanging in the air, whose foot is not on the floor.
+$NOSHADOW = @("claw_marks", "frost_patch", "web_patch", "web_strand", "papers_drift", "boo_note",
+              "hanging_hammer", "dream_barrier_v", "dawn_chime", "apron_hook", "sampler")
+
+# Pieces laid end to end, whose outline must not close at the join: the edge
+# of the picture across which they repeat is outlined as if the next piece
+# were there ("x": side by side, "y": stacked).
+$WRAP = @{ dream_barrier = "x"; dream_barrier_v = "y" }
+
+# An overlay cut out of a bigger picture: x, y, width, height, in the square
+# picture's pixels after it is sat on the floor. window_silhouette is the whole
+# manor rendered again with him in one lit window, cut down to that window --
+# so it lands on mansion_facade's own pixels at (x, y - 32) in the facade,
+# which is cut from the same square 352 x 320 from the bottom.
+$REGION = @{
+    window_silhouette = @(196, 214, 24, 32)
+}
+
+function Crop-Region($buf, $x0, $y0, $w, $h) {
+    $out = New-Buffer $w $h
+    for ($y = 0; $y -lt $h; $y++) {
+        [Array]::Copy($buf.bytes, ($y0 + $y) * $buf.stride + $x0 * 4, $out.bytes, $y * $out.stride, $w * 4)
+    }
+    return $out
+}
+
+function Crop-Buffer($buf, $w, $h, $name) {
+    $x0 = [int][math]::Floor(($buf.w - $w) / 2)
+    $y0 = $buf.h - $h
+    $out = New-Buffer $w $h
+    $lost = 0
+    for ($y = 0; $y -lt $buf.h; $y++) {
+        for ($x = 0; $x -lt $buf.w; $x++) {
+            $i = $y * $buf.stride + $x * 4
+            $inside = ($x -ge $x0 -and $x -lt $x0 + $w -and $y -ge $y0)
+            if (-not $inside) {
+                if ($buf.bytes[$i + 3] -ge 250) { $lost++ }
+                continue
+            }
+            $o = ($y - $y0) * $out.stride + ($x - $x0) * 4
+            for ($c = 0; $c -lt 4; $c++) { $out.bytes[$o + $c] = $buf.bytes[$i + $c] }
+        }
+    }
+    if ($lost -gt 0) { Write-Warning "  ! ${name}: cutting it to ${w}x${h} cut off $lost of its pixels" }
+    return $out
+}
 
 # The scenery sizes, built to the same names the maps already use. Ten trees and
 # ten saplings, eight rocks and eight small ones, the same for bushes, six
@@ -216,7 +314,7 @@ if ($Objects) {
         building_guild   = 160; sign_guild       = 72
         chest = 32; chest_open = 32; door = 32; door_open = 32
         campfire = 48; arrow = 24
-        guild_noticeboard = 48; guild_couch = 56; guild_bench = 48
+        guild_noticeboard = 48; guild_couch = 56; guild_bench = 48; guild_bounty_board = 56
         guild_settle = 48; guild_chair = 24; guild_table = 56
         guild_desk = 56; guild_cabinet = 56; guild_bookshelf = 56
         guild_bookshelf_b = 56; guild_chest = 32; guild_rug = 72
@@ -249,7 +347,7 @@ foreach ($ore in "copper", "iron", "coal", "azuryte", "damascus", "orichalcum", 
 }
 foreach ($n in "building_house_a", "building_house_b", "building_shop", "building_guild",
                "sign_guild", "chest", "chest_open", "door", "door_open", "campfire", "arrow",
-               "guild_noticeboard", "guild_couch", "guild_bench", "guild_settle", "guild_chair",
+               "guild_noticeboard", "guild_bounty_board", "guild_couch", "guild_bench", "guild_settle", "guild_chair",
                "guild_table", "guild_desk", "guild_cabinet", "guild_bookshelf",
                "guild_bookshelf_b", "guild_chest", "guild_rug", "guild_banner",
                "guild_weapon_rack", "guild_armour_rack", "guild_rack", "guild_plant",
@@ -381,9 +479,11 @@ function Flatten($buf, $levels = 10) {
 # --- 3. outline --------------------------------------------------------------
 # Grown inwards rather than outwards: an outward rim would change the prop's
 # footprint, and these are placed on maps by size.
-function Add-Outline($buf, $darken = 0.62) {
+function Add-Outline($buf, $darken = 0.62, $wrap = "") {
     $orig = $buf.bytes.Clone()
     $opaque = { param($x, $y)
+        if ($wrap -eq "x") { $x = ($x + $buf.w) % $buf.w }
+        if ($wrap -eq "y") { $y = ($y + $buf.h) % $buf.h }
         if ($x -lt 0 -or $y -lt 0 -or $x -ge $buf.w -or $y -ge $buf.h) { return $false }
         return $orig[$y * $buf.stride + $x * 4 + 3] -ge 250
     }
@@ -574,10 +674,25 @@ foreach ($file in (Get-ChildItem $renders -Filter *.png -File -EA SilentlyContin
     }
 
     Flatten $buf
-    Add-Outline $buf
+    Add-Outline $buf 0.62 $(if ($WRAP.ContainsKey($name)) { $WRAP[$name] } else { "" })
     # After the outline, so the shadow is not itself outlined.
-    Add-ContactShadow $buf
+    if ($NOSHADOW -notcontains $name) { Add-ContactShadow $buf }
     Set-OnFloor $buf $name
+    if ($REGION.ContainsKey($name)) {
+        $r = $REGION[$name]
+        $buf = Crop-Region $buf $r[0] $r[1] $r[2] $r[3]
+        Write-Pixels $buf (Join-Path $outDir "$name.png")
+        Write-Host ("  {0,-14} {1}x{2}, from ({3}, {4})" -f $name, $buf.w, $buf.h, $r[0], $r[1])
+        $done++
+        continue
+    }
+    if ($CROP.ContainsKey($name)) {
+        $buf = Crop-Buffer $buf $CROP[$name][0] $CROP[$name][1] $name
+        Write-Pixels $buf (Join-Path $outDir "$name.png")
+        Write-Host ("  {0,-14} {1}x{2}" -f $name, $buf.w, $buf.h)
+        $done++
+        continue
+    }
     Write-Pixels $buf (Join-Path $outDir "$name.png")
     Write-Host ("  {0,-14} {1}x{1}" -f $name, $size)
     $done++

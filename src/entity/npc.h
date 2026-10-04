@@ -32,9 +32,55 @@ public:
     void FaceToward(float tx, float ty);
 
     const string& Id() const { return id; }
-    const string& Name() const { return name; }
-    const string& DialogueRoot() const { return dialogue_root; }
+    // As the story has them now: a state may call them something else, or
+    // give them something else to say.
+    const string& Name() const { return shown_name; }
+    const string& DialogueRoot() const { return shown_dialogue; }
     const string& Shop() const { return shop; }
+
+    // --- what a story has made of them -------------------------------------------------
+    // Which of NpcDef::states holds, settled by the world whenever its flags
+    // change (World::SettleStory); -1 is as defined. While one holds they stand
+    // where it puts them, or where they were placed, in its pose, and walk no
+    // round and wander nowhere.
+    void ApplyState(int index);
+    int  StateIndex() const { return state_index; }
+    const vector<NpcState>& States() const { return states; }
+    bool Asleep() const { return state_index >= 0 && states[state_index].asleep; }
+    // What trying to wake them shows.
+    string AsleepText() const;
+    // The story's prompt for them and its marker over them: see NpcState.
+    const string& Prompt() const { static const string none; return state_index >= 0 ? states[state_index].prompt : none; }
+    bool  Marked() const { return state_index >= 0 && states[state_index].mark && !away; }
+
+    // --- what a scene is doing with them ------------------------------------------------
+    // While a scene holds them (StoryDirector), nothing else moves them: not
+    // the clock, not a wander, not practice.
+    bool  scripted = false;
+    // Made for a scene, not the map: gone when it is over, and nobody to talk to.
+    bool  actor = false;
+    // Walked by a scene to a point, straight, at a pace, in a clip ("walk",
+    // "run"); facing the way they go. Arrived, they stand in `hold`.
+    void  WalkTo(float tx, float ty, float speed, const string& clip = "walk");
+    bool  Walking() const { return walk_on; }
+    void  StopWalking() { walk_on = false; }
+    // A clip held when not walking: "lie", "slump", the stranger's gesture.
+    // A one-shot plays once and stays on its last frame. Empty: idle.
+    void  Hold(const string& clip, bool restart = false);
+    const string& Held() const { return hold_clip; }
+    void  SetName(const string& n) { shown_name = n; }
+    // A picture rather than a person: a cart a scene pushes along the road.
+    // Drawn standing on (x, y), not animated -- from this row of it down, so
+    // a bed's blanket can be laid over whoever is lying in it.
+    string image;
+    int   image_from = 0;
+    float alpha = 1.0f;          // how solid: 0 is not there to see
+    float scale = 1.0f;          // how big: a child is a smaller townsperson
+    float dissolve = 0.0f;       // gone to smoke: 0 whole, 1 nothing left
+    bool  flicker = false;       // a faint shape coming and going
+    float lift = 0.0f;           // drawn this far above their feet (a mattress afloat)
+    float bob = 0.0f;            // and rising and falling this far either side of it, slowly
+    float sink = 0.0f;           // a picture this many rows down into the water it floats on: a bobber pulled under
 
     bool talking = false;        // frozen while in conversation
     // Whether they are someone who practises, and whether a cast is under way.
@@ -43,6 +89,13 @@ public:
 
 private:
     string id, name, dialogue_root, shop;
+    string shown_name, shown_dialogue;
+    vector<NpcState> states;
+    int    state_index = -1;
+    // A scene's walk.
+    bool   walk_on = false;
+    float  walk_x = 0, walk_y = 0, walk_speed = 60.0f;
+    string walk_clip = "walk", hold_clip;
     Facing home_facing = FACE_DOWN;
     float  home_x = 0, home_y = 0;
     bool   wanders = false;
@@ -56,7 +109,10 @@ private:
     float  from_hour = 0.0f, to_hour = 0.0f;
     float  shown = -1.0f;        // seconds into the round they are drawn at
     bool   away = false;
+public:
+    // A colour laid over them: a temper rising (StoryDirector "tint").
     SDL_Color tint{255, 255, 255, 255};
+private:
 
     // Practice: see NpcDef::cast_bolt.
     string cast_bolt;

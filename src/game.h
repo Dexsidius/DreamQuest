@@ -5,6 +5,8 @@
 #include "texturecache.h"
 #include "sprite.h"
 #include "world/world.h"
+#include "world/story.h"
+#include <deque>
 #include "systems/items.h"
 #include "systems/loot.h"
 #include "systems/quest.h"
@@ -49,6 +51,7 @@ enum class GameState {
     Shop,
     Storage,
     RewardChoice,      // a quest done: which of the rewards it offers to take
+    Ask,               // a question, yes or no: a scene's, or a door's
     Death,
 };
 
@@ -72,6 +75,13 @@ private:
     bool LoadContent();
     void ApplySettings();
     void NewGame(const string& character, SlotRef slot);
+    // The prologue: a new character found on the road at the end of a night,
+    // with nothing to their name, and the story's first scene begun. See
+    // data/story.json and StoryDirector.
+    void StartPrologue();
+    // A character still in it: their town is not yet theirs to leave, and
+    // nobody joins them until it is over.
+    bool InPrologue() const;
     bool LoadGame(SlotRef slot);
     bool SaveGame(SlotRef slot);
 
@@ -155,6 +165,7 @@ private:
     vector<string> BoardList() const;
     void UpdateNote();
     void UpdateSleepPrompt();
+    void UpdateAsk();
     void UpdateTravel();
     void UpdateTotemRing();
     void UpdateCrafting();
@@ -173,6 +184,12 @@ private:
     void DrawVisualEffects();
     void DrawMultiplayer();
     void DrawHud();
+    // A scene's bars, lines, note, title card and fade; and the sign a tip is
+    // shown on. See ui/screen_story.cpp.
+    void DrawStory();
+    void DrawTip();
+    // A tip's {Interact}, {Guard} and the rest, as this player's keys or buttons.
+    string FillPrompts(const string& text) const;
     void DrawWorldText();          // floating damage / pickup text
     void DrawPaused();
     void DrawInventory();
@@ -185,6 +202,7 @@ private:
     void DrawBoard();
     void DrawNote();
     void DrawSleepPrompt();
+    void DrawAsk();
     void DrawTravel();
     void DrawTotemRing();
     // The totems this character has, the one in the ring first: what the
@@ -493,6 +511,15 @@ private:
     string shop_id, pending_shop;
     // An NPC's order book, asked for in conversation and opened once it closes.
     string pending_orders;
+    // The story (data/story.json): its scenes, and the tips it raises, shown
+    // one at a time on a sign at the top of the screen.
+    StoryDirector story;
+    std::deque<StoryTip> tips;
+    float  tip_age = 0.0f;
+    // Dev: a scratch character plays the prologue (--prologue), has these
+    // flags (--flags a,b) and starts in this scene (--scene id).
+    bool   launch_prologue = false;
+    string launch_flags, launch_scene;
     bool   board_orders = false;     // the board panel is showing an order book
     // The board's filter: everything, or only what is within QuestLog::
     // LEVEL_RANGE of the character's Combat level. Kept from one board to the
@@ -592,6 +619,12 @@ private:
     coop::Host  coop_host;
     coop::Guest coop_guest;
     bool guest_session = false;
+    // The question being asked (GameState::Ask): its words and its two
+    // answers; whether it is a scene's (answered back to the story) or a
+    // door's (a yes sets `ask_flag` and tries the door again).
+    string ask_text, ask_yes, ask_no, ask_flag;
+    bool   ask_story = false;
+    int    ask_cursor = 0;
     void UpdateCoop(float dt);
     void EnterAsGuest(const net::Enter& enter);
     void EndGuestSession(const string& why);

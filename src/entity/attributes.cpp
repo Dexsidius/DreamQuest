@@ -230,9 +230,10 @@ vector<BoonLine> CharacterBoons(const Player& p, const StatusDatabase* statuses,
         vector<string> does;
         if (st == Status::Charm)     does.push_back("walking to whoever cast it");
         if (st == Status::Confused)  does.push_back("which way is which is backwards");
+        if (st == Status::Rooted)    does.push_back("webbed where you stand");
         if (d && d->holds)           does.push_back("held fast");
         if (d && (d->dot_share > 0.0f || d->dot_min > 0)) does.push_back("hurting");
-        if (d && d->speed < 1.0f && !d->holds) does.push_back("slowed");
+        if (d && d->speed < 1.0f && d->speed > 0.0f && !d->holds) does.push_back("slowed");
         if (d && d->attack < 1.0f)   does.push_back("Attack down");
         if (d && d->defence < 1.0f)  does.push_back("Defence down");
         out.push_back({Kind::Affliction, d ? d->name : string(StatusId(st)), Listed(does), SecondsLeftText(left)});

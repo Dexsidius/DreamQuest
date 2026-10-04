@@ -41,6 +41,19 @@ const char*  CraftStationName(CraftStation s);
 int          CraftSkill(CraftStation s);
 WeaponKind WeaponKindFromName(const string& name);
 
+// The spell bar's boxes, keys 1 to 6, and how many of them a caster opens --
+// left to right: a wooden one the first two, and each tier past wood one more,
+// so the azuryte tier is the first to open all six. A plain staff, a wand, a
+// grimoire and an orb open elements (fire, water, earth, air, the lightning,
+// the ancient magic); an element's own staff opens its four spells and then
+// the lightning and the ancient magic. A mage's next weapon is a spell more,
+// not only a bigger number.
+static constexpr int SPELL_BOXES = 6;
+static constexpr int FIRST_SPELL_BOXES = 2;
+inline int SpellBoxesAtTier(int tier_index) {
+    return std::clamp(FIRST_SPELL_BOXES + tier_index, FIRST_SPELL_BOXES, SPELL_BOXES);
+}
+
 struct ItemDef {
     string id, name, description;
     bool   stackable = false;
@@ -131,6 +144,15 @@ struct ItemDef {
         const int i = static_cast<int>(e) - static_cast<int>(Element::Fire);
         return (i >= 0 && i < 4) ? spell_slots[i] : none;
     }
+    // How many of the spell bar's boxes a caster opens: see SPELL_BOXES. Set
+    // when the tiers load (ItemDatabase::LoadTiers) -- from its tier, or for
+    // one made by hand from the tier its Magic requirement would put it in --
+    // unless its line says ("spell_boxes"). Unset is all of them.
+    int spell_boxes = 0;
+    int SpellBoxes() const { return spell_boxes > 0 ? std::min(spell_boxes, SPELL_BOXES) : SPELL_BOXES; }
+    // How many there are for it to open at all: an element's own staff casts
+    // nothing of another element, so the lightning's box is never one of its.
+    int SpellBoxTotal() const { return element != Element::None ? SPELL_BOXES - 1 : SPELL_BOXES; }
     // The hero's clip for its strikes: "thrust" for a spear. Empty is the
     // ordinary swing.
     string attack_clip;

@@ -188,7 +188,10 @@ void Minimap::Draw(SDL_Renderer* r, TextureCache& cache, UI& ui, const World& wo
         SDL_RenderTexture(r, ring, nullptr, &dst);
     }
 
-    // Where you are, under the dial.
-    ui.TextShadowed(world.CurrentMap().DisplayName(), cx, cy + radius + 14.0f,
+    // Where you are, under the dial -- and on the screen, when the name is
+    // wider than the dial and the dial is at the screen's edge.
+    const string& name = world.CurrentMap().DisplayName();
+    const float half = ui.Measure(name, TextSize::Small).x / 2.0f;
+    ui.TextShadowed(name, std::min(cx, ui.ViewWidth() - 6.0f - half), cy + radius + 14.0f,
                     TextSize::Small, Palette::TextDim, Align::Center);
 }

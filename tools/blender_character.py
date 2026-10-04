@@ -107,6 +107,24 @@ PALETTE = {
     "cart_iron": (0.36, 0.37, 0.41),
     "ore":       (0.52, 0.46, 0.42),
     "ore_glint": (0.84, 0.56, 0.32),
+    # And the sweeper's apron and broom: see APRON and TOOL.
+    "apron":       (0.86, 0.82, 0.70),
+    "apron_dk":    (0.70, 0.66, 0.56),
+    "broom_wood":  (0.56, 0.40, 0.24),
+    "broom_straw": (0.84, 0.70, 0.40),
+    "broom_bind":  (0.42, 0.30, 0.20),
+    # And the tools townsfolk demonstrate with, and the Anchor's thread the
+    # bound are hung by: see build_clip_tool.
+    "tool_haft":    (0.58, 0.41, 0.24),
+    "tool_iron":    (0.58, 0.60, 0.65),
+    "tool_iron_dk": (0.36, 0.36, 0.40),
+    "tool_iron_lt": (0.78, 0.80, 0.84),
+    "tool_leather": (0.46, 0.31, 0.20),
+    "tool_rod":     (0.80, 0.63, 0.40),
+    "tool_line":    (0.92, 0.88, 0.78),
+    "tool_float":   (0.90, 0.22, 0.20),
+    "tool_thread":  (0.12, 0.10, 0.16),
+    "tool_thread_lt": (0.28, 0.22, 0.38),
 }
 
 # The three characters offered at the start, as differences from the palette
@@ -289,6 +307,24 @@ LOOKS = {
                     "ore_glint": (0.34, 0.33, 0.36)},
         "hair": 0.5, "scarf": False, "weapon": False, "dwarf": True, "cart": "coal",
     },
+    # The one person still sweeping Havenbrook's empty street in the prologue:
+    # a townsperson like the others, in an apron, with a long broom in both
+    # hands. Their idle is the sweeping itself (see CLIP_OVERRIDES).
+    "sweeper": {
+        "palette": {"hair":    (0.50, 0.40, 0.31),
+                    "tunic":   (0.47, 0.54, 0.44),
+                    "trim":    (0.33, 0.39, 0.31),
+                    "belt":    (0.35, 0.27, 0.20),
+                    "trouser": (0.40, 0.37, 0.33),
+                    "boot":    (0.30, 0.24, 0.19),
+                    "skin":    (0.92, 0.75, 0.60)},
+        "hair": 0.8,
+        "scarf": False,
+        "weapon": True,
+        "tool": "broom",
+        "apron": True,
+        "clips": {"idle": "pose_sweeping", "walk": "pose_broom_walk"},
+    },
     "player_wayfarer": {
         "palette": {"hair":    (0.86, 0.82, 0.70),
                     "tunic":   (0.62, 0.68, 0.80),
@@ -314,11 +350,71 @@ ARMOUR_ON = True
 DWARF = False
 # A cart of ore pushed in front, and the arms out to its handle.
 CART = False
+# What is in the hand instead of the sword ("broom"), an apron over the tunic,
+# and the clips a look plays a pose of its own under: {clip: pose function name}.
+TOOL = None
+APRON = False
+CLIP_OVERRIDES = {}
+# What a look that carries no weapon holds for these clips instead (see
+# build_clip_tool), and which clip is being built -- build_sheet sets it.
+CLIP_TOOLS = {"chop": "axe", "mine": "pickaxe", "fish": "rod", "swing": "hammer", "hang": "bonds"}
+CURRENT_CLIP = None
+
+
+def build_clip_tool(kind, grip, joints):
+    """A villager's tool in the grip's frame -- the fist at the origin, the haft
+    down -Z to the head, as the tier tools are built -- or, for "bonds", the
+    black thread of an Anchor wound round both wrists and running up out of
+    the frame. Iron-tier proportions, chunky enough to read in a 40 pixel
+    villager's hand."""
+    if kind == "axe":
+        return [part("t_haft", mesh_capsule(0.022, 0.020, 0.52), "tool_haft", grip, loc=(0, 0, 0.08)),
+                part("t_cheek", mesh_ellipsoid(0.034, 0.066, 0.056), "tool_iron_dk", grip, loc=(0, 0, -0.37)),
+                part("t_blade", mesh_ellipsoid(0.026, 0.10, 0.11), "tool_iron", grip, loc=(0, -0.09, -0.37)),
+                part("t_edge", mesh_ellipsoid(0.030, 0.024, 0.11), "tool_iron_lt", grip, loc=(0, -0.175, -0.37))]
+    if kind == "pickaxe":
+        out = [part("t_haft", mesh_capsule(0.022, 0.020, 0.54), "tool_haft", grip, loc=(0, 0, 0.08)),
+               part("t_eye", mesh_ellipsoid(0.040, 0.046, 0.040), "tool_iron_dk", grip, loc=(0, 0, -0.40))]
+        for side in (-1, 1):
+            out.append(spike("t_arm", (0, 0, -0.40), (0, side * 0.11, -0.38), 0.036, "tool_iron", grip, r_tip=0.030))
+            out.append(spike("t_point", (0, side * 0.11, -0.38), (0, side * 0.21, -0.30), 0.030,
+                             "tool_iron_lt" if side < 0 else "tool_iron", grip, r_tip=0.010))
+        return out
+    if kind == "rod":
+        return [part("t_grip", mesh_capsule(0.030, 0.026, 0.13), "tool_leather", grip, loc=(0, 0, 0.09)),
+                part("t_reel", mesh_torus(0.032, 0.013), "tool_iron_dk", grip, loc=(0, 0.034, -0.02),
+                     rot=(0, rad(90), 0)),
+                part("t_rod", mesh_capsule(0.019, 0.007, 0.95), "tool_rod", grip, loc=(0, 0, -0.04)),
+                spike("t_line", (0, 0, -1.00), (0, -0.20, -1.02), 0.006, "tool_line", grip, r_tip=0.006),
+                part("t_float", mesh_ellipsoid(0.032, 0.032, 0.036), "tool_float", grip, loc=(0, -0.21, -1.03))]
+    if kind == "hammer":
+        # A smith's sledge: the haft runs up past the fist for the other hand,
+        # the head is a block with its two faces fore and aft.
+        return [part("t_haft", mesh_capsule(0.024, 0.022, 0.70), "tool_haft", grip, loc=(0, 0, 0.20)),
+                part("t_head", mesh_box(0.12, 0.30, 0.13), "tool_iron_dk", grip, loc=(0, 0, -0.52)),
+                part("t_face_a", mesh_box(0.13, 0.03, 0.14), "tool_iron_lt", grip, loc=(0, -0.155, -0.52)),
+                part("t_face_b", mesh_box(0.13, 0.03, 0.14), "tool_iron", grip, loc=(0, 0.155, -0.52))]
+    if kind == "bonds":
+        out = []
+        for side in ("l", "r"):
+            hand = joints["hand_" + side]
+            out.append(part("t_wrap_" + side, mesh_torus(0.066, 0.024), "tool_thread_lt", hand, loc=(0, 0, 0.03)))
+            out.append(part("t_wrap2_" + side, mesh_torus(0.060, 0.020), "tool_thread", hand, loc=(0, 0, -0.01),
+                            rot=(rad(20), 0, 0)))
+            # Up out of the frame from the wrists: the hand hangs from it. Along
+            # the hand's -Z, onward from the arm: +Z runs back down the raised
+            # arm, and there the thread hung down the body like a cloak.
+            out.append(spike("t_strand_" + side, (0, 0, 0.0), (0, -0.02, -1.30), 0.024, "tool_thread", hand,
+                             r_tip=0.016))
+            out.append(spike("t_strand2_" + side, (0, 0.02, 0.0), (0.05, 0.06, -1.10), 0.016, "tool_thread_lt",
+                             hand, r_tip=0.010))
+        return out
+    return []
 
 
 def apply_look(name):
     """Palette and shape for one of LOOKS, before anything is built."""
-    global HAIR_SCALE, SCARF_ON, WEAPON_ON, ARMOUR_ON, DWARF, CART
+    global HAIR_SCALE, SCARF_ON, WEAPON_ON, ARMOUR_ON, DWARF, CART, TOOL, APRON, CLIP_OVERRIDES
     look = LOOKS.get(name)
     if look is None:
         raise SystemExit("unknown look '%s'; have %s" % (name, ", ".join(LOOKS)))
@@ -329,6 +425,9 @@ def apply_look(name):
     SCARF_ON = look.get("scarf", True)
     WEAPON_ON = look.get("weapon", True)
     ARMOUR_ON = look.get("armour", name.startswith("player_"))
+    TOOL = look.get("tool")
+    APRON = look.get("apron", False)
+    CLIP_OVERRIDES = dict(look.get("clips", {}))
 
 
 # The ramp: how bright each band is relative to the base colour, where the
@@ -771,9 +870,34 @@ def build_character():
     # renderer builds the off-hand dagger on it.
     grip_l = empty("grip_l", (0, -0.01, -0.02), joints["hand_l"])
     grip_l.rotation_euler = Euler((rad(10), rad(-18), 0), "XYZ")
+    # An apron over the tunic, from under the collar to the knee, and its tie.
+    if APRON:
+        g[BODY] += [
+            part("apron", mesh_capsule(0.115, 0.135, 0.36, squash_y=0.22), "apron", chest,
+                 loc=(0, -0.122, 0.170), rot=(rad(-6), 0, 0)),
+            part("apron_hem", mesh_ellipsoid(0.13, 0.03, 0.022), "apron_dk", chest, loc=(0, -0.176, -0.300)),
+            part("apron_tie", mesh_ellipsoid(0.17, 0.135, 0.022), "apron_dk", chest, loc=(0, -0.004, 0.02)),
+        ]
+
     # A townsfolk look carries nothing: the grip empty stays, because every pose
-    # turns it, and nothing hangs off it.
-    if WEAPON_ON:
+    # turns it, and nothing hangs off it. The sweeper holds a broom in it: the
+    # handle runs up through the fist, the bristles hang where a blade would.
+    # Townsfolk show the player how the work is done (Act I's gathering
+    # tutorials, and Halda at her hammer), so for those clips the tool is in
+    # their hand and in their own sheet -- the player's tools come from the tier
+    # layers instead, which nobody else is drawn with. Anyone hung in an
+    # Anchor's thread has the thread in place of whatever they carry.
+    clip_tool = CLIP_TOOLS.get(CURRENT_CLIP)
+    if clip_tool == "bonds" or (clip_tool and not WEAPON_ON):
+        g[WEAPON] += build_clip_tool(clip_tool, grip, joints)
+    elif WEAPON_ON and TOOL == "broom":
+        g[WEAPON] += [
+            part("broom_handle", mesh_capsule(0.030, 0.030, 0.86), "broom_wood", grip, loc=(0, 0, 0.42)),
+            part("broom_bind", mesh_torus(0.060, 0.020), "broom_bind", grip, loc=(0, 0, -0.43)),
+            part("broom_head", mesh_capsule(0.062, 0.135, 0.20, squash_y=0.50), "broom_straw", grip,
+                 loc=(0, 0, -0.44)),
+        ]
+    elif WEAPON_ON:
         g[WEAPON] += [
             part("pommel", mesh_ellipsoid(0.028, 0.028, 0.028), "gold", grip, loc=(0, 0, 0.09)),
             part("hilt", mesh_capsule(0.02, 0.02, 0.1), "grip", grip, loc=(0, 0, 0.06)),
@@ -1578,6 +1702,154 @@ def pose_death(t):
     }
 
 
+# --- asleep, and waking ---------------------------------------------------------
+# The prologue's: someone lying on their back (on the road, in a cart, in a
+# bed), sitting up out of it, asleep sitting against a wall, and shaking a
+# sleeper who will not wake.
+#
+# Lying is the whole body tipped back about the feet (`tip`, as death tips it
+# forward), so in the row facing the camera the head is at the top of the frame
+# and the feet at the bottom -- a body laid on a bed with its headboard to the
+# north, or along a cart. `lunge` and `bob` then carry the tip so the hips stay
+# put: half the body each side of the sprite's anchor, and the same hips when
+# it sits up, so the two clips join.
+LIE_HIPS = (-0.19, 0.20)      # where the hips lie, from the anchor: south of it, and off the floor
+SIT_HIPS = (-0.19, 0.09)      # and where they sit, on the floor
+
+
+def _hips_at(tip, hips):
+    """lunge and bob that put the hips at `hips` (y, z) with the body tipped
+    back by `tip` degrees about the move joint."""
+    h = 0.33 if DWARF else 0.41
+    a = math.radians(tip)
+    return {"lunge": -(hips[0] - h * math.sin(a)), "bob": hips[1] - h * math.cos(a)}
+
+
+def pose_lie(t):
+    """On the back, out cold: arms loose at the sides, legs straight, the chin
+    a little down, and the chest rising and falling."""
+    b = math.sin(t * math.tau)
+    v = {"tip": 90.0, "leg_l": 0.0, "leg_r": 0.0, "knee_l": 6, "knee_r": 3,
+         "arm_l": 4, "arm_r": 2, "flare_l": 20, "flare_r": 18, "elbow_l": 16, "elbow_r": 12,
+         "lean": 2.5 * b, "nod": 16 - 2.0 * b, "asleep": 1.0, "scarf": 0, "scarf2": 0, "hair": 0,
+         # The face turned a little to one side, as a head lies on a pillow:
+         # straight up, the row facing the camera was someone standing with
+         # their eyes shut.
+         "look": 10}
+    v.update(_hips_at(90.0, LIE_HIPS))
+    v["bob"] += 0.008 * b
+    return v
+
+
+def pose_sit_up(t):
+    """Up from lying to sitting, the legs left where they were: the head and
+    shoulders lift, the elbows and then the hands push on the ground behind,
+    and the body comes up over the hips. The first frame is the lie's."""
+    if t <= 0.0:
+        return pose_lie(0.0)
+    keys = [
+        (0.00, dict(tip=90.0, arm_l=4, arm_r=2, flare_l=20, flare_r=18, elbow_l=16, elbow_r=12, nod=16, lean=0,
+                    knee_l=6, knee_r=3)),
+        (0.25, dict(tip=68.0, arm_l=-34, arm_r=-34, flare_l=22, flare_r=22, elbow_l=70, elbow_r=70, nod=24, lean=14,
+                    knee_l=8, knee_r=6)),
+        (0.50, dict(tip=42.0, arm_l=-46, arm_r=-46, flare_l=18, flare_r=18, elbow_l=26, elbow_r=26, nod=12, lean=10,
+                    knee_l=10, knee_r=8)),
+        (0.75, dict(tip=16.0, arm_l=-34, arm_r=-34, flare_l=16, flare_r=16, elbow_l=12, elbow_r=12, nod=2, lean=6,
+                    knee_l=14, knee_r=10)),
+        (1.00, dict(tip=0.0, arm_l=34, arm_r=30, flare_l=12, flare_r=12, elbow_l=40, elbow_r=44, nod=-2, lean=8,
+                    knee_l=16, knee_r=12)),
+    ]
+    v = _keyed(keys, t)
+    # Eyes shut while still lying back, open once the head is up; the face
+    # comes round from the pillow as it lifts.
+    if t < 0.4:
+        v["asleep"] = 1.0
+    v["look"] = 10.0 * max(0.0, 1.0 - t / 0.5)
+    tip = v["tip"]
+    # The legs stay flat along the ground whatever the body does above them.
+    v["leg_l"] = v["leg_r"] = 90.0 - tip
+    k = 1.0 - tip / 90.0
+    hips = (LIE_HIPS[0], LIE_HIPS[1] + (SIT_HIPS[1] - LIE_HIPS[1]) * k)
+    v.update(_hips_at(tip, hips))
+    v.update(scarf=10 * k, scarf2=6 * k, hair=0)
+    return v
+
+
+def pose_slump(t):
+    """Asleep sitting on the ground against something: the legs out in front,
+    one knee drawn up a little, the back leaning on the wall, the chest sunk
+    forward, the hands in the lap and the head fallen down and to one side,
+    breathing slowly. Knees drawn right up hid the legs under the chest, and
+    at this size it was a sack."""
+    b = math.sin(t * math.tau)
+    tip = 16.0
+    v = {"tip": tip, "leg_l": 70, "leg_r": 92, "knee_l": 44, "knee_r": 12,
+         "lean": 22 + 2.0 * b, "nod": 24 - 1.5 * b, "loll": 26, "twist": 5,
+         "arm_l": 34, "arm_r": 40, "flare_l": 10, "flare_r": 8, "elbow_l": 48, "elbow_r": 44,
+         "asleep": 1.0, "scarf": 4, "scarf2": 2, "hair": 0}
+    v.update(_hips_at(tip, (0.0, SIT_HIPS[1])))
+    v["bob"] += 0.006 * b
+    return v
+
+
+def pose_shake(t):
+    """Standing over a bed, bent a little, both hands out at chest height on
+    the sleeper's shoulders, rocking them: forward, back, forward."""
+    b = math.sin(t * math.tau)
+    elbow = 26 - 10 * b
+    # Whatever is in the hand hangs straight down from the fist rather than
+    # pointing at the sleeper: the grip pitches by elbow * 0.8 - 8 - sword
+    # (see apply_pose), and a right angle more than the forearm points it down.
+    return {"lean": 16 + 10 * b, "nod": 6 + 4 * b, "arm_l": 64 + 12 * b, "arm_r": 64 + 12 * b,
+            "elbow_l": elbow, "elbow_r": elbow, "flare_l": 6, "flare_r": 6, "sword": elbow * 0.8 - 98,
+            "lunge": 0.03 + 0.035 * b, "leg_l": 12, "leg_r": -8, "knee_l": 12 + 4 * b, "knee_r": 8,
+            "scarf": 18 + 6 * b, "scarf2": 10 + 4 * b, "hair": 2 * b}
+
+
+def pose_hang(t):
+    """Bound in an Anchor's thread and hung from it (Act I's finale: the Mayor
+    and the Guild master): both arms up over the head, wrists together where
+    the thread holds them, the head fallen forward between them, the body
+    hanging slack with the feet off the floor, turning a little on the thread."""
+    b = math.sin(t * math.tau)
+    # Up and apart in a Y, not straight up: straight up, the arms stood behind
+    # the head from the camera and the thread over it read as a topknot.
+    return {"arm_l": 180, "arm_r": 180, "flare_l": 38, "flare_r": 38, "elbow_l": 10, "elbow_r": 10,
+            "nod": 34, "lean": 4 + 2 * b, "loll": 6 * b,
+            "leg_l": 6 + 3 * b, "leg_r": -2 - 3 * b, "knee_l": 14, "knee_r": 20,
+            "twist": 6 * b, "hips_twist": 4 * b, "bob": 0.14 + 0.006 * b, "asleep": 1.0,
+            "scarf": 2, "scarf2": 2, "hair": 4 * b, "skirt": 2 * b}
+
+
+# --- the sweeper ------------------------------------------------------------------
+def pose_sweeping(t):
+    """The sweeper's idle: both hands down the broom handle, the bristles on
+    the ground in front of the feet, swished from side to side, and the body
+    turning a little with each stroke."""
+    s = math.sin(t * math.tau)
+    return _two_hands((-0.02 + 0.03 * s, -0.17, -0.14), (0.42 * s, -0.44, -0.80), edge=(1.0, 0.0, 0.0), left_on=0.24,
+                      lean=6, twist=-10 * s, hips_twist=-4 * s, nod=-2, leg_l=8, leg_r=-6, knee_l=12, knee_r=10,
+                      bob=-0.01, hair=1.5 * s)
+
+
+def pose_broom_walk(t):
+    """And walking with it: the legs of the walk, the broom carried across the
+    body in both hands with its bristles low in front. Held the way a sword
+    swings in one hand, the bristles came up level with the chest."""
+    v = pose_walk(t)
+    for k in ("arm_l", "arm_r", "elbow_l", "elbow_r", "flare_l", "flare_r"):
+        v.pop(k, None)
+    v.update(_two_hands((-0.03, -0.15, -0.12), (0.30, -0.42, -0.86), edge=(1.0, 0.0, 0.0), left_on=0.24,
+                        lean=v.get("lean", 4), twist=v.get("twist", 0.0) * 0.5, nod=-2))
+    return v
+
+
+# The shadow under a body on the ground: its scale (across, along) and where
+# its middle is from the anchor, both in the body's own axes.
+SHADOW_SHAPES = {"lie": ((1.15, 3.3), (0.0, 0.08)), "sit_up": ((1.15, 2.3), (0.0, -0.16)),
+                 "slump": ((1.35, 1.9), (0.0, -0.16))}
+
+
 def _ease(k):
     k = max(0.0, min(1.0, k))
     return k * k * (3 - 2 * k)
@@ -2053,6 +2325,17 @@ CLIPS = {
     "mine":   (pose_mine,   8,  True),
     "fish":   (pose_fish,   8,  True),
     "gather": (pose_gather, 8,  True),
+    # The prologue's: lying out cold and sitting up from it, asleep sitting
+    # against a wall, and shaking a sleeper. See pose_lie.
+    "lie":    (pose_lie,    4,  True),
+    "sit_up": (pose_sit_up, 5,  False),
+    "slump":  (pose_slump,  4,  True),
+    "shake":  (pose_shake,  4,  True),
+    # Act I's: Halda's hammer swung two-handed at the Forge Demon in her dream
+    # (the crushing blow, with a sledge in both hands -- see CLIP_TOOLS), and
+    # the bound hanging in the Guild Hall's Anchor. See pose_hang.
+    "swing":  (two_handed(pose_crush, left_on=0.12), 6, False),
+    "hang":   (pose_hang,   4,  True),
 }
 
 # Rows in the order every sheet in this project uses, and how far the
@@ -2079,6 +2362,10 @@ def pose_for(clip_name, t, facing):
     pose in every row unless its pose function takes the facing as well: a bow
     is held upright side on and flat facing the camera or away from it."""
     pose_fn = CLIPS[clip_name][0]
+    # A look can play its own pose under a clip's name: the sweeper's idle is
+    # sweeping. The frame count is still the clip's.
+    if clip_name in CLIP_OVERRIDES:
+        pose_fn = globals()[CLIP_OVERRIDES[clip_name]]
     values = pose_fn(t, facing) if pose_fn.__code__.co_argcount > 1 else pose_fn(t)
     # Seen from above, leaning toward or away from the camera only slides the
     # head down over the body until the character is a head with feet. Side
@@ -2324,7 +2611,8 @@ def apply_pose(joints, extras, v):
     # says instead which way the face points, in the character's own terms: an
     # archer turned side on still looks down the arrow.
     yaw = get("look") - get("twist") - get("hips_twist") if "look" in v else -get("twist") * 0.4
-    joints["neck"].rotation_euler = Euler((rad(get("nod") - get("lean") * 0.35), 0, rad(yaw)), "XYZ")
+    # `loll` rolls the head over onto one shoulder: a sleeper's.
+    joints["neck"].rotation_euler = Euler((rad(get("nod") - get("lean") * 0.35), rad(get("loll")), rad(yaw)), "XYZ")
     joints["hair"].rotation_euler = Euler((rad(get("hair")), 0, 0), "XYZ")
     joints["skirt"].rotation_euler = Euler((rad(get("skirt")), 0, 0), "XYZ")
     joints["scarf1"].rotation_euler = Euler((rad(get("scarf")), 0, rad(8)), "XYZ")
@@ -2351,6 +2639,10 @@ def apply_pose(joints, extras, v):
     shut = get("blink")
     for eye in extras["eyes"]:
         eye.scale = (1.0, 1.0, max(0.12, 1.0 - shut))
+        # Asleep: shut, but drawn -- a blink's sliver is a pixel's worth of
+        # nothing, and a sleeper's face without it is a blank.
+        if get("asleep") > 0.5:
+            eye.scale = (1.25, 1.0, 0.58)
 
     # What is held with both hands, or has to point somewhere: the right hand is
     # put where the pose wants it, what it holds is aimed, and then the left is
@@ -2522,6 +2814,8 @@ def outline(img, strength=0.42):
 
 
 def build_sheet(clip_name, out_dir):
+    global CURRENT_CLIP
+    CURRENT_CLIP = clip_name
     _, frames, loops = CLIPS[clip_name]
     cols, rows = frames, len(FACINGS)
 
@@ -2547,6 +2841,13 @@ def build_sheet(clip_name, out_dir):
             joints["root"].rotation_euler.z = math.radians(turn)
             joints["root"].location = offset
             shadow.location = offset + Vector((0, 0, 0.004))
+            # Someone on the ground throws a shadow the length of them, turned
+            # with the way they lie.
+            if clip_name in SHADOW_SHAPES:
+                (sx, sy), (ox, oy) = SHADOW_SHAPES[clip_name]
+                shadow.scale = (sx, sy, 1.0)
+                shadow.rotation_euler.z = math.radians(turn)
+                shadow.location = offset + Matrix.Rotation(math.radians(turn), 3, "Z") @ Vector((ox, oy, 0.004))
 
             layers["shadow"].append(shadow)
             layers["body"] += groups[BODY]

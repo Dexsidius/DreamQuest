@@ -32,6 +32,8 @@
 //    charm      (players only) beguiled: they walk to whoever cast it and
 //               cannot bring themselves to strike. The next blow breaks it.
 //    confused   (players only) befuddled: which way is which is backwards.
+//    rooted     (players only) webbed to the ground: no walking and no rolling
+//               until it gives, though they can still swing and cast.
 //
 //  On the player a status runs for `player_share` of its time -- a player held
 //  frozen for as long as a monster is is a player watching themselves die --
@@ -48,6 +50,7 @@
 // -----------------------------------------------------------------------------
 
 enum class Status : uint8_t { Burn = 0, Wet, Concussed, Bleed, Poison, Chill, Frozen, Electrified, Charm, Confused,
+                              Rooted,
                               COUNT };
 static constexpr int STATUS_COUNT = static_cast<int>(Status::COUNT);
 

@@ -5,6 +5,10 @@ void Npc::Init(const NpcDef& def, const GameContext& ctx) {
     id            = def.id;
     name          = def.name;
     dialogue_root = def.dialogue;
+    shown_name     = name;
+    shown_dialogue = dialogue_root;
+    states        = def.states;
+    state_index   = -1;
     shop          = def.shop;
     x = home_x    = def.x;
     y = home_y    = def.y;
@@ -72,8 +76,108 @@ SDL_FPoint Npc::PlaceAt(float into_round, Facing* face, bool* walking) const {
 }
 
 void Npc::Render(SDL_Renderer* r, TextureCache& cache, const Camera& cam) const {
-    if (away) return;
-    sprite.Draw(r, cache, cam, x, y - draw_lift, tint);
+    if (away || alpha <= 0.0f) return;
+    float a = alpha;
+    if (flicker) {
+        // Coming and going, never quite the same twice: a slow swell and a
+        // quicker stutter over it, out of step with every other one.
+        const float t = static_cast<float>(SDL_GetTicks()) / 1000.0f + x * 0.013f + y * 0.007f;
+        const float swell = 0.5f + 0.5f * sinf(t * 1.7f);
+        const float stutter = sinf(t * 11.0f) * sinf(t * 7.3f + 1.0f);
+        a *= std::clamp(0.35f + 0.5f * swell + 0.25f * stutter, 0.05f, 1.0f);
+    }
+    // Adrift: up and down, slowly, out of step with anything else afloat.
+    const float drift = bob != 0.0f
+        ? roundf(bob * sinf(static_cast<float>(SDL_GetTicks()) / 1000.0f * 1.1f + x * 0.021f + y * 0.013f))
+        : 0.0f;
+    if (!image.empty()) {
+        SDL_Texture* tex = cache.Get(image);
+        if (!tex) return;
+        const SDL_Point size = cache.Size(image);
+        const float from = static_cast<float>(std::clamp(image_from, 0, size.y - 1));
+        const float h = static_cast<float>(size.y) - from;
+        // Sunk: as many rows of it under the water as it is pulled down, and
+        // the rest drawn that much lower, so its foot stays at the waterline.
+        const float under = std::clamp(roundf(sink), 0.0f, h - 1.0f);
+        const SDL_FRect src = {0.0f, from, static_cast<float>(size.x), h - under};
+        const SDL_FRect world = {x - size.x / 2.0f, y - lift - drift - draw_lift - h + under, static_cast<float>(size.x),
+                                 h - under};
+        const SDL_FRect dst = cam.ToScreenRect(world);
+        SDL_SetTextureColorMod(tex, tint.r, tint.g, tint.b);
+        SDL_SetTextureAlphaMod(tex, static_cast<Uint8>(255.0f * std::clamp(a, 0.0f, 1.0f)));
+        SDL_RenderTexture(r, tex, &src, &dst);
+        SDL_SetTextureAlphaMod(tex, 255);
+        SDL_SetTextureColorMod(tex, 255, 255, 255);
+        return;
+    }
+    SDL_Color t = tint;
+    t.a = static_cast<Uint8>(255.0f * std::clamp(a, 0.0f, 1.0f));
+    if (dissolve > 0.0f && Shaders::Effects()) {
+        // Going to smoke, or coming out of it: the sprite shader eats the
+        // figure away from the edges and lets it drift up into the air.
+        Shaders::SpriteFx fx;
+        fx.dissolve = std::clamp(dissolve, 0.0f, 1.0f);
+        fx.dissolve_kind = 3;
+        fx.seed = fmodf(x * 0.31f + y * 0.17f, 7.0f);
+        fx.rim = true;
+        sprite.Draw(r, cache, cam, x, y - lift - drift - draw_lift, t, SDL_BLENDMODE_BLEND, 1.0f, &fx);
+        return;
+    }
+    if (dissolve > 0.0f) t.a = static_cast<Uint8>(t.a * (1.0f - std::clamp(dissolve, 0.0f, 1.0f)));
+    sprite.Draw(r, cache, cam, x, y - lift - drift - draw_lift, t);
+}
+
+void Npc::ApplyState(int index) {
+    if (index >= static_cast<int>(states.size())) index = -1;
+    state_index = index;
+    shown_name = name;
+    shown_dialogue = dialogue_root;
+    alpha = 1.0f;
+    flicker = false;
+    sort_bias = 0.0f;
+    if (index < 0) {
+        // Back as defined: where they were placed, facing the way they face.
+        away = false;
+        x = home_x;
+        y = home_y;
+        facing = home_facing;
+        sprite.facing = facing;
+        shown = -1.0f;
+        return;
+    }
+    const NpcState& s = states[index];
+    away = s.hidden;
+    if (s.moved) { x = s.x; y = s.y; }
+    else         { x = home_x; y = home_y; }
+    facing = s.turned ? s.facing : home_facing;
+    sprite.facing = facing;
+    if (!s.name.empty())     shown_name = s.name;
+    if (!s.dialogue.empty()) shown_dialogue = s.dialogue;
+    alpha = s.alpha;
+    flicker = s.flicker;
+    sort_bias = s.sort_bias;
+    sprite.Play(s.pose.empty() ? string("idle") : s.pose, true);
+}
+
+string Npc::AsleepText() const {
+    if (state_index < 0) return "";
+    const NpcState& s = states[state_index];
+    if (!s.asleep_text.empty()) return s.asleep_text;
+    return shown_name + " is asleep. Nothing you do wakes them.";
+}
+
+void Npc::WalkTo(float tx, float ty, float speed, const string& clip) {
+    scripted = true;
+    walk_on = true;
+    walk_x = tx;
+    walk_y = ty;
+    walk_speed = std::max(1.0f, speed);
+    walk_clip = clip.empty() ? string("walk") : clip;
+}
+
+void Npc::Hold(const string& clip, bool restart) {
+    hold_clip = clip;
+    if (!walk_on) sprite.Play(clip.empty() ? string("idle") : clip, restart);
 }
 
 void Npc::FaceToward(float tx, float ty) {
@@ -85,6 +189,46 @@ void Npc::FaceToward(float tx, float ty) {
 
 void Npc::Update(float dt, World& world, const GameContext& ctx) {
     (void)ctx;
+
+    // --- held by a scene ----------------------------------------------------------------
+    if (scripted) {
+        if (walk_on) {
+            const float dx = walk_x - x, dy = walk_y - y;
+            const float d = Length(dx, dy);
+            const float step = walk_speed * dt;
+            if (d <= step || d < 0.5f) {
+                x = walk_x;
+                y = walk_y;
+                walk_on = false;
+                sprite.Play(hold_clip.empty() ? string("idle") : hold_clip, !hold_clip.empty());
+            } else {
+                x += dx / d * step;
+                y += dy / d * step;
+                if (fabsf(dx) > fabsf(dy)) facing = dx > 0 ? FACE_RIGHT : FACE_LEFT;
+                else                       facing = dy > 0 ? FACE_DOWN : FACE_UP;
+                sprite.Play(walk_clip);
+            }
+        } else if (hold_clip.empty()) {
+            sprite.Play("idle");
+        }
+        sprite.facing = facing;
+        sprite.Update(dt);
+        return;
+    }
+
+    // --- held by a story: asleep in a doorway, slumped over a stall -----------------------
+    if (state_index >= 0) {
+        if (away) return;
+        const NpcState& s = states[state_index];
+        if (talking && !s.asleep) FaceToward(world.player.x, world.player.y);
+        else {
+            facing = s.turned ? s.facing : home_facing;
+            sprite.facing = facing;
+        }
+        sprite.Play(s.pose.empty() ? string("idle") : s.pose);
+        sprite.Update(dt);
+        return;
+    }
 
     if (talking) {
         // Hold still and keep looking at whoever is talking.

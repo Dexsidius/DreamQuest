@@ -12,6 +12,7 @@
 #include "lighting.h"
 #include "../systems/clock.h"
 #include "../systems/shop.h"
+#include "../systems/gathering.h"
 
 struct WaystoneDef;   // systems/waystones.h
 
@@ -20,7 +21,8 @@ struct WaystoneDef;   // systems/waystones.h
 struct WorldRequest {
     // Totem is the last, and FromPanel in coop.cpp says so: what goes down the
     // wire is a number, and one past the end is held to the end.
-    enum class Type { Dialogue, Board, Note, Shop, Toast, Craft, Storage, Enchant, Sleep, Travel, Totem } type = Type::Toast;
+    enum class Type { Dialogue, Board, Note, Shop, Toast, Craft, Storage, Enchant, Sleep, Travel, Totem,
+                      Ask } type = Type::Toast;
     string id;            // npc id / object id / shop id
     string title;
     string text;          // note body, toast message, dialogue root node
@@ -38,6 +40,9 @@ struct SeatState {
     Targeting targeting;
     int    gather_index = -1;
     float  gather_timer = 0.0f, gather_needed = 0.0f;
+    Gathering::Angler angler;
+    string angler_fish;
+    float  angler_x = 0.0f, angler_y = 0.0f, reel_click = 0.0f;
     float  hazard_timer = 0.0f, gate_note_timer = 0.0f, lifesteal_bank = 0.0f;
     // Their footing on thin ice: see World::IceStrain.
     float  ice_strain = 0.0f, ice_grace = 0.0f, ice_sink = -1.0f;
@@ -56,7 +61,7 @@ struct SeatState {
     float  fade = 0.0f, fade_speed = 3.2f;
     int    fade_dir = 0;
     string fade_caption;
-    bool   dream_active = false;
+    bool   dream_active = false, dream_story = false, dream_locked = false;
     string dream_map;
     float  dream_x = 0.0f, dream_y = 0.0f;
     // Panels asked for while acting as them: theirs to open, not the host's.
@@ -239,7 +244,15 @@ public:
             if (acting_flags_rw->insert(key).second && acting_log) acting_log->push_back(key);
             return;
         }
-        if (flags.insert(key).second && journal) flag_log.push_back(key);
+        if (flags.insert(key).second) {
+            ++story_version;
+            if (journal) flag_log.push_back(key);
+        }
+    }
+    // Takes a flag back: what a story does when something it set is undone --
+    // Havenbrook woken (HAVENBROOK_ASLEEP), an act's state put away.
+    void  ClearFlag(const string& key) {
+        if (flags.erase(key) > 0) ++story_version;
     }
     const std::set<string>& Flags() const { return flags; }
     // Every flag as whoever `player` is now sees them: the world's, and their
@@ -368,6 +381,31 @@ public:
     // In a guest's window the log is the host's to fell: this is what the
     // host says of it, for the bar and the axe in hand.
     void  ShowGather(float progress, const string& clip, const string& model);
+
+    // --- fishing: the second dip, and the fight (Gathering::Angler) -----------------------
+    // What the HUD and the water show of a cast: where the bobber floats, how
+    // far under it is, and once the fish is on, the gauge. The host reads it
+    // off the cast itself; a friend's window off what the host last said.
+    struct AnglerView {
+        bool   on = false;
+        Gathering::Angler::Phase phase = Gathering::Angler::Phase::Idle;
+        float  x = 0.0f, y = 0.0f, dip = 0.0f;
+        float  line = 0.0f, band = 0.0f, half = 0.0f, progress = 0.0f, strain = 0.0f;
+        string fish;                     // what is on the line, once it is hooked
+    };
+    AnglerView Angling() const;
+    void HearOfAngler(const AnglerView& v) { shown_angler = v; }
+    // Every bobber on the map -- whoever is fishing, the host and every friend --
+    // for everyone's window to draw. The host makes the list; a friend's
+    // window is told it.
+    struct Bobber { uint8_t seat = 0; float x = 0.0f, y = 0.0f, dip = 0.0f; };
+    vector<Bobber> Bobbers();
+    void HearOfBobbers(vector<Bobber> b) { heard_bobbers = std::move(b); }
+    // Where a rod's tip is on someone stood fishing, facing as they face: what
+    // the line is drawn from. Measured off the fish clip's rod.
+    static SDL_FPoint RodTip(const Player& p);
+    // A dev flag (--angle): "bite" or "fight" puts every cast straight there.
+    static inline string dev_angle;
 
     const Map& CurrentMap() const { return map; }
     const string& MapId() const { return map_id; }
@@ -609,6 +647,11 @@ public:
         bool   active = false;
         string map;
         float  x = 0.0f, y = 0.0f;
+        // A story's dream -- a sleeper's, caught with the Dreamcatcher -- is not
+        // the night's: it does not end at dawn, only at a Waking Stone, a fall
+        // or the scene that says so. A locked one has no way out at all but
+        // through: the stones in it are cold (the Act I finale).
+        bool   story = false, locked = false;
     };
     // The camp a bedroll pitches: a tent and a fire, on one outdoor map.
     struct Camp {
@@ -621,6 +664,85 @@ public:
     enum class SleepChoice { Through, Reverie };
 
     bool InDream() const { return map.Ambient() == "dream"; }
+
+    // --- what a story makes of the place ------------------------------------------------
+    // Everything on the map that a condition on the flags decides (FlagCond):
+    // which state each NPC is in, which doors stand open, which dormant posts
+    // have been told to wake. Done as a map is walked into, and again whenever
+    // a flag changes -- never every frame for nothing.
+    void SettleStory(bool force = false);
+    // Story posts: those coming out of smoke, and squads all down (their flag).
+    void  UpdateSquads(float dt);
+    float squad_check = 0.0f;
+    // Whether the flags as they stand make `c` true.
+    bool Holds(const FlagCond& c) const { return c.Holds([&](const string& f) { return Flagged(f); }); }
+    // Something of the story's (MapObject type "story") the player used, for
+    // the scene that answers it: taken, once.
+    vector<string> TakeStoryUses() { vector<string> out; out.swap(story_uses); return out; }
+    // A scene's hold on the camera: while `on`, it looks at (x, y) -- snapped
+    // there each frame, or eased toward it -- rather than at the player.
+    struct CamHold { bool on = false; bool snap = true; float x = 0.0f, y = 0.0f; };
+    CamHold cam_hold;
+    // The Reverie seen from the waking world, 0..1: the dream's swimming edges,
+    // its colours and its motes over a map that is not a dream. How the game
+    // opens, before the player knows what they are looking at.
+    void  SetReverieVeil(float v);
+    float ReverieVeil() const { return reverie_veil; }
+    // The flip between the worlds: what falling into the Reverie and waking
+    // out of it look like -- the picture rippling, its colours turning inside
+    // out, and settling into the other world's. Rather than a fade to black.
+    // 0..1, how far through it is; 0 when no flip is under way.
+    float FlipAmount() const { return flip ? fade : 0.0f; }
+    // Into a dream of a scene's choosing rather than the Reverie's first depth:
+    // somewhere to wake from where the player lies now, and the flip.
+    bool  EnterDream(const string& dream_map, const string& spawn, bool story = false, bool locked = false);
+    // The same, pulled in rather than falling asleep: the picture tears
+    // rather than ripples (the trap in the Mayor's Hall).
+    bool  TearInto(const string& dream_map, const string& spawn);
+    bool  Tearing() const { return tear; }
+    bool  StoryDream() const { return dream.active && dream.story; }
+    // A dream with no way out but through: the stone is cold (the finale's).
+    bool  DreamLocked() const { return dream.active && dream.locked; }
+    // Out of a story's dream by a scene's say-so: no dream to come back from
+    // any more. The scene loads wherever the player is to wake.
+    void  EndDream() { dream = DreamReturn{}; tear = false; }
+    // Every monster on the map gone at once, as dust: no fight, nothing earned
+    // (the Hushed when the Dawn Bells ring). `type` empty is all of them.
+    int   Banish(const string& type);
+    // A conversation with no one in it, asked for by the story: Game opens it.
+    void OpenDialogue(const string& root, const string& title) {
+        WorldRequest r;
+        r.type = WorldRequest::Type::Dialogue;
+        r.text = root;
+        r.title = title;
+        requests.push_back(r);
+    }
+    // What the story has not yet given the player (story.json "locks"): the
+    // words for it if `skill` is one of them now, else nothing.
+    vector<SkillLock> skill_locks;
+    const string* SkillLocked(const string& skill) const {
+        for (const SkillLock& l : skill_locks)
+            if (l.skill == skill && Holds(l.when)) return &l.text;
+        return nullptr;
+    }
+    // The level a post fitted to the player stands at (EnemySpawnDef::fitted):
+    // the host's combat level and `fit` more.
+    int   FitLevel(int fit) const;
+    // A shadow sliding over everything from (x0, y0) to (x1, y1) in `time`
+    // seconds -- a dragon's, seen only as its shadow -- drawn over the world at
+    // `alpha`, easing in and out at the ends of its run.
+    void  PassShadow(const string& image, float x0, float y0, float x1, float y1, float time, float alpha);
+    bool  ShadowPassing() const { return shadow.on; }
+    // The stranger's smoke: dark violet, drawn in to (x, y) from round it as
+    // he goes -- `gather` -- or let out from it as he comes. Always the same,
+    // so it is learned.
+    void  Smoke(float x, float y, float radius, bool gather);
+    // Pale wisps rising off somebody: steam off a temper (Act I's last scene).
+    void  Steam(float x, float y, float size);
+    // A ring spreading on water: a bobber dipping, a fish thrashing on the line.
+    void  Ripple(float x, float y, float size);
+    // How many motes are in the air -- smoke, embers, spray -- for the self-test.
+    size_t MoteCount() const { return motes.size(); }
     // The Reverie goes down: three depths, a ladder between each. Everything
     // a dream is -- dawn ends it, nothing in it kills you, the waking stone --
     // is true at every depth, because all of that asks InDream() and not
@@ -726,6 +848,11 @@ public:
     vector<Light> CollectLights() const;
     vector<std::unique_ptr<Enemy>> enemies;
     vector<std::unique_ptr<Npc>>   npcs;
+    // The one with this id, or null.
+    Npc* FindNpc(const string& id) {
+        for (auto& n : npcs) if (n->Id() == id) return n.get();
+        return nullptr;
+    }
     vector<Pickup>      pickups;
     vector<FloatingText> texts;
     vector<Projectile>   projectiles;
@@ -1008,6 +1135,10 @@ private:
     class QuestLog* host_quests = nullptr;
     uint32_t next_net_id = 1;
     float shown_gather = 0.0f;
+    // And a friend's window: their own cast as the host last said it, and the
+    // bobbers of everyone fishing on the map.
+    AnglerView shown_angler;
+    vector<Bobber> heard_bobbers;
     void UpdateDust(float dt);
 
     // The screen's own effects, and what draws them: see world_screen.cpp.
@@ -1075,6 +1206,10 @@ private:
     struct ShotSeen { float x = 0, y = 0, lift = 0, owed = 0, size = 1; Element shed = Element::None; bool here = false; };
     std::map<uint32_t, ShotSeen> shots_seen;
     void UpdateMotes(float dt);
+    // Smoke from every chimney on screen that the story says has a fire under
+    // it (MapObject type "chimney", placed by genmaps at the top of each stack).
+    void UpdateChimneys(float dt);
+    vector<float> chimney_timers;   // until each chimney's next puff
     void ShedFromShots();
     void ShedFromGround(float dt);
     void DrawMotes(SDL_Renderer* r) const;
@@ -1127,6 +1262,14 @@ private:
                   AttackType swing = AttackType::Light);
     void UpdateTexts(float dt);
     void UpdateGathering(float dt, const GameContext& ctx);
+    // The button pressed while a line is out: a strike, too soon, or the line wound in.
+    void StrikeAt(const GameContext& ctx);
+    // A step of a cast: the dips, the fight with the button held or not, and what it comes to.
+    void UpdateAngling(float dt, const GameContext& ctx);
+    // A cast begun at a fishing spot: the fish that will take it, chosen now, and the fight it will be.
+    void CastAt(const MapObject& o, float pace, const GameContext& ctx);
+    // The bobbers and their lines, on the water under everybody.
+    void DrawAnglers(SDL_Renderer* r, TextureCache& cache) const;
     void CookOne(const struct MapObject& range, const GameContext& ctx);
     void ApplyTransition(const GameContext& ctx);
     void PlaceCampObjects();
@@ -1145,6 +1288,21 @@ private:
     string fade_caption;
     WakeReason waking = WakeReason::None;   // set while a wake transition runs
     WakeReason woke = WakeReason::None;
+    // The story: how far the flags have moved, and how far the map was last
+    // settled to (SettleStory).
+    int    story_version = 0, story_settled = -1;
+    vector<string> story_uses;
+    float  reverie_veil = 0.0f;
+    bool   veil_motes = false;
+    bool   flip = false;              // the transition under way is the flip
+    bool   tear = false;              // and it is torn rather than rippled (TearInto)
+    struct ShadowPass {
+        bool   on = false;
+        string image;
+        float  x0 = 0, y0 = 0, x1 = 0, y1 = 0, t = 0, time = 1, alpha = 0.5f;
+    };
+    ShadowPass shadow;
+    float  shut_note_timer = 0.0f;
     DreamReturn dream;
     Camp camp;
     mutable Lighting lighting;
@@ -1210,6 +1368,14 @@ private:
     int   gather_index = -1;      // index into map objects
     float gather_timer = 0.0f;
     float gather_needed = 0.0f;
+    // A line in the water at gather_index's fishing spot: the cast and the
+    // fight, what is on the end of it, where the bobber floats, and the reel's
+    // ratchet. A seat's own: see SeatState.
+    Gathering::Angler angler;
+    string angler_fish;
+    float  angler_x = 0.0f, angler_y = 0.0f, reel_click = 0.0f;
+    // Dice for what bites and how it fights, when the frame brings none.
+    std::mt19937 angler_dice{0xF15Bu};
     float hazard_timer = 0.0f;     // until the next burn from the ground underfoot
     float gate_note_timer = 0.0f;  // so a closed way says so once, not every frame
     float catch_up_timer = 0.0f;   // see CatchUpUsedObjects: twice a second is plenty

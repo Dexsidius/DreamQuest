@@ -25,6 +25,56 @@
       "kind": "land",
       "name": "The Brackenwood"
     },
+    "chime_bram": {
+      "exits": [],
+      "kind": "interior",
+      "name": "Crier Bram's Home, Dreaming"
+    },
+    "chime_hester": {
+      "exits": [],
+      "kind": "interior",
+      "name": "Hester's Home, Dreaming"
+    },
+    "chime_hollis": {
+      "exits": [],
+      "kind": "interior",
+      "name": "Hollis's Home, Dreaming"
+    },
+    "chime_ivo": {
+      "exits": [],
+      "kind": "interior",
+      "name": "Hunter Ivo's Home, Dreaming"
+    },
+    "chime_marrow": {
+      "exits": [],
+      "kind": "interior",
+      "name": "Farmer Marrow's Home, Dreaming"
+    },
+    "chime_perrin": {
+      "exits": [],
+      "kind": "interior",
+      "name": "Old Perrin's Home, Dreaming"
+    },
+    "chime_pip": {
+      "exits": [],
+      "kind": "interior",
+      "name": "Pip's Home, Dreaming"
+    },
+    "chime_posy": {
+      "exits": [],
+      "kind": "interior",
+      "name": "Posy's Home, Dreaming"
+    },
+    "chime_tobin": {
+      "exits": [],
+      "kind": "interior",
+      "name": "Tobin's Home, Dreaming"
+    },
+    "chime_wenna": {
+      "exits": [],
+      "kind": "interior",
+      "name": "Wenna's Home, Dreaming"
+    },
     "college_classroom": {
       "exits": [
         "college_grounds"
@@ -86,12 +136,29 @@
       "kind": "land",
       "name": "The Bayou, Dreaming"
     },
+    "dream_cellar": {
+      "exits": [],
+      "kind": "interior",
+      "name": "The Cellar, Dreaming"
+    },
     "dream_college": {
       "exits": [
         "dream_havenbrook"
       ],
       "kind": "land",
       "name": "The College, Dreaming"
+    },
+    "dream_forge": {
+      "exits": [],
+      "kind": "land",
+      "name": "The Forge, Dreaming"
+    },
+    "dream_guild_hall": {
+      "exits": [
+        "prologue_dream_havenbrook"
+      ],
+      "kind": "interior",
+      "name": "The Guild Hall, Dreaming"
     },
     "dream_havenbrook": {
       "exits": [
@@ -104,12 +171,24 @@
       "kind": "land",
       "name": "Havenbrook, Dreaming"
     },
+    "dream_mayor_hall": {
+      "exits": [
+        "prologue_dream_havenbrook"
+      ],
+      "kind": "interior",
+      "name": "The Mayor's Hall, Dreaming"
+    },
     "dream_plateau": {
       "exits": [
         "dream_havenbrook"
       ],
       "kind": "land",
       "name": "The Plateau, Dreaming"
+    },
+    "dream_tannery": {
+      "exits": [],
+      "kind": "land",
+      "name": "The Tannery, Dreaming"
     },
     "dreamworld": {
       "exits": [
@@ -290,6 +369,13 @@
       "kind": "interior",
       "name": "Maren's House"
     },
+    "house_havenbrook": {
+      "exits": [
+        "town_havenbrook"
+      ],
+      "kind": "interior",
+      "name": "Your House in Havenbrook"
+    },
     "house_inn": {
       "exits": [
         "town_havenbrook",
@@ -313,6 +399,13 @@
       "kind": "interior",
       "name": "The Barley and Bell, upstairs"
     },
+    "house_sleeper": {
+      "exits": [
+        "town_havenbrook"
+      ],
+      "kind": "interior",
+      "name": "A House on the South Street"
+    },
     "house_smith": {
       "exits": [
         "town_havenbrook"
@@ -327,6 +420,33 @@
       ],
       "kind": "land",
       "name": "Ice Spire Peak"
+    },
+    "mansion_cells": {
+      "exits": [
+        "mansion_foyer"
+      ],
+      "kind": "dungeon",
+      "name": "The Cells"
+    },
+    "mansion_cells_dream": {
+      "exits": [],
+      "kind": "interior",
+      "name": "The Cells, Dreaming"
+    },
+    "mansion_foyer": {
+      "exits": [
+        "mansion_grounds",
+        "mansion_cells"
+      ],
+      "kind": "interior",
+      "name": "The Foyer"
+    },
+    "mansion_grounds": {
+      "exits": [
+        "mansion_foyer"
+      ],
+      "kind": "land",
+      "name": "The Stranger's House"
     },
     "mayor_hall": {
       "exits": [
@@ -525,6 +645,14 @@
       "kind": "land",
       "name": "The Tempest"
     },
+    "prologue_dream_havenbrook": {
+      "exits": [
+        "dream_mayor_hall",
+        "dream_guild_hall"
+      ],
+      "kind": "land",
+      "name": "Havenbrook, Dreaming"
+    },
     "stronghold_keep": {
       "exits": [
         "plateau_stronghold"
@@ -541,7 +669,9 @@
         "house_elder",
         "house_inn",
         "house_smith",
-        "well_shallow"
+        "well_shallow",
+        "house_sleeper",
+        "house_havenbrook"
       ],
       "kind": "land",
       "name": "Havenbrook"
