@@ -20,7 +20,9 @@ void Npc::Init(const NpcDef& def, const GameContext& ctx) {
     foot_box = {-8.0f, -10.0f, 16.0f, 10.0f};
     body_box = {-12.0f, -38.0f, 24.0f, 38.0f};
 
-    if (ctx.sprites) sprite.SetDef(ctx.sprites->Get(def.sprite));
+    library = ctx.sprites;
+    own_def = ctx.sprites ? ctx.sprites->Get(def.sprite) : nullptr;
+    sprite.SetDef(own_def);
     sprite.facing = facing;
     sprite.Play("idle", true);
     cast_bolt  = def.cast_bolt;
@@ -143,9 +145,11 @@ void Npc::ApplyState(int index) {
         facing = home_facing;
         sprite.facing = facing;
         shown = -1.0f;
+        Wear(nullptr);
         return;
     }
     const NpcState& s = states[index];
+    Wear(s.sprite.empty() || !library ? nullptr : library->Get(s.sprite));
     away = s.hidden;
     if (s.moved) { x = s.x; y = s.y; }
     else         { x = home_x; y = home_y; }
@@ -157,6 +161,14 @@ void Npc::ApplyState(int index) {
     flicker = s.flicker;
     sort_bias = s.sort_bias;
     sprite.Play(s.pose.empty() ? string("idle") : s.pose, true);
+}
+
+void Npc::Wear(const SpriteDef* def) {
+    if (!def) def = own_def;
+    if (!def || sprite.Def() == def) return;
+    sprite.SetDef(def);
+    // The clip pointer belongs to the sheet it came from.
+    sprite.Play(sprite.current.empty() ? string("idle") : sprite.current, true);
 }
 
 string Npc::AsleepText() const {
@@ -225,7 +237,8 @@ void Npc::Update(float dt, World& world, const GameContext& ctx) {
             facing = s.turned ? s.facing : home_facing;
             sprite.facing = facing;
         }
-        sprite.Play(s.pose.empty() ? string("idle") : s.pose);
+        const string& pose = talking && !s.talk_pose.empty() ? s.talk_pose : s.pose;
+        sprite.Play(pose.empty() ? string("idle") : pose);
         sprite.Update(dt);
         return;
     }

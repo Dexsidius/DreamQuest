@@ -3544,6 +3544,10 @@
                                              "w":  56,
                                              "h":  56
                                          },
+                   "props/vask_chair_empty":  {
+                                                  "w":  24,
+                                                  "h":  55
+                                              },
                    "props/wall_chains":  {
                                              "w":  32,
                                              "h":  48

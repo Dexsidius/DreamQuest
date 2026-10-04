@@ -1270,6 +1270,9 @@ private:
     void CastAt(const MapObject& o, float pace, const GameContext& ctx);
     // The bobbers and their lines, on the water under everybody.
     void DrawAnglers(SDL_Renderer* r, TextureCache& cache) const;
+    // The Anchor's threads: every "tether" object, from its sleeper's ankle
+    // to its knot (see MapObject::tie).
+    void DrawTethers(SDL_Renderer* r, TextureCache& cache) const;
     void CookOne(const struct MapObject& range, const GameContext& ctx);
     void ApplyTransition(const GameContext& ctx);
     void PlaceCampObjects();

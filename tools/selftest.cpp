@@ -6307,6 +6307,23 @@ static void TestActOne(const Databases& db) {
     Check(Audio::MusicCue() == "dream_town" && w.FindNpc("npc_vask_dream") && !gone("npc_vask_dream"),
           "the town's tune, bent and slowed, and Vask at his chair");
     {
+        // On his feet: his state puts him in another sheet, the scene leaves
+        // him facing the street, and the chair stands empty behind him.
+        const Npc* vask = w.FindNpc("npc_vask_dream");
+        Check(vask && sprites.Get("vask_stand") && vask->sprite.Def() == sprites.Get("vask_stand") &&
+                  vask->sprite.current == "fend" && vask->facing == FACE_DOWN && present("dream_vask_chair"),
+              "on his feet in front of his empty chair, chopping at them with his cane");
+        // Spoken to, he turns and answers from his guard -- not swinging at
+        // whoever spoke -- and goes back to it after.
+        Npc* v = w.FindNpc("npc_vask_dream");
+        v->talking = true;
+        frames(0.1f);
+        const bool answers = v->sprite.current == "idle";
+        v->talking = false;
+        frames(0.1f);
+        Check(answers && v->sprite.current == "fend", "spoken to, he holds his guard to answer, then is at them again");
+    }
+    {
         int dormant = 0, street = 0;
         for (auto& e : w.enemies)
             if (e->squad == "ACT1_STREETS_CLEARED") { ++street; dormant += e->dormant; }
@@ -6453,6 +6470,14 @@ static void TestActOne(const Databases& db) {
           "three tries, and the Dreamcatcher tugs toward her: Save Halda");
     Check(talk("npc_smith") && w.MapId() == "dream_forge" && w.InDream() && w.Flagged("ACT1_FORGE_DREAM_INTRO"),
           "into her dream: the forge as a cavern of slag, Halda fighting alone on the platform");
+    // The thread from her ankle to the anvil: kept by value, since waking
+    // takes the player off this map.
+    MapObject thread;
+    for (const MapObject& o : w.CurrentMap().Objects())
+        if (o.id == "forge_thread") thread = o;
+    Check(thread.type == "tether" && w.FindNpc(thread.tie) && thread.tie == "npc_halda_dream" &&
+              present("forge_thread") && !w.Holds(thread.slack),
+          "a thick black thread binds her ankle to the great anvil, pulled taut");
     {
         int dormant = 0;
         for (auto& e : w.enemies) dormant += e->TypeId() == "forge_demon" && e->dormant;
@@ -6469,9 +6494,11 @@ static void TestActOne(const Databases& db) {
     }
     Check(use("forge_anchor") && !w.Flagged("ECHO_HALDA_FORGE_RELIT"), "the anvil's knot holds while the demon stands");
     Check(squad("ACT1_HALDA_DEMON_DOWN") == 1 && w.Flagged("ACT1_DEMON_FALL_SAID"), "the demon falls into the lava in pieces");
+    Check(present("forge_thread") && w.Holds(thread.slack), "and the thread round her ankle goes slack");
     Check(use("forge_anchor") && w.Flagged("ECHO_HALDA_FORGE_RELIT") && w.Flagged("ACT1_HALDA_AWAKE") &&
               w.MapId() == "house_smith" && awake("npc_smith") && log.IsComplete("q_act1_save_halda"),
           "the Anchor broken, the anvil rings into Solace: Halda wakes, and owes the player some work");
+    Check(!w.Holds(thread.when), "her thread snapped with the knot");
     {
         bool open = true;
         for (const MapObject& o : w.CurrentMap().Objects())
@@ -6585,6 +6612,8 @@ static void TestActOne(const Databases& db) {
     Check(go("prologue_dream_havenbrook", "from_dream_mayor") && w.Flagged("ACT1_VASK_SHOUT") && !gone("npc_vask_dream") &&
               !shut("dream_guild_hall"),
           "out into the dreaming town: Vask, rocking with his eyes open, shouts the player inside");
+    Check(w.FindNpc("npc_vask_dream")->sprite.Def() == sprites.Get("vask") && !present("dream_vask_chair"),
+          "sitting in his chair again: his own sheet, and no empty one behind him");
     {
         bool cold = false;
         for (const MapObject& o : w.CurrentMap().Objects()) if (o.type == "dream_wake") cold = true;
@@ -8213,6 +8242,19 @@ int main(int argc, char** argv) {
                 Check(dialogue.Has(n.dialogue),
                       string(id) + " npc " + n.id + " dialogue '" + n.dialogue + "' exists");
             quest_givers.insert(n.id);
+            // A state may put them in another sheet (Vask on his feet); that
+            // sheet, and the clip a state holds, must be there -- a missing
+            // clip plays idle and nobody is told.
+            for (const NpcState& st : n.states) {
+                const string body = st.sprite.empty() ? n.sprite : st.sprite;
+                if (!st.sprite.empty())
+                    Check(sprites.Has(st.sprite),
+                          string(id) + " npc " + n.id + " state sprite '" + st.sprite + "' exists");
+                for (const string& clip : {st.pose, st.talk_pose})
+                    if (!clip.empty() && sprites.Has(body))
+                        Check(sprites.Get(body)->Find(clip) != nullptr,
+                              string(id) + " npc " + n.id + " state pose '" + clip + "' is a clip of " + body);
+            }
         }
 
         for (const auto& o : map.Objects()) {
@@ -8237,6 +8279,11 @@ int main(int argc, char** argv) {
                       string(id) + " node " + o.id + " unknown skill '" + o.skill + "'");
             // A board also posts every quest that names it as giver: the dailies.
             if (o.type == "board") quest_givers.insert(o.id);
+            if (o.type == "tether") {
+                bool tied = false;
+                for (const auto& n : map.Npcs()) tied |= n.id == o.tie;
+                Check(tied, string(id) + " tether " + o.id + " ties to '" + o.tie + "', who is on this map");
+            }
             for (const auto& q : o.quests) {
                 Check(quests.Definition(q) != nullptr,
                       string(id) + " board offers unknown quest '" + q + "'");

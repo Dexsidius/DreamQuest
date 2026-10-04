@@ -85,6 +85,7 @@ Everything a game needs beyond pictures lives under `"dreamquest"`.
 | `objects` of type `lamp` | A lamp standard: its `sprite`, and after dark a steady cool light. |
 | `objects` of type `totem_circle` | The ring a boss's totem is stood in. It needs no `sprite` -- lay the ring's art as a floor overlay at the same point -- because what stands in it is the character's and is drawn by the game. There is one, in `mossvale_cottage`, and the self-test says so. |
 | `npcs` | `dialogue` is a root node id in `data/dialogue.json`. |
+| `npcs` with `"states"` | What the story makes of them, the first whose `when` holds: `hidden`, `at`, `facing`, `pose` (a clip held), `asleep`, `name`, `dialogue`, `alpha`, `flicker`, `lift`, `prompt`, `mark`, `sprite` -- another sheet to draw them from (Elder Vask on his feet in his dream) -- and `talk_pose`, the clip held while spoken to, if not `pose`. |
 | `themed` | A room dressed for whatever stands in its ring (see `Map::Dress`): `floor` and `wall` map a tile group to its pale "undyed" picture, drawn instead and tinted with the totem's colours; `cloth` and `trim` list groups shown, tinted, only while something stands; `plain` lists groups shown only while nothing does; `light` is `[x, y]` where the totem's light stands. Written by genmaps' `Dress` and `DressLight`; used by `mossvale_cottage`. |
 
 ### Objects
@@ -99,6 +100,7 @@ One list covers everything interactive. `type` decides the behaviour:
 | `tree`, `rock` | Gathering node | `skill`, `skill_level`, `yield`, `yield_xp`, `gather_time` |
 | `range` | Cooks one raw item per press | `title` |
 | `workbench` | Opens the crafting panel | `title` |
+| `tether` | Not used: the Anchor's thread, drawn from an NPC's ankle to a knot at `lift` over `x`, `y`; taut until `slack` holds, then lying loose | `tie` (the NPC's id), `tie_at` (`[dx, dy]` from their drawn feet, dx toward their facing), `lift`, `slack`, `when` |
 
 Common to all of them: `id` (unique across the save — it is what the world
 flags key on), `x`, `y` (the base the sprite stands on), `sprite`, and an

@@ -135,3 +135,27 @@ reference; does the up row read as the back of the same person.
 | Sliding, not walking | Realistic angles | Exaggerate 2x |
 | Hair is a helmet in profile | Long side tufts | Short tufts at the temples only |
 | Blurry edges between layers | Soft alpha | Hard alpha in `make_character.ps1` (keep it) |
+| A guard that hangs at the side; a cut that hardly moves (facing the camera) | The stick points at the camera: from 46 degrees overhead, toward the camera is drawn as down the screen | Aim held things out to the side and up; cut over the top and down across (Elder Vask, `blender_act1._vask_cut`) |
+| A swing that drops by the knees between two keys | `mix()` blends Euler angles one by one, so two far-apart keys take a path of their own | Add a key between them (Vask's "over"), and pick each key's angles near the last |
+
+### Aiming a held thing at the camera
+
+What a viewer reads is the direction of the stick, sword or staff **on
+screen**, and the camera is 46 degrees overhead. With `up = (0, sin 46,
+cos 46)`, a direction `(x, y, z)` in the rig lands on screen as `x` across and
+`0.72 * y + 0.69 * z` up -- and the rig's front is `-y`. So pointing forward
+reads as pointing down, forward-and-up at 45 degrees is a dot, and only
+sideways and straight up read in every facing. In a side facing the rig's
+right points at the camera, so "out to the side" is the weak one there: pick
+directions that read in the down row first (it is the one most seen), then
+check the other three.
+
+Joint angles are hard to guess for a direction through a pitched chest and a
+bent elbow. Solve them instead: the chain is a few Euler rotations (XYZ, rest
+plus pose, `Rig.apply`), so a script outside Blender can try every shoulder
+angle on a grid and keep the one nearest the wanted stick direction -- and,
+of those, the one nearest the previous key, so `mix()` between them stays
+short. Draw the result as stick figures in all four facings before
+rendering; Vask's chop was found that way in three passes instead of a dozen
+renders. Blender's own Python has numpy (`<Blender>\5.2\python\bin\python.exe`);
+the system Python has Pillow for drawing.

@@ -668,6 +668,24 @@ void World::DrawMotes(SDL_Renderer* r) const {
 //  Rendering
 // -----------------------------------------------------------------------------
 
+// How far above its anchor a sprite's feet are drawn. Rigs do not all stand
+// on theirs -- a CraftPix orc's feet are a dozen pixels above it, a
+// townsperson's six -- so it is measured off the bottom of the art in the
+// idle sheet: the lock-on ring goes round the feet, a tether to the ankle.
+static float FeetAbove(const Sprite& s, TextureCache& cache) {
+    const SpriteDef* def = s.Def();
+    const AnimClip* idle = def ? def->Find("idle") : nullptr;
+    SDL_Texture* tex = idle && !idle->sheet.empty() ? cache.Get(idle->sheet) : nullptr;
+    if (!tex) return 0.0f;
+    float tw = 0, th = 0;
+    SDL_GetTextureSize(tex, &tw, &th);
+    const float fh = th / std::max(1, def->rows);
+    const SDL_FRect ob = cache.OpaqueBounds(idle->sheet);
+    float bottom = fmodf((ob.y + ob.h) * th, fh);
+    if (bottom < 0.5f) bottom = fh;
+    return std::max(0.0f, (def->anchor_y - bottom) * def->scale);
+}
+
 void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     // Dressed for whoever this frame is for, before anything asks the map
     // what to draw (the screen pass below collects its decor too).
@@ -906,6 +924,9 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     }
     // Whoever is fishing: their bobber on the water and the line to it.
     DrawAnglers(r, cache);
+    // The Anchor's threads, on the floor and under whoever stands on them:
+    // the knot and the sleeper drawn over its two ends.
+    DrawTethers(r, cache);
 
     // Sprint dust, on the ground under everything that stands on it. Square
     // puffs, snapped to the art's pixel grid so they sit with the sprites.
@@ -926,19 +947,7 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     // CraftPix orc's feet are a dozen pixels above it -- so the ring goes where
     // the feet are drawn, found from the bottom of the art in the idle sheet.
     if (const Enemy* t = targeting.Locked()) {
-        float feet = 0.0f;
-        const SpriteDef* def = t->sprite.Def();
-        if (const AnimClip* idle = def ? def->Find("idle") : nullptr) {
-            if (SDL_Texture* tex = idle->sheet.empty() ? nullptr : cache.Get(idle->sheet)) {
-                float tw = 0, th = 0;
-                SDL_GetTextureSize(tex, &tw, &th);
-                const float fh = th / std::max(1, def->rows);
-                const SDL_FRect ob = cache.OpaqueBounds(idle->sheet);
-                float bottom = fmodf((ob.y + ob.h) * th, fh);
-                if (bottom < 0.5f) bottom = fh;
-                feet = std::max(0.0f, (def->anchor_y - bottom) * def->scale);
-            }
-        }
+        const float feet = FeetAbove(t->sprite, cache);
         const SDL_FRect body = t->BodyBox();
         const float rx = std::max(11.0f, body.w * 0.62f), ry = rx * 0.45f;
         const float pulse = 0.5f + 0.5f * sinf(static_cast<float>(SDL_GetTicks()) * 0.008f);
@@ -2653,6 +2662,82 @@ void World::DrawAnglers(SDL_Renderer* r, TextureCache& cache) const {
             const SDL_FPoint s = camera.ToScreen(px, py);
             const SDL_FRect dot = {roundf(s.x / z) * z, roundf(s.y / z) * z, z, z};
             SDL_RenderFillRect(r, &dot);
+        }
+    }
+}
+
+void World::DrawTethers(SDL_Renderer* r, TextureCache& cache) const {
+    const float z = camera.zoom;
+    const float now = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+    const auto dot = [&](float x, float y, SDL_Color c) {
+        const SDL_FPoint s = camera.ToScreen(x, y);
+        SDL_SetRenderDrawColor(r, c.r, c.g, c.b, c.a);
+        const SDL_FRect px = {roundf(s.x / z) * z, roundf(s.y / z) * z, z, z};
+        SDL_RenderFillRect(r, &px);
+    };
+    // "A thick black thread": two pixels of it, and a violet sheen on top
+    // while it is pulled tight.
+    const SDL_Color thread{16, 9, 24, 255}, sheen{98, 72, 146, 235}, pulse_lit{168, 120, 232, 255};
+    for (const MapObject& o : map.Objects()) {
+        if (o.type != "tether" || o.tie.empty() || !ObjectPresent(o)) continue;
+        const Npc* who = nullptr;
+        for (const auto& n : npcs)
+            if (n->Id() == o.tie) who = n.get();
+        if (!who || who->Away()) continue;
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+        // The floor under their drawn feet, the ankle above it on the side
+        // they are turned to, and the knot.
+        const float side = who->facing == FACE_LEFT ? -1.0f : 1.0f;
+        const float floor_y = who->y - who->lift - LiftAt(who->x, who->y) - FeetAbove(who->sprite, cache);
+        const SDL_FPoint a = {who->x + o.tie_dx * side, floor_y + o.tie_dy};
+        const float base = o.y - LiftAt(o.x, o.y);
+        const SDL_FPoint k = {o.x, base - o.lift};
+        if (o.slack.Empty() || !Holds(o.slack)) {
+            // Taut: straight from the ankle to the knot, humming -- a pixel's
+            // shiver across its middle -- and a brighter pulse running up it
+            // now and then: the dream drawing on them.
+            const float dx = k.x - a.x, dy = k.y - a.y;
+            const float len = std::max(1.0f, std::sqrt(dx * dx + dy * dy));
+            const float nx = -dy / len, ny = dx / len;
+            const float hum = sinf(now * 37.0f) * 0.9f;
+            const float pulse = fmodf(now * 0.45f, 1.0f);
+            const int steps = std::max(2, static_cast<int>(len * 1.2f));
+            for (int i = 0; i <= steps; ++i) {
+                const float t = static_cast<float>(i) / steps;
+                const float off = hum * sinf(t * 3.1415927f);
+                const float px = a.x + dx * t + nx * off, py = a.y + dy * t + ny * off;
+                dot(px, py - 1.0f, fabsf(t - pulse) < 0.035f ? pulse_lit : sheen);
+                dot(px, py, thread);
+                dot(px, py + 1.0f, thread);
+            }
+            continue;
+        }
+        // Slack: down from the ankle to the floor, loose across it in a lazy
+        // curve that has fallen toward the viewer, and hanging from the knot
+        // in a belly down the anvil's side -- nothing pulling on any of it.
+        vector<SDL_FPoint> pts;
+        const SDL_FPoint a0 = {a.x, floor_y + 1.0f};
+        for (float y = a.y; y < a0.y; y += 1.0f) pts.push_back({a.x, y});
+        const SDL_FPoint k0 = {k.x - 4.0f, base + 1.0f};
+        const float dx = k0.x - a0.x, dy = k0.y - a0.y;
+        const float len = std::max(1.0f, std::sqrt(dx * dx + dy * dy));
+        const float nx = -dy / len, ny = dx / len;
+        const int steps = std::max(2, static_cast<int>(len * 1.4f));
+        for (int i = 0; i <= steps; ++i) {
+            const float t = static_cast<float>(i) / steps;
+            const float sag = (6.0f + len * 0.06f) * sinf(t * 3.1415927f);
+            const float wave = 2.5f * sinf(t * 9.424778f) * sinf(t * 3.1415927f);
+            pts.push_back({a0.x + dx * t + nx * wave, a0.y + dy * t + sag + ny * wave});
+        }
+        const float hang = std::max(1.0f, k0.y - k.y);
+        for (float y = 1.0f; y < hang; y += 1.0f) {
+            const float s = y / hang;
+            pts.push_back({k0.x + (k.x - k0.x) * s - 2.5f * sinf(s * 3.1415927f), k0.y - y});
+        }
+        for (size_t i = 0; i < pts.size(); ++i) {
+            dot(pts[i].x, pts[i].y, thread);
+            dot(pts[i].x, pts[i].y + 1.0f, thread);
+            if (i % 6 == 3) dot(pts[i].x, pts[i].y - 1.0f, SDL_Color{78, 58, 112, 190});
         }
     }
 }

@@ -147,6 +147,9 @@ $clipRules = @{
     fist   = @{ fps = 6;  loop = $false }
     fury   = @{ fps = 8;  loop = $false }
     hang   = @{ fps = 3;  loop = $true  }
+    # Elder Vask in his own dream, fending the Hushed off with his stick: a cut
+    # and a breath and another, for as long as the dream lasts.
+    fend   = @{ fps = 7;  loop = $true  }
 }
 
 # A clip name can mean something else for one sprite: the hero's spin is a

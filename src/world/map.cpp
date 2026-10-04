@@ -429,6 +429,8 @@ bool Map::Load(const string& path) {
                     }
                     if (s.contains("facing")) { st.turned = true; st.facing = FacingFromJson(s["facing"], FACE_DOWN); }
                     st.pose = s.value("pose", string(""));
+                    st.sprite = s.value("sprite", string(""));
+                    st.talk_pose = s.value("talk_pose", string(""));
                     if (s.contains("asleep")) {
                         st.asleep = s["asleep"].is_string() || (s["asleep"].is_boolean() && s["asleep"].get<bool>());
                         if (s["asleep"].is_string()) st.asleep_text = s["asleep"].get<string>();
@@ -489,6 +491,12 @@ bool Map::Load(const string& path) {
             m.lift      = o.value("lift", 0.0f);
             if (o.contains("closed")) m.closed = FlagCond::FromJson(o["closed"]);
             m.closed_text = o.value("closed_text", string(""));
+            m.tie = o.value("tie", string(""));
+            if (o.contains("tie_at") && o["tie_at"].is_array() && o["tie_at"].size() >= 2) {
+                m.tie_dx = o["tie_at"][0].get<float>();
+                m.tie_dy = o["tie_at"][1].get<float>();
+            }
+            if (o.contains("slack")) m.slack = FlagCond::FromJson(o["slack"]);
             if (o.contains("light") && o["light"].is_object()) {
                 const json& l = o["light"];
                 if (l.contains("colour") && l["colour"].is_array() && l["colour"].size() >= 3)

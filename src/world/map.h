@@ -244,6 +244,14 @@ struct NpcState {
     bool   turned = false;        // and faces this way
     Facing facing = FACE_DOWN;
     string pose;                  // a clip held instead of idle: "slump", "lie"
+    // And the one held while somebody talks to them, if not that: Vask stops
+    // chopping at the Hushed and holds his guard to answer, rather than
+    // turning round and swinging his cane at whoever spoke.
+    string talk_pose;
+    // Another body: the same person drawn from another sheet. Elder Vask is
+    // on his feet in front of his chair in his own dream (scene 19) and back
+    // in it, rocking, in the finale. Empty is their own.
+    string sprite;
     // Asleep: spoken to, they say nothing, and this is what is seen instead.
     bool   asleep = false;
     string asleep_text;
@@ -363,6 +371,14 @@ struct MapObject {
     // smith's anvil while the smith is still asleep, Act I.
     FlagCond closed;
     string closed_text;
+    // A tether ("tether"): the Anchor's thread from an ankle -- the NPC
+    // `tie`'s feet as their art draws them, `tie_dx` toward the way they face
+    // and `tie_dy` down -- to the knot at x, y - lift. Taut and humming until
+    // `slack` holds, then lying loose on the floor; gone with the object.
+    // Halda's, to the great anvil in her dream (scenes 33-34).
+    string   tie;
+    float    tie_dx = 0.0f, tie_dy = 0.0f;
+    FlagCond slack;
 };
 
 // A skill the story has not given the player yet: while `when` holds, the

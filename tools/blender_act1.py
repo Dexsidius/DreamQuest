@@ -1208,6 +1208,157 @@ def vask_fury(t):
 
 
 # =================================================================================
+#  Elder Vask on his feet, in his own dream (scene 19)
+# =================================================================================
+def build_vask_stand():
+    """Scene 19: "A ring of Hushed closes in on Elder Vask, who stands in front
+    of his chair swinging his cane at them." The same old man as the one in
+    the chair (blender_creatures.build_vask) -- robe, shawl, white beard, the
+    stoop -- stood up: feet planted a little apart, his robe down past his
+    knees, and his stick in his right hand like a sword. The chair is not in
+    the rig; a chair that turned whenever he did would be furniture following
+    him about. It stands behind him on its own (build_vask_chair)."""
+    r = cr.Rig()
+    r.joint("pelvis", (0, 0, 0.50))
+    r.add("hips", E(0.15, 0.13, 0.10), "vask_robe", "pelvis")
+    for sx, side in ((-1, "l"), (1, "r")):
+        r.joint("hip_" + side, (sx * 0.075, 0, -0.02), "pelvis", rest=(0, sx * -4, 0))
+        r.limb("thigh", (0, 0, 0), (0, 0, -0.24), 0.07, "vask_robe", "hip_" + side, r_tip=0.06)
+        r.joint("knee_" + side, (0, 0, -0.24), "hip_" + side, rest=(-6, 0, 0))
+        r.limb("shin", (0, 0, 0), (0, 0, -0.23), 0.055, "vask_robe_dk", "knee_" + side, r_tip=0.045)
+        r.add("boot", E(0.06, 0.09, 0.045), "boot", "knee_" + side, loc=(0, -0.04, -0.24))
+    # An old man's long robe, to below the knee: most of what tells him from a
+    # townsman at forty pixels, as the beard is the rest.
+    r.add("skirt", C(0.15, 0.20, 0.30, squash_y=0.85), "vask_robe", "pelvis", loc=(0, 0.0, -0.02))
+    r.add("skirt_hem", E(0.19, 0.165, 0.035), "vask_robe_dk", "pelvis", loc=(0, 0.0, -0.33))
+
+    # Stooped as he is in the chair, a little more for standing.
+    r.joint("chest", (0, 0.01, 0.08), "pelvis", rest=(18, 0, 0))
+    r.add("torso", E(0.17, 0.13, 0.21), "vask_robe", "chest", loc=(0, 0, 0.18))
+    r.add("shawl", E(0.21, 0.17, 0.09), "vask_shawl", "chest", loc=(0, 0.01, 0.30))
+    r.add("shawl_front", E(0.10, 0.06, 0.14), "vask_shawl", "chest", loc=(0, -0.10, 0.24))
+    for sx, side in ((-1, "l"), (1, "r")):
+        r.joint("shoulder_" + side, (sx * 0.16, 0, 0.32), "chest", rest=(0, sx * -10, 0))
+        r.limb("upper", (0, 0, 0), (0, 0, -0.20), 0.05, "vask_robe", "shoulder_" + side, r_tip=0.045)
+        r.joint("elbow_" + side, (0, 0, -0.20), "shoulder_" + side, rest=(-20, 0, 0))
+        r.limb("fore", (0, 0, 0), (0, 0, -0.20), 0.045, "vask_robe_dk", "elbow_" + side, r_tip=0.04)
+        r.joint("hand_" + side, (0, 0, -0.20), "elbow_" + side)
+        r.add("hand", E(0.045, 0.05, 0.04), "vask_skin_dk", "hand_" + side)
+    # The stick in his right fist, gripped near the knob and carried on along
+    # the hand's -Z, the way a sword is -- chunkier than a real cane, or at
+    # forty pixels it is all outline.
+    r.add("stick", C(0.024, 0.02, 0.52), "vask_stick", "hand_r", loc=(0, -0.01, 0.05))
+    r.add("stick_knob", E(0.04, 0.04, 0.04), "vask_stick", "hand_r", loc=(0, -0.01, 0.07))
+
+    r.joint("neck", (0, -0.03, 0.38), "chest", rest=(-12, 0, 0))
+    r.add("neckp", C(0.05, 0.055, 0.07), "vask_skin_dk", "neck", loc=(0, 0, 0.05))
+    r.joint("head", (0, -0.01, 0.09), "neck", rest=(-8, 0, 0))
+    r.add("skull", E(0.115, 0.12, 0.115), "vask_skin", "head", loc=(0, 0, 0.06))
+    r.add("fringe", E(0.125, 0.125, 0.06), "vask_hair", "head", loc=(0, 0.02, 0.05))
+    r.add("hair_back", E(0.115, 0.07, 0.10), "vask_hair", "head", loc=(0, 0.08, 0.04))
+    for sx in (-1, 1):
+        r.add("hair_side", E(0.035, 0.07, 0.07), "vask_hair", "head", loc=(sx * 0.11, 0.01, 0.03))
+        r.add("brow", E(0.045, 0.02, 0.022), "vask_hair", "head", loc=(sx * 0.055, -0.10, 0.09))
+        r.add("eye", E(0.018, 0.012, 0.014), "eye", "head", loc=(sx * 0.05, -0.105, 0.06))
+    r.add("nose", E(0.028, 0.035, 0.035), "vask_skin", "head", loc=(0, -0.115, 0.03))
+    r.add("beard", E(0.10, 0.075, 0.105), "vask_hair", "head", loc=(0, -0.06, -0.09))
+    r.add("beard_tip", E(0.06, 0.05, 0.07), "vask_hair_dk", "head", loc=(0, -0.05, -0.18))
+    r.add("moustache", E(0.065, 0.03, 0.028), "vask_hair", "head", loc=(0, -0.10, -0.015))
+    # The seated man's scale, a touch smaller stood up: stooped and old, he is
+    # about the hero's height and no more.
+    r.pose.scale = (2.3, 2.3, 2.3)
+    return r
+
+
+# His guard: the stick held up and out to his right, a little before him, the
+# free hand out for balance, one foot forward. Every angle of the stick in
+# this clip was aimed at what the camera sees, not at what a man would do: at
+# forty-six degrees overhead anything pointed at the camera is drawn pointing
+# down the screen, so a stick held out in front of him reads, from the front,
+# as one hanging at his side. Held out to the side and up it reads from all
+# four. (The shoulder angles were solved for the stick's direction offline.)
+_VASK_GUARD = {"shoulder_r": (15, -132, -12), "elbow_r": X(0), "hand_r": X(0),
+               "shoulder_l": fwd(28), "elbow_l": X(-46),
+               "hip_l": fwd(12), "hip_r": fwd(-10), "knee_l": X(10), "knee_r": X(6)}
+
+
+def vask_stand_idle(t):
+    s = sn(t)
+    v = dict(_VASK_GUARD)
+    v.update({"chest": X(2.0 * s), "neck": X(-1.0 * s), "head": X(-2.0 * sn(t, 0.2)), "_z": -0.006 * abs(s),
+              "shoulder_r": (15 + 3 * s, -132, -12)})
+    return v
+
+
+def vask_stand_walk(t):
+    # He holds his ground; a shuffle in place is all a walk is for him.
+    v = dict(_VASK_GUARD)
+    v.update({"hip_l": fwd(12 + 8 * sn(t)), "hip_r": fwd(-10 - 8 * sn(t)), "_z": 0.01 * abs(sn(t))})
+    return v
+
+
+def _vask_cut(t):
+    """One cut of the stick, a chop over the top: drawn back high over his
+    right shoulder, over his head, and down across in front of him to his
+    left at whatever is there, turning into it -- then back to his guard.
+    Over the top, not straight down or straight across: from the front a
+    downward cut comes at the camera and hardly moves, and a sweep across
+    passes through pointing at it. Euler angles are mixed one by one, so the
+    "over" key is what keeps the stick going over his head between the two
+    and not round by his knees."""
+    i, k = phases(t, 0.32, 0.47, 0.63, 1.0)
+    guard = dict(_VASK_GUARD)
+    raise_ = dict(_VASK_GUARD)
+    raise_.update({"shoulder_r": (27, -138, -6), "elbow_r": X(10), "chest": (-14, 0, 15), "head": (0, 0, -8),
+                   "_y": 0.03})
+    over = dict(_VASK_GUARD)
+    over.update({"shoulder_r": (12, -180, -6), "elbow_r": X(10), "chest": X(-4)})
+    cut = dict(_VASK_GUARD)
+    cut.update({"shoulder_r": (-81, -180, -21), "elbow_r": X(10), "chest": (14, 0, -20), "head": (0, 0, 10),
+                "_y": -0.08, "hip_l": fwd(22), "hip_r": fwd(-16), "knee_l": X(16)})
+    return [mix(guard, raise_, k), mix(raise_, over, k), mix(over, cut, k), mix(cut, guard, k), guard][i]
+
+
+def vask_stand_attack(t):
+    return _vask_cut(t)
+
+
+def vask_fend(t):
+    """Swinging his cane at them, over and over: a cut, half a breath in his
+    guard, and the next -- scene 19 and the whole of his dream after it."""
+    return _vask_cut(min(1.0, t / 0.8))
+
+
+def vask_stand_hurt(t):
+    k = math.sin(t * math.pi)
+    v = dict(_VASK_GUARD)
+    v.update({"chest": X(18 - 14 * k), "_y": 0.10 * k, "neck": X(-10 * k), "head": (0, 0, 10 * k)})
+    return v
+
+
+def vask_stand_death(t):
+    # He cannot be killed in the dream (scene 19): the clip a monster would
+    # die by is only ever a stagger.
+    return vask_stand_hurt(min(1.0, t))
+
+
+def build_vask_chair():
+    """His rocking chair with nobody in it, rendered by itself so the dream can
+    stand him in front of it: the very chair the man in it rocks in
+    (blender_creatures.vask_chair), at his scale and tipped back as it rests.
+    tools/make_vask_chair.py cuts the facing frame out as a prop."""
+    r = cr.Rig()
+    r.joint("rock", (0, 0.04, 0.05), rest=(-2, 0, 0))
+    cr.vask_chair(r, "rock")
+    r.pose.scale = (2.4, 2.4, 2.4)
+    return r
+
+
+def vask_chair_still(t):
+    return {}
+
+
+# =================================================================================
 #  Registration
 # =================================================================================
 
@@ -1217,6 +1368,11 @@ CREATURES = {
     "ashen_vanguard": (build_ashen_vanguard, 144, (av_idle, av_walk, av_attack, av_hurt, av_death), 0.62),
     "forge_demon": (build_forge_demon, 256, (fd_idle, fd_walk, fd_attack, fd_hurt, fd_death), 1.45),
     "nightmare_anchor": (build_nightmare_anchor, 160, (anc_idle, anc_walk, anc_attack, anc_hurt, anc_death), 1.10),
+    # Eighty: his stick, raised for a cut, goes up past his head.
+    "vask_stand": (build_vask_stand, 80,
+                   (vask_stand_idle, vask_stand_walk, vask_stand_attack, vask_stand_hurt, vask_stand_death), 0.34),
+    "vask_chair": (build_vask_chair, 64,
+                   (vask_chair_still, vask_chair_still, vask_chair_still, vask_chair_still, vask_chair_still), 0.40),
 }
 
 # id: {clip: (pose, frames, loops)} -- see EXTRA_CLIPS in blender_creatures.py.
@@ -1228,6 +1384,8 @@ EXTRA = {
     # Elder Vask awake: the fist held out to be bumped, and his fury at the
     # dragon's shadow. Both are held on their last frame.
     "vask": {"fist": (vask_fist, 4, False), "fury": (vask_fury, 4, False)},
+    # On his feet in his own dream, fending off the Hushed with his stick.
+    "vask_stand": {"fend": (vask_fend, 8, True)},
 }
 
 

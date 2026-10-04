@@ -810,13 +810,18 @@ S.append({'id': 'act1_dream_intro', 'on': {'enter': 'prologue_dream_havenbrook'}
     narrate('The same town, warped by dream logic: houses lean at wrong angles, the sky is a bruised violet, and the '
             'well in the square glows from the inside. Pale, faceless figures drift through the streets, humming a '
             'slow lullaby.'),
-    pose('npc_vask_dream', 'attack'),
+    # On his feet in front of his chair, chopping at them with his cane
+    # (genmaps: his dream state is the standing sheet, "fend" looping); he
+    # holds his guard while he turns to speak, and is at it again after.
+    pose('npc_vask_dream', 'fend'),
     say('npc_vask_dream', 'Back, you hollow things! Back!'),
     face('npc_vask_dream', 'player'),
+    pose('npc_vask_dream', 'idle'),
     say('npc_vask_dream', "You've got a face. The rest of them don't. Not anymore. They've been pulling at this town "
                           "for days. I can feel the roots: three out along the edges and one thick one in the square. "
                           "Cut them loose, whoever you are. I'll keep this lot busy."),
-    pose('npc_vask_dream', 'attack'),
+    face('npc_vask_dream', d='down'),
+    pose('npc_vask_dream', 'fend'),
     narrate('The nearest Hushed turn to face you.'),
     flag('ACT1_DREAM_INTRO'),
     quest('q_act1_break_hold'),

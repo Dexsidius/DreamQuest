@@ -5791,7 +5791,10 @@ sleeping poses -- lying, slumped, sitting up, shaking someone -- are clips of th
 character rig. They are shown side-on: from the front, a body lying on its back
 or slumped on the ground reads as somebody short standing there, so the town's
 sleepers each face left or right (which, the name decides) and the player lies
-side-on on the road, the cart and the mattress. The bed at the inn is the one
+side-on on the road, the cart and the mattress. (Sorrel, who wears the
+warden's rig, sleeps as the player does on the road, lying down: the rig has
+no slump, and a sprite asked for a clip it lacks plays idle, so she had stood
+at her tower wide awake.) The bed at the inn is the one
 front view, and it works because of the blanket: an actor that is the bed's own
 picture from its pillow down (`"from_row"`), laid over the player, so what shows
 is a head on a pillow.
@@ -5817,8 +5820,10 @@ written. Everything below is the host's story; see [In company](#in-company).
    hangs over him -- the mark for *something of the story's to do here* -- and,
    once he has been seen, the button says **Use Dreamcatcher**.
 2. **Elder Vask's dream** (`prologue_dream_havenbrook`): the town copied as it
-   stands and made a nightmare of, violet, the well glowing, Vask at his chair
-   with his cane up against a ring of **Hushed**. The nearest two turn on the
+   stands and made a nightmare of, violet, the well glowing, Vask on his feet
+   in front of his empty chair, chopping at a ring of **Hushed** with his cane
+   (he holds his guard to turn and speak, and is at them again after; back in
+   the chair, rocking, only for the finale). The nearest two turn on the
    player; three more drift about the square's north side. Three **Nightmare
    Holds** -- by the trees, the water and the pit -- each guarded by a squad of
    four; with the guards down, the knot can be released and its captive (the
@@ -5843,7 +5848,9 @@ written. Everything below is the host's story; see [In company](#in-company).
    that turn their helmets as one when the player crosses the threshold. With
    them down to scrap, three tries to wake her, and the Dreamcatcher: a cavern
    of slag (`dream_forge`) where she fights the **Forge Demon** on a platform
-   reached by one causeway. A wide flame from its belly, a great sweeping
+   reached by one causeway, a thick black thread from her ankle to the great
+   anvil pulled taut and humming -- slack on the floor once the demon falls,
+   gone when the knot breaks. A wide flame from its belly, a great sweeping
    blow, a whirlwind spin; after a flame or a spin it glows gold and every blow
    lands twice as hard (*"Hit it where it glows!"*); at half its health it
    ignites, and its blows leave fire on the ground. The anvil's knot broken,
@@ -5985,6 +5992,39 @@ written. Everything below is the host's story; see [In company](#in-company).
   by; a card then says how it is done.
 - `bin\selftest.exe --only town` checks the chimneys against the story's flags
   and that the smoke is there to see, the leans, and the crowd in scene 50.
+- **Vask on his feet.** Scene 19 has him standing in front of his chair
+  swinging his cane, and the man in the porch chair is one sheet with the chair
+  in it. So an NPC state can now put someone in **another sheet**
+  (`"sprite"` in a state, `NpcState::sprite`; `Npc::Wear` swaps it and carries
+  the clip over): Vask's dream state wears `vask_stand` and holds `fend`, an
+  over-the-top chop on a loop, and the finale's state, naming none, has him
+  back in his own. Spoken to, a state's `talk_pose` is held instead of its
+  pose -- Vask turns and answers from his guard rather than swinging his cane
+  at whoever spoke. The standing man is `build_vask_stand` in
+  `tools/blender_act1.py`, the same old man at the same scale as the seated
+  one; the chair is the very chair, rendered empty (`build_vask_chair`, the
+  chair factored out of the seated rig as `blender_creatures.vask_chair`) and
+  cut into a prop by `tools/make_vask_chair.py` (`vask_chair_empty`, there only
+  while he is up). The swing was aimed at the camera, not at a fencing manual:
+  from forty-six degrees overhead a stick pointed at the camera is drawn
+  pointing down the screen, so a guard held out in front of him read as a cane
+  hanging at his side and a downward cut barely moved. The guard is out to his
+  side and up, the cut goes up, over his head and down across him to the other
+  side, and the shoulder angles were solved for the stick's direction rather
+  than guessed -- with an "over" key between the raise and the cut, because
+  Euler angles mix one by one and left alone took the stick round by his knees.
+- **Halda's thread** is a `tether` object: the Anchor's thread drawn from an
+  NPC's ankle -- their feet where their art draws them, measured off the idle
+  sheet as the lock-on ring is -- to a knot at a height over the object's
+  point. Two pixels thick with a violet sheen while taut, a pixel's hum across
+  its middle and a pulse running up it; once `slack` holds it lies loose on
+  the floor in a curve and hangs from the knot in a belly; it goes with its
+  `when`. Hers runs into the lower side of the bound anvil's knot, slack on
+  `ACT1_HALDA_DEMON_DOWN` (scene 34), gone with `ACT1_FORGE_ANCHOR_BROKEN`.
+- `bin\selftest.exe --only act1` checks Vask's sheet, clip and chair in his
+  dream and in the finale, that he answers from his guard, and the thread
+  taut, slack and gone; every map's states are checked for a sheet that
+  exists and clips it has, and every tether for its sleeper.
 
 ### In company
 

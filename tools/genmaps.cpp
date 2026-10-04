@@ -13318,7 +13318,11 @@ static json& NpcOf(MapBuilder& m, const string& id) {
 static void Asleep(MapBuilder& m, const Sleeper& z, const char* keep_dialogue = nullptr) {
     json& n = NpcOf(m, z.id);
     if (n.empty()) return;
-    json asleep = {{"when", When({"HAVENBROOK_ASLEEP"})}, {"pose", "slump"}, {"asleep", z.text}};
+    // The player's rig -- Sorrel wears the warden's -- has no slump: it
+    // sleeps the way the player does on the road, lying down. (Asked for a
+    // clip it lacks, a sprite plays idle, and she stood at her tower awake.)
+    const bool player_rig = n.value("sprite", string("")).rfind("player_", 0) == 0;
+    json asleep = {{"when", When({"HAVENBROOK_ASLEEP"})}, {"pose", player_rig ? "lie" : "slump"}, {"asleep", z.text}};
     if (z.x != 0 || z.y != 0) asleep["at"] = json::array({z.x + m.ox, z.y});
     // Side-on: slumped and seen from the front, a sleeper reads as somebody
     // short standing there. Which side is the name's, so it never changes.
@@ -13835,8 +13839,11 @@ static void DreamTown(const MapBuilder& town) {
     // The well glows from the inside.
     Glow(m, "dream_well_glow", 912, 724, {214, 200, 255}, 150.0f, 0.8f, json::object(), true, 30.0f);
 
-    // Vask, holding his ground at his chair; and in the finale, rocking with
-    // his eyes open, his cane jabbing at the Guild Hall's doors.
+    // Vask, on his feet in front of his chair, swinging his cane at the
+    // Hushed (19: his own body for it, vask_stand, and the chair left empty
+    // behind him); and in the finale back in it, rocking with his eyes open,
+    // his cane jabbing at the Guild Hall's doors -- his own sheet, chair and
+    // all. First state that holds wins: the last is his whole dream.
     {
         json& n = m.Npc("npc_vask_dream", "Elder Vask", "vask", 984, 482, "act1_vask_dream", 0);
         n["states"] = json::array({
@@ -13844,7 +13851,14 @@ static void DreamTown(const MapBuilder& town) {
             {{"when", W({"ACT1_FINALE_TRAPPED"})}, {"dialogue", "act1_vask_dream_inside"}},
             {{"when", W({"ECHO_HAVENBROOK_BELLS"})}, {"hidden", true}},
             {{"when", W({}, {"ACT1_02_DREAM_ENTERED"})}, {"hidden", true}},
+            {{"when", W({"ACT1_02_DREAM_ENTERED"})}, {"sprite", "vask_stand"}, {"pose", "fend"}, {"talk_pose", "idle"}},
         });
+        // The chair he got up out of, a step behind him and a little to one
+        // side, so that it reads as a chair and not as a ladder out of his
+        // head. Only while he is up: in the finale he is sitting in it.
+        Decor(m, "dream_vask_chair", "vask_chair_empty", 994, 466,
+              W({"ACT1_02_DREAM_ENTERED"}, {"ECHO_HAVENBROOK_BELLS", "ACT1_FINALE_TRAPPED", "ECHO_HAVENBROOK_FINAL_BELL"}))
+            ["solid"] = json::array({994 - 11, 466 - 8, 22, 8});
     }
     // The dream-selves of sleepers, cowering in doorways.
     {
@@ -14400,6 +14414,18 @@ static void BuildDreamForge() {
     // Halda, fighting alone at her anvil.
     json& h = m.Npc("npc_halda_dream", "Halda", "citizen2", mx - 70, my + 18, "act1_halda_dream", 2);
     h["states"] = json::array({{{"when", W({"ECHO_HALDA_FORGE_RELIT"})}, {"hidden", true}}});
+    // "A thick black thread binds her ankle to the great anvil" (33): from
+    // her ankle into the knot's lower side, where its strands fan out over
+    // the anvil's horn -- taut and humming while the demon stands, slack on
+    // the floor once it falls (34), and gone when the Anchor breaks.
+    {
+        json& t = m.Object("forge_thread", "tether", mx - 22, my - 6);
+        t["lift"] = 18.0f;
+        t["tie"] = "npc_halda_dream";
+        t["tie_at"] = json::array({1, -2});
+        t["slack"] = W({"ACT1_HALDA_DEMON_DOWN"});
+        t["when"] = W({}, {"ACT1_FORGE_ANCHOR_BROKEN"});
+    }
     // The demon: dragging its sword round the platform until somebody else
     // steps onto it.
     json& e = Post(m, "forge_demon", mx + 60, my - 10, 0, W({}, {"ACT1_HALDA_DEMON_DOWN"}), "ACT1_HALDA_DEMON_DOWN", 300.0f);

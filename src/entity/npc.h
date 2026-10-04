@@ -90,6 +90,12 @@ public:
 private:
     string id, name, dialogue_root, shop;
     string shown_name, shown_dialogue;
+    // Their own sheet, and where another one a state names is looked up.
+    const SpriteDef*     own_def = nullptr;
+    const SpriteLibrary* library = nullptr;
+    // Put them in `def` (their own when null), the clip they were in carried
+    // over: a state's body is a change of clothes, not of what they are doing.
+    void Wear(const SpriteDef* def);
     vector<NpcState> states;
     int    state_index = -1;
     // A scene's walk.

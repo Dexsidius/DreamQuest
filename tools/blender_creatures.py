@@ -1144,28 +1144,37 @@ def drake_death(t):
 #  chair together, which is the whole animation.
 # =================================================================================
 
+def vask_chair(r, joint):
+    """His rocking chair, hung off `joint`: the rockers, the legs and posts,
+    the arms, the seat with its cushion, and the slatted back. Shared by the
+    man in it (build_vask) and the chair on its own (blender_act1's
+    build_vask_chair, which his dream stands him in front of), so the two are
+    the same chair to the pixel."""
+    for sx in (-1, 1):
+        # A rocker: a long shallow arc, faked as a flattened ellipsoid.
+        r.add("rocker", E(0.035, 0.34, 0.05), "chair_wood_dk", joint, loc=(sx * 0.20, 0.02, -0.03))
+        # Legs up to the seat, and the front posts that carry the arms.
+        for sy, h in ((-0.20, 0.30), (0.18, 0.30)):
+            r.limb("leg", (sx * 0.20, sy, -0.02), (sx * 0.18, sy, h), 0.028, "chair_wood", joint, r_tip=0.024)
+        r.limb("post", (sx * 0.19, -0.20, 0.30), (sx * 0.19, -0.20, 0.50), 0.025, "chair_wood", joint, r_tip=0.022)
+        # The arm rest, and the back upright behind it.
+        r.add("arm", E(0.035, 0.24, 0.028), "chair_wood_lt", joint, loc=(sx * 0.19, -0.02, 0.52))
+        r.limb("upright", (sx * 0.19, 0.18, 0.30), (sx * 0.17, 0.22, 0.92), 0.028, "chair_wood", joint, r_tip=0.022)
+    r.add("seat", E(0.21, 0.19, 0.028), "chair_wood_lt", joint, loc=(0, -0.01, 0.31))
+    r.add("cushion", E(0.18, 0.16, 0.035), "vask_blanket", joint, loc=(0, -0.02, 0.335))
+    for k in range(4):
+        r.add("slat", E(0.14, 0.02, 0.035), "chair_wood", joint, loc=(0, 0.20 + k * 0.006, 0.46 + k * 0.14))
+    r.add("rail", E(0.19, 0.03, 0.04), "chair_wood_lt", joint, loc=(0, 0.22, 0.94))
+    for sx in (-1, 1):
+        r.add("finial", E(0.035, 0.035, 0.045), "chair_wood_lt", joint, loc=(sx * 0.17, 0.22, 0.97))
+
+
 def build_vask():
     r = Rig()
     r.joint("rock", (0, 0.04, 0.05), rest=(-2, 0, 0))
 
     # --- the chair -----------------------------------------------------------------
-    for sx in (-1, 1):
-        # A rocker: a long shallow arc, faked as a flattened ellipsoid.
-        r.add("rocker", E(0.035, 0.34, 0.05), "chair_wood_dk", "rock", loc=(sx * 0.20, 0.02, -0.03))
-        # Legs up to the seat, and the front posts that carry the arms.
-        for sy, h in ((-0.20, 0.30), (0.18, 0.30)):
-            r.limb("leg", (sx * 0.20, sy, -0.02), (sx * 0.18, sy, h), 0.028, "chair_wood", "rock", r_tip=0.024)
-        r.limb("post", (sx * 0.19, -0.20, 0.30), (sx * 0.19, -0.20, 0.50), 0.025, "chair_wood", "rock", r_tip=0.022)
-        # The arm rest, and the back upright behind it.
-        r.add("arm", E(0.035, 0.24, 0.028), "chair_wood_lt", "rock", loc=(sx * 0.19, -0.02, 0.52))
-        r.limb("upright", (sx * 0.19, 0.18, 0.30), (sx * 0.17, 0.22, 0.92), 0.028, "chair_wood", "rock", r_tip=0.022)
-    r.add("seat", E(0.21, 0.19, 0.028), "chair_wood_lt", "rock", loc=(0, -0.01, 0.31))
-    r.add("cushion", E(0.18, 0.16, 0.035), "vask_blanket", "rock", loc=(0, -0.02, 0.335))
-    for k in range(4):
-        r.add("slat", E(0.14, 0.02, 0.035), "chair_wood", "rock", loc=(0, 0.20 + k * 0.006, 0.46 + k * 0.14))
-    r.add("rail", E(0.19, 0.03, 0.04), "chair_wood_lt", "rock", loc=(0, 0.22, 0.94))
-    for sx in (-1, 1):
-        r.add("finial", E(0.035, 0.035, 0.045), "chair_wood_lt", "rock", loc=(sx * 0.17, 0.22, 0.97))
+    vask_chair(r, "rock")
 
     # --- the man in it --------------------------------------------------------------
     # Sitting: the thighs run forward out of the hips and the shins drop from

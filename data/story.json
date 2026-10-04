@@ -2948,7 +2948,7 @@
     {
      "do": "pose",
      "who": "npc_vask_dream",
-     "clip": "attack",
+     "clip": "fend",
      "wait": false
     },
     {
@@ -2962,14 +2962,25 @@
      "toward": "player"
     },
     {
+     "do": "pose",
+     "who": "npc_vask_dream",
+     "clip": "idle",
+     "wait": false
+    },
+    {
      "do": "say",
      "who": "npc_vask_dream",
      "text": "You've got a face. The rest of them don't. Not anymore. They've been pulling at this town for days. I can feel the roots: three out along the edges and one thick one in the square. Cut them loose, whoever you are. I'll keep this lot busy."
     },
     {
+     "do": "face",
+     "who": "npc_vask_dream",
+     "dir": "down"
+    },
+    {
      "do": "pose",
      "who": "npc_vask_dream",
-     "clip": "attack",
+     "clip": "fend",
      "wait": false
     },
     {

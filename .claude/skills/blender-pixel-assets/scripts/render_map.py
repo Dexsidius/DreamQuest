@@ -37,7 +37,10 @@ def main():
     floor, overlays, standing = [], [], []
     for name, t in d["tiles"].items():
         layer = layers.get(name, 0)
-        for (cx, cy, w, h) in t["locations"]:
+        # A fifth number, when there is one, is a lean in degrees (the dream's
+        # crooked houses); this flat preview draws them upright.
+        for loc in t["locations"]:
+            cx, cy, w, h = loc[:4]
             entry = (cy + h / 2, t["filepath"], cx - w / 2, cy - h / 2, w, h)
             if layer != 0:
                 standing.append(entry)
