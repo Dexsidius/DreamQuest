@@ -6573,10 +6573,24 @@ static void TestActOne(const Databases& db) {
     Check(talk("npc_nessa") && w.MapId() == "dream_tannery" && w.Flagged("ACT1_TANNER_DREAM_INTRO") &&
               up("nightmare_wolf") == 4,
           "into her dream: the winter yard, four wolves round the post she is bound to");
+    // Her thread, from her belt to the knot on the post, the way Halda's runs
+    // from her ankle: kept by value, since waking takes the player away.
+    MapObject belt;
+    for (const MapObject& o : w.CurrentMap().Objects())
+        if (o.id == "tannery_thread") belt = o;
+    {
+        const Npc* nessa = w.FindNpc("npc_nessa_dream");
+        Check(belt.type == "tether" && belt.tie == "npc_nessa_dream" && nessa && present("tannery_thread") &&
+                  !w.Holds(belt.slack) && nessa->x > belt.x + 8.0f,
+              "a thick black thread binds her belt to the post, pulled taut -- and she stands clear of the post, "
+              "so it is seen");
+    }
     Check(squad("ACT1_TANNER_WOLVES_DOWN") == 4 && log.Stage("q_act1_save_tanner") == 2, "the pack down");
+    Check(present("tannery_thread") && w.Holds(belt.slack), "and the thread round her belt goes slack");
     Check(use("tannery_anchor") && w.Flagged("ECHO_TANNER_HOWL_FADES") && w.Flagged("ACT1_TANNER_AWAKE") &&
               awake("npc_nessa") && log.IsComplete("q_act1_save_tanner"),
           "the Anchor broken, a last howl fading: the Tanner wakes");
+    Check(!w.Holds(belt.when), "her thread snapped with the knot");
     Check(w.Flagged("ACT1_FINALE_QUEST_START") && log.IsActive("q_act1_finale"),
           "Halda, Bess and the Tanner saved: The Mayor's Dream");
 

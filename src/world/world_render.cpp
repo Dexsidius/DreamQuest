@@ -2714,11 +2714,13 @@ void World::DrawTethers(SDL_Renderer* r, TextureCache& cache) const {
         }
         // Slack: down from the ankle to the floor, loose across it in a lazy
         // curve that has fallen toward the viewer, and hanging from the knot
-        // in a belly down the anvil's side -- nothing pulling on any of it.
+        // in a belly down the side the sleeper is on -- nothing pulling on
+        // any of it.
         vector<SDL_FPoint> pts;
+        const float out = a.x < k.x ? -1.0f : 1.0f;
         const SDL_FPoint a0 = {a.x, floor_y + 1.0f};
         for (float y = a.y; y < a0.y; y += 1.0f) pts.push_back({a.x, y});
-        const SDL_FPoint k0 = {k.x - 4.0f, base + 1.0f};
+        const SDL_FPoint k0 = {k.x + 4.0f * out, base + 1.0f};
         const float dx = k0.x - a0.x, dy = k0.y - a0.y;
         const float len = std::max(1.0f, std::sqrt(dx * dx + dy * dy));
         const float nx = -dy / len, ny = dx / len;
@@ -2732,7 +2734,7 @@ void World::DrawTethers(SDL_Renderer* r, TextureCache& cache) const {
         const float hang = std::max(1.0f, k0.y - k.y);
         for (float y = 1.0f; y < hang; y += 1.0f) {
             const float s = y / hang;
-            pts.push_back({k0.x + (k.x - k0.x) * s - 2.5f * sinf(s * 3.1415927f), k0.y - y});
+            pts.push_back({k0.x + (k.x - k0.x) * s + 2.5f * out * sinf(s * 3.1415927f), k0.y - y});
         }
         for (size_t i = 0; i < pts.size(); ++i) {
             dot(pts[i].x, pts[i].y, thread);

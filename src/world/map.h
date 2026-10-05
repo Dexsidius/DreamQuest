@@ -371,11 +371,12 @@ struct MapObject {
     // smith's anvil while the smith is still asleep, Act I.
     FlagCond closed;
     string closed_text;
-    // A tether ("tether"): the Anchor's thread from an ankle -- the NPC
-    // `tie`'s feet as their art draws them, `tie_dx` toward the way they face
-    // and `tie_dy` down -- to the knot at x, y - lift. Taut and humming until
-    // `slack` holds, then lying loose on the floor; gone with the object.
-    // Halda's, to the great anvil in her dream (scenes 33-34).
+    // A tether ("tether"): the Anchor's thread from a sleeper -- the NPC
+    // `tie`'s feet as their art draws them, `tie_dx` across (mirrored when
+    // they face left) and `tie_dy` down: an ankle, a belt -- to the knot at
+    // x, y - lift. Taut and humming until `slack` holds, then lying loose on
+    // the floor; gone with the object. Halda's ankle to the great anvil in
+    // her dream (scenes 33-34); the Tanner's belt to the post (42-43).
     string   tie;
     float    tie_dx = 0.0f, tie_dy = 0.0f;
     FlagCond slack;

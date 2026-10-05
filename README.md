@@ -5872,7 +5872,9 @@ written. Everything below is the host's story; see [In company](#in-company).
    a knife in her fist. Her dream (`dream_tannery`) is a winter yard of frames
    as tall as masts, and four **nightmare wolves** (10-15) that circle while
    their bite cools, so they come from every side, and howl to rouse each
-   other. The Anchor is the thread binding her to a post.
+   other. The Anchor is the thread binding her to a post: knotted low on it
+   and running to her belt, taut while the wolves circle, slack on the frost
+   once the fourth one falls.
 7. **The Mayor's Dream.** With Halda, Bess and the Tanner awake, the Mayor's
    Hall door asks *Once you enter, you can't leave until it's done. Ready?* --
    inside, his chair is empty and there is a note on the desk. *Boo.* The
@@ -6013,18 +6015,25 @@ written. Everything below is the host's story; see [In company](#in-company).
   side, and the shoulder angles were solved for the stick's direction rather
   than guessed -- with an "over" key between the raise and the cut, because
   Euler angles mix one by one and left alone took the stick round by his knees.
-- **Halda's thread** is a `tether` object: the Anchor's thread drawn from an
-  NPC's ankle -- their feet where their art draws them, measured off the idle
-  sheet as the lock-on ring is -- to a knot at a height over the object's
-  point. Two pixels thick with a violet sheen while taut, a pixel's hum across
-  its middle and a pulse running up it; once `slack` holds it lies loose on
-  the floor in a curve and hangs from the knot in a belly; it goes with its
-  `when`. Hers runs into the lower side of the bound anvil's knot, slack on
-  `ACT1_HALDA_DEMON_DOWN` (scene 34), gone with `ACT1_FORGE_ANCHOR_BROKEN`.
+- **The Anchor's threads** are `tether` objects: a thread drawn from a
+  sleeper -- an ankle or a belt, a few pixels up from their feet where their
+  art draws them (measured off the idle sheet as the lock-on ring is) -- to a
+  knot at a height over the object's point. Two pixels thick with a violet
+  sheen while taut, a pixel's hum across its middle and a pulse running up
+  it; once `slack` holds it lies loose on the floor in a curve and hangs from
+  the knot in a belly on the sleeper's side; it goes with its `when`.
+  Halda's runs from her ankle into the lower side of the bound anvil's knot,
+  slack on `ACT1_HALDA_DEMON_DOWN` (scene 34). The Tanner's runs from her
+  belt to the post (42): the post's knot was moved down to belt height and
+  its painted strand taken off (`prop_tannery_post_bound`), and she stands a
+  step out at its right hand, because stood in front of it the thread ran
+  straight back into the post behind her and could not be seen; slack on
+  `ACT1_TANNER_WOLVES_DOWN` (43). Each goes when its Anchor breaks.
 - `bin\selftest.exe --only act1` checks Vask's sheet, clip and chair in his
-  dream and in the finale, that he answers from his guard, and the thread
-  taut, slack and gone; every map's states are checked for a sheet that
-  exists and clips it has, and every tether for its sleeper.
+  dream and in the finale, that he answers from his guard, and both threads
+  taut, slack and gone (and that the Tanner stands clear of her post); every
+  map's states are checked for a sheet that exists and clips it has, and
+  every tether for its sleeper.
 
 ### In company
 

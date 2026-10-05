@@ -100,7 +100,7 @@ One list covers everything interactive. `type` decides the behaviour:
 | `tree`, `rock` | Gathering node | `skill`, `skill_level`, `yield`, `yield_xp`, `gather_time` |
 | `range` | Cooks one raw item per press | `title` |
 | `workbench` | Opens the crafting panel | `title` |
-| `tether` | Not used: the Anchor's thread, drawn from an NPC's ankle to a knot at `lift` over `x`, `y`; taut until `slack` holds, then lying loose | `tie` (the NPC's id), `tie_at` (`[dx, dy]` from their drawn feet, dx toward their facing), `lift`, `slack`, `when` |
+| `tether` | Not used: the Anchor's thread, drawn from an NPC's ankle to a knot at `lift` over `x`, `y`; taut until `slack` holds, then lying loose | `tie` (the NPC's id), `tie_at` (`[dx, dy]` from their drawn feet -- an ankle, a belt; dx mirrored when they face left), `lift`, `slack`, `when` |
 
 Common to all of them: `id` (unique across the save — it is what the world
 flags key on), `x`, `y` (the base the sprite stands on), `sprite`, and an

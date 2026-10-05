@@ -662,17 +662,19 @@ def prop_drying_frame_tall():
 
 
 def prop_tannery_post_bound():
-    """The post in the dream yard the Tanner stands with his back to: a stout
-    wooden post with a thick black thread knotted round it at his belt's
-    height, and a strand of it running down into the frost."""
+    """The post in the dream yard the Tanner stands with her back to: a stout
+    wooden post with a thick black thread knotted round it low down, about
+    where her belt is. The thread from the knot to her belt is not in the
+    picture: the game draws it (a "tether", genmaps BuildDreamTannery), taut
+    while the wolves circle and slack once the fourth one falls, and it has
+    to go wherever she stands."""
     cyl("post", 0.11, 1.55, (0, 0, 0.775), "mast_wood", verts=12)
     sphere("post_top", 0.11, (0, 0, 1.55), "mast_wood_dk").scale = (1.0, 1.0, 0.4)
     blk("split", (0.02, 0.23, 0.70), (0.04, 0, 1.00), "mast_wood_dk", bev=0)
-    knot("knot", (0, 0, 0.92), 16, (0.16, 0.24), (0.034, 0.050), 51, squash=(1.0, 1.0, 0.65), spread=0.03)
-    ring("cord", 0.18, 0.065, (0, 0, 0.88), "thread_lt", rot=(math.radians(8), math.radians(-6), 0), rough=0.35)
-    ring("cord_b", 0.17, 0.055, (0, 0, 0.98), "thread_sheen", rot=(math.radians(-10), math.radians(8), 0),
+    knot("knot", (0, 0, 0.36), 16, (0.16, 0.24), (0.034, 0.050), 51, squash=(1.0, 1.0, 0.65), spread=0.03)
+    ring("cord", 0.18, 0.065, (0, 0, 0.32), "thread_lt", rot=(math.radians(8), math.radians(-6), 0), rough=0.35)
+    ring("cord_b", 0.17, 0.055, (0, 0, 0.42), "thread_sheen", rot=(math.radians(-10), math.radians(8), 0),
          rough=0.35)
-    strand("tail", (0.12, -0.12, 0.86), (0.30, -0.34, 0.0), 0.045, 0.016, "thread", sag=-0.10)
     return centre(1.90)
 
 

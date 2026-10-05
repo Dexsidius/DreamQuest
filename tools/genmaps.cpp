@@ -14479,13 +14479,27 @@ static void BuildDreamTannery() {
         m.Prop("props", "wolf_pelt_rack", p[0], p[1]);
         m.Collision(p[0] - 20, p[1] - 8, 40, 8);
     }
-    // The post, the thread, the Tanner.
+    // The post, the thread, the Tanner. "A thick black thread binds her belt
+    // to the post" (42): she stands at its right hand, a step out, her back to
+    // it, so the thread from the knot low on the post to her belt is seen --
+    // stood in front of the post, the thread ran straight back into it behind
+    // her. Taut while the wolves circle, slack once the fourth falls (43),
+    // snapped with the Anchor.
     Story(m, "tannery_anchor", "tannery_post_bound", mx, my, "Break the Anchor", W({}, {"ACT1_TANNERY_ANCHOR_BROKEN"}))
         ["solid"] = json::array({mx - 8, my - 8, 16, 8});
     m.Mark("tannery_anchor_at", mx, my + 16);
     m.Mark("tannery_post_cam", mx, my + 40);
-    json& n = m.Npc("npc_nessa_dream", "Nessa", "citizen1", mx, my + 16, "act1_nessa_dream", 0);
+    json& n = m.Npc("npc_nessa_dream", "Nessa", "citizen1", mx + 24, my + 6, "act1_nessa_dream", 0);
     n["states"] = json::array({{{"when", W({"ECHO_TANNER_HOWL_FADES"})}, {"hidden", true}}});
+    {
+        // The knot's right-hand side, fifteen pixels up the post's picture.
+        json& t = m.Object("tannery_thread", "tether", mx + 8, my);
+        t["lift"] = 15.0f;
+        t["tie"] = "npc_nessa_dream";
+        t["tie_at"] = json::array({-5, -7});       // her belt, on the post's side
+        t["slack"] = W({"ACT1_TANNER_WOLVES_DOWN"});
+        t["when"] = W({}, {"ACT1_TANNERY_ANCHOR_BROKEN"});
+    }
     Glow(m, "dt_post", mx, my, {200, 210, 255}, 220.0f, 0.55f, json::object());
     const int shown[] = {11, 12, 13, 14};
     for (int k = 0; k < 4; ++k) {
