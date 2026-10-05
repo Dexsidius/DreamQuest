@@ -1265,10 +1265,19 @@ void Game::UpdatePlay(float dt) {
     // playing while the host is in a scene or a sleeper's dream.
     if (guest_session) world->TakeStoryUses();
     else for (const string& id : world->TakeStoryUses()) story.OnUse(id, *world, *quests, ctx);
+    // A press that reads a scene's line on is the scene's, even when it was
+    // the last line: the world must not see it too, in the same frame, once
+    // the scene has let go. Interact reads lines on as well as using things
+    // (A on a pad, E on the keys), and closing "He sleeps on, and does not
+    // wake." used the bed again -- and said it again, for as long as it was
+    // pressed to close it; so for any line a use or a talk says over and
+    // over: the sleeper's and the Mayor's shakes, a knot that holds.
+    scene_took_press = false;
     if (!guest_session) {
         const bool confirm = input.Pressed(Action::Confirm) || input.Pressed(Action::Interact) ||
                              input.Pressed(Action::LightAttack);
         const bool skip = input.Down(Action::Back) || input.Down(Action::Pause);
+        scene_took_press = story.Running() && confirm;
         story.Update(dt, *world, *quests, ctx, confirm, skip);
         // A scene's question: asked over the scene, and answered back to it.
         if (story.View().ask && state == GameState::Play) {
@@ -1306,6 +1315,7 @@ void Game::UpdatePlay(float dt) {
     }
 
     SeatChores();
+    scene_took_press = false;           // Player One's, not their friend's
     UpdatePlayerTwo(dt);
 
     // --- autosave ------------------------------------------------------------
@@ -1389,8 +1399,9 @@ void Game::SeatChores() {
     if (world->player.IsDead() && world->player.DeathTimer() <= 0.0f && !world->InDream())
         SetState(GameState::Death);
 
-    // In a scene, the hands are the scene's: no spells, no meals, no panels.
-    if (story.Running()) return;
+    // In a scene, the hands are the scene's: no spells, no meals, no panels --
+    // nor the press that has just ended one.
+    if (story.Running() || scene_took_press) return;
 
     // --- spell selection -----------------------------------------------------
     // The element is chosen, not the spell: Magic level decides which tier of

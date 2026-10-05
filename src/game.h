@@ -659,6 +659,10 @@ private:
     // What the game does for a player every frame of play, whoever is being
     // served: the journal, levels gained, the buttons that open their panels.
     void SeatChores();
+    // Player One's press that a scene read a line on with, this frame: kept
+    // from the world, so the last line's press does not use again whatever
+    // started the scene (see UpdatePlay).
+    bool scene_took_press = false;
     // The slot is Player One's and the home world's, whoever asked.
     bool WriteSlot(SlotRef slot);
     // --p2 and --hold2, for checking the halves without a second pair of hands.
