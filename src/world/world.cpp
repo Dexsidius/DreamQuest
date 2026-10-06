@@ -35,6 +35,13 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
     ring_heard = RingHeard{};
 
     map_id = id;
+    // A fight's own flags -- a boss's summons, called one after another (the
+    // Pit Lord's, 80) -- are the fight's: gone as the map is, so the next
+    // time it is fought from the start.
+    for (auto it = flags.begin(); it != flags.end();) {
+        if (it->rfind("FIGHT_", 0) == 0) { it = flags.erase(it); ++story_version; }
+        else ++it;
+    }
     // Remembered, so dialogue can know where the player has been.
     SetFlag("visited:" + id);
     enemies.clear();
@@ -433,6 +440,7 @@ bool World::EnterDream(const string& dream_map, const string& spawn, bool story,
     dream.y = player.y;
     dream.story = story;
     dream.locked = locked;
+    dream.talisman = false;
     player.Rest();
     targeting.Clear();
     if (!RequestTransition(dream_map, spawn)) return false;
@@ -457,6 +465,83 @@ void World::PassShadow(const string& image, float x0, float y0, float x1, float 
     shadow.t = 0.0f;
     shadow.time = std::max(0.1f, time);
     shadow.alpha = std::clamp(alpha, 0.0f, 1.0f);
+}
+
+void World::SweepBeam(float x, float y, float x0, float y0, float x1, float y1, float time, SDL_Color colour) {
+    beam.on = true;
+    beam.x = x; beam.y = y;
+    beam.x0 = x0; beam.y0 = y0; beam.x1 = x1; beam.y1 = y1;
+    beam.t = 0.0f;
+    beam.time = std::max(0.1f, time);
+    beam.colour = colour;
+}
+
+string World::DreamTwin(const string& map_id) {
+    // The places the Reverie dreams as they stand, street for street: Havenbrook
+    // through the mirror at the foot of the Dreaming Dark, and the four through
+    // Dream Havenbrook's mirrors.
+    if (map_id == "town_havenbrook")    return "dream_havenbrook";
+    if (map_id == "college_grounds")    return "dream_college";
+    if (map_id == "ashen_path")         return "dream_ashen_path";
+    if (map_id == "bayou")              return "dream_bayou";
+    if (map_id == "plateau_stronghold") return "dream_plateau";
+    return "";
+}
+
+bool World::TalismanShift(string& why) {
+    why.clear();
+    // Not worn: nothing to say -- most of the game, there is no talisman.
+    if (player.equipment.InSlot(SLOT_TALISMAN).empty()) return false;
+    if (visiting || Acting()) {
+        why = "In company the talisman is the host's to use, for now.";
+        return false;
+    }
+    if (transition_pending || player.IsDead()) return false;
+    if (talisman_rest > 0.0f) {
+        why = "The talisman is still warm.";
+        return false;
+    }
+    if (InDream()) {
+        // Out the way it came in. A dream it did not open -- the night's, a
+        // sleeper's -- is not its to end.
+        if (!dream.active || !dream.talisman || dream.map.empty()) {
+            why = "The talisman is cold here.";
+            return false;
+        }
+        const string back = dream.map;
+        const float x = dream.x, y = dream.y;
+        if (!RequestTransition(back, "")) return false;
+        next_has_point = true;
+        next_x = x;
+        next_y = y;
+        dream.talisman = false;
+    } else {
+        const string twin = DreamTwin(map_id);
+        if (twin.empty()) {
+            why = "The veil will not part here.";
+            return false;
+        }
+        const float x = player.x, y = player.y;
+        if (!RequestTransition(twin, "")) return false;
+        dream.active = true;
+        dream.map = map_id;
+        dream.x = x;
+        dream.y = y;
+        dream.story = dream.locked = false;
+        dream.talisman = true;
+        next_has_point = true;
+        next_x = x;
+        next_y = y;
+    }
+    // A step through, not a night's sleep: nothing healed, no time gone.
+    talisman_landing = true;
+    talisman_rest = TALISMAN_REST;
+    targeting.Clear();
+    fade_speed = FADE_SPEED * 1.6f;
+    flip = true;
+    Flash({206, 186, 250, 255}, 0.45f);
+    Audio::Play(Sfx::Chime, 0.8f, 0.7f);
+    return true;
 }
 
 int World::FitLevel(int fit) const {
@@ -769,6 +854,7 @@ void World::SwapSeat(Player& who, SeatState& s) {
     std::swap(dream.active, s.dream_active);
     std::swap(dream.story, s.dream_story);
     std::swap(dream.locked, s.dream_locked);
+    std::swap(dream.talisman, s.dream_talisman);
     std::swap(dream.map, s.dream_map);
     std::swap(dream.x, s.dream_x);
     std::swap(dream.y, s.dream_y);
@@ -924,6 +1010,7 @@ bool World::Sleep(SleepChoice how, const GameContext& ctx, int fee) {
         dream.map = map_id;
         dream.x = player.x;
         dream.y = player.y;
+        dream.story = dream.locked = dream.talisman = false;
         RequestTransition(DREAM_MAP, "arrival");
         fade_speed = SLEEP_FADE_SPEED;
         fade_caption = "You drift off to sleep...";
@@ -1027,6 +1114,9 @@ void World::ApplyTransition(const GameContext& ctx) {
         if (next_has_point) {
             player.x = next_x;
             player.y = next_y;
+            // The talisman lands them where they stood, in the other world --
+            // on open ground there, should the dream have built on the spot.
+            if (talisman_landing) SettlePlayer();
             camera.SnapTo(player.x, player.y);
             HoldWayBack(player.x, player.y);
         }
@@ -1046,6 +1136,7 @@ void World::ApplyTransition(const GameContext& ctx) {
         }
     }
     next_has_point = false;
+    talisman_landing = false;
     if (!map.Loaded() || map_id != next_map) {
         SDL_Log("World: failed to enter map '%s'", next_map.c_str());
         WorldRequest r;
@@ -1103,6 +1194,21 @@ void World::Update(float dt, const GameContext& ctx) {
     }
     // --- a shadow passing over ------------------------------------------------
     if (shadow.on && (shadow.t += dt) >= shadow.time) shadow.on = false;
+    // A temper, as a puff of steam off somebody now and then (NpcState::steam).
+    for (auto& n : npcs) {
+        const float every = n->SteamEvery();
+        if (every <= 0.0f) { n->steam_timer = 0.0f; continue; }
+        if ((n->steam_timer += dt) >= every) {
+            n->steam_timer = 0.0f;
+            Steam(n->x, n->y - 40.0f, 9.0f);
+        }
+    }
+    if (beam.on && (beam.t += dt) >= beam.time) beam.on = false;
+    for (TellLine& t : tell_lines) t.t += dt;
+    tell_lines.erase(std::remove_if(tell_lines.begin(), tell_lines.end(),
+                                    [](const TellLine& t) { return t.t >= t.time; }),
+                     tell_lines.end());
+    talisman_rest = std::max(0.0f, talisman_rest - dt);
 
     // --- screen wipe ---------------------------------------------------------
     if (fade_dir != 0) {
@@ -1176,6 +1282,12 @@ void World::UpdateSeat(float dt, const GameContext& ctx) {
     const bool locked_by_game = player.input_locked;
     player.input_locked = locked_by_game || frozen;
 
+    // The scripted fight out of the Ashen Path: battered, never felled -- on
+    // the Ashen Path, and nowhere a waystone could take them from it.
+    player.unfelled = Flagged("ACT2_ESCAPE_ACTIVE") && map_id == "ashen_path";
+    // The Magister's first lesson: any staff holds the old magic.
+    player.ancient_lesson = Flagged("ACT2_ANCIENT_SLOT_UNLOCKED");
+
     // The hands of the seat at this machine, from the device -- unless the
     // co-op client is filling them, with what it is also sending the host.
     if (!player.hands_external)
@@ -1246,7 +1358,7 @@ void World::UpdateSeat(float dt, const GameContext& ctx) {
     if (InDream() && !transition_pending) {
         if (player.IsDead()) {
             if (player.DeathTimer() < 1.6f) Wake(WakeReason::Nightmare);
-        } else if (clock.DreamOver() && !dream.story) {
+        } else if (clock.DreamOver() && !dream.story && !dream.talisman) {
             Wake(WakeReason::Dawn);
         }
     }

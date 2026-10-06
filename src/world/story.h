@@ -56,6 +56,9 @@ struct StoryView {
     // and gives the answer back with StoryDirector::Answer.
     bool   ask = false;
     string ask_text, ask_yes, ask_no;
+    // Both answers are answers: backing out of it does not choose the second
+    // (spare or capture; destroy or keep).
+    bool   ask_choice = false;
 };
 
 class StoryDirector {
@@ -100,8 +103,11 @@ public:
         string id, on, map, at, then;
         float  radius = 48.0f;
         FlagCond when;
-        // Something the player has to be carrying for it: the Dreamcatcher.
+        // Something the player has to be carrying for it: the Dreamcatcher --
+        // and how many of it: thirty thousand coins for a house.
         string needs;
+        int    needs_qty = 1;
+        int    level = 0;          // "level": the combat level that starts it
         json   steps = json::array();
     };
     const vector<Scene>& Scenes() const { return scenes; }

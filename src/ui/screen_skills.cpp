@@ -48,7 +48,7 @@ vector<Game::SkillMilestone> Game::MilestonesFor(int skill) const {
     // --- the character's own tree ----------------------------------------------
     // Theirs only. The page is their path's, and a hero has no use for a row
     // of the wayfarer's they will never be offered.
-    const AttackStyle path = p.talents.HasPath() ? p.talents.Path() : p.Affinity();
+    const int path = p.TreeIndex();
     const TalentTree& tree = skill_trees.Tree(path);
     if (tree.skill == skill)
         for (const TalentNode& n : tree.nodes)
@@ -297,7 +297,7 @@ void Game::UpdateSkillsPanel() {
     if (skills_tab == TAB_BOOK) { UpdateSpellbook(); return; }
 
     Player& p = world->player;
-    const AttackStyle style = p.talents.HasPath() ? p.talents.Path() : p.Affinity();
+    const int style = p.TreeIndex();
     const TalentTree& tree = skill_trees.Tree(style);
 
     // Stepping from the melee tree's fourth column to a tree with three.
@@ -316,7 +316,7 @@ void Game::UpdateSkillsPanel() {
         const Talents::Why why = p.talents.CanLearn(node->id, p.skills);
         if (p.talents.Has(node->id) && !node->technique.empty()) {
             if (p.talents.ToggleTechnique(node->id)) {
-                const bool on = p.talents.Technique(style) == node->technique;
+                const bool on = p.talents.Technique(tree.style) == node->technique;
                 PushToast(on ? node->name + " is your charged attack now."
                              : "Back to a plain charged attack.", Palette::Xp);
                 Audio::Play(Sfx::Equip);
@@ -410,7 +410,7 @@ void Game::DrawSkillsPanel() {
     // a column, so the node descriptions keep the room they had.
     float tree_w = 860.0f;
     if (skills_tab == TAB_TREE) {
-        const AttackStyle mine = world->player.talents.HasPath() ? world->player.talents.Path() : world->player.Affinity();
+        const int mine = world->player.TreeIndex();
         tree_w += 172.0f * (skill_trees.Tree(mine).BranchCount() - SkillTrees::BRANCHES);
     }
     // As big as it wants to be, in a window with room for it; and in one
@@ -431,12 +431,12 @@ void Game::DrawSkillsPanel() {
     {
         // One tree a character: their path's. The hero's is the blade's, the
         // warden's the bow's, the wayfarer's the staff's.
-        const AttackStyle path = world->player.talents.HasPath() ? world->player.talents.Path() : world->player.Affinity();
+        const int path = world->player.TreeIndex();
         const string tree_tab = skill_trees.Tree(path).name + " tree";
         const size_t boons = world->player.talents.Boons().size();
         // A mage's is a spellbook; for the other two the same page is mostly
         // about what they carry.
-        const string kTabs[TAB_COUNT] = {"Skills", tree_tab, path == AttackStyle::Magic ? "Spellbook" : "Abilities",
+        const string kTabs[TAB_COUNT] = {"Skills", tree_tab, skill_trees.Tree(path).style == AttackStyle::Magic ? "Spellbook" : "Abilities",
                                          boons ? "Boons (" + std::to_string(boons) + ")" : string("Boons")};
         float tx = panel.x + 24.0f;
         for (int t = 0; t < TAB_COUNT; ++t) {
@@ -807,7 +807,7 @@ void Game::DrawMilestones(const SDL_FRect& col) {
 vector<Game::BookRow> Game::SpellbookRows() const {
     const Player& p = world->player;
     const int magic = p.skills.Level(SKILL_MAGIC);
-    const AttackStyle path = p.talents.HasPath() ? p.talents.Path() : p.Affinity();
+    const int path = p.TreeIndex();
     const TalentTree& tree = skill_trees.Tree(path);
     vector<BookRow> spell_rows, ability_rows;
 
@@ -991,7 +991,7 @@ vector<Game::BookRow> Game::SpellbookRows() const {
             o.name = n.name;
             o.text = n.description;
             row.options.push_back(o);
-            if (p.talents.Technique(path) == n.technique) row.chosen = static_cast<int>(row.options.size()) - 1;
+            if (p.talents.Technique(tree.style) == n.technique) row.chosen = static_cast<int>(row.options.size()) - 1;
         }
         if (row.options.size() == 1) {
             row.options.clear();
@@ -1003,8 +1003,8 @@ vector<Game::BookRow> Game::SpellbookRows() const {
     // A mage's spells come first and anyone else's abilities do: the page is
     // headed by what the character is for. Everyone has both -- a staff is a
     // staff in anybody's hands.
-    vector<BookRow> rows = path == AttackStyle::Magic ? spell_rows : ability_rows;
-    const vector<BookRow>& rest = path == AttackStyle::Magic ? ability_rows : spell_rows;
+    vector<BookRow> rows = tree.style == AttackStyle::Magic ? spell_rows : ability_rows;
+    const vector<BookRow>& rest = tree.style == AttackStyle::Magic ? ability_rows : spell_rows;
     rows.insert(rows.end(), rest.begin(), rest.end());
     return rows;
 }
@@ -1021,7 +1021,7 @@ void Game::ChooseInBook(const BookRow& row, int option) {
         case BookRow::Kind::Lightning: p.SetElectricSpell(o.id); break;
         case BookRow::Kind::Ability:   p.talents.SetAbility(row.slot, o.id); break;
         case BookRow::Kind::Technique:
-            p.talents.SetTechnique(p.talents.HasPath() ? p.talents.Path() : p.Affinity(), o.id);
+            p.talents.SetTechnique(skill_trees.Tree(p.TreeIndex()).style, o.id);
             break;
     }
 }
@@ -1217,7 +1217,7 @@ void Game::DrawBoons(const SDL_FRect& panel) {
 
 void Game::DrawSkillTree(const SDL_FRect& panel) {
     const Player& p = world->player;
-    const AttackStyle style = p.talents.HasPath() ? p.talents.Path() : p.Affinity();
+    const int style = p.TreeIndex();
     const TalentTree& tree = skill_trees.Tree(style);
     const int level = p.skills.Level(tree.skill);
     const int earned = p.talents.PointsEarned(style, p.skills);
@@ -1265,7 +1265,7 @@ void Game::DrawSkillTree(const SDL_FRect& panel) {
         const bool available = why == Talents::Why::Ok;
         const bool selected = n.branch == tree_branch && n.row == tree_row;
         const int  slot = p.talents.SlotOf(n.id);
-        const bool active = (!n.technique.empty() && p.talents.Technique(style) == n.technique) || slot >= 0;
+        const bool active = (!n.technique.empty() && p.talents.Technique(tree.style) == n.technique) || slot >= 0;
 
         // The line down to the next node in the branch, lit once both ends are.
         if (const TalentNode* below = n.row + 1 < SkillTrees::ROWS ? tree.At(n.branch, n.row + 1) : nullptr) {
@@ -1331,7 +1331,7 @@ void Game::DrawSkillTree(const SDL_FRect& panel) {
         const Talents::Why why = p.talents.CanLearn(n->id, p.skills);
         const int rank = p.talents.Rank(n->id);
         if (p.talents.Has(n->id) && !n->technique.empty()) {
-            const bool active = p.talents.Technique(style) == n->technique;
+            const bool active = p.talents.Technique(tree.style) == n->technique;
             status = active ? "Your charged attack with this style." : "Learned, not in use.";
             action = input.PromptFor(Action::Confirm) + (active ? " stop using it" : " use as charged attack");
         } else if (p.talents.Has(n->id) && !n->ability.empty()) {
@@ -1363,7 +1363,7 @@ void Game::DrawSkillTree(const SDL_FRect& panel) {
         if (!action.empty()) ui.TextWrapped(action, dx, y, dw, TextSize::Small, Palette::Xp);
     }
 
-    const string technique = p.talents.Technique(style);
+    const string technique = p.talents.Technique(tree.style);
     string shown = technique;
     for (char& c : shown) if (c == '_') c = ' ';
     if (!shown.empty()) shown[0] = static_cast<char>(toupper(static_cast<unsigned char>(shown[0])));

@@ -84,7 +84,8 @@ public:
 
     bool talking = false;        // frozen while in conversation
     // Whether they are someone who practises, and whether a cast is under way.
-    bool Practises() const { return cast_every > 0.0f && !cast_bolt.empty(); }
+    // Not while asleep: the college's practising mages, before the cure.
+    bool Practises() const { return cast_every > 0.0f && !cast_bolt.empty() && !Asleep() && !away; }
     bool Casting() const { return casting > 0.0f; }
 
 private:
@@ -116,9 +117,15 @@ private:
     float  shown = -1.0f;        // seconds into the round they are drawn at
     bool   away = false;
 public:
-    // A colour laid over them: a temper rising (StoryDirector "tint").
+    // A colour laid over them: a temper rising (StoryDirector "tint", or a
+    // state's own -- NpcState::tint).
     SDL_Color tint{255, 255, 255, 255};
+    // Steam off them every so often, while their state says (NpcState::steam):
+    // seconds between puffs, 0 for none.
+    float SteamEvery() const { return state_index >= 0 && !away ? states[state_index].steam : 0.0f; }
+    float steam_timer = 0.0f;
 private:
+    SDL_Color home_tint{255, 255, 255, 255};
 
     // Practice: see NpcDef::cast_bolt.
     string cast_bolt;

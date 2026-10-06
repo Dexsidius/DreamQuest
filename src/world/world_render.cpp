@@ -858,6 +858,55 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
                     SDL_RenderFillRect(r, &speck);
                 }
             }
+        } else if (g.draw == GroundEffect::Draw::Glow || g.draw == GroundEffect::Draw::Dome) {
+            // The Lantern Warden's light. The Beacon's is a pool of it on the
+            // ground, brightest in the middle, with motes going up off it; the
+            // Sanctuary's a dome, its rim on the ground and its ribs over the
+            // top, a warm floor under it.
+            const float z = camera.zoom;
+            const float now = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+            const float fade = std::clamp(g.life / 0.5f, 0.0f, 1.0f) * std::clamp((g.max_life - g.life) / 0.25f, 0.0f, 1.0f);
+            const bool dome = g.draw == GroundEffect::Draw::Dome;
+            SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+            fill_disc(centre.x, centre.y, rx, ry * 0.62f, {255, 196, 96, static_cast<Uint8>((dome ? 44 : 60) * fade)});
+            fill_disc(centre.x, centre.y, rx * 0.55f, ry * 0.34f, {255, 230, 150, static_cast<Uint8>((dome ? 40 : 80) * fade)});
+            const auto dot = [&](float dx, float dy, SDL_Color col) {
+                SDL_SetRenderDrawColor(r, col.r, col.g, col.b, col.a);
+                const SDL_FRect d = {roundf(dx / z) * z, roundf(dy / z) * z, z, z};
+                SDL_RenderFillRect(r, &d);
+            };
+            // The rim, dashed and walking round.
+            const int rim = 80;
+            for (int i = 0; i < rim; ++i) {
+                if (i % 5 == 4) continue;
+                const float a = 6.2831853f * i / rim + now * 0.6f;
+                dot(centre.x + cosf(a) * rx, centre.y + sinf(a) * ry * 0.62f, {255, 226, 150, static_cast<Uint8>(220 * fade)});
+            }
+            if (dome) {
+                // Ribs from the rim up over the top: half ellipses, a few of
+                // them turned about the middle, standing as high as it is wide.
+                const float height = rx * 0.9f;
+                for (int rib = 0; rib < 4; ++rib) {
+                    const float turn = rib * 0.785398f + now * 0.25f;
+                    const float cx = cosf(turn), sy = sinf(turn);
+                    for (int i = 0; i <= 48; ++i) {
+                        const float t = 3.14159265f * i / 48.0f;
+                        const float across = cosf(t);                  // -1..1 along the rib's line
+                        const float up = sinf(t) * height;
+                        dot(centre.x + across * rx * cx, centre.y + across * ry * 0.62f * sy - up,
+                            {255, 236, 176, static_cast<Uint8>(150 * fade)});
+                    }
+                }
+            } else {
+                // Motes going up off the pool, each its own way round.
+                for (int m = 0; m < 14; ++m) {
+                    const float k = (m * 0.37f + now * 0.45f) - floorf(m * 0.37f + now * 0.45f);
+                    const float a = m * 2.39996f;
+                    const float spread = 0.25f + 0.7f * ((m * 7) % 10) / 10.0f;
+                    dot(centre.x + cosf(a) * rx * spread, centre.y + sinf(a) * ry * 0.62f * spread - k * 34.0f * z,
+                        {255, 240, 190, static_cast<Uint8>(230 * fade * (1.0f - k))});
+                }
+            }
         } else if (g.delay > 0.0f) {
             // Telegraph the eruption: an outline that tightens as it arms.
             const float t = 1.0f - std::clamp(g.delay / 0.5f, 0.0f, 1.0f);
@@ -1950,6 +1999,53 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
             SDL_SetTextureAlphaMod(tex, 255);
             SDL_SetTextureColorMod(tex, 255, 255, 255);
         }
+
+    // A beam swept across from an eye (SweepBeam): a pixel-wide core of the
+    // light, a dim band either side of it, and the eye itself burning at the
+    // root -- coming up and going out at the ends of its run.
+    if (beam.on) {
+        const float k = std::clamp(beam.t / beam.time, 0.0f, 1.0f);
+        const float fade = std::min(1.0f, std::min(k, 1.0f - k) * 6.0f + 0.25f);
+        const SDL_FPoint a = camera.ToScreen(beam.x, beam.y - LiftAt(beam.x, beam.y));
+        const SDL_FPoint b = camera.ToScreen(beam.x0 + (beam.x1 - beam.x0) * k, beam.y0 + (beam.y1 - beam.y0) * k);
+        const float z = camera.zoom;
+        const int steps = std::max(1, static_cast<int>(Length(b.x - a.x, b.y - a.y) / z));
+        const SDL_Color c = beam.colour;
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+        for (int i = 0; i <= steps; ++i) {
+            const float t = static_cast<float>(i) / static_cast<float>(steps);
+            const float px = roundf((a.x + (b.x - a.x) * t) / z) * z, py = roundf((a.y + (b.y - a.y) * t) / z) * z;
+            SDL_SetRenderDrawColor(r, c.r, c.g, c.b, static_cast<Uint8>(60.0f * fade));
+            const SDL_FRect band = {px - z, py - z, 3.0f * z, 3.0f * z};
+            SDL_RenderFillRect(r, &band);
+            SDL_SetRenderDrawColor(r, 255, static_cast<Uint8>(std::min(255, c.g + 140)),
+                                   static_cast<Uint8>(std::min(255, c.b + 140)), static_cast<Uint8>(230.0f * fade));
+            const SDL_FRect core = {px, py, z, z};
+            SDL_RenderFillRect(r, &core);
+        }
+        SDL_SetRenderDrawColor(r, 255, 236, 230, static_cast<Uint8>(255.0f * fade));
+        const SDL_FRect eye = {roundf(a.x / z) * z - z, roundf(a.y / z) * z, 2.0f * z, z};
+        SDL_RenderFillRect(r, &eye);
+    }
+
+    // A beam's aim (BeamTell): a thin red line from the caster to where it is
+    // going, quickening its pulse as the moment comes.
+    for (const TellLine& t : tell_lines) {
+        const float k = std::clamp(t.t / t.time, 0.0f, 1.0f);
+        const float pulse = 0.55f + 0.45f * sinf(t.t * (8.0f + 22.0f * k));
+        const SDL_FPoint a = camera.ToScreen(t.x0, t.y0 - LiftAt(t.x0, t.y0));
+        const SDL_FPoint b = camera.ToScreen(t.x1, t.y1 - LiftAt(t.x1, t.y1));
+        const float z = camera.zoom;
+        const int steps = std::max(1, static_cast<int>(Length(b.x - a.x, b.y - a.y) / z));
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+        for (int i = 0; i <= steps; ++i) {
+            const float u = static_cast<float>(i) / static_cast<float>(steps);
+            const float px = roundf((a.x + (b.x - a.x) * u) / z) * z, py = roundf((a.y + (b.y - a.y) * u) / z) * z;
+            SDL_SetRenderDrawColor(r, 255, 40, 40, static_cast<Uint8>((90.0f + 140.0f * k) * pulse));
+            const SDL_FRect dot = {px, py, z, z};
+            SDL_RenderFillRect(r, &dot);
+        }
+    }
 
     // Embers, drops and the rest, over everything that stands: see Mote.
     DrawMotes(r);

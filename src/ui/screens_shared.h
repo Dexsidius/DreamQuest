@@ -11,6 +11,18 @@ inline Action AbilityButton(int slot) {
     return slot == 0 ? Action::LightAttack : slot == 1 ? Action::StrongAttack : Action::Target;
 }
 
+// Each calling's colour: the bow's green, the staff's violet, the blade's
+// ember and the lantern's own gold. The select screen's cards, the character
+// panel's title, and a reward card that names whose it is.
+inline SDL_Color CallingColour(Player::Calling c) {
+    switch (c) {
+        case Player::Calling::Ranger: return {150, 210, 130, 255};
+        case Player::Calling::Weaver: return {170, 150, 240, 255};
+        case Player::Calling::Warden: return {246, 204, 110, 255};
+        default:                      return {236, 160, 96, 255};
+    }
+}
+
 inline SDL_FRect CenteredPanel(const UI& ui, float w, float h) {
     return {(ui.ViewWidth() - w) / 2.0f, (ui.ViewHeight() - h) / 2.0f, w, h};
 }

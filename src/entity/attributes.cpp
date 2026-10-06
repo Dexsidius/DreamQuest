@@ -63,6 +63,7 @@ vector<AttributeLine> CharacterAttributes(const Player& p) {
     if (const ItemDef* shield = p.Shield()) guard = "Block " + Percent(shield->block);
     else if (p.ParryStyle())               guard = "Parry";
     else if (p.RollsOnGuard())             guard = "Roll";
+    else if (p.LanternStyle())             guard = "Lantern " + Percent(p.GuardNow().block);
     else if (p.WardStyle())                // Magic Block, and Mirror Deflect (Player::WardGuard)
         guard = string(p.talents.Effect("mirror", AttackStyle::Magic) > 0.0f ? "Mirror " : "Ward ") +
                 Percent(p.WardGuard().block);
@@ -160,7 +161,7 @@ vector<BoonLine> CharacterBoons(const Player& p, const StatusDatabase* statuses,
 
     // --- what an ability has left running ------------------------------------------------
     {
-        struct Running { uint8_t bit; const char* id; const char* fallback; string what; };
+        struct Running { uint16_t bit; const char* id; const char* fallback; string what; };
         char war_cry[64], frenzy[64], stand_fast[64], rapid[64];
         SDL_snprintf(war_cry, sizeof(war_cry), "melee blows %s harder", Percent(p.WarCryDamage()).c_str());
         SDL_snprintf(frenzy, sizeof(frenzy), "melee swings %s quicker", Percent(p.FrenzySpeed()).c_str());
@@ -175,6 +176,9 @@ vector<BoonLine> CharacterBoons(const Player& p, const StatusDatabase* statuses,
             {Player::BUFF_RAPID_FIRE, "rapid_fire", "Rapid Fire", rapid},
             {Player::BUFF_OVERLOAD,   "overload",   "Overload",   "the next spell costs nothing and lands twice as hard"},
             {Player::BUFF_INVOKE,     "invoke",     "Invoke",     "half your mana coming back"},
+            {Player::BUFF_CHALLENGE,  "challenge",  "Challenge",  "everything near is after you, and you take 15% less"},
+            {Player::BUFF_BASTION,    "warden_bastion", "Bastion", "nothing moves you, you take 40% less, and some of each blow goes back"},
+            {Player::BUFF_MENDING,    "mending_light", "Mending Light", "health coming back"},
         };
         for (const Running& r : running) {
             const float left = p.BuffLeft(r.bit);

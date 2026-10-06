@@ -260,6 +260,7 @@ const SDL_FColor kHunt   = Rgb(255, 96, 96);
 const SDL_FColor kQuick  = Rgb(170, 240, 170);
 const SDL_FColor kIron   = Rgb(170, 176, 186);
 const SDL_FColor kWhite  = Rgb(240, 244, 255);
+const SDL_FColor kLamp   = Rgb(255, 204, 112);      // the Lantern Warden's light
 constexpr float kGround = 0.5f;          // how flat a thing lying on the ground is drawn
 
 World::Strike Delayed(World::Strike s, float delay) { s.delay = delay; return s; }
@@ -1069,11 +1070,85 @@ void World::AbilityFx(const string& ability, Element element, const Enemy* targe
     } else if (ability == "invoke") {
         AddStrike(MkVortex(px, py, 44.0f, 5.0f, kGround, -1.0f, kMana, 0.8f));
         AddStrike(MkSigil(px, py, 28.0f, 6.0f, kGround, -2.0f, kMana, 0.7f));
+    } else if (ability == "mending_light") {
+        // The lantern's light let out round them: a ring going out as far as
+        // it reaches friends, and the light standing up off them.
+        AddStrike(MkWave(px, py, Player::MEND_REACH, 0.0f, 3.2f, 0.1f, kLamp, 0.5f));
+        AddStrike(MkPillar(px, py, 46.0f, 0.18f, 0.9f, kLamp, 0.6f));
+    } else if (ability == "challenge") {
+        for (int i = 0; i < 2; ++i)
+            AddStrike(Delayed(MkWave(px, py, 150.0f, 0.0f, 3.2f, 0.08f, kLamp, 0.55f), 0.14f * i));
+        AddStrike(MkSigil(px, py, 30.0f, 4.0f, kGround, 1.0f, kLamp, 0.8f));
+        StrikeShock(px, py, 0.3f, 0.2f);
+    } else if (ability == "warden_bastion") {
+        AddStrike(MkSigil(px, py, 34.0f, 4.0f, kGround, 0.6f, kLamp, 0.9f));
+        AddStrike(MkCracks(px, py, 26.0f, 6.0f, kGround, 0.5f, kSteel, 0.6f));
+        StrikeShock(px, py, 0.35f, 0.25f);
+    } else if (ability == "sanctuary") {
+        // Hallowed ground: its edge laid down in light, and a ward turning
+        // slowly at its heart -- set apart from Mending Light's ring and pillar.
+        AddStrike(MkCircle(px, py, Player::SANCTUARY_RADIUS, kGround, Rgb(255, 236, 190), 0.9f));
+        AddStrike(MkSigil(px, py, 40.0f, 6.0f, kGround, 0.4f, kLamp, 0.9f));
+    } else if (ability == "lantern_flare") {
+        // A fan of flame thrown out of the lantern the way they face.
+        AddStrike(MkWave(px, py, Player::FLARE_REACH, face, 0.75f, 0.14f, ElementF(Element::Fire, kLamp), 0.6f));
+        AddStrike(MkShards(px + cosf(face) * 30.0f, py - 14.0f + sinf(face) * 22.0f, 40.0f, 10.0f, 1.0f, 0.9f,
+                           ElementF(Element::Fire, kLamp), 0.5f));
+        StrikeShock(px, py, 0.25f, 0.15f);
+    } else if (ability == "hammerfall") {
+        AddStrike(MkWave(px, py, 34.0f, 0.0f, 3.2f, 0.12f, Rgb(214, 196, 160), 0.3f));
+    } else if (ability == "hammerfall_land") {
+        AddStrike(MkCracks(px, py, Player::HAMMERFALL_RADIUS * 0.8f, 8.0f, kGround, 1.0f, kEarth, 0.8f));
+        AddStrike(MkWave(px, py, Player::HAMMERFALL_RADIUS * 1.3f, 0.0f, 3.2f, 0.16f, kLamp, 0.5f));
+        StrikeShock(px, py, 0.5f, 0.4f);
+    } else if (ability == "beacon") {
+        AddStrike(MkPillar(px, py, 50.0f, 0.2f, 1.0f, kLamp, 0.7f));
+        AddStrike(MkWave(px, py, Player::BEACON_RADIUS, 0.0f, 3.2f, 0.1f, kLamp, 0.45f));
+    } else if (ability == "grounding_blow") {
+        AddStrike(MkWave(px, py, 90.0f, 0.0f, 3.2f, 0.12f, kLamp, 0.5f));
+        AddStrike(MkCracks(px, py, 40.0f, 8.0f, kGround, 1.0f, kSteel, 0.7f));
+        StrikeShock(px, py, 0.4f, 0.3f);
+    } else if (ability == "toll") {
+        // The bell rung: rings going out from what took it, one after another.
+        const float tx = target ? target->x : px + cosf(face) * 30.0f;
+        const float ty = target ? target->y : py + sinf(face) * 20.0f;
+        for (int i = 0; i < 3; ++i)
+            AddStrike(Delayed(MkWave(tx, ty, 70.0f, 0.0f, 3.2f, 0.06f, kLamp, 0.55f), 0.1f * i));
+        AddStrike(MkImpact(tx, ty - 22.0f, 26.0f, 8.0f, 1.0f, 0.14f, kLamp, 0.35f));
+        StrikeShock(tx, ty, 0.35f, 0.25f);
     } else if (ability == "repulse") {
         AddStrike(MkWave(px, py, 124.0f, 0.0f, 3.2f, 0.14f, el, 0.45f));
         AddStrike(MkImpact(px, py - 10.0f, 40.0f, 12.0f, 0.6f, 0.14f, el, 0.35f));
         StrikeShock(px, py, 0.5f, 0.35f);
     }
+}
+
+void World::SnipTell(float x, float y, float radius, float seconds) {
+    // Two blades held open round the spot, closing as the wind-up runs out:
+    // the reticle's brackets, two of them, in steel -- and the ground marked
+    // under it, so where to step out of is plain.
+    AddStrike(MkReticle(x, y, radius + 10.0f, 2.0f, kGround, 0.0f, kSteel, seconds));
+    AddStrike(MkCircle(x, y, radius, kGround, Rgb(220, 226, 240), seconds));
+}
+
+void World::SlamTell(float x, float y, float radius, float seconds) {
+    // Red, and closing in: the ground it will come down on.
+    AddStrike(MkCircle(x, y, radius, kGround, Rgb(232, 48, 48), seconds));
+    AddStrike(MkReticle(x, y, radius + 8.0f, 4.0f, kGround, 0.0f, Rgb(255, 96, 84), seconds));
+}
+
+void World::BeamTell(float x0, float y0, float x1, float y1, float seconds) {
+    TellLine t;
+    t.x0 = x0; t.y0 = y0; t.x1 = x1; t.y1 = y1;
+    t.time = std::max(0.1f, seconds);
+    tell_lines.push_back(t);
+}
+
+void World::SnipShut(float x, float y, float radius) {
+    // Shut: a cross where the edges met, and a flash.
+    AddStrike(MkCross(x, y - 12.0f, radius, 0.785398f, 0.14f, kWhite, 0.28f));
+    AddStrike(MkImpact(x, y - 12.0f, radius * 0.8f, 6.0f, 1.0f, 0.12f, kSteel, 0.22f));
+    StrikeShock(x, y, 0.25f, 0.15f);
 }
 
 void World::DazeFx(const Enemy& e) {
@@ -1102,10 +1177,10 @@ void World::DrawAuras(SDL_Renderer* r) const {
     const float now = static_cast<float>(SDL_GetTicks()) / 1000.0f;
     for (const Player* who : everyone) {
         if (!who || who->IsDead() || who->under_ice) continue;
-        const uint8_t buffs = who->Buffs();
+        const uint16_t buffs = who->Buffs();
         if (!buffs) continue;
         const float fx = who->x, fy = who->y - who->draw_lift;
-        const auto draw = [&](uint8_t bit, Shaders::Shape shape, float radius, float lift, SDL_FColor c,
+        const auto draw = [&](uint16_t bit, Shaders::Shape shape, float radius, float lift, SDL_FColor c,
                               float strength, float p0, float p1, float p2, float p3) {
             if (!(buffs & bit)) return;
             const float left = who->BuffLeft(bit);
@@ -1135,5 +1210,11 @@ void World::DrawAuras(SDL_Renderer* r) const {
         draw(Player::BUFF_OVERLOAD, Shaders::SHAPE_NODE, 7.0f, 20.0f, kViolet, 0.8f, 0.0f, 0.0f, 0.0f, 0.0f);
         // Invoke: mana drawn in to them from all round.
         draw(Player::BUFF_INVOKE, Shaders::SHAPE_VORTEX, 26.0f, 0.0f, kMana, 0.5f, cycle, 4.0f, kGround, -1.0f);
+        // The Lantern Warden's. The Challenge: a slow ring of the shout going
+        // out. The Bastion: a square sigil, the Stand Fast's, in the lantern's
+        // gold. Mending Light: the light rising round them.
+        draw(Player::BUFF_CHALLENGE, Shaders::SHAPE_WAVE, 30.0f, 0.0f, kLamp, 0.45f, 0.0f, 3.2f, cycle, 0.05f);
+        draw(Player::BUFF_BASTION, Shaders::SHAPE_SIGIL, 26.0f, 0.0f, kLamp, 0.65f, 0.5f, 4.0f, kGround, 0.4f);
+        draw(Player::BUFF_MENDING, Shaders::SHAPE_PILLAR, 22.0f, 0.0f, kLamp, 0.4f, cycle, 0.6f, 0.0f, 0.0f);
     }
 }

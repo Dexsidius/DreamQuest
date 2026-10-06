@@ -2141,9 +2141,13 @@ namespace act1 {
 static void Town(MapBuilder& m);
 static void DreamTown(const MapBuilder& town);
 static void Interior(MapBuilder& m, const string& id);
+static void Neighbors(MapBuilder& m, const string& id);
 }
 namespace act2 {
 static void Interior(MapBuilder& m, const string& id);
+// The last room of a dungeon (BuildDungeon), in cells: where its boss stands.
+static void Dungeon(MapBuilder& m, const string& id, int rx, int ry, int rw, int rh);
+static void Build();
 }
 
 static void BuildOverworld() {
@@ -2949,6 +2953,10 @@ static void BuildOverworld() {
     PlaceChest(m, "chest_wood_01",  114 * OW_CELL, 52 * OW_CELL, "chest_common");
     PlaceChest(m, "chest_mire_01",   10 * OW_CELL, 60 * OW_CELL, "chest_common");
 
+    // Act II's: a page, a cave's way in, the Ashen Path's gate -- before the
+    // night's posts, which keep clear of every way in.
+    act2::Interior(m, "overworld");
+
     // --- what comes out at night ----------------------------------------------------
     // Last, so every post above keeps its number. A sparse lattice of its own:
     // well off the road and the trail -- the road is the way to travel after
@@ -3661,6 +3669,7 @@ static void BuildTown() {
 
     pro::Town(m);
     act1::Town(m);
+    act2::Interior(m, "town_havenbrook");
     m.Write("maps");
     BuildDreamHavenbrook(m);
     act1::DreamTown(m);
@@ -4014,6 +4023,7 @@ static void BuildInteriors() {
 
         pro::Interior(m, "house_inn");
         act1::Interior(m, "house_inn");
+        act2::Interior(m, "house_inn");
         m.Write("maps");
     }
 
@@ -4080,6 +4090,7 @@ static void BuildInteriors() {
         m.Npc("npc_tully", "Watchman Tully", "fighter2", dx + 70, 350, "tully_root", 1);
         pro::Interior(m, "mayor_hall");
         act1::Interior(m, "mayor_hall");
+        act2::Interior(m, "mayor_hall");
         m.Write("maps");
     }
 
@@ -4654,6 +4665,10 @@ static void BuildDungeon(const string& id, const string& display,
         }
     }
 
+    if (!rooms.empty()) {
+        const Room& last = rooms.back();
+        act2::Dungeon(m, id, last.x, last.y, last.w, last.h);
+    }
     PlaceCurios(m);
     m.Write("maps");
 }
@@ -4881,6 +4896,8 @@ static void BuildWellFloor(const string& id, const string& display, const string
         // It waits beside the basin, with clear floor between it and the way
         // in, and does not leave the room: the leash is the room's width.
         m.Enemy("well_warden", sx + 104, sy + 24, 1, 0.0f, 300.0f);
+        m.dq["enemies"].back()["squad"] = "ACT2_WELL_WARDEN_DOWN";
+        m.Mark("well_spring_at", sx + 40, sy + 40);
         // Two hounds kennelled in the passage itself -- it is three cells wide,
         // so they stand in the middle of it -- and the walk down is not silent.
         for (int cy : {spry - 10, spry - 16}) {
@@ -5109,6 +5126,7 @@ static void BuildIceSpire() {
             m.Prop("objects", kSmallRocks[(bx + by) % 4], bx, by);
         }
         m.Enemy("frost_dragon", dx, dy + 60, 1, 0.0f, 420.0f);
+        m.dq["enemies"].back()["squad"] = "ACT2_HOARFANG_SLAIN";
         PlaceChest(m, "chest_dragon_hoard", dx - 40, dy + 34, "chest_peak");
     }
 
@@ -5608,6 +5626,8 @@ static void BuildAshenPath() {
         }
         RoamOn(m, {"pit_lord", "orc3", "barrow_wight"}, 62, 2, 0.6f, loop);
     }
+    // Act II's way out of the Pit (82), ahead of the night's posts, which are last.
+    act2::Interior(m, "ashen_path");
     // At night: the plateau's own come down its road -- Greater Demons and the
     // Pyre Dragons -- and worse into the palace country. None on the burnt
     // road itself, in the moat, or on the climb.
@@ -6442,6 +6462,7 @@ static void BuildWhisperwood() {
         std::printf("  the Whisperwood: %d swallowtails\n", got);
     }
 
+    act1::Interior(m, "whisperwood_trail");
     m.Write("maps");
 }
 
@@ -6823,6 +6844,9 @@ static void BuildWestwold() {
     m.Portal(40 * CELL - 72, 0, 144, 24, "brackenwood", "from_westwold", "To the Brackenwood", false);
     m.Danger(20);
     m.Spawn("from_brackenwood", 40 * CELL + 16, 3 * CELL);
+
+    // Act II's bear's den, before the night's posts, which keep clear of it.
+    act2::Interior(m, "westwold");
 
     // --- what comes out at night ----------------------------------------------------
     // Off the roads and away from Hidewater. East of the Wend, where by day it
@@ -8038,6 +8062,7 @@ static void BuildMossvale() {
         o["item"]   = "mossvale_house_key";
         o["text"]   = "A key, wrapped in oilcloth.";
         o["own"]    = true;               // a key under it for everyone Bess sends
+        o["when"]   = {{"not", json::array({"PROLOGUE"})}};
         m.Collision(tx - 84 - 14, ty - 18 - 10, 28, 10);
 
         json& n = m.Object("sign_mossvale_house", "sign", tx + 74, ty - 10);
@@ -8248,6 +8273,7 @@ static void BuildMossvale() {
     m.Spawn("default", (sq_cx - 2) * CELL, (sq_cy + 3) * CELL);
     m.Spawn("respawn", (sq_cx - 2) * CELL, (sq_cy + 3) * CELL);
 
+    act1::Interior(m, "mossvale");
     m.Write("maps");
 }
 
@@ -8853,6 +8879,7 @@ static void BuildFernhollow() {
     m.Spawn("default",    gate_col * CELL + 16, 20 * CELL);
     m.Spawn("respawn",    gate_col * CELL + 16, 20 * CELL);
 
+    act1::Interior(m, "fernhollow");
     m.Write("maps");
 }
 
@@ -8923,6 +8950,7 @@ static void BuildWoodlandInteriors() {
         piece("herb_pots", (cols - 4) * CELL,   (rows - 2) * CELL + 4, 30, 8);
 
         m.Npc("npc_hadley", "Reeve Hadley", "fighter2", dx + 70, 5 * CELL, "hadley_root", 0);
+        act1::Interior(m, "mossvale_lodge_hall");
         m.Write("maps");
     }
 
@@ -8959,6 +8987,7 @@ static void BuildWoodlandInteriors() {
         PlaceBed(m, "bed_oona", "bed_single", 13 * CELL + 8, 8 * CELL, 30, 36);
         PlaceCauldron(m, "cauldron_oona", 4 * CELL + 8, 9 * CELL + 20);
         m.Npc("npc_oona", "Oona the Herbalist", "citizen1", 9 * CELL + 16, 5 * CELL + 10, "oona_root", 0)["shop"] = "mossvale_herbalist";
+        act1::Interior(m, "mossvale_herbalist");
         m.Write("maps");
     }
 
@@ -9111,6 +9140,7 @@ static void BuildWoodlandInteriors() {
         piece("mannequin_cloak", 8 * CELL,      11 * CELL + 16, 18, 8);
         piece("mannequin_dress", 14 * CELL,     12 * CELL + 8,  18, 8);
         piece("mannequin_robe",  16 * CELL + 16, 12 * CELL + 8, 18, 8);
+        act1::Interior(m, "mossvale_weavers");
         m.Write("maps");
     }
 
@@ -9146,6 +9176,7 @@ static void BuildWoodlandInteriors() {
         piece("tavern_chair", 10 * CELL,     7 * CELL + 10, 16, 8);
         piece("travel_chest", 13 * CELL + 8, 9 * CELL,      28, 12);
         m.Npc("npc_hesper", "Hesper", "citizen2", 11 * CELL, 5 * CELL + 10, "hesper_root", 0);
+        act1::Interior(m, "fernhollow_cottage");
         m.Write("maps");
     }
 
@@ -9376,6 +9407,7 @@ static void BuildCollege() {
         m.Spawn("from_college_training", 4 * CELL, cross * CELL);
         m.Portal(W * CELL - 24, (cross - 1) * CELL, 24, 2 * CELL, "college_classroom", "entrance", "The lecture room", false);
         m.Spawn("from_college_classroom", (W - 4) * CELL, cross * CELL);
+        act2::Interior(m, "college_grounds");
         m.Write("maps");
         BuildDreamLand(m, "dream_college");
     }
@@ -9432,6 +9464,7 @@ static void BuildCollege() {
         // A ring on the floor at the east end where two of them can face each other.
         m.Overlay("props", "spell_circle", 20 * CELL, 7 * CELL);
         m.Npc("npc_college_instructor", "Battlemaster Ysolde", "magister", 17 * CELL, 12 * CELL + 8, "college_instructor_root", 1);
+        act2::Interior(m, "college_training");
         m.Write("maps");
     }
 
@@ -9486,6 +9519,7 @@ static void BuildCollege() {
             if (s.who) m.Npc("npc_college_pupil_" + std::to_string(k++), s.who, s.look, x, y + 22, s.talk, 3);
         }
         m.Npc("npc_college_lector", "Lector Maud", "magister", mid_x + 10, 5 * CELL + 14, "college_lector_root", 0);
+        act2::Interior(m, "college_classroom");
         m.Write("maps");
     }
 
@@ -9562,6 +9596,7 @@ static void BuildCollege() {
         piece("college_orrery", (cols - 4) * CELL,  8 * CELL,       26, 10);
         piece("travel_chest",   (cols - 3) * CELL,  12 * CELL,      28, 12);
         piece("cottage_bookshelf", (cols - 4) * CELL - 8, 15 * CELL, 40, 14);
+        act2::Interior(m, "fernhollow_college");
         m.Write("maps");
     }
 }
@@ -13682,7 +13717,13 @@ static void Town(MapBuilder& m) {
         json& n = NpcOf(m, "npc_vask_porch");
         const string sleeps = "Elder Vask rocks in his chair and mutters. He does not wake.";
         n["states"] = json::array({
-            {{"when", W({"ACT1_DRAGON_SHADOW_SEEN"})}, {"hidden", true}},
+            // The Spirewatch is his story too: the Rime Key goes to him here.
+            {{"when", W({"ACT2_HOARFANG_RESOLVED"})}, {"dialogue", "act2_vask_porch_root"}},
+            {{"when", W({"ACT2_HOARFANG_HEAD"})}, {"dialogue", "act2_vask_waiting"}, {"mark", true}},
+            {{"when", W({"ACT2_ICESPIRE_STARTED"})}, {"dialogue", "act2_vask_waiting"}},
+            {{"when", W({"ACT2_ICESPIRE_READY"})}, {"dialogue", "act2_vask_waiting"}, {"mark", true}},
+            {{"when", W({"ACT1_DRAGON_SHADOW_SEEN"})}, {"dialogue", "act2_vask_angry"}, {"pose", "fury"},
+             {"tint", json::array({255, 164, 148})}, {"steam", 2.6f}},
             {{"when", W({"ECHO_HAVENBROOK_BELLS"})}, {"dialogue", "act1_vask_awake"}},
             {{"when", W({"ACT1_01_VASK_FOUND", "HAVENBROOK_ASLEEP"})}, {"asleep", sleeps},
              {"prompt", "Use Dreamcatcher"}, {"mark", true}},
@@ -13816,6 +13857,23 @@ static void Town(MapBuilder& m) {
         m.Portal(hx - 15, hy - 22, 30, 26, "house_havenbrook", "entrance", "Go inside", true);
         pro::Shut(pro::LastPortal(m), W({}, {"ACT1_FINALE_GIFT_CHOSEN"}), "The door is locked.");
         m.Spawn("from_house_havenbrook", hx, hy + 22);
+    }
+
+    // --- scenes 43A-43F: the clothier's shop, beside the Mayor's Hall ------------------------------------
+    // Shuttered until the snipping is heard from it (the hook, story.json
+    // act1_clothier_hook, at "clothier_door"); then the door is unlocked.
+    // A character from before the story never hears it, and to them it is a
+    // house with its shutters drawn.
+    {
+        const int hx = 716, hy = 16 * CELL;
+        for (auto& o : m.dq["objects"])
+            if (o.value("id", string("")) == "pro_door_3") o["when"] = W({"PROLOGUE"}, {"ACT1_CLOTHIER_QUEST_START"});
+        m.Portal(hx - 15, hy - 22, 30, 26, "clothier_havenbrook", "entrance", "Go inside", true);
+        pro::Shut(pro::LastPortal(m), W({}, {"ACT1_CLOTHIER_QUEST_START"}),
+                  "The shutters are drawn, and the door will not give.");
+        m.Spawn("from_clothier_havenbrook", hx, hy + 22);
+        m.Mark("clothier_door", hx, hy + 30);
+        Decor(m, "clothier_sign", "clothier_sign", hx + 30, hy - 26, json::object(), 20.0f);
     }
 }
 
@@ -14141,6 +14199,7 @@ static void BuildDreamCellar(const MapBuilder& cellar) {
 }
 // --------------------------------------------------------------------------- the interiors
 static void Interior(MapBuilder& m, const string& id) {
+    Neighbors(m, id);
     if (id == "house_smith") {
         // --- Halda's forge (30-35) ---------------------------------------------------------------
         SleepUntil(m, "npc_smith", {"ACT1_HALDA_AWAKE"}, json::array({
@@ -14313,7 +14372,7 @@ static void Interior(MapBuilder& m, const string& id) {
         }
         json& v = NpcOf(m, "npc_elder");
         if (!v.empty())
-            v["states"] = json::array({{{"when", W({"HAVENBROOK_ASLEEP"}, {"ACT1_DRAGON_SHADOW_SEEN"})}, {"hidden", true}},
+            v["states"] = json::array({{{"when", W({"HAVENBROOK_ASLEEP"})}, {"hidden", true}},
                                        {{"when", pro::PrologueDay()}, {"hidden", true}}});
         json& mayor = m.Npc("npc_mayor_guild", "Mayor Hale", "citizen2", 344, 204, "act1_mayor_after", 0);
         mayor["states"] = json::array({
@@ -14655,8 +14714,400 @@ static void BuildHouse() {
     piece("tavern_chair", 3 * CELL + 24, 8 * CELL + 10, 16, 8);
     piece("tavern_chair", 7 * CELL - 8, 8 * CELL + 10, 16, 8);
     piece("nightstand", 14 * CELL + 20, 6 * CELL + 6, 18, 8);
+    act2::Interior(m, "house_havenbrook");
     m.Write("maps");
 }
+
+// --------------------------------------------------------------------------- Word to the Neighbors (50-62)
+// Mossvale and Fernhollow are asleep for a character who played the prologue,
+// one sleeper at a time until the cure wakes them (Act II: CURED_<id>). A
+// character from before the story finds them awake; so does a game that was
+// past the dragon's shadow before the neighbours were in it (NEIGHBORS_SKIPPED,
+// set on load: see SaveSystem).
+static json TownAsleep(const string& id) { return W({"PROLOGUE"}, {"CURED_" + id, "NEIGHBORS_SKIPPED"}); }
+static void PutToSleep(MapBuilder& m, const string& id, const string& text, const json& at = json(),
+                       const string& pose = "slump") {
+    json& n = NpcOf(m, id);
+    if (n.empty()) return;
+    // The rig the player and the college are drawn on has no slump: whoever
+    // is drawn on it lies down where they stood.
+    const string sprite = n.value("sprite", string(""));
+    const bool rig = sprite.rfind("player_", 0) == 0 || sprite == "apprentice" || sprite == "adept" ||
+                     sprite == "magister";
+    json st = {{"when", TownAsleep(id)}, {"pose", rig && pose == "slump" ? string("lie") : pose}, {"asleep", text},
+               {"prompt", "Use Dreamcatcher"}};
+    if (at.is_array()) st["at"] = at;
+    json states = json::array({st});
+    if (n.contains("states")) for (const auto& o : n["states"]) states.push_back(o);
+    n["states"] = states;
+}
+static void Neighbors(MapBuilder& m, const string& id) {
+    if (id == "whisperwood_trail") {
+        // Vexel's three glimpses (51): where the road reaches each, where he
+        // stands, and where he is gone anyway if he is never looked at. Then
+        // the fork, at its signpost.
+        const auto trail = [](float cx, float off) {
+            return std::pair<int, int>{static_cast<int>(cx * CELL) + 16,
+                                       static_cast<int>((ww::TrailY(cx) + off) * CELL) + 16};
+        };
+        // Each zone well short of where he stands -- further than he can be
+        // looked at from (story.json "look", 260 px) -- so he is seen first;
+        // and well past where the last one was walked by (its "near", 150
+        // px), so he is not back the moment he is gone.
+        const float zone[3] = {9.0f, 36.0f, 57.0f};
+        const float him[3][2] = {{27.0f, -3.4f}, {46.0f, 3.2f}, {66.0f, 0.0f}};
+        const float past[3] = {30.0f, 49.0f, 68.0f};
+        for (int k = 0; k < 3; ++k) {
+            const auto z = trail(zone[k], 0.0f), v = trail(him[k][0], him[k][1]), p = trail(past[k], 0.0f);
+            m.Mark("ww_zone_" + std::to_string(k + 1), z.first, z.second);
+            m.Mark("ww_vexel_" + std::to_string(k + 1), v.first, v.second);
+            m.Mark("ww_past_" + std::to_string(k + 1), p.first, p.second);
+        }
+        const auto fork = trail(static_cast<float>(ww::FORK_CX + 3), 0.0f);
+        m.Mark("ww_fork", fork.first, fork.second);
+        return;
+    }
+    if (id == "mossvale") {
+        PutToSleep(m, "npc_sela", "Warden Sela sleeps on her feet at the gate, leaning on her spear.");
+        PutToSleep(m, "npc_pell", "Pell is asleep against his stall, a coin still pinched between finger and thumb.");
+        PutToSleep(m, "npc_tamsin", "Tamsin is curled up asleep in the grass.");
+        // "A cart driver slumps on his seat... A woman sits against a fence, a
+        // basket of apples spilled around her."
+        const int cx = 24 * CELL, cy = 24 * CELL;
+        m.Prop("props", "handcart", cx, cy);
+        m.Collision(cx - 26, cy - 12, 52, 12);
+        json& carter = m.Npc("npc_mv_carter", "Carter", "citizen2", cx + 34, cy + 6, "mv_villager_root", 1);
+        carter["states"] = json::array({{{"when", W({}, {"PROLOGUE"})}, {"hidden", true}}});
+        PutToSleep(m, "npc_mv_carter", "A carter slumps on his seat, the reins slack in his hands.");
+        json& apples = m.Npc("npc_mv_apple", "Villager", "citizen1", 30 * CELL, 27 * CELL + 8, "mv_villager_root", 0);
+        apples["states"] = json::array({{{"when", W({}, {"PROLOGUE"})}, {"hidden", true}}});
+        PutToSleep(m, "npc_mv_apple", "A woman sits against the fence, asleep, a basket of apples spilled around her.");
+        // Wynn's door: her shop is empty until she comes to it (Act II, 66).
+        return;
+    }
+    if (id == "mossvale_weavers") {
+        json& w = NpcOf(m, "npc_wynn");
+        if (!w.empty()) {
+            json states = json::array({{{"when", W({"PROLOGUE"}, {"ACT1_DRAGON_SHADOW_SEEN", "NEIGHBORS_SKIPPED"})},
+                                        {"hidden", true}},
+                                       {{"when", W({"PROLOGUE", "ACT1_DRAGON_SHADOW_SEEN"}, {"ACT2_CLOTHIER_FOUND"})},
+                                        {"pose", "slump"}, {"asleep", "Wynn is crouched on the floor behind the counter, "
+                                                                      "her arms wrapped around her knees."}}});
+            if (w.contains("states")) for (const auto& o : w["states"]) states.push_back(o);
+            w["states"] = states;
+        }
+        return;
+    }
+    if (id == "mossvale_herbalist") {
+        // Oona on her stool beside the pot, the ladle in her hand (54), and
+        // Apocolo's book on the bench beside it.
+        PutToSleep(m, "npc_oona", "Oona sleeps on a stool beside the pot, a long ladle still gripped in her hand.",
+                   json::array({4 * CELL + 44, 9 * CELL + 30}));
+        Story(m, "apocolo_book", "assets/icons/tiers/grimoire_bronze.png", 7 * CELL, 7 * CELL - 6, "Read the book",
+              W({"ACT1_OONA_BOOK_FOUND"}), 12.0f);
+        m.Mark("apocolo_book_at", 7 * CELL, 7 * CELL + 30);
+        return;
+    }
+    if (id == "mossvale_lodge_hall") {
+        // The inn's common room (55): patrons slumped over the tables, the
+        // innkeeper folded over the bar, and where Vexel stands among them.
+        PutToSleep(m, "npc_hadley", "Reeve Hadley is folded over the bar, asleep.");
+        const int dx = 11 * CELL;
+        const int spots[2][2] = {{dx - 4 * CELL, 7 * CELL}, {dx + 4 * CELL, 8 * CELL}};
+        for (int k = 0; k < 2; ++k) {
+            const string pid = "npc_mv_patron_" + std::to_string(k + 1);
+            json& p = m.Npc(pid, "Patron", k ? "citizen1" : "citizen2", spots[k][0], spots[k][1], "mv_villager_root", k);
+            p["states"] = json::array({{{"when", W({}, {"PROLOGUE"})}, {"hidden", true}}});
+            PutToSleep(m, pid, "A patron sleeps slumped over the table, a mug tipped at their elbow.");
+        }
+        m.Mark("ml_vexel", dx, 6 * CELL + 16);
+        return;
+    }
+    if (id == "fernhollow") {
+        for (const char* n : {"npc_maud", "npc_pim", "npc_college_porter", "npc_mira", "npc_nell", "npc_ilse"})
+            PutToSleep(m, n, "Asleep where they stood. Nothing wakes them.");
+        // Wendel is asleep in his chair at home (57), not out on the jetty.
+        json& w = NpcOf(m, "npc_wendel");
+        if (!w.empty()) {
+            json states = json::array({{{"when", TownAsleep("npc_wendel_home")}, {"hidden", true}}});
+            if (w.contains("states")) for (const auto& o : w["states"]) states.push_back(o);
+            w["states"] = states;
+        }
+        // The college keeps its gates shut while the hamlet sleeps.
+        for (auto& portal : m.dq["portals"])
+            if (portal.value("target", string("")).rfind("fernhollow_college", 0) == 0 ||
+                portal.value("target", string("")).rfind("college_", 0) == 0)
+                pro::Shut(portal, W({"PROLOGUE"}, {"ACT2_NEIGHBORS_WOKEN", "NEIGHBORS_SKIPPED"}),
+                          "The college gates are shut. Through the bars, the courtyard is silent.");
+        // Mara's house, leaning on the wall in the south-east corner (58): its
+        // door falls in at a knock, and the house can be gone into after.
+        const int hx = 38 * CELL, hy = 30 * CELL + 24;
+        m.Portal(hx - 15, hy - 8, 30, 20, "fernhollow_mara", "entrance", "Go inside", true);
+        pro::Shut(pro::LastPortal(m), W({}, {"ACT1_FERNHOLLOW_DOOR_BROKEN"}), "No one answers.");
+        m.Spawn("from_fernhollow_mara", hx, hy + 24);
+        m.Spawn("mara_lane", hx - 5 * CELL, hy + 30);
+        m.Mark("mara_door", hx, hy - 20);
+        m.Mark("mara_step", hx, hy + 18);
+        // On the road in from the trail: a post to lean on, on the way out of
+        // the Ashen Path (83).
+        m.Mark("fh_post", 430, 980);
+        return;
+    }
+    if (id == "fernhollow_cottage") {
+        // Wendel, asleep in a chair by the window, a line wound round his
+        // fingers; Hesper asleep as well.
+        const int wx = 4 * CELL, wy = 4 * CELL + 20;
+        m.Prop("props", "armchair", wx, wy);
+        m.Collision(wx - 14, wy - 10, 28, 10);
+        json& w = m.Npc("npc_wendel_home", "Old Wendel", "citizen2", wx, wy + 4, "wendel_root", 0);
+        w["states"] = json::array({{{"when", W({}, {"PROLOGUE"})}, {"hidden", true}}});
+        PutToSleep(m, "npc_wendel_home", "Old Wendel sleeps in his chair by the window, a fishing line wound round his "
+                                        "fingers.");
+        // Once awake he is out on the jetty again, not in his chair.
+        w["states"].push_back({{"when", json::object()}, {"hidden", true}});
+        PutToSleep(m, "npc_hesper", "Hesper is asleep at the table.");
+        return;
+    }
+}
+
+// --------------------------------------------------------------------------- Mara's house (58-59)
+// A lone house leaning on the wall: three rooms in a row -- the front room
+// with the table, the middle room, the bedroom at the back with the window --
+// wrecked by a struggle. And her dream of it: the same three rooms, violet,
+// where the echo of that night plays out a room at a time.
+namespace mara {
+const int COLS = 22, ROWS = 12;
+const int WALL_A = 7, WALL_B = 14;            // the partitions, by column
+const int GAP_TOP = 6, GAP_BOTTOM = 8;        // the doorways through them, by row
+static void Shell(MapBuilder& m, bool dream) {
+    RoomShell(m, COLS, ROWS, CELL, dream ? "plank_floor_dark" : "plank_floor", "plaster_wall_warm", 2, 3);
+    for (int cy = 2; cy < ROWS - 1; ++cy)
+        for (int cx : {WALL_A, WALL_B}) {
+            if (cy >= GAP_TOP && cy <= GAP_BOTTOM) continue;
+            m.Ground("plaster_wall_warm", cx * CELL, cy * CELL, CELL);
+            m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+        }
+    auto piece = [&](const string& art, int x, int y, int cw, int ch) {
+        m.Prop("props", art, x, y);
+        if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
+    };
+    piece("window_curtained", 4 * CELL, 62, 0, 0);
+    piece("window_curtained", 18 * CELL, 62, 0, 0);
+    piece("cottage_hearth", 10 * CELL + 16, 100, 64, 26);
+    piece("tavern_chair", 2 * CELL + 16, 8 * CELL + 10, 16, 8);
+}
+static void BuildHouse() {
+    MapBuilder m("fernhollow_mara", "Mara's House", COLS * CELL, ROWS * CELL);
+    m.Interior(true);
+    m.Subtitle("By the south-east wall");
+    m.Background(22, 18, 16);
+    Shell(m, false);
+    const int dx = 3 * CELL;
+    m.Spawn("entrance", dx, (ROWS - 2) * CELL);
+    m.Spawn("default", dx, (ROWS - 2) * CELL);
+    m.Portal(dx - 32, (ROWS - 1) * CELL, 64, 32, "fernhollow", "from_fernhollow_mara", "Step outside", false);
+    m.Mark("mara_bedside", 18 * CELL, 8 * CELL + 16);
+    // The door, lying flat where it fell in.
+    Decor(m, "mara_door_down", "door_fallen", dx, (ROWS - 3) * CELL + 8, W({"ACT1_FERNHOLLOW_DOOR_BROKEN"}));
+    // What can be looked at: the supper, the splinters, the scratches, the lantern.
+    Story(m, "mara_supper", "dining_table", 4 * CELL, 5 * CELL + 16, "Look", json::object())["solid"] =
+        json::array({4 * CELL - 23, 5 * CELL + 2, 46, 14});
+    Story(m, "mara_chair", "chair", 11 * CELL + 30, 6 * CELL, "Look", json::object());
+    Story(m, "mara_scratches", "claw_marks", 16 * CELL, 2 * CELL + 20, "Look", json::object(), 18.0f);
+    Story(m, "mara_lantern", "assets/icons/tiers/lantern_unlit.png", 15 * CELL + 20, 9 * CELL + 8, "Look", json::object());
+    // Her bed: "Sleep", like the cell mattress (59).
+    Story(m, "mara_bed", "bed_single", 19 * CELL + 8, 6 * CELL, "Sleep", W({"ACT1_FERNHOLLOW_DOOR_BROKEN"}))["solid"] =
+        json::array({19 * CELL + 8 - 16, 6 * CELL - 30, 32, 30});
+    m.Write("maps");
+}
+static void BuildDream() {
+    MapBuilder m("dream_mara", "Mara's House, Dreaming", COLS * CELL, ROWS * CELL);
+    m.Interior(true);
+    m.Ambient("dream");
+    m.DreamDepth(1);
+    m.Background(10, 8, 20);
+    m.Subtitle("The night she was taken");
+    m.Fog(0.32f, 0.0f, {160, 120, 220});
+    Shell(m, true);
+    Glow(m, "dm_violet", 11 * CELL, 6 * CELL, {170, 130, 240}, 300.0f, 0.5f, json::object());
+    const int dx = 3 * CELL;
+    m.Spawn("arrival", dx, (ROWS - 2) * CELL);
+    m.Spawn("default", dx, (ROWS - 2) * CELL);
+    // The three rooms, the window the knights come through, the far wall.
+    m.Mark("dm_room_1", 4 * CELL, 6 * CELL + 16);
+    m.Mark("dm_room_2", 11 * CELL, 6 * CELL + 16);
+    m.Mark("dm_room_3", 17 * CELL, 6 * CELL + 16);
+    m.Mark("dm_window", 18 * CELL, 3 * CELL);
+    m.Mark("dm_throw", 20 * CELL + 16, 7 * CELL);
+    // The scuffs and the scratches coming as the blows land.
+    for (const auto& p : {std::array<int, 2>{16 * CELL, 2 * CELL + 20}, std::array<int, 2>{20 * CELL, 2 * CELL + 20},
+                          std::array<int, 2>{9 * CELL, 2 * CELL + 20}})
+        Decor(m, "dm_scratch_" + std::to_string(p[0]), "claw_marks", p[0], p[1], W({"ACT1_MARA_SCUFFS"}), 18.0f);
+    Story(m, "dm_bed", "bed_single", 19 * CELL + 8, 6 * CELL, "Wake", json::object())["solid"] =
+        json::array({19 * CELL + 8 - 16, 6 * CELL - 30, 32, 30});
+    PlaceWakingStone(m, "dream_waking_stone_mara", dx + 70, (ROWS - 2) * CELL + 4);
+    m.Write("maps");
+}
+}  // namespace mara
+
+// --------------------------------------------------------------------------- the clothier (43A-43F)
+// Wynn's shop in Havenbrook, waking and dreamt. Awake: thread strung from hook
+// to hook along the back wall in six colours, a bare dress form in the middle
+// of the floor, the pale patch and the empty nail where a picture hung, the
+// desk with her shears on it, and Wynn asleep in her chair beside the loom.
+// Dreamt: the same shop warped -- the thread wall a black snarl, a giant spool
+// of black thread hanging from the rafters with its thread running down to
+// her, bound in her chair; no shears; and the portrait on the wall.
+namespace clothier {
+const int COLS = 16, ROWS = 12;
+const int RACK_X = 5 * CELL, RACK_Y = 2 * CELL + 6;       // the thread rack, on the back wall
+const int PATCH_X = 11 * CELL + 16, PATCH_Y = 2 * CELL;    // the nail, or the portrait
+const int FORM_X = 8 * CELL, FORM_Y = 7 * CELL;            // the dress form
+const int DESK_X = 3 * CELL, DESK_Y = 6 * CELL + 16;       // her desk, on the west side
+const int SHEARS_DX = 14, SHEARS_DY = -20;                 // the shears, on the desk's top by the chalk
+const int LOOM_X = 13 * CELL, LOOM_Y = 5 * CELL + 16;      // the loom, on the east side
+const int CHAIR_X = 12 * CELL - 4, CHAIR_Y = 7 * CELL + 4; // her chair, beside it
+// Each strand's place on the rack, from the rack's own: a pair of hooks every
+// fifteen pixels, and the spool it runs down to hanging ten below the rack's
+// foot (measured off the renders; blender_act1_props.py's thread_rack).
+const int kSlotDX[6] = {-37, -22, -7, 8, 23, 38};
+const int kSlotDY = 10;
+const char* kThreads[6] = {"crimson", "ivory", "gold", "cobalt", "moss", "violet"};
+
+static void Furnish(MapBuilder& m, bool dream) {
+    RoomShell(m, COLS, ROWS, CELL, dream ? "plank_floor_dark" : "plank_floor", "plaster_wall_warm",
+              COLS / 2 - 1, COLS / 2);
+    auto piece = [&](const string& art, int x, int y, int cw, int ch) {
+        m.Prop("props", art, x, y);
+        if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
+    };
+    m.Overlay("props", "inn_rug", (COLS / 2) * CELL, 9 * CELL);
+    piece("fabric_shelf", 8 * CELL + 16, 3 * CELL + 6, 70, 14);
+    piece("tapestry_red", 14 * CELL + 8, 2 * CELL + 6, 0, 0);
+    piece("sewing_desk", DESK_X, DESK_Y, 56, 16);
+    piece("fabric_rolls", 2 * CELL + 8, 9 * CELL + 8, 28, 10);
+    piece("cutting_table", 6 * CELL, 10 * CELL - 8, 70, 18);
+    piece("tavern_chair", CHAIR_X, CHAIR_Y, 16, 8);
+    m.Collision(FORM_X - 9, FORM_Y - 8, 18, 8);
+}
+
+static void BuildShop() {
+    MapBuilder m("clothier_havenbrook", "Wynn's, Havenbrook", COLS * CELL, ROWS * CELL);
+    m.Interior(true);
+    m.Subtitle("The clothier's shop");
+    m.Background(22, 18, 16);
+    Furnish(m, false);
+    const int dx = (COLS / 2) * CELL;
+    m.Spawn("entrance", dx, (ROWS - 2) * CELL);
+    m.Spawn("default", dx, (ROWS - 2) * CELL);
+    m.Portal(dx - 32, (ROWS - 1) * CELL, 64, 32, "town_havenbrook", "from_clothier_havenbrook", "Step outside", false);
+    m.Mark("clothier_cam", dx, 6 * CELL);
+    m.Mark("wynn_wake", CHAIR_X - 40, CHAIR_Y + 26);
+
+    // The wall of thread: the rack, and a strand on each pair of hooks until
+    // it is cut. Any can be cut; a wrong one is a harmless spare.
+    m.Prop("props", "thread_rack", RACK_X, RACK_Y);
+    for (int k = 0; k < 6; ++k) {
+        const string c = kThreads[k];
+        string up = c;
+        for (char& ch : up) ch = static_cast<char>(toupper(static_cast<unsigned char>(ch)));
+        Story(m, "thread_" + c, "thread_strand_" + c, RACK_X + kSlotDX[k], RACK_Y + kSlotDY, "Cut",
+              W({}, {"ACT1_THREAD_CUT_" + up}));
+    }
+    // An object for the waypoint and the quest stage to point at.
+    m.Mark("thread_rack", RACK_X, RACK_Y + 30);
+    // Where a picture once hung.
+    Decor(m, "clothier_nail", "nail_patch", PATCH_X, PATCH_Y, json::object());
+    // The bare dress form.
+    Decor(m, "clothier_form", "dress_form_bare", FORM_X, FORM_Y, json::object());
+    // Her shears, behind the desk: taken, and back on the desk when she wakes.
+    Story(m, "clothier_shears_desk", "shears_lying", DESK_X + SHEARS_DX, DESK_Y + SHEARS_DY, "Take the shears",
+          W({"ACT1_CLOTHIER_SEEN"}, {"ACT1_CLOTHIER_SHEARS", "ACT1_CLOTHIER_AWAKE"}));
+    Decor(m, "clothier_shears_back", "shears_lying", DESK_X + SHEARS_DX, DESK_Y + SHEARS_DY, W({"ACT1_CLOTHIER_AWAKE"}));
+    // The loom: hers to lend once she is awake (story.json "locks": Clothier).
+    {
+        json& o = m.Object("loom_havenbrook", "workbench", LOOM_X, LOOM_Y);
+        o["sprite"]  = "assets/props/loom.png";
+        o["title"]   = "Clothier's loom";
+        o["station"] = "loom";
+        m.Collision(LOOM_X - 36, LOOM_Y - 20, 72, 20);
+    }
+    // Wynn, asleep in her chair beside it -- tried, and then dreamt of.
+    json& w = m.Npc("npc_wynn_haven", "Wynn the Clothier", "citizen1", CHAIR_X, CHAIR_Y + 2, "wynn_haven_root", 1);
+    w["shop"] = "mossvale_clothier";
+    const string text = "Wynn sleeps in her chair beside the loom, her head on her arm.";
+    w["states"] = json::array({
+        {{"when", W({"ACT2_00_STARTED"})}, {"hidden", true}},
+        {{"when", W({"ACT1_CLOTHIER_STILL_DREAMING"}, {"ACT1_CLOTHIER_AWAKE"})}, {"pose", "slump"},
+         {"prompt", "Use Dreamcatcher"}, {"mark", true}, {"asleep", text}},
+        {{"when", W({"ACT1_CLOTHIER_SEEN"}, {"ACT1_CLOTHIER_AWAKE"})}, {"pose", "slump"},
+         {"prompt", "Try to wake"}, {"mark", true}, {"asleep", text}},
+        {{"when", W({}, {"ACT1_CLOTHIER_AWAKE"})}, {"pose", "slump"}, {"asleep", text}},
+    });
+    m.Write("maps");
+}
+
+static void BuildDream() {
+    MapBuilder m("dream_clothier", "Wynn's, Dreaming", COLS * CELL, ROWS * CELL);
+    m.Interior(true);
+    m.Ambient("dream");
+    m.DreamDepth(1);
+    m.Background(10, 8, 20);
+    m.Subtitle("The clothier's nightmare");
+    m.Fog(0.30f, 0.0f, {160, 120, 220});
+    Furnish(m, true);
+    const int dx = (COLS / 2) * CELL;
+    m.Spawn("arrival", dx, (ROWS - 2) * CELL);
+    m.Spawn("default", dx, (ROWS - 2) * CELL);
+    m.Mark("dc_cam", dx, 6 * CELL);
+    m.Mark("dc_spool", CHAIR_X, CHAIR_Y - 60);
+    m.Mark("dc_form", FORM_X, FORM_Y + 20);
+    Glow(m, "dc_violet", dx, 6 * CELL, {170, 130, 240}, 260.0f, 0.5f, json::object());
+
+    // The thread wall, a black snarl knotted beyond cutting.
+    Story(m, "thread_snarl", "thread_snarl", RACK_X, RACK_Y, "Cut", W({}, {"ECHO_CLOTHIER_SNIP"}));
+    // The portrait, where the waking shop has only a nail -- until the room
+    // quakes and it slides from its nail and shatters.
+    Story(m, "clothier_portrait", "portrait_gown", PATCH_X, PATCH_Y, "Examine", W({}, {"ACT1_CLOTHIER_DRESS_DONE"}));
+    m.Mark("dc_portrait", PATCH_X, PATCH_Y + 50);
+    // The dress form, dressed a piece at a time: crimson, ivory, gold. When
+    // the last piece is on, it is not a dress form any more.
+    Decor(m, "dc_form_bare", "dress_form_bare", FORM_X, FORM_Y, W({}, {"ACT1_DRESS_BODICE"}));
+    Decor(m, "dc_form_bodice", "dress_form_bodice", FORM_X, FORM_Y, W({"ACT1_DRESS_BODICE"}, {"ACT1_DRESS_SKIRT"}));
+    Decor(m, "dc_form_skirt", "dress_form_skirt", FORM_X, FORM_Y, W({"ACT1_DRESS_SKIRT"}, {"ACT1_DRESS_SASH"}));
+    Decor(m, "dc_form_full", "dress_form_full", FORM_X, FORM_Y, W({"ACT1_DRESS_SASH"}, {"ACT1_CLOTHIER_DRESS_DONE"}));
+    Story(m, "dress_form_dream", "", FORM_X, FORM_Y, "Dress", W({"ACT1_CLOTHIER_DREAM_INTRO"}, {"ACT1_CLOTHIER_DRESS_DONE"}));
+    // The Shear Mannequin: the form, come alive, once the dress is finished.
+    {
+        json& e = Post(m, "shear_mannequin", FORM_X, FORM_Y, 12,
+                       W({"ACT1_CLOTHIER_DRESS_DONE"}, {"ACT1_CLOTHIER_BOSS_DOWN"}), "ACT1_CLOTHIER_BOSS_DOWN", 520.0f);
+        e["dormant"] = "ACT1_CLOTHIER_FIGHT";
+        e["perch"] = 0;
+        // Held back until the dress is done -- not put down, which its squad
+        // would count as the fight won before it began.
+        e["appear"] = true;
+    }
+    // The giant spool hanging from the rafters, and its thread down to her.
+    Decor(m, "dc_spool", "giant_spool", CHAIR_X, CHAIR_Y - 6, W({}, {"ECHO_CLOTHIER_SNIP"}), 70.0f);
+    json& n = m.Npc("npc_wynn_dream", "Wynn", "citizen1", CHAIR_X, CHAIR_Y + 2, "act1_wynn_dream", 1);
+    n["states"] = json::array({
+        {{"when", W({"ECHO_CLOTHIER_SNIP"})}, {"hidden", true}},
+        {{"when", W({})}, {"pose", "slump"}},
+    });
+    {
+        json& t = m.Object("clothier_thread", "tether", CHAIR_X, CHAIR_Y - 6);
+        t["lift"] = 72.0f;
+        t["tie"] = "npc_wynn_dream";
+        t["tie_at"] = json::array({0, -14});
+        t["slack"] = W({"ACT1_CLOTHIER_BOSS_DOWN"});
+        t["when"] = W({}, {"ECHO_CLOTHIER_SNIP"});
+    }
+    // Cut with the waking shop's shears once the Mannequin has fallen.
+    Story(m, "clothier_anchor", "", CHAIR_X + 18, CHAIR_Y - 20, "Cut the thread", W({}, {"ECHO_CLOTHIER_SNIP"}));
+    PlaceWakingStone(m, "dream_waking_stone_clothier", dx - 110, (ROWS - 2) * CELL + 4);
+    m.Write("maps");
+}
+}  // namespace clothier
 
 static void Build() {
     BuildDreamForge();
@@ -14664,6 +15115,10 @@ static void Build() {
     int n = 0;
     for (const Chime& c : kChimes) BuildChimeHome(c, n++);
     BuildHouse();
+    clothier::BuildShop();
+    clothier::BuildDream();
+    mara::BuildHouse();
+    mara::BuildDream();
 }
 }  // namespace act1
 
@@ -14675,28 +15130,428 @@ static void Build() {
 //  data/quests.json, posted on the board he pins up beside his desk.
 // =================================================================================================
 namespace act2 {
+// What Act II (scenes 63-85) puts into maps built elsewhere, and the three of its own.
+static const int A2CELL = act1::CELL;
+// A sleeper of the college's: lying where they fell, until a dose of the cure
+// (CURED_<id>), with a bell over them once the Magister has asked for them.
+static void CollegeAsleep(MapBuilder& m, const string& id, const json& at = json()) {
+    json& n = act1::NpcOf(m, id);
+    if (n.empty()) return;
+    const string text = "Asleep where they fell. The cure has not reached them.";
+    json a = {{"when", act1::W({"PROLOGUE", "ACT2_COLLEGE_HEAD_AWAKE"}, {"CURED_" + id, "NEIGHBORS_SKIPPED"})},
+              {"pose", "lie"}, {"asleep", text}, {"prompt", "Give the cure"}, {"mark", true}};
+    json b = {{"when", act1::W({"PROLOGUE"}, {"CURED_" + id, "NEIGHBORS_SKIPPED"})}, {"pose", "lie"},
+              {"asleep", text}};
+    if (at.is_array()) { a["at"] = at; b["at"] = at; }
+    json states = json::array({a, b});
+    if (n.contains("states")) for (const auto& o : n["states"]) states.push_back(o);
+    n["states"] = states;
+}
+// A cave's way in on open ground: a den's mound with its doorway (bear_den
+// and lizard_cave share the shape: the doorway 45 px wide about the middle,
+// its floor 14 px above the picture's foot).
+static void CaveMouth(MapBuilder& m, const string& art, int x, int base, const string& to, const string& back,
+                      const string& label, int danger) {
+    m.Prop("props", art, x, base);
+    m.SortLift(art, 40);
+    m.Collision(x - 66, base - 52, 42, 40);
+    m.Collision(x + 24, base - 52, 42, 40);
+    m.Collision(x - 24, base - 58, 48, 18);
+    m.Portal(x - 20, base - 40, 40, 24, to, "entrance", label, true);
+    m.Danger(danger);
+    m.Spawn(back, x, base + 24);
+}
+
 static void Interior(MapBuilder& m, const string& id) {
-    if (id != "guild_hall") return;
-    const int CELL = act1::CELL;
-    // Orlend: the ledger is his to open, and until it is he opens with it. Last in his list, so
-    // every one of Act I's states comes first.
-    json& g = act1::NpcOf(m, "npc_guildmaster");
-    if (!g.empty()) {
-        if (!g.contains("states")) g["states"] = json::array();
-        for (const json& when : {act1::W({"ACT1_DRAGON_SHADOW_SEEN"}, {"ACT2_GUILD_BOUNTIES_OPEN"}),
-                                 act1::W({}, {"PROLOGUE", "ACT2_GUILD_BOUNTIES_OPEN"})})
-            g["states"].push_back({{"when", when}, {"dialogue", "guildmaster_ledger"}, {"mark", true}});
+    const int CELL = A2CELL;
+    using act1::W;
+    if (id == "guild_hall") {
+        // Orlend: the ledger is his to open, and until it is he opens with it. Last in his list, so
+        // every one of Act I's states comes first.
+        json& g = act1::NpcOf(m, "npc_guildmaster");
+        if (!g.empty()) {
+            if (!g.contains("states")) g["states"] = json::array();
+            for (const json& when : {W({"ACT1_DRAGON_SHADOW_SEEN"}, {"ACT2_GUILD_BOUNTIES_OPEN"}),
+                                     W({}, {"PROLOGUE", "ACT2_GUILD_BOUNTIES_OPEN"})})
+                g["states"].push_back({{"when", when}, {"dialogue", "guildmaster_ledger"}, {"mark", true}});
+        }
+        // The bounty board, beside his desk on the east of the dais, between the candle and the
+        // training dummy. It stands from the start of Act II -- not from the conversation, whose
+        // flag a friend's machine would keep to itself -- and has nothing on it for anybody whose
+        // ledger is not open (the bounties' prerequisite, q_guild_ledger).
+        const int bx = 17 * CELL - 8, by = 5 * CELL - 8;
+        json& o = m.Object("board_bounties", "board", bx, by);
+        o["sprite"] = ObjPath("guild_bounty_board");
+        o["title"]  = "Guild Bounties";
+        o["when"]   = {{"unless", W({"PROLOGUE"}, {"ACT1_DRAGON_SHADOW_SEEN"})}};
+        o["solid"]  = json::array({bx - 22, by - 10, 44, 10});
+        return;
     }
-    // The bounty board, beside his desk on the east of the dais, between the candle and the
-    // training dummy. It stands from the start of Act II -- not from the conversation, whose
-    // flag a friend's machine would keep to itself -- and has nothing on it for anybody whose
-    // ledger is not open (the bounties' prerequisite, q_guild_ledger).
-    const int bx = 17 * CELL - 8, by = 5 * CELL - 8;
-    json& o = m.Object("board_bounties", "board", bx, by);
-    o["sprite"] = ObjPath("guild_bounty_board");
-    o["title"]  = "Guild Bounties";
-    o["when"]   = {{"unless", act1::W({"PROLOGUE"}, {"ACT1_DRAGON_SHADOW_SEEN"})}};
-    o["solid"]  = json::array({bx - 22, by - 10, 44, 10});
+    if (id == "town_havenbrook") {
+        // 74: the well is shut until Bess asks.
+        for (auto& portal : m.dq["portals"])
+            if (portal.value("target", string("")) == "well_shallow")
+                pro::Shut(portal, W({"PROLOGUE"}, {"ACT2_BESS_WELL_START", "NEIGHBORS_SKIPPED"}),
+                          "The well's rope has been drawn up.");
+        // 66: Wynn's shop, shuttered, with a note on the door. Her loom inside is still the player's.
+        {
+            json& o = m.Object("clothier_note", "sign", 716 + 30, 512 + 6);
+            o["sprite"] = "assets/icons/note_ground.png";
+            o["title"]  = "A note on the clothier's door";
+            o["text"]   = "I can't stay here. I've gone home to Mossvale.";
+            o["when"]   = W({"ACT2_00_STARTED"}, {"ACT2_CLOTHIER_FOUND"});
+        }
+        // 67: Apocolo's cauldron, cold since Vexel took him, a little way from the town's own.
+        {
+            const int cx = 43 * CELL + 160, cy = 30 * CELL - 56;
+            json& c = m.Object("apocolo_cauldron_cold", "decor", cx, cy);
+            c["sprite"] = "assets/props/cauldron_cold.png";
+            c["when"]   = W({"PROLOGUE"}, {"ACT2_CURE_BREWED"});
+            c["solid"]  = json::array({cx - 16, cy - 12, 32, 12});
+            json& l = m.Object("apocolo_cauldron_lit", "decor", cx, cy);
+            l["sprite"] = "assets/props/cauldron.png";
+            l["when"]   = W({"PROLOGUE", "ACT2_CURE_BREWED"});
+            l["solid"]  = json::array({cx - 16, cy - 12, 32, 12});
+            json& u = act1::Story(m, "apocolo_cauldron", "", cx, cy + 2, "Apocolo's cauldron",
+                                  W({"ACT1_OONA_BOOK_FOUND"}, {"ACT2_COLLEGE_WOKEN"}));
+            (void)u;
+            m.Mark("apocolo_cauldron_at", cx, cy + 34);
+        }
+        return;
+    }
+    if (id == "house_inn") {
+        // 74: a bell over Bess once Act II has begun.
+        json& b = act1::NpcOf(m, "npc_cook");
+        if (!b.empty()) {
+            json states = json::array({{{"when", W({"ACT2_00_STARTED"}, {"ACT2_BESS_WELL_START"})}, {"mark", true}}});
+            if (b.contains("states")) for (const auto& o : b["states"]) states.push_back(o);
+            b["states"] = states;
+        }
+        return;
+    }
+    if (id == "house_havenbrook") {
+        // 78A: Hoarfang's head, mounted over the bed's end of the room.
+        json& o = m.Object("hoarfang_trophy", "decor", 9 * CELL, 62);
+        o["sprite"] = "assets/props/hoarfang_trophy.png";
+        o["title"]  = "Hoarfang's head";
+        o["when"]   = W({"ACT2_HOARFANG_RESOLVED"});
+        return;
+    }
+    if (id == "mayor_hall") {
+        // The dungeon of Havenbrook, under the hall: where a captured rival is kept (70).
+        m.Overlay("props", "cellar_hatch", 76, 330);
+        m.Portal(58, 312, 36, 30, "havenbrook_cells", "from_hall", "Go down to the cells", true);
+        pro::Shut(pro::LastPortal(m), W({}, {"ACT2_RIVAL_CAPTURED"}), "The hatch is locked.");
+        m.Spawn("from_cells", 76, 372);
+        return;
+    }
+    if (id == "overworld") {
+        // 65: the graveyard's page, among the stones, away from the crypt's wight.
+        {
+            int px = 1904 - m.ox, py = 3504;
+            for (int k = 0; k < 12 && !m.Clear(px, py + 4); ++k) px += 24;
+            act1::Story(m, "page_graveyard", "assets/icons/torn_page.png", px, py, "Pick up the page",
+                        W({"ACT1_OONA_BOOK_FOUND"}, {"ACT1_PAGE_GRAVEYARD_FOUND"}));
+            m.Prop("props", "gravestone", px + 22, py - 6);
+            m.Collision(px + 22 - 10, py - 13, 20, 7);
+        }
+        // 65: the lizardmen's cave, just south of their camp in the mire.
+        CaveMouth(m, "lizard_cave", 1072 - m.ox - 10, 2576 + 170, "dungeon_lizard_cave", "from_lizard_cave",
+                  "Go into the lizardmen's cave", 20);
+        MarkWorld("dungeon", "The Lizardmen's Cave", 1072 - m.ox - 10, 2576 + 130);
+        // 79: the Ashen Path waits on the council (71A).
+        for (auto& portal : m.dq["portals"])
+            if (portal.value("target", string("")) == "ashen_path")
+                pro::Shut(portal, W({"PROLOGUE"}, {"ACT2_ASHEN_PATH_OPEN", "NEIGHBORS_SKIPPED"}),
+                          "Ash and smoke hang across the road, too thick to walk into.");
+        return;
+    }
+    if (id == "westwold") {
+        // 65: the bear's den, in the north meadow where the bears are.
+        CaveMouth(m, "bear_den", 1750, 420, "dungeon_bear_den", "from_bear_den", "Go into the bear's den", 26);
+        return;
+    }
+    if (id == "ashen_path") {
+        // 82: the way out of the Pit, fought every step: demons on every ridge
+        // along the road west, there while the struggle is. The road's end.
+        int k = 0;
+        // Clear of where anybody comes out: the Pit's door (90), the waystone (64), the Hollowmarch (2).
+        for (int cx : {78, 54, 44, 34, 24, 14}) {
+            const int ry = static_cast<int>(ash::TrailY(static_cast<float>(cx)) * CELL) + 16;
+            for (int j = -1; j <= 1; ++j) {
+                const int x = cx * CELL + 16 + j * 40, y = ry + (j == 0 ? -70 : 60);
+                const char* type = (k + j) % 3 == 0 ? "demon" : "imp";
+                json& e = act1::Post(m, type, x, y, 42 + (k % 3), W({"ACT2_ESCAPE_ACTIVE"}, {"ACT2_ASHEN_ESCAPE_DONE"}),
+                                     "", 700.0f);
+                e["appear"] = true;
+                e["appear_after"] = 0.3f * static_cast<float>(j + 1);
+            }
+            ++k;
+        }
+        m.Mark("ap_escape_exit", 8 * CELL, static_cast<int>(ash::TrailY(8.0f) * CELL) + 16);
+        return;
+    }
+    if (id == "college_grounds") {
+        const int hx = 960, top = 352;
+        // 70: on the far steps -- Vexel, Orrin in his thread, and the rival.
+        {
+            // Vexel in the middle, Orrin on one side and the rival on the other (70) -- and both two
+            // cells clear of the college's door (960, 330), where anybody comes out.
+            json& v = act1::Post(m, "vexel_beams", hx, top + 44, 0, W({"ACT2_NEIGHBORS_WOKEN"}, {"ACT2_RIVAL_DEFEATED"}),
+                                 "", 2000.0f);
+            v["dormant"] = "ACT2_RIVAL_PHASE2";
+            v["perch"] = 0;
+            json& r = act1::Post(m, "rival_dreamwalker", hx + 60, top + 30, 0,
+                                 W({"ACT2_NEIGHBORS_WOKEN"}, {"ACT2_RIVAL_DEFEATED"}), "ACT2_RIVAL_DEFEATED", 1200.0f);
+            r["dormant"] = "ACT2_RIVAL_FIGHT";
+            r["perch"] = 0;
+            json& o = m.Npc("npc_orrin_court", "Magister Orrin", "magister", hx - 56, top, "act2_magister_waiting", 0);
+            o["states"] = json::array({
+                {{"when", W({"ACT2_COLLEGE_HEAD_AWAKE"})}, {"hidden", true}},
+                {{"when", W({"ACT2_NEIGHBORS_WOKEN"})}, {"asleep", "Magister Orrin hangs asleep in a net of black thread."}},
+                {{"when", json::object()}, {"hidden", true}},
+            });
+            // In front of him (sorted two pixels below his feet) and drawn eight up, so the net's foot
+            // is at his soles -- six above his sprite's anchor (blender_act1_props.py, thread_net).
+            act1::Decor(m, "cg_net", "thread_net", hx - 56, top + 2, W({"ACT2_NEIGHBORS_WOKEN"}, {"ACT2_ORRIN_FREED"}),
+                        8.0f);
+        }
+        m.Mark("cg_steps", hx, top + 8);
+        m.Mark("cg_court", 960, 790);
+        m.Mark("cg_gate_in", 944, 1330);
+        m.Mark("cg_after", 960, 480);
+        // The court's sleepers: the walkers where their rounds begin.
+        CollegeAsleep(m, "npc_college_walker_a", json::array({256, 808}));
+        CollegeAsleep(m, "npc_college_walker_b", json::array({1664, 792}));
+        for (const char* n : {"npc_college_reader", "npc_college_gardener", "npc_college_usher"}) CollegeAsleep(m, n);
+        // Its doors stay shut until its head is awake (71).
+        for (auto& portal : m.dq["portals"]) {
+            const string t = portal.value("target", string(""));
+            if (t == "fernhollow_college" || t == "college_training" || t == "college_classroom")
+                pro::Shut(portal, W({"PROLOGUE"}, {"ACT2_COLLEGE_HEAD_AWAKE", "NEIGHBORS_SKIPPED"}), "The doors are shut.");
+        }
+        return;
+    }
+    if (id == "college_training") {
+        for (int k = 0; k < 4; ++k) CollegeAsleep(m, "npc_college_lane_" + std::to_string(k));
+        CollegeAsleep(m, "npc_college_instructor");
+        return;
+    }
+    if (id == "college_classroom") {
+        for (int k = 0; k < 5; ++k) CollegeAsleep(m, "npc_college_pupil_" + std::to_string(k));
+        CollegeAsleep(m, "npc_college_lector");
+        return;
+    }
+    if (id == "fernhollow_college") {
+        CollegeAsleep(m, "npc_councillor_ferris");
+        CollegeAsleep(m, "npc_councillor_wren");
+        // Orrin: in Vexel's thread in the court until he is freed (70-71); then here, and his
+        // lessons wait on his council and his staff; a bell when he has something for you.
+        json& o = act1::NpcOf(m, "npc_magister");
+        if (!o.empty()) {
+            json states = json::array({
+                {{"when", W({"PROLOGUE"}, {"ACT2_COLLEGE_HEAD_AWAKE", "NEIGHBORS_SKIPPED"})}, {"hidden", true}},
+                {{"when", W({"ACT2_PALM_HEALED", "ACT2_ANCIENT_MAGICS_OPEN"}, {"ACT2_RUNE_FATE"})}, {"mark", true}},
+                {{"when", W({"ACT2_ANCIENT_MAGICS_OPEN"}, {"ACT2_TALISMAN_SEARCH_START"})}, {"mark", true}},
+                {{"when", W({"ACT2_COLLEGE_HEAD_AWAKE"}, {"ACT2_ANCIENT_SLOT_UNLOCKED"})}, {"mark", true},
+                 {"dialogue", "act2_magister_waiting"}},
+                {{"when", W({"PROLOGUE"}, {"ACT2_ANCIENT_MAGICS_OPEN", "NEIGHBORS_SKIPPED"})},
+                 {"dialogue", "act2_magister_waiting"}},
+            });
+            if (o.contains("states")) for (const auto& st : o["states"]) states.push_back(st);
+            o["states"] = states;
+        }
+        m.Mark("fc_cam", 448, 250);
+        m.Mark("fc_meeting", 448, 300);
+        return;
+    }
+}
+
+static void Dungeon(MapBuilder& m, const string& id, int rx, int ry, int rw, int rh) {
+    const int CELL = A2CELL;
+    using act1::W;
+    const int cx = (rx + rw / 2) * CELL + 16, cy = (ry + rh / 2) * CELL + 16;
+    const auto boss = [&](const string& type, const string& squad) {
+        for (auto& e : m.dq["enemies"])
+            if (e.value("type", string("")) == type) e["squad"] = squad;
+    };
+    const auto clear_spot = [&](int x, int y) {
+        static const int kTry[][2] = {{0, 0}, {32, 0}, {-32, 0}, {0, 32}, {32, 32}, {-32, 32}, {64, 0}, {-64, 0}};
+        for (const auto& t : kTry)
+            if (m.Clear(x + t[0], y + t[1] + 4)) return std::pair<int, int>{x + t[0], y + t[1]};
+        return std::pair<int, int>{x, y};
+    };
+    if (id == "dungeon_emberfell_2") {
+        // 65: the greasy page, in a chest the Orc Warchief stands over.
+        const auto [x, y] = clear_spot(cx + 64, cy + 32);
+        json& o = act1::Story(m, "page_orc", "assets/objects/chest.png", x, y, "Open the chest",
+                              W({"ACT1_OONA_BOOK_FOUND"}, {"ACT1_PAGE_ORC_FOUND"}));
+        o["needs_slain"] = "orc3";
+        m.Collision(x - 14, y - 10, 28, 10);
+        return;
+    }
+    if (id == "crypt_3") {
+        // 73: the Ashlord's fall, and the chest it stood before.
+        boss("vampire_lord", "ACT2_ASHLORD_DEFEATED");
+        const auto [x, y] = clear_spot(cx, cy - 48);
+        json& o = act1::Story(m, "talisman_chest", "assets/objects/chest.png", x, y, "Open the chest",
+                              W({"ACT2_TALISMAN_SEARCH_START"}, {"ACT2_TALISMAN_FOUND"}));
+        o["needs_slain"] = "vampire_lord";
+        m.Collision(x - 14, y - 10, 28, 10);
+        m.Mark("cr3_vault", cx, cy);
+        return;
+    }
+    if (id == "dungeon_infernal") {
+        // 80: the Pit Lord, whose fall is the story's.
+        boss("pit_lord", "ACT2_PIT_LORD_DEFEATED");
+        // 81: behind a throne of rubble, a rune carved into the wall -- the north wall's east end,
+        // clear of the corridor that comes into the room at its middle.
+        const int wall_y = ry * CELL + 18;
+        const int rune_x = (rx + rw - 2) * CELL + 16;
+        m.Prop("props", "rubble_throne", rune_x - 64, wall_y + 74);
+        m.Collision(rune_x - 64 - 34, wall_y + 56, 68, 18);
+        json& o = act1::Story(m, "pit_rune", "pit_rune", rune_x, wall_y + 10, "Touch the rune",
+                              W({"ACT2_CINDER_WARNING"}, {"ACT2_RUNE_FOUND"}));
+        (void)o;
+        act1::Glow(m, "pit_rune_glow", rune_x, wall_y + 4, {200, 220, 255}, 120.0f, 0.6f, json::object());
+        m.Mark("pit_rune_at", rune_x, wall_y + 40);
+        // He calls up Nightmares one call at a time (FIGHT_PIT_SUMMON_1..3): three spiders, three
+        // wolves, two brutes, spread round him in his own room -- each further from him than a
+        // boss's room (96), two cells from anything else on the floor (64) as every dungeon's posts
+        // are, and off the rune. The room is small, so every spot in it is tried, nearest the ring.
+        const char* kinds[8] = {"nightmare_spider", "nightmare_wolf", "nightmare_brute", "nightmare_spider",
+                                "nightmare_wolf", "nightmare_spider", "nightmare_wolf", "nightmare_brute"};
+        const int call[8] = {1, 2, 3, 1, 2, 1, 2, 3};
+        int nth[4] = {0, 0, 0, 0};
+        for (int i = 0; i < 8; ++i) {
+            const float want = 6.2831853f * static_cast<float>(i) / 8.0f + 0.3f;
+            float best = 1e9f;
+            int px = 0, py = 0;
+            for (int y = ry * CELL + 6; y <= (ry + rh) * CELL - 6; y += 8)
+                for (int x = rx * CELL + 8; x <= (rx + rw) * CELL - 8; x += 8) {
+                    const float r = std::hypot(static_cast<float>(x - cx), static_cast<float>(y - cy));
+                    if (r < 104.0f || std::hypot(static_cast<float>(x - rune_x), static_cast<float>(y - wall_y - 10)) < 56.0f)
+                        continue;
+                    if (!m.Clear(x, y + 4) || !m.Clear(x - 12, y + 4) || !m.Clear(x + 12, y + 4)) continue;
+                    bool near = false;
+                    for (const auto& e : m.dq["enemies"])
+                        near |= std::hypot(e.value("x", 0.0f) - static_cast<float>(x + m.ox),
+                                           e.value("y", 0.0f) - static_cast<float>(y)) < 70.0f;
+                    if (near) continue;
+                    const float turn = fabsf(remainderf(atan2f(static_cast<float>(y - cy), static_cast<float>(x - cx)) - want,
+                                                        6.2831853f));
+                    const float score = fabsf(r - 130.0f) + 60.0f * turn;
+                    if (score < best) { best = score; px = x; py = y; }
+                }
+            if (best > 1e8f) continue;
+            json& e = act1::Post(m, kinds[i], px, py, 39 + call[i], W({"FIGHT_PIT_SUMMON_" + std::to_string(call[i])}),
+                                 "", 600.0f);
+            e["appear"] = true;
+            e["appear_after"] = 0.25f * static_cast<float>(nth[call[i]]++);
+        }
+        return;
+    }
+    if (id == "dungeon_lizard_cave") {
+        // 65: pinned under a shaman's bundle at the back, where the chief keeps.
+        const auto [x, y] = clear_spot(cx + 40, cy + 30);
+        act1::Story(m, "page_lizard", "assets/icons/torn_page.png", x, y, "Pick up the page",
+                    W({"ACT1_OONA_BOOK_FOUND"}, {"ACT1_PAGE_LIZARD_FOUND"}));
+        return;
+    }
+    if (id == "dungeon_bear_den") {
+        // 65: trodden into the bedding at the back of the den.
+        const auto [x, y] = clear_spot(cx + 40, cy + 30);
+        act1::Story(m, "page_bear", "assets/icons/torn_page.png", x, y, "Pick up the page",
+                    W({"ACT1_OONA_BOOK_FOUND"}, {"ACT1_PAGE_BEAR_FOUND"}));
+        return;
+    }
+}
+
+// The dungeon of Havenbrook, under the Mayor's Hall: three barred cells along
+// a corridor, the stairs up at its east end. A captured rival is kept in the
+// middle one (70).
+static void BuildCells() {
+    const int CELL = A2CELL;
+    using act1::W;
+    const int cols = 20, rows = 11;
+    MapBuilder m("havenbrook_cells", "The Cells under the Hall", cols * CELL, rows * CELL);
+    m.Interior(true);
+    m.Ambient("dungeon");
+    m.dq["dark"] = true;
+    m.Background(8, 9, 10);
+    m.Subtitle("Under the Mayor's Hall");
+    const auto floor = [&](int cx, int cy) {
+        if (cx < 1 || cx > cols - 2 || cy < 2 || cy > rows - 2) return false;
+        if (cy >= 6 && cy <= 8) return true;                                   // the corridor
+        if (cy >= 2 && cy <= 5) return cx % 6 != 0 && cx < 18;                  // three cells
+        return false;
+    };
+    for (int cy = 0; cy < rows; ++cy)
+        for (int cx = 0; cx < cols; ++cx) {
+            if (floor(cx, cy)) {
+                const bool dark = Hash2(cx, cy, 912) < 0.3f;
+                m.Ground(VariantOf(dark ? "dungeon_floor_dark" : "dungeon_floor", cx, cy), cx * CELL, cy * CELL, CELL);
+            } else {
+                m.Ground("dungeon_wall", cx * CELL, cy * CELL, CELL);
+                m.Collision(cx * CELL, cy * CELL, CELL, CELL);
+            }
+        }
+    const int bars_y = 6 * CELL + 4;
+    for (int c0 : {1, 7, 13}) {
+        const int x0 = c0 * CELL, x1 = x0 + 5 * CELL;
+        m.Prop("props", "cell_bars", x0 + 42, bars_y);
+        m.Prop("props", "cell_door", x1 - 42, bars_y);
+        m.Collision(x0, bars_y - 12, 5 * CELL, 12);
+    }
+    m.Prop("props", "wall_chains", 3 * CELL, 70);
+    m.Prop("props", "wall_chains", 15 * CELL + 16, 70);
+    for (int x : {4 * CELL, 12 * CELL}) {
+        json& o = m.Object("cells_torch_" + std::to_string(x), "decor", x, 8 * CELL + 30);
+        o["sprite"] = "assets/props/palace_torch.png";
+        o["solid"] = json::array({x - 6, 8 * CELL + 22, 12, 8});
+        o["light"] = {{"colour", {255, 176, 104}}, {"radius", 170.0f}, {"height", 40.0f}, {"strength", 0.95f},
+                      {"flicker", true}};
+    }
+    // The way up, at the east end of the corridor.
+    // Clear of the third cell's door, against the end wall.
+    m.Prop("props", "dungeon_stairs_up", 18 * CELL + 14, 7 * CELL + 20);
+    m.Portal(18 * CELL - 6, 6 * CELL + 8, 40, 40, "mayor_hall", "from_cells", "Climb up to the hall", true);
+    m.Spawn("from_hall", 16 * CELL, 7 * CELL + 16);
+    m.Spawn("entrance", 16 * CELL, 7 * CELL + 16);
+    m.Spawn("default", 16 * CELL, 7 * CELL + 16);
+    m.Mark("cells_stair", 16 * CELL + 16, 7 * CELL + 16);
+    m.Mark("cells_cell", 9 * CELL, 7 * CELL + 8);
+    m.Mark("cells_cam", 10 * CELL, 6 * CELL);
+    // The rival, behind the middle cell's bars.
+    json& r = m.Npc("npc_rival_cell", "???", "player_warden", 9 * CELL, 4 * CELL + 8, "", 0);
+    r["tint"] = json::array({150, 138, 176});
+    r["states"] = json::array({
+        {{"when", W({"ACT2_RIVAL_CAPTURED", "ACT2_RIVAL_FATE"})}, {"asleep", "The rival sits against the back of the "
+                                                                              "cell and does not look up."}},
+        {{"when", json::object()}, {"hidden", true}},
+    });
+    m.Write("maps");
+}
+
+static void Build() {
+    BuildCells();
+    // The two caves the torn pages went to (65).
+    BuildDungeon("dungeon_lizard_cave", "The Lizardmen's Cave",
+                 7101u, 44, 34, 6,
+                 "dirt_dark", "dungeon_wall",
+                 "overworld", "from_lizard_cave",
+                 {{"lizardman", 6}, {"lizardman", 7}, {"lizardman", 8}, {"lizardman", 9}, {"lizardman", 10}},
+                 "chest_dungeon", 2,
+                 "", "", "", "",
+                 "lizardman_chief", 3);
+    BuildDungeon("dungeon_bear_den", "The Bear's Den",
+                 7201u, 40, 32, 5,
+                 "dirt", "dungeon_wall",
+                 "westwold", "from_bear_den",
+                 {{"bear", 2}, {"bear", 3}, {"mossback_bear", 1}, {"bear", 4}, {"mossback_bear", 2}},
+                 "chest_dungeon", 2,
+                 "", "", "", "",
+                 "mossback_bear", 3);
 }
 }  // namespace act2
 
@@ -14710,6 +15565,7 @@ int main() {
     BuildTown();
     BuildInteriors();
     pro::Build();
+    act2::Build();
     act1::Build();
     BuildWhisperwood();
     BuildWestwold();

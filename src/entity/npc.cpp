@@ -31,7 +31,7 @@ void Npc::Init(const NpcDef& def, const GameContext& ctx) {
     cast_every = def.cast_every;
     // Not all at once: each starts somewhere in their own interval, by where they stand.
     cast_timer = cast_every > 0.0f ? fmodf(fabsf(def.x * 0.37f + def.y * 0.11f), cast_every) + 0.4f : 0.0f;
-    tint = def.tint;
+    tint = home_tint = def.tint;
 
     // The round, laid out in time: a wait at each stop and a walk to the next,
     // and for one that goes there and back, the same again the other way.
@@ -137,6 +137,9 @@ void Npc::ApplyState(int index) {
     alpha = 1.0f;
     flicker = false;
     sort_bias = 0.0f;
+    // Their own colour, or the state's: a scene's tint lasts until the story
+    // has them as it has them again.
+    tint = (index >= 0 && states[index].tinted) ? states[index].tint : home_tint;
     if (index < 0) {
         // Back as defined: where they were placed, facing the way they face.
         away = false;

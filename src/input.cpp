@@ -63,6 +63,8 @@ Bindings::Bindings() {
         // letter, but Q already opens the journal beside P; G sits under the
         // left hand next to the movement keys and nothing else wanted it.
         {Action::Drop, SDLK_G},
+        // T for the talisman, under the left hand beside R.
+        {Action::Talisman, SDLK_T},
     };
     buttons = {
         {Action::LightAttack, SDL_GAMEPAD_BUTTON_WEST}, {Action::StrongAttack, SDL_GAMEPAD_BUTTON_NORTH},
@@ -98,7 +100,7 @@ const vector<Action>& Bindings::Rebindable() {
         Action::LightAttack, Action::StrongAttack, Action::Target, Action::Block, Action::Ability,
         Action::Interact, Action::Jump, Action::Sprint,
         Action::Menu, Action::Character, Action::Inventory, Action::Skills, Action::QuestLog, Action::WorldMap, Action::Drop,
-        Action::CycleSpell, Action::SpellPrev, Action::SpellNext,
+        Action::Talisman, Action::CycleSpell, Action::SpellPrev, Action::SpellNext,
         Action::SelectFire, Action::SelectWater, Action::SelectEarth, Action::SelectAir,
         Action::SelectElectric, Action::SelectArcane,
     };
@@ -127,6 +129,7 @@ const char* Bindings::Name(Action a) {
         case Action::QuestLog:     return "Quest journal";
         case Action::WorldMap:     return "Map";
         case Action::Drop:         return "Drop (in the bag)";
+        case Action::Talisman:     return "Talisman";
         case Action::CycleSpell:   return "Next element";
         case Action::SpellPrev:    return "Previous spell";
         case Action::SpellNext:    return "Next spell";
@@ -161,6 +164,7 @@ const char* Bindings::Id(Action a) {
         case Action::QuestLog:     return "quest_journal";
         case Action::WorldMap:     return "map";
         case Action::Drop:         return "drop";
+        case Action::Talisman:     return "talisman";
         case Action::CycleSpell:   return "next_element";
         case Action::SpellPrev:    return "previous_spell";
         case Action::SpellNext:    return "next_spell";

@@ -52,6 +52,24 @@ struct EnemyMove {
     int    phase = 0;
     string clip, shot;
     StatusProc status;
+    // A spin's: seconds between its blows all round, and its pace while it
+    // whirls, as a share of its own (the Forge Demon edges after you at 0.45;
+    // the Shear Mannequin whirls across the floor).
+    float  tick = 0.5f, pace = 0.45f;
+    // The frame of `clip` its blow lands on, when that matters: the clip is
+    // played at whatever speed puts that frame at the end of the wind-up --
+    // the snip's blades shut on the frame they are seen to shut. -1: as it is.
+    int    strike_frame = -1;
+    // Of the damage its blow does, this share back as its own health; below
+    // nought, the monster's own (EnemyDef::lifesteal). The Ashlord's quick
+    // fury feeds it less than its claws do (73).
+    float  lifesteal = -1.0f;
+    // "gusts": a ring of `reach` gusts of `shot` every `tick` while it is
+    // active, each with a gap `width` degrees wide turned somewhere new.
+    // "beam": a red line from it to where the player stands, for the wind-up,
+    // and then `shot` along it. "slam": a red mark where the player stands,
+    // and down onto it, `reach` round. "summon": the next of `shot`_1.._`reach`
+    // set; the posts that come with it wait on those (EnemySpawnDef when).
 };
 
 // What a boss turns into at half its health (or wherever `at` says): quicker
@@ -59,6 +77,9 @@ struct EnemyMove {
 // `fire_trail`, leaving burning ground ahead of every blow that lands.
 struct PhaseTwoDef {
     bool  enabled = false;
+    // And a flag set the moment it turns: the rival at half health, when
+    // Vexel takes a hand (70).
+    string flag;
     float at = 0.5f;
     float speed = 1.3f, cooldown = 0.7f;
     bool  fire_trail = false;
@@ -139,6 +160,13 @@ struct EnemyDef {
     // After a spin or a flame its seams are soft for this long: every blow
     // lands twice as hard (Enemy::Weak), and it glows to say so.
     float weak_after = 0.0f;
+    // Of the damage its blows do, this share back as its own health: the
+    // Ashlord's blood-dipped claws (73).
+    float lifesteal = 0.0f;
+    // Nothing reaches it -- no blow, no shot, no lock -- and nothing it does
+    // can be stopped by fighting it: Vexel on the college steps, taking a hand
+    // in the rival's fight (70). The story ends it.
+    bool  untouchable = false;
 };
 
 class EnemyDatabase {
@@ -309,6 +337,23 @@ public:
     StatusSet statuses;
     // Stand Fast: for this long it is after that seat and nobody else.
     void  Taunt(int seat, float seconds) { taunt_seat = seat; taunted = seconds; }
+    // Held back for a while to this share of its pace and of the gap between
+    // its swings: inside a Sanctuary, Challenged by an Unmoving Lamp. The
+    // slowest one going holds.
+    void  Slow(float seconds, float share) {
+        if (slowed <= 0.0f || share < slow_share) slow_share = share;
+        slowed = std::max(slowed, seconds);
+    }
+    bool  Slowed() const { return slowed > 0.0f; }
+    float slowed = 0.0f, slow_share = 1.0f;
+    // A burn of the player's own made longer and fiercer (Embers): `seconds`
+    // more of it, `fiercer` times as much a second. Nothing on it, nothing done.
+    void  Stoke(Status kind, float seconds, float fiercer) {
+        const int i = static_cast<int>(kind);
+        if (statuses.left[i] <= 0.0f) return;
+        statuses.left[i] += std::max(0.0f, seconds);
+        statuses.rate[i] *= std::max(0.0f, fiercer);
+    }
     int   TauntedBy() const { return taunted > 0.0f ? taunt_seat : -1; }
     float taunted = 0.0f;
     int   taunt_seat = -1;
@@ -435,6 +480,12 @@ private:
     void SetState(State s);
     // Heard as a breath leaves the mouth (ProjectileDef::breath).
     void Breathe(Element e);
+    // A share of what a blow of its took, back as its own health, shown.
+    void Feed(World& world, int taken, float share);
+public:
+    // See EnemyDef::untouchable.
+    bool Untouchable() const { return def && def->untouchable; }
+private:
 
     const EnemyDef* def = nullptr;
     const StatusDatabase* status_db = nullptr;     // what the statuses on it do, from the context it was made in
@@ -491,6 +542,9 @@ private:
     int   move_i = -1;
     float move_t = 0.0f, move_dx = 0.0f, move_dy = 1.0f, spin_tick = 0.0f;
     bool  move_begun = false, move_hit = false, move_second = false;
+    // A snip's: where the blades opened, which is where they shut -- and a
+    // slam's mark, and where a beam was aimed. A slam's pace across to it.
+    float snip_x = 0.0f, snip_y = 0.0f, slam_speed = 0.0f;
     vector<float> move_ready;
     bool  phase_two = false;
     float weak_left = 0.0f;

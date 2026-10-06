@@ -732,8 +732,10 @@ void Game::DrawTotemRing() {
 void Game::UpdateAsk() {
     MoveCursor(ask_cursor, 2);
     const bool yes = (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) && ask_cursor == 0;
+    // A choice has two answers and no way out but one of them: backing out of
+    // it is not the second.
     const bool no = ((input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) && ask_cursor == 1) ||
-                    input.Pressed(Action::Back) || input.Pressed(Action::Pause);
+                    (!(ask_story && ask_choice) && (input.Pressed(Action::Back) || input.Pressed(Action::Pause)));
     if (!yes && !no) return;
     SetState(GameState::Play);
     Audio::Play(yes ? Sfx::UiConfirm : Sfx::UiBack);

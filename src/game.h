@@ -488,7 +488,7 @@ private:
 
     // The playable characters, shared between the select screen's update and
     // its draw so the two can never disagree about what is on offer.
-    static constexpr int kCharacterCount = 3;
+    static constexpr int kCharacterCount = 4;
     static const char* kCharacterIds[kCharacterCount];
     static const char* kCharacterLabels[kCharacterCount];
     SlotRef active_slot;          // where the game in progress saves: its shelf and number
@@ -624,6 +624,7 @@ private:
     // door's (a yes sets `ask_flag` and tries the door again).
     string ask_text, ask_yes, ask_no, ask_flag;
     bool   ask_story = false;
+    bool   ask_choice = false;          // a story's choice: Back does not answer it
     int    ask_cursor = 0;
     void UpdateCoop(float dt);
     void EnterAsGuest(const net::Enter& enter);

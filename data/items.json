@@ -2242,6 +2242,13 @@
   "name": "Lit Lantern",
   "desc": "It throws a good pool of light and asks for nothing but a hand to hold it. Worn in the off hand.",
   "slot": "shield",
+  "layer": "shield",
+  "cut": "lantern",
+  "tint": [
+   255,
+   255,
+   255
+  ],
   "value": 180,
   "light": 210,
   "icon": "assets/icons/tiers/lantern.png"
@@ -3962,6 +3969,83 @@
    "story"
   ]
  },
+ "clothier_shears": {
+  "tags": [
+   "story"
+  ],
+  "name": "Dressmaker's Shears",
+  "desc": "Wynn's long shears, from behind her desk. They cut anything that is thread -- and in a dream, perhaps more than that.",
+  "stack": false,
+  "value": 0,
+  "keep": true,
+  "icon": "assets/icons/shears.png"
+ },
+ "thread_crimson": {
+  "tags": [
+   "story"
+  ],
+  "name": "Crimson Thread",
+  "desc": "A cut length of crimson thread from Wynn's wall, the red of the portrait's bodice.",
+  "stack": false,
+  "value": 0,
+  "keep": true,
+  "icon": "assets/icons/thread_crimson.png"
+ },
+ "thread_ivory": {
+  "tags": [
+   "story"
+  ],
+  "name": "Ivory Thread",
+  "desc": "A cut length of ivory thread from Wynn's wall, the pale of the portrait's skirt.",
+  "stack": false,
+  "value": 0,
+  "keep": true,
+  "icon": "assets/icons/thread_ivory.png"
+ },
+ "thread_gold": {
+  "tags": [
+   "story"
+  ],
+  "name": "Gold Thread",
+  "desc": "A cut length of gold thread from Wynn's wall, the colour of the portrait's sash.",
+  "stack": false,
+  "value": 0,
+  "keep": true,
+  "icon": "assets/icons/thread_gold.png"
+ },
+ "thread_cobalt": {
+  "tags": [
+   "story"
+  ],
+  "name": "Cobalt Thread",
+  "desc": "A cut length of cobalt thread from Wynn's wall. Nothing in the portrait is this blue.",
+  "stack": false,
+  "value": 0,
+  "keep": true,
+  "icon": "assets/icons/thread_cobalt.png"
+ },
+ "thread_moss": {
+  "tags": [
+   "story"
+  ],
+  "name": "Moss Thread",
+  "desc": "A cut length of moss-green thread from Wynn's wall. Nothing in the portrait is this green.",
+  "stack": false,
+  "value": 0,
+  "keep": true,
+  "icon": "assets/icons/thread_moss.png"
+ },
+ "thread_violet": {
+  "tags": [
+   "story"
+  ],
+  "name": "Violet Thread",
+  "desc": "A cut length of violet thread from Wynn's wall. Nothing in the portrait is this colour.",
+  "stack": false,
+  "value": 0,
+  "keep": true,
+  "icon": "assets/icons/thread_violet.png"
+ },
  "guild_amulet": {
   "name": "Guild Amulet",
   "desc": "Silver on a fine chain, the Havenbrook Guild's lantern worked into its face. Made for the Guild's finest; Orlend would not take no for an answer.",
@@ -4006,5 +4090,346 @@
   "consume": true,
   "heal": 22,
   "icon": "assets/icons/bess_supper.png"
+ },
+ "torn_page_graveyard": {
+  "tags": [
+   "story"
+  ],
+  "name": "A Torn Page, Grave-Dirty",
+  "desc": "A page torn from Apocolo's book, smeared with grave dirt. Half of a recipe in a small, careful hand.",
+  "stack": false,
+  "value": 0,
+  "keep": true,
+  "icon": "assets/icons/torn_page.png"
+ },
+ "torn_page_lizard": {
+  "tags": [
+   "story"
+  ],
+  "name": "A Torn Page, Scaled",
+  "desc": "A page torn from Apocolo's book, a green scale still caught in its fold.",
+  "stack": false,
+  "value": 0,
+  "keep": true,
+  "icon": "assets/icons/torn_page.png"
+ },
+ "torn_page_bear": {
+  "tags": [
+   "story"
+  ],
+  "name": "A Torn Page, Furred",
+  "desc": "A page torn from Apocolo's book, a tuft of coarse brown fur stuck to it.",
+  "stack": false,
+  "value": 0,
+  "keep": true,
+  "icon": "assets/icons/torn_page.png"
+ },
+ "torn_page_orc": {
+  "tags": [
+   "story"
+  ],
+  "name": "A Torn Page, Greasy",
+  "desc": "A page torn from Apocolo's book, a greasy grey handprint across it.",
+  "stack": false,
+  "value": 0,
+  "keep": true,
+  "icon": "assets/icons/torn_page.png"
+ },
+ "apocolo_recipe": {
+  "tags": [
+   "story"
+  ],
+  "name": "Apocolo's Recipe",
+  "desc": "Apocolo's book, whole again at the page that matters: the cure for the sleepers, and for the bayou hex they carry. It wants brewing at the cauldron he kept in Havenbrook.",
+  "stack": false,
+  "value": 0,
+  "keep": true,
+  "icon": "assets/icons/recipe_scroll.png"
+ },
+ "sleepers_cure": {
+  "tags": [
+   "story"
+  ],
+  "name": "Apocolo's Cure",
+  "desc": "A vial of pale gold, brewed from Apocolo's recipe. A few drops between a sleeper's lips wakes them -- one dose a sleeper. More can be brewed at his cauldron in Havenbrook.",
+  "stack": true,
+  "value": 0,
+  "keep": true,
+  "icon": "assets/icons/tiers/vial.png"
+ },
+ "death_talisman": {
+  "tags": [
+   "story"
+  ],
+  "name": "The Death Talisman",
+  "slot": "talisman",
+  "desc": "Warm to the touch, and it hums. Worn in its own place, it opens the veil for whoever wears it: into the Reverie and out again, without a bed.",
+  "stack": false,
+  "value": 0,
+  "keep": true,
+  "icon": "assets/icons/death_talisman.png",
+  "passive": "veil",
+  "passive_text": "Worn, its key (T; RB + LB on a pad) steps into the Reverie where you stand, where the place is dreamt, and back out again. Five seconds between."
+ },
+ "rune_rubbing": {
+  "tags": [
+   "story"
+  ],
+  "name": "A Rubbing of the Rune",
+  "desc": "Taken from the rune behind the Pit Lord's throne, which opened a doorway into the Reverie. Someone at the Magic college has to hear of this.",
+  "stack": false,
+  "value": 0,
+  "keep": true,
+  "icon": "assets/icons/rune_rubbing.png"
+ },
+ "hoarfang_head": {
+  "tags": [
+   "story"
+  ],
+  "name": "Hoarfang's Head",
+  "desc": "The great head of the dragon whose shadow crossed Havenbrook. Elder Vask asked for it.",
+  "stack": false,
+  "value": 0,
+  "keep": true,
+  "icon": "assets/icons/hoarfang_head.png"
+ },
+ "hoarfang_fang": {
+  "slot": "weapon",
+  "kind": "melee",
+  "class": "dagger",
+  "speed": 0.72,
+  "reach": 0.8,
+  "sweep": 0.7,
+  "push": 0.6,
+  "clip": "thrust",
+  "armour_pierce": 0.35,
+  "dual": {
+   "speed": 0.5,
+   "damage": 0.75,
+   "clip": "offstab"
+  },
+  "combos": {
+   "crush": {
+    "name": "Gut Stab",
+    "pierce": 0.7,
+    "status": "bleed"
+   },
+   "cleave": {
+    "name": "Flurry"
+   },
+   "backhand": {
+    "name": "Backstab",
+    "damage": 1.25,
+    "pierce": 0.5
+   },
+   "cross_cut": {
+    "name": "Fan of Steel"
+   },
+   "drive": {
+    "name": "Heartseeker",
+    "pierce": 0.8,
+    "damage": 1.1
+   }
+  },
+  "name": "Hoarfang's Fang",
+  "desc": "One of a pair of daggers cut from Hoarfang's fangs, as cold as the peak it came down from. Light enough for its twin in the other hand.",
+  "bonus": {
+   "attack": 100,
+   "strength": 70
+  },
+  "req": {
+   "Attack": 42
+  },
+  "value": 6200,
+  "icon": "assets/icons/hoarfang_fangs.png",
+  "tint": [
+   196,
+   228,
+   255
+  ],
+  "model": "dagger_damascus",
+  "keep": true
+ },
+ "hoarfang_bow": {
+  "slot": "weapon",
+  "kind": "bow",
+  "speed": 0.9,
+  "clip": "draw",
+  "two_handed": true,
+  "name": "Hoarfang Scale Bow",
+  "desc": "A bow laid up from Hoarfang's scales, white at the edges.",
+  "bonus": {
+   "ranged": 148
+  },
+  "req": {
+   "Ranged": 42
+  },
+  "value": 6200,
+  "icon": "assets/icons/hoarfang_bow.png",
+  "tint": [
+   196,
+   228,
+   255
+  ],
+  "model": "bow_damascus",
+  "keep": true
+ },
+ "hoarfang_staff": {
+  "slot": "weapon",
+  "kind": "staff",
+  "speed": 1.05,
+  "spells": {
+   "fire": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "water": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "earth": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "air": [
+    1,
+    2,
+    3,
+    4
+   ]
+  },
+  "name": "Staff of Hoarfang",
+  "desc": "A staff of black wood capped with a shard of Hoarfang's horn.",
+  "bonus": {
+   "magic": 148
+  },
+  "req": {
+   "Magic": 42
+  },
+  "value": 6200,
+  "icon": "assets/icons/hoarfang_staff.png",
+  "tint": [
+   196,
+   228,
+   255
+  ],
+  "model": "staff_damascus",
+  "keep": true
+ },
+ "hoarfang_talon": {
+  "slot": "weapon",
+  "kind": "melee",
+  "class": "greatsword",
+  "two_handed": true,
+  "speed": 1.45,
+  "reach": 1.45,
+  "sweep": 1.6,
+  "push": 1.4,
+  "clip": "sweep",
+  "combos": {
+   "crush": {
+    "name": "Overhead Cleave",
+    "damage": 1.15
+   },
+   "cleave": {
+    "name": "Reaping Sweep",
+    "status": "bleed"
+   },
+   "backhand": {
+    "name": "Pommel Strike",
+    "status": "concussed",
+    "damage": 0.8
+   },
+   "cross_cut": {
+    "name": "Whirlwind"
+   },
+   "drive": {
+    "name": "Impale",
+    "status": "bleed",
+    "damage": 1.1
+   }
+  },
+  "name": "Hoarfang's Talon",
+  "desc": "A greatsword worked from one of Hoarfang's talons. What it cuts is left bleeding.",
+  "bonus": {
+   "attack": 89,
+   "strength": 166
+  },
+  "req": {
+   "Attack": 42
+  },
+  "value": 6200,
+  "icon": "assets/icons/hoarfang_talon.png",
+  "tint": [
+   196,
+   228,
+   255
+  ],
+  "model": "greatsword_damascus",
+  "on_hit": {
+   "id": "bleed",
+   "chance": 0.28
+  },
+  "keep": true
+ },
+ "hoarfang_maul": {
+  "slot": "weapon",
+  "kind": "melee",
+  "class": "mace",
+  "speed": 1.12,
+  "reach": 0.95,
+  "sweep": 0.9,
+  "push": 1.3,
+  "clip": "bash",
+  "combos": {
+   "crush": {
+    "name": "Skull Crack",
+    "status": "concussed"
+   },
+   "cleave": {
+    "name": "Sweeping Blow"
+   },
+   "backhand": {
+    "name": "Backswing"
+   },
+   "cross_cut": {
+    "name": "Ground Slam",
+    "status": "concussed",
+    "damage": 0.9
+   },
+   "drive": {
+    "name": "Hammerfall",
+    "status": "concussed",
+    "damage": 1.05
+   }
+  },
+  "name": "Hoarfang Maul",
+  "desc": "A maul with a head of Hoarfang's frozen bone. One blow in five rings a head.",
+  "bonus": {
+   "attack": 67,
+   "strength": 130
+  },
+  "req": {
+   "Attack": 42
+  },
+  "value": 6200,
+  "icon": "assets/icons/hoarfang_maul.png",
+  "tint": [
+   196,
+   228,
+   255
+  ],
+  "model": "mace_damascus",
+  "on_hit": {
+   "id": "concussed",
+   "chance": 0.22
+  },
+  "keep": true
  }
 }

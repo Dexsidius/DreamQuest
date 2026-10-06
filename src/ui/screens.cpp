@@ -139,16 +139,17 @@ void Game::DrawMainMenu() {
 //  Character select
 // =============================================================================
 
-// The choices, and the order they appear in. All three are this project's own
-// character -- one rig in three sets of clothes, modelled and animated in
-// tools/blender_character.py. The two that used to sit beside the first were
-// from a CraftPix pack, whose licence covers using the art but not passing the
-// files on, which made the game undistributable as a repository.
+// The choices, and the order they appear in: the screenplay's four callings
+// (Appendix C). All four are this project's own character -- one rig in four
+// sets of clothes, modelled and animated in tools/blender_character.py. The
+// ids are the ones saves already carry (Player::CallingFor): the Lucid Knight
+// was the Hollow-born, the Shade Ranger the Greenwarden, the Dreamweaver the
+// Wayfarer, and the Lantern Warden is new.
 const char* Game::kCharacterIds[kCharacterCount] = {
-    "player_hero", "player_warden", "player_wayfarer"
+    "player_hero", "player_warden", "player_wayfarer", "player_lantern"
 };
 const char* Game::kCharacterLabels[kCharacterCount] = {
-    "Hollow-born", "Greenwarden", "Wayfarer"
+    "Lucid Knight", "Shade Ranger", "Dreamweaver", "Lantern Warden"
 };
 
 void Game::UpdateCharacterSelect() {
@@ -184,7 +185,9 @@ void Game::DrawCharacterSelect() {
     ui.TextShadowed("Choose your adventurer", cx, ui.ViewHeight() * 0.16f, TextSize::Large,
                     Palette::Text, Align::Center);
 
-    const float card_w = 200.0f, card_h = 280.0f, gap = 28.0f;
+    // Four cards, narrow enough to sit side by side in the smallest window.
+    const float gap = 18.0f, card_h = 280.0f;
+    const float card_w = std::min(196.0f, (ui.ViewWidth() - 48.0f - gap * (kCharacterCount - 1)) / kCharacterCount);
     const float total = card_w * kCharacterCount + gap * (kCharacterCount - 1);
     const float start_x = cx - total / 2.0f;
 
@@ -195,9 +198,9 @@ void Game::DrawCharacterSelect() {
         if (i == cursor) ui.Outline(card, Palette::Highlight, 2.0f);
 
         // Live idle animation as the preview, holding what they set out with:
-        // the warden's bow and the wayfarer's staff, not the rig's own sword,
-        // which is what all three used to be shown with whatever they fight
-        // with. The armour they start in comes with it.
+        // the Ranger's bow, the Weaver's staff, the Warden's mace and lantern,
+        // not the rig's own sword, which is what they all used to be shown
+        // with whatever they fight with. The armour they start in comes too.
         if (const SpriteDef* def = sprites.Get(kCharacterIds[i])) {
             Sprite preview;
             preview.SetDef(def);
@@ -206,23 +209,21 @@ void Game::DrawCharacterSelect() {
             preview.Play("idle");
             preview.Update(static_cast<float>(SDL_GetTicks()) / 1000.0f);
             // 64px frames with a figure about twenty pixels wide in the middle,
-            // so this needs to be large for the three to be told apart.
-            const SDL_FRect dst = {card.x + card.w / 2.0f - 96.0f, card.y + 16.0f, 192.0f, 192.0f};
+            // so this needs to be large for the four to be told apart.
+            const float size = std::min(192.0f, card.w);
+            const SDL_FRect dst = {card.x + card.w / 2.0f - size / 2.0f, card.y + 16.0f, size, size};
             preview.DrawAt(renderer, *textures, dst);
         }
 
         ui.Text(kCharacterLabels[i], card.x + card.w / 2.0f, card.y + card.h - 58.0f,
                 TextSize::Body, i == cursor ? Palette::Highlight : Palette::Text,
                 Align::Center);
-        // What each favours: the one thing that tells the three apart in a
-        // fight, said before the choice is made.
-        const AttackStyle aff = Player::AffinityFor(kCharacterIds[i]);
-        ui.Text(string("Affinity: ") + Player::AffinityName(aff), card.x + card.w / 2.0f,
-                card.y + card.h - 36.0f, TextSize::Small,
-                aff == AttackStyle::Ranged ? SDL_Color{150, 210, 130, 255}
-                : aff == AttackStyle::Magic ? SDL_Color{170, 150, 240, 255}
-                                            : SDL_Color{236, 176, 96, 255}, Align::Center);
-        // And what they set out with, since it is the weapon of that affinity.
+        // How each fights: the one thing that tells the four apart, said
+        // before the choice is made.
+        const Player::Calling calling = Player::CallingFor(kCharacterIds[i]);
+        ui.Text(Player::CallingWay(calling), card.x + card.w / 2.0f, card.y + card.h - 36.0f, TextSize::Small,
+                CallingColour(calling), Align::Center);
+        // And what they set out with, since it is the weapon of that calling.
         const vector<string> kit = Player::StartingKit(kCharacterIds[i]);
         const ItemDef* first = kit.empty() ? nullptr : items.Get(kit.front());
         const bool vowel = first && string("AEIOUaeiou").find(first->name[0]) != string::npos;
@@ -1087,11 +1088,11 @@ void Game::UpdateHub() {
 void Game::DrawHub() {
     ui.Dim(0.5f);
     const Player& p = world->player;
-    const AttackStyle path = p.talents.HasPath() ? p.talents.Path() : p.Affinity();
+    const int path = p.TreeIndex();
     const int free = p.talents.PointsFree(path, p.skills);
     const size_t quests_on = quests ? quests->Active().size() : 0;
     const size_t boons = p.talents.Boons().size() + (p.talents.ActiveTotem() ? 1 : 0);
-    const string names[kHubRows] = {"Character", "Inventory", "Skills", path == AttackStyle::Magic ? "Spellbook" : "Abilities",
+    const string names[kHubRows] = {"Character", "Inventory", "Skills", skill_trees.Tree(path).style == AttackStyle::Magic ? "Spellbook" : "Abilities",
                                     "Quests", "Map"};
     const string notes[kHubRows] = {
         "Combat " + std::to_string(p.skills.CombatLevel()) +

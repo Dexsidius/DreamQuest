@@ -31,9 +31,10 @@ void PopCharacter(string& s) {
 }
 
 string LookLabel(const string& look) {
-    if (look == "player_hero")     return "the hero";
-    if (look == "player_warden")   return "the warden";
-    if (look == "player_wayfarer") return "the wayfarer";
+    if (look == "player_hero")     return "the Lucid Knight";
+    if (look == "player_warden")   return "the Shade Ranger";
+    if (look == "player_wayfarer") return "the Dreamweaver";
+    if (look == "player_lantern")  return "the Lantern Warden";
     return "";
 }
 
@@ -288,6 +289,7 @@ void Game::EnterAsGuest(const net::Enter& enter) {
             const vector<string> kit = Player::StartingKit(pending_character);
             world->player.inventory.Add("coins", 25);
             for (const string& id : kit) world->player.inventory.Add(id, 1);
+            for (const string& id : Player::StartingPack(pending_character)) world->player.inventory.Add(id, 1);
             world->player.inventory.Add("cooked_meat", 3);
             world->SetFlag("starter_tools");
             string why;

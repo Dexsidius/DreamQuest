@@ -173,7 +173,16 @@ public:
     // it never does: an element's own staff casts nothing of another element,
     // so the lightning's box is never its, and the ancient magic is its fifth.
     int   BoxRank(int box) const;
-    bool  BoxOpen(int box) const { const int r = BoxRank(box); return r >= 0 && r < SpellBoxes(); }
+    bool  BoxOpen(int box) const {
+        // The Magister's first lesson (71): any staff holds the old magic.
+        if (ancient_lesson && box == BoxOf(Element::Arcane) && equipment.Weapon() &&
+            equipment.Weapon()->kind == WeaponKind::Staff)
+            return true;
+        const int r = BoxRank(box);
+        return r >= 0 && r < SpellBoxes();
+    }
+    // Set by the world from ACT2_ANCIENT_SLOT_UNLOCKED each frame: see BoxOpen.
+    bool  ancient_lesson = false;
     // Back to the first box when the weapon in hand does not open the one
     // chosen: a finer staff put down for a plainer one.
     void  KeepSpellInReach();
@@ -380,12 +389,13 @@ public:
     // What an ability left running, as bits, for the auras drawn round the
     // character while it lasts (World::DrawAuras). A friend's are what the host
     // said (`buffs_shown`), since the timers are their machine's.
-    enum Buff : uint8_t { BUFF_FRENZY = 1, BUFF_STAND_FAST = 2, BUFF_WAR_CRY = 4, BUFF_TAKE_AIM = 8,
-                          BUFF_RAPID_FIRE = 16, BUFF_OVERLOAD = 32, BUFF_INVOKE = 64 };
-    uint8_t Buffs() const;
-    uint8_t buffs_shown = 0;
+    enum Buff : uint16_t { BUFF_FRENZY = 1, BUFF_STAND_FAST = 2, BUFF_WAR_CRY = 4, BUFF_TAKE_AIM = 8,
+                           BUFF_RAPID_FIRE = 16, BUFF_OVERLOAD = 32, BUFF_INVOKE = 64,
+                           BUFF_CHALLENGE = 128, BUFF_BASTION = 256, BUFF_MENDING = 512 };
+    uint16_t Buffs() const;
+    uint16_t buffs_shown = 0;
     // Seconds left of the buff a bit stands for, 0 for a friend's (see above).
-    float BuffLeft(uint8_t bit) const;
+    float BuffLeft(uint16_t bit) const;
     // Where the character was before a blink, or a roll took them: the world
     // marks the way they went.
     SDL_FPoint AbilityFrom() const { return ability_from; }
@@ -409,20 +419,43 @@ public:
     void  GainStamina(float amount) { stamina = std::min(MaxStamina(), stamina + std::max(0.0f, amount)); }
     void  GainMana(int amount) { mana = std::clamp(mana + std::max(0, amount), 0, max_mana); }
 
-    // --- affinity ---------------------------------------------------------------
-    // Each of the three characters favours one way of fighting: the hero the
-    // blade, the warden the bow, the wayfarer the staff. Attacks of that
-    // style hit a tenth harder and carry a little more accuracy, from the
-    // first swing and for good. It is who they are, not something learned.
+    // --- calling and affinity -----------------------------------------------------
+    // The four callings a character is made as (the screenplay's Appendix C):
+    // the Lucid Knight (player_hero), the Shade Ranger (player_warden), the
+    // Dreamweaver (player_wayfarer) and the Lantern Warden (player_lantern).
+    // The ids are the ones saves and friends' games already carry; only the
+    // names changed. A calling is more than an affinity: the Knight and the
+    // Warden both fight in melee, but the Warden's Defence grows four a level
+    // and its guard raises the lantern.
+    enum class Calling { Knight = 0, Ranger, Weaver, Warden };
+    static constexpr int CALLINGS = 4;
+    static Calling CallingFor(const string& character_id);
+    Calling GetCalling() const { return CallingFor(sprite_id); }
+    static const char* CallingName(Calling c);       // "Lucid Knight"
+    static const char* CallingWay(Calling c);        // "Heavy melee": how they fight
+    static const char* CallingPhrase(Calling c);     // "the blade", "the lantern"
+    static const char* CallingKey(Calling c);        // "knight": the data files' word
+    // The skill tree a calling learns from (SkillTrees::Tree): the four are in
+    // the callings' order. And this character's -- their path's, once set.
+    static int TreeOf(Calling c) { return static_cast<int>(c); }
+    int  TreeIndex() const { return talents.HasPath() ? talents.Path() : TreeOf(GetCalling()); }
+    // Each favours one way of fighting: the Knight and the Warden the blade,
+    // the Ranger the bow, the Weaver the staff. Attacks of that style hit a
+    // tenth harder and carry a little more accuracy, from the first swing and
+    // for good. It is who they are, not something learned.
     static constexpr float AFFINITY_DAMAGE = 0.10f;
     static constexpr int   AFFINITY_BONUS  = 8;
     static AttackStyle AffinityFor(const string& character_id);
     static const char* AffinityName(AttackStyle style);    // "the blade", "the bow", "the staff"
     AttackStyle Affinity() const { return AffinityFor(sprite_id); }
     // What a new character of this look is handed and wears from the first
-    // step: the wood tier's weapon of their affinity, a cuirass, and a shield
-    // where the weapon leaves a hand for one. The weapon is first in the list.
+    // step: the wood tier's weapon of their calling, their armour, and a
+    // shield (or the Warden's lantern) where the weapon leaves a hand for one.
+    // The weapon is first in the list, and no two pieces share a slot.
     static vector<string> StartingKit(const string& character_id);
+    // And what they carry besides, in the bag: the Ranger's dagger, for when
+    // it comes close.
+    static vector<string> StartingPack(const string& character_id);
     // The technique a charged attack with the current weapon comes out as, or
     // empty for a plain charged attack.
     const string& ActiveTechnique() const { return talents.Technique(Style()); }
@@ -559,6 +592,67 @@ public:
     // player sees what they are running into, and back to centre otherwise.
     Vec2  LookAhead() const { return look_ahead; }
 
+    // --- the Lantern Warden's tree -----------------------------------------------------
+    // Its abilities and passives, which the world finishes: see
+    // World::ApplyPlayerAbility, MeleeTechnique, HurtShare and PayHurt.
+    static constexpr float MEND_SHARE        = 0.20f;   // Mending Light: a fifth of the health there is
+    static constexpr float MEND_TIME         = 4.0f;    // over this long
+    static constexpr float MEND_REACH        = 150.0f;  // and friends this near are mended too
+    static constexpr float KINDRED_REACH     = 150.0f;  // Kindred Light's "a few steps"
+    static constexpr float CHALLENGE_TIME    = 6.0f;
+    static constexpr float CHALLENGE_SHARE   = 0.85f;   // of a blow still taken while it lasts
+    static constexpr float CHALLENGE_REACH   = 220.0f;
+    static constexpr float BASTION_TIME      = 6.0f;
+    static constexpr float BASTION_SHARE     = 0.60f;
+    static constexpr float BASTION_THORNS    = 0.15f;   // of a blow that lands, back at its dealer
+    static constexpr float SANCTUARY_TIME    = 6.0f;
+    static constexpr float SANCTUARY_WARD    = 0.30f;   // off every blow, inside it
+    static constexpr float SANCTUARY_RADIUS  = 84.0f;
+    static constexpr float SANCTUARY_HUSH    = 0.5f;    // of their pace things of the Reverie lose in it
+    static constexpr float BEACON_TIME       = 5.0f;
+    static constexpr float BEACON_RADIUS     = 64.0f;
+    static constexpr float BEACON_MEND       = 0.03f;   // of the health there is, a second
+    static constexpr float FLARE_REACH       = 110.0f;
+    static constexpr float FLARE_SPREAD      = 0.75f;   // radians either side of the facing
+    static constexpr float FLARE_SPREADS     = 44.0f;   // Wildfire: a burn reaches what stands this near
+    static constexpr float UNDYING_COOLDOWN  = 180.0f;
+    static constexpr int   JUDGEMENT_EVERY   = 5;
+    static constexpr float HAMMERFALL_LEAP   = 96.0f;
+    static constexpr float HAMMERFALL_RADIUS = 66.0f;
+    static constexpr float HAMMERFALL_DAMAGE = 1.6f;    // times a heavy blow's
+    // A heal as this character takes it: Warm Glow and Deep Reserves make
+    // every one larger, whatever it came from. The share is for a heal paid a
+    // point at a time (Mending Light, a pool of light, lifesteal), which is
+    // scaled as it builds up rather than a point at a time, where rounding
+    // would lose all of it.
+    float HealingShare() const { return 1.0f + talents.Global("healing"); }
+    int   Healing(int amount) const;
+    // That much back, at once, kept in Hitpoints: what a heal came to, already
+    // scaled.
+    void  Mend(int amount);
+    // Mending Light: `share` of their health back over MEND_TIME, and what
+    // Afterglow clears, at that rank.
+    void  StartMending(float share, int afterglow);
+    bool  Mending() const { return mend_timer > 0.0f; }
+    bool  Challenging() const { return challenge_timer > 0.0f; }
+    bool  Bastioned() const { return bastion_timer > 0.0f; }
+    // Of a blow that reaches them, what they still take for their own tree:
+    // Kindred Light's own share, the Challenge, the Bastion and the Oath.
+    float OwnHurtShare() const;
+    // Of a shove, what still moves them: Unyielding's, and nothing in a Bastion.
+    float ShoveShare() const;
+    // Of a melee blow that lands, what goes back to whoever dealt it: Thorned
+    // Mail, and the Bastion's.
+    float Thorns() const;
+    // Undying Flame: a blow that would fell them, once every three minutes.
+    bool  UndyingReady() const { return undying_cd <= 0.0f && talents.Global("undying") > 0.0f; }
+    void  SpendUndying() { undying_cd = UNDYING_COOLDOWN; }
+    // A Lit Lantern in the hand, and how far its light goes; 0 for none.
+    float LanternLight() const;
+    // The Hammerfall's leap: a Rushing Strike's, further and higher, brought
+    // down on everything round where it lands (World::ApplyPlayerAttack).
+    bool  Hammering() const { return rushing && hammering; }
+
     // --- Rushing Strike -------------------------------------------------------
     // Learned in the melee tree's Footwork branch. A light attack started at a
     // sprint -- the sprint button held and the character actually running --
@@ -586,15 +680,22 @@ public:
     // Not trained. A blow in this game can be stepped out of, rolled through,
     // blocked or parried, so being hit is not a thing to practise, and nothing
     // pays Defence experience. It follows the combat level instead, to 99:
-    //   the hero      two Defence levels for each combat level
-    //   the warden    one for each
-    //   the wayfarer  one for each
+    //   the Lucid Knight    two Defence levels for each combat level
+    //   the Shade Ranger    one for each
+    //   the Dreamweaver     one for each
+    //   the Lantern Warden  four for each: standing is the calling
     // (and so the combat level no longer counts Defence: see
     // Skills::CombatLevel). It never goes down: a save from when it was
     // trained keeps what it had earned until the combat level passes it. A
     // Stoneskin Draught still boosts it for a while, as a draught boosts
     // anything.
-    static int DefencePerLevel(AttackStyle style) { return style == AttackStyle::Melee ? 2 : 1; }
+    static int DefencePerLevel(Calling c) {
+        switch (c) {
+            case Calling::Knight: return 2;
+            case Calling::Warden: return 4;
+            default:              return 1;
+        }
+    }
     int  PassiveDefence() const;                        // what the combat level makes it
     // Brings Defence up to that. `announce` puts the rise with the other
     // level-ups, for the screen to say; a load or a new character is quiet.
@@ -642,6 +743,16 @@ public:
     bool  WardStyle() const;                            // the guard would raise the ward
     GuardShare WardGuard() const;                       // what it is worth at this Magic level
     bool  Warding() const { return blocking && !Shield() && WardStyle(); }
+    // --- the Lantern Warden's guard ---------------------------------------------------------
+    // No shield, and the Lit Lantern in the off hand: the guard raises the
+    // lantern, which blocks as the shield of the best tier the Attack level
+    // reaches would -- the one a Knight would be carrying on that arm.
+    // Everything else a raised shield is, the lantern is. Only the Warden's:
+    // anyone else's lantern is a light and nothing more.
+    bool  LanternStyle() const;
+    // What a guard raised now is worth: a shield's own numbers, the ward's or
+    // the lantern's; the default share when none of them is up.
+    GuardShare GuardNow() const;
     bool  Mirroring() const;
     // A shot of `damage` about to strike, loosed by something of that level
     // from (from_x, from_y): turned back, if the mirror is up and faces it and
@@ -901,7 +1012,18 @@ private:
     float lunge_dx = 0.0f, lunge_dy = 0.0f, lunge_left = 0.0f;
     float lunge_speed = 0.0f;                // pixels a second, over the wind-up
     bool  rushing = false;
+    bool  hammering = false;
+    float rush_distance = RUSH_DISTANCE;
     float rush_cooldown = 0.0f;
+    // The Lantern Warden's: Mending Light's heal still to come and how fast,
+    // the Challenge and the Bastion, Undying Flame resting, and the Bastion
+    // ending with Last Light owed.
+    float mend_timer = 0.0f, mend_rate = 0.0f, mend_bank = 0.0f;
+public:
+    // A pool of light's mending not yet come to a whole point (World's).
+    float mend_owed = 0.0f;
+private:
+    float challenge_timer = 0.0f, bastion_timer = 0.0f, undying_cd = 0.0f;
     float rush_dx = 0.0f, rush_dy = 0.0f;   // unit direction of the leap
     Vec2  move_axis{0, 0};                   // this frame's steering, for the attack input
     bool  guard_broken = false;

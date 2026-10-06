@@ -90,7 +90,11 @@ found on the road at the end of a night and carted into Havenbrook, where
 people have been falling asleep and not waking. It is cutscenes and short
 stretches of play between them; hold Esc (B on a pad) to skip a scene.
 Signs at the foot of the screen say how to do each new thing as it comes up.
-You choose your weapon and armour from a chest partway through.
+First you choose who you are, one of four: the Lucid Knight (heavy melee), the
+Shade Ranger (agile, ranged and melee), the Dreamweaver (ranged magic) or the
+Lantern Warden (tank and support: a mace, and a lit lantern that guards like a
+shield; its skill tree heals and wards those near it). You choose your weapon
+and armour from a chest partway through.
 
 When it is over Havenbrook is asleep, all of it, until the story wakes it: its
 shops and trades will keep. Its gates are open and the rest of the world is
@@ -123,7 +127,19 @@ gold for a moment after its flame or its spin -- hit it then, and it hurts.
 A nightmare spider's web can root you where you stand for a second or two.
 
 
-ACT II -- THE GUILD'S LEDGER
+ACT II -- WWDD
+
+The dragon's shadow passes over Havenbrook, and Elder Vask will not talk about
+it until you are stronger (Combat 35). Four pages are missing from Apocolo's
+recipe book, and each torn stub says where its page went; the cure they make
+wakes Mossvale and Fernhollow one sleeper at a time, and then the college. The
+Magister there has lessons in the old magic, and a talisman to send you after
+at the bottom of Hollowrest Crypt: worn in its own place, T (RB + LB on a pad)
+steps into the Reverie where you stand, in the places it dreams, and back.
+
+Some choices in Act II cannot be backed out of: Esc does not answer them.
+
+THE GUILD'S LEDGER
 
 When the dragon's shadow has passed over Havenbrook, Guild Master Orlend has a
 bell over him at his desk in the Guild Hall. (A character from before the
@@ -151,6 +167,7 @@ Every one of these can be moved in Options, Controls.
       + J, K or L   from your skill tree                the whole Hollowmarch
     Shift (hold)    sprint                   G          drop (in the bag)
     Space           jump / climb             Esc        pause
+    T               the death talisman, once you wear it
     E               talk, open, pick, work
     1 2 3 4         fire, water, earth, air  5          lightning
     6               the ancient magic        R          step through elements
@@ -165,10 +182,11 @@ Every one of these can be moved in Options, Controls.
     spell. On a Steam Deck put the map on a button other than Guide, which is
     Steam's.
 
-The guard depends on what is in your hands: a shield blocks; a dagger with no
-shield, or a greatsword, parries (catch a blow in the first moment and it
-does nothing); the warden with nothing to guard with rolls instead; and a
-wayfarer who has learned the Aegis from the magic tree wards with magic.
+The guard depends on what is in your hands: a shield blocks, and so does the
+Lantern Warden's lit lantern; a dagger with no shield, or a greatsword, parries
+(catch a blow in the first moment and it does nothing); the Shade Ranger with
+nothing to guard with rolls instead; and a Dreamweaver who has learned the
+Aegis from the magic tree wards with magic.
 
 The quest you are following is pointed at -- a gold arrow, a mark on the
 minimap and on the map -- and the journal chooses which quest that is.

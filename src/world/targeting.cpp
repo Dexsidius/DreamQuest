@@ -9,7 +9,7 @@ SDL_FPoint Targeting::AimPoint(const Enemy& e) {
 }
 
 bool Targeting::Targetable(const Enemy& e) {
-    return !e.Dead() && e.CurrentState() != Enemy::State::Dead && !e.Hidden();
+    return !e.Dead() && e.CurrentState() != Enemy::State::Dead && !e.Hidden() && !e.Untouchable();
 }
 
 bool Targeting::InFight(const Enemy& e) {

@@ -14,6 +14,9 @@ enum EquipSlot {
     SLOT_NONE = -1,
     SLOT_WEAPON = 0, SLOT_SHIELD, SLOT_HEAD, SLOT_BODY, SLOT_HANDS,
     SLOT_LEGS, SLOT_FEET, SLOT_AMULET, SLOT_RING,
+    // The death talisman's own (72-73): worn, its key shifts the wearer into
+    // the Reverie and back (World::TalismanShift).
+    SLOT_TALISMAN,
     SLOT_COUNT
 };
 

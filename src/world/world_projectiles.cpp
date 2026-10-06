@@ -351,7 +351,8 @@ void World::UpdateProjectiles(float dt, const GameContext& ctx) {
             if (p.from_player) {
                 for (auto& e : enemies) {
                     if (p.finished) break;
-                    if (e->Dead() || e->CurrentState() == Enemy::State::Dead || e->Hidden()) continue;
+                    // Through what nothing reaches, as through a shadow.
+                    if (e->Dead() || e->CurrentState() == Enemy::State::Dead || e->Hidden() || e->Untouchable()) continue;
                     if (!RectsOverlap(box, e->BodyBox())) continue;
 
                     const void* key = e.get();
@@ -847,7 +848,9 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
             }
             if (g.pull > 0.0f)
                 for (auto& e : enemies) {
-                    if (e->Dead() || e->CurrentState() == Enemy::State::Dead || e->Hidden() || e->Def() == nullptr || e->Def()->Boss()) continue;
+                    if (e->Dead() || e->CurrentState() == Enemy::State::Dead || e->Hidden() || e->Def() == nullptr || e->Def()->Boss() ||
+                        e->Untouchable())
+                        continue;
                     const SDL_FPoint at = e->GroundCentre();
                     const float dx = g.x - at.x, dy = g.y - at.y, far = Length(dx, dy);
                     if (far > g.radius + e->GroundRadius() || far < 6.0f) continue;
@@ -904,10 +907,28 @@ void World::UpdateGroundEffects(float dt, const GameContext& ctx) {
             return CircleHits(g.x, g.y, g.radius, at.x, at.y, who.GroundRadius());
         };
 
+        // The Lantern Warden's light harms nothing: it mends who stands in it
+        // and holds back what the Reverie sent. (Its ward is asked for by the
+        // blows themselves: see HurtShare.)
+        if (g.Kindly()) {
+            if (g.mend > 0.0f)
+                for (Player* who : Players())
+                    if (!who->IsDead() && !who->puppet && !who->absent && inside(*who)) {
+                        who->mend_owed += static_cast<float>(who->max_hp) * g.mend * g.tick_interval * who->HealingShare();
+                        const int whole = static_cast<int>(who->mend_owed);
+                        if (whole > 0) { who->mend_owed -= static_cast<float>(whole); who->Mend(whole); }
+                    }
+            if (g.hush > 0.0f)
+                for (auto& e : enemies)
+                    if (!e->Dead() && !e->Hidden() && OfTheReverie(*e) && inside(*e))
+                        e->Slow(g.tick_interval + 0.15f, 1.0f - g.hush);
+            continue;
+        }
+
         if (g.from_player) {
             ActAs(OwnerOf(g.owner_local, g.owner_seat), [&] {
                 for (auto& e : enemies) {
-                    if (e->Dead() || e->CurrentState() == Enemy::State::Dead || e->Hidden()) continue;
+                    if (e->Dead() || e->CurrentState() == Enemy::State::Dead || e->Hidden() || e->Untouchable()) continue;
                     if (!inside(*e)) continue;
                     if (g.finished && g.once) break;      // a snare holds one thing
                     crit_next = g.sure_crit;

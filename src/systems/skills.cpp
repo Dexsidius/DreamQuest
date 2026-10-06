@@ -30,7 +30,7 @@ const char* SkillBlurb(int skill) {
     switch (skill) {
         case SKILL_ATTACK:      return "Trained by landing light attacks. It decides whether a blow lands.";
         case SKILL_STRENGTH:    return "Trained by landing strong and charged attacks. It decides how hard a blow lands.";
-        case SKILL_DEFENCE:     return "Not trained: it follows your combat level -- twice it for the hero, the same as it for the warden and the wayfarer. It softens every blow that reaches you.";
+        case SKILL_DEFENCE:     return "Not trained: it follows your combat level -- twice it for the Lucid Knight, four times it for the Lantern Warden, the same as it for the Shade Ranger and the Dreamweaver. It softens every blow that reaches you.";
         case SKILL_HITPOINTS:   return "Trained by every blow you deal. It is how much you can take.";
         case SKILL_RANGED:      return "Trained by landing shots with a bow, a crossbow or knives.";
         case SKILL_MAGIC:       return "Trained by landing spells with a staff, a wand, a grimoire or an orb.";

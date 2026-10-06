@@ -61,7 +61,7 @@ struct SeatState {
     float  fade = 0.0f, fade_speed = 3.2f;
     int    fade_dir = 0;
     string fade_caption;
-    bool   dream_active = false, dream_story = false, dream_locked = false;
+    bool   dream_active = false, dream_story = false, dream_locked = false, dream_talisman = false;
     string dream_map;
     float  dream_x = 0.0f, dream_y = 0.0f;
     // Panels asked for while acting as them: theirs to open, not the host's.
@@ -189,6 +189,21 @@ public:
     // hurt -- the same for a blow, a heavy blow and the ground. `colour` and
     // `size` are the number's. Returns what was paid in blood.
     int PayHurt(int taken, SDL_Color colour, float size = 1.0f);
+    // Of a blow about to reach `who`, the share they still take for the
+    // Lantern Warden's light: their own tree's (Player::OwnHurtShare), the
+    // best Kindred Light of a friend within a few steps, and a Sanctuary
+    // they stand in.
+    float HurtShare(Player& who);
+    // Thorned Mail and the Bastion: of a melee blow that landed for `taken`,
+    // their share back at whoever dealt it.
+    void  ThornsBack(Enemy* by, int taken);
+    // A thing of the Reverie: anything in a dream. The Lantern Warden's light
+    // is harder on them (Dawnbearer, the Dawn Hammer, the Sanctuary's hush and
+    // the Lantern Flare's reel).
+    bool  OfTheReverie(const Enemy&) const { return InDream(); }
+    // Dawnbearer: the most that anyone's lantern whose light reaches `e` adds
+    // to what it takes; 0 where none does.
+    float DawnLight(const Enemy& e);
     // A blow that was coming for the player and found nobody there: a swing
     // stepped out of, a heavy's line left, a shot let by, any of them rolled
     // through or slipped. `say` goes up over them -- a word, not experience:
@@ -557,6 +572,14 @@ public:
     void TechniqueShotHitFx(uint8_t kind, Element element, float x, float y, float angle);
     void MeteorLandFx(float x, float y, float size, Element element);
     void AbilityFx(const string& ability, Element element, const Enemy* target);
+    // A monster's snip (EnemyMove "snip"): the blades seen opening round a
+    // spot for `seconds`, and then shutting on it.
+    void SnipTell(float x, float y, float radius, float seconds);
+    void SnipShut(float x, float y, float radius);
+    // A slam's red mark where it will come down, and a beam's thin red line
+    // from (x0, y0) to (x1, y1), each for `seconds`.
+    void SlamTell(float x, float y, float radius, float seconds);
+    void BeamTell(float x0, float y0, float x1, float y1, float seconds);
     void SnareSprungFx(float x, float y, float radius);
     // Stars round the head of something knocked reeling, and splinters off it.
     void DazeFx(const Enemy& e);
@@ -652,6 +675,9 @@ public:
         // or the scene that says so. A locked one has no way out at all but
         // through: the stones in it are cold (the Act I finale).
         bool   story = false, locked = false;
+        // Gone in by the death talisman, awake: not the night's either, and
+        // out again the same way, to where they stood (TalismanShift).
+        bool   talisman = false;
     };
     // The camp a bedroll pitches: a tent and a fire, on one outdoor map.
     struct Camp {
@@ -696,6 +722,16 @@ public:
     // Into a dream of a scene's choosing rather than the Reverie's first depth:
     // somewhere to wake from where the player lies now, and the flip.
     bool  EnterDream(const string& dream_map, const string& spawn, bool story = false, bool locked = false);
+    // The death talisman (72-73), worn: from a place the Reverie dreams, into
+    // its dreamt twin where they stand; from a twin it took them into, back.
+    // Five seconds between. Not in the dreamworld a bed sends them to, nor any
+    // dream of the story's; in company, the host's alone for now. True when it
+    // went; `why` says why not, when that wants saying.
+    static constexpr float TALISMAN_REST = 5.0f;
+    bool  TalismanShift(string& why);
+    float TalismanRest() const { return talisman_rest; }
+    // The dreamt twin of a waking map: "" for none.
+    static string DreamTwin(const string& map_id);
     // The same, pulled in rather than falling asleep: the picture tears
     // rather than ripples (the trap in the Mayor's Hall).
     bool  TearInto(const string& dream_map, const string& spawn);
@@ -733,6 +769,12 @@ public:
     // `alpha`, easing in and out at the ends of its run.
     void  PassShadow(const string& image, float x0, float y0, float x1, float y1, float time, float alpha);
     bool  ShadowPassing() const { return shadow.on; }
+    // A narrow beam of light out of (x, y) -- an eye under a hood -- its far
+    // end swept from (x0, y0) to (x1, y1) in `time` seconds: Vexel's red eye
+    // at the Mossvale inn (scene 55), run over the player like a lantern
+    // turned on a trespasser.
+    void  SweepBeam(float x, float y, float x0, float y0, float x1, float y1, float time, SDL_Color colour);
+    bool  BeamSweeping() const { return beam.on; }
     // The stranger's smoke: dark violet, drawn in to (x, y) from round it as
     // he goes -- `gather` -- or let out from it as he comes. Always the same,
     // so it is learned.
@@ -1305,6 +1347,21 @@ private:
         float  x0 = 0, y0 = 0, x1 = 0, y1 = 0, t = 0, time = 1, alpha = 0.5f;
     };
     ShadowPass shadow;
+    struct BeamSweep {
+        bool  on = false;
+        float x = 0, y = 0, x0 = 0, y0 = 0, x1 = 0, y1 = 0, t = 0, time = 1;
+        SDL_Color colour{255, 40, 40, 255};
+    };
+    BeamSweep beam;
+    // A beam's aim, laid down before it fires: see BeamTell.
+    struct TellLine {
+        float x0 = 0, y0 = 0, x1 = 0, y1 = 0, t = 0, time = 1;
+    };
+    vector<TellLine> tell_lines;
+    // The death talisman's: seconds before it will go again, and whether the
+    // move under way is one of its (it lands them on open ground).
+    float  talisman_rest = 0.0f;
+    bool   talisman_landing = false;
     float  shut_note_timer = 0.0f;
     DreamReturn dream;
     Camp camp;

@@ -353,7 +353,7 @@ void Game::DrawInventory() {
     ui.Text("Worn", eq_x, panel.y + 62.0f, TextSize::Body, Palette::Text);
 
     for (int i = 0; i < SLOT_COUNT; ++i) {
-        const SDL_FRect r = {eq_x, panel.y + 92.0f + i * 30.0f, 236.0f, 26.0f};
+        const SDL_FRect r = {eq_x, panel.y + 92.0f + i * 28.0f, 236.0f, 25.0f};
         const bool selected = (inventory_on_equipment && i == equipment_cursor);
         if (selected) lit = r;
         ui.Fill(r, selected ? SDL_Color{58, 46, 28, 235} : SDL_Color{30, 24, 20, 220});
@@ -380,7 +380,7 @@ void Game::DrawInventory() {
     // Laid out as two columns under the worn list. All three melee bonuses on
     // one line ran past the right edge of the panel once any of them reached
     // two digits, which the starting sword and shield already do.
-    const float bonus_y = panel.y + 92.0f + static_cast<float>(SLOT_COUNT) * 30.0f + 2.0f;
+    const float bonus_y = panel.y + 92.0f + static_cast<float>(SLOT_COUNT) * 28.0f + 2.0f;
     const float col2_x  = eq_x + 118.0f;
     const auto bonus_cell = [&](const char* label, int value, float x, float y) {
         char buf[48];

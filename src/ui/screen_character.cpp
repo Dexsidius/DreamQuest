@@ -21,14 +21,18 @@ namespace {
 
 // Where the pieces stand: two sides of five, each side its column of four and
 // then the hand under the figure on that side. Up and down go round a side;
-// left and right go across to the other, level with where they were.
-constexpr int kSideCount = 2, kPerSide = 5, kPieces = kSideCount * kPerSide;
+// left and right go across to the other, level with where they were. And one
+// more under the figure, between the hands: the talisman (PIECE_TALISMAN),
+// which left and right step through on the way across.
+constexpr int kSideCount = 2, kPerSide = 5, kSides = kSideCount * kPerSide, kPieces = kSides + 1;
+constexpr int PIECE_TALISMAN = kSides;
 // Not a slot: the bags worn, which only ever grow. A bag is worn on the back,
 // which is where a paper doll has its back.
 constexpr int PIECE_BAGS = SLOT_COUNT;
 constexpr int kPieceSlot[kPieces] = {
     SLOT_HEAD,  SLOT_AMULET, PIECE_BAGS, SLOT_BODY, SLOT_WEAPON,
     SLOT_HANDS, SLOT_LEGS,   SLOT_FEET,  SLOT_RING, SLOT_SHIELD,
+    SLOT_TALISMAN,
 };
 
 // The figure turns about as a figure does, a quarter at a time: front, its
@@ -46,6 +50,7 @@ const char* PieceName(int slot) {
         case SLOT_FEET:   return "Feet";
         case SLOT_AMULET: return "Amulet";
         case SLOT_RING:   return "Ring";
+        case SLOT_TALISMAN: return "Talisman";
         default:          return "Bags";
     }
 }
@@ -64,14 +69,10 @@ string GhostOf(const ItemDatabase& items, int slot) {
         case SLOT_FEET:   return piece("boots");
         case SLOT_AMULET: return "bone_amulet";
         case SLOT_RING:   return "copper_ring";
+        // Nothing stands faint in the talisman's: there is only the one.
+        case SLOT_TALISMAN: return "";
         default:          return "bag_satchel";
     }
-}
-
-SDL_Color AffinityColour(AttackStyle style) {
-    return style == AttackStyle::Ranged ? SDL_Color{150, 210, 130, 255}
-         : style == AttackStyle::Magic  ? SDL_Color{170, 150, 240, 255}
-                                        : SDL_Color{236, 176, 96, 255};
 }
 
 // What a line in the boons says it is, in its colour: a boss's gold, the
@@ -155,12 +156,26 @@ void Game::UpdateCharacterPanel() {
         return;
     }
 
+    sheet_piece = std::clamp(sheet_piece, 0, kPieces - 1);
     const int was = sheet_piece;
-    int side = std::clamp(sheet_piece, 0, kPieces - 1) / kPerSide, at = sheet_piece % kPerSide;
-    if (input.MenuUp())   at = (at + kPerSide - 1) % kPerSide;
-    if (input.MenuDown()) at = (at + 1) % kPerSide;
-    if (input.MenuLeft() || input.MenuRight()) side = (side + 1) % kSideCount;
-    sheet_piece = side * kPerSide + at;
+    const int weapon = kPerSide - 1, shield = 2 * kPerSide - 1;
+    if (sheet_piece == PIECE_TALISMAN) {
+        // Between the hands: across to either, and up to the body.
+        if (input.MenuLeft())       sheet_piece = weapon;
+        else if (input.MenuRight()) sheet_piece = shield;
+        else if (input.MenuUp())    sheet_piece = kPerSide - 2;
+        else if (input.MenuDown())  sheet_piece = 0;
+    } else {
+        int side = sheet_piece / kPerSide, at = sheet_piece % kPerSide;
+        if (input.MenuUp())   at = (at + kPerSide - 1) % kPerSide;
+        if (input.MenuDown()) at = (at + 1) % kPerSide;
+        // From a hand toward the middle: the talisman, on the way across.
+        if ((sheet_piece == weapon && input.MenuRight()) || (sheet_piece == shield && input.MenuLeft()))
+            at = -1;
+        else if (input.MenuLeft() || input.MenuRight())
+            side = (side + 1) % kSideCount;
+        sheet_piece = at < 0 ? PIECE_TALISMAN : side * kPerSide + at;
+    }
     if (was != sheet_piece) Audio::Play(Sfx::UiMove);
 
     // Turning the figure round: the spell keys, the right stick on a pad.
@@ -185,8 +200,7 @@ void Game::DrawCharacterPanel() {
     ui.Panel(panel);
 
     // --- who: the combat level and the one they are, as a crest and a title -----------
-    const AttackStyle mine = p.Affinity();
-    const SDL_Color own = AffinityColour(mine);
+    const SDL_Color own = CallingColour(p.GetCalling());
     string who = "Adventurer";
     for (int i = 0; i < kCharacterCount; ++i)
         if (p.sprite_id == kCharacterIds[i]) who = kCharacterLabels[i];
@@ -208,7 +222,7 @@ void Game::DrawCharacterPanel() {
         const float tx = panel.x + (panel.w - lw - ww) / 2.0f;
         ui.Text(level, tx, panel.y + 14.0f, TextSize::Large, Palette::Highlight);
         ui.Text(who, tx + lw, panel.y + 14.0f, TextSize::Large, own);
-        ui.Text(string("of ") + Player::AffinityName(mine), panel.x + panel.w - 18.0f, panel.y + 22.0f,
+        ui.Text(string("of ") + Player::CallingPhrase(p.GetCalling()), panel.x + panel.w - 18.0f, panel.y + 22.0f,
                 TextSize::Small, Palette::TextDim, Align::Right);
     }
 
@@ -275,8 +289,10 @@ void Game::DrawCharacterPanel() {
         for (int at = 0; at < kPerSide; ++at) {
             SDL_FRect& r = rects[side * kPerSide + at];
             if (at < 4) r = {side == 0 ? col_l : col_r, col_top + at * pitch, tile, tile};
-            else        r = {side == 0 ? mid - tile - 8.0f : mid + 8.0f, stage.y + stage.h + 10.0f, tile, tile};
+            else        r = {side == 0 ? mid - tile * 1.5f - 12.0f : mid + tile * 0.5f + 12.0f, stage.y + stage.h + 10.0f,
+                             tile, tile};
         }
+    rects[PIECE_TALISMAN] = {mid - tile * 0.5f, stage.y + stage.h + 10.0f, tile, tile};
 
     const float pulse = 0.5f + 0.5f * sinf(state_time * 4.0f);
     const ItemDef* in_hand = p.equipment.Weapon();
@@ -308,7 +324,10 @@ void Game::DrawCharacterPanel() {
         } else {
             // Empty: what goes there, faint -- or, in the off hand of someone
             // holding a bow or a two-handed blade, that weapon's shadow.
-            const ItemDef* ghost = (slot == SLOT_SHIELD && both_hands) ? in_hand : items.Get(GhostOf(items, slot));
+            const string ghost_id = GhostOf(items, slot);
+            const ItemDef* ghost = (slot == SLOT_SHIELD && both_hands) ? in_hand
+                                 : ghost_id.empty()                    ? nullptr
+                                                                       : items.Get(ghost_id);
             if (SDL_Texture* tex = (ghost && !ghost->icon.empty()) ? textures->Get(ghost->icon) : nullptr) {
                 const bool held = ghost == in_hand;
                 SDL_SetTextureColorMod(tex, held ? 170 : 120, held ? 160 : 112, held ? 150 : 104);
@@ -343,10 +362,10 @@ void Game::DrawCharacterPanel() {
         const float frac = static_cast<float>(exact - floor(exact));
         ui.Fill({box.x + 10.0f, box.y + box.h - 8.0f, box.w - 20.0f, 3.0f}, {24, 30, 24, 230});
         ui.Fill({box.x + 10.0f, box.y + box.h - 8.0f, (box.w - 20.0f) * frac, 3.0f}, Palette::Xp);
-        const bool twice = Player::DefencePerLevel(mine) == 2;
+        const int times = Player::DefencePerLevel(p.GetCalling());
         ui.Text("Defence", box.x + box.w - 10.0f, box.y + 30.0f, TextSize::Small, Palette::TextDim, Align::Right);
-        ui.Text(twice ? "twice this" : "the same", box.x + box.w - 10.0f, box.y + 46.0f, TextSize::Small,
-                Palette::Text, Align::Right);
+        ui.Text(times >= 4 ? "four times this" : times == 2 ? "twice this" : "the same", box.x + box.w - 10.0f,
+                box.y + 46.0f, TextSize::Small, Palette::Text, Align::Right);
         y += box.h + 8.0f;
     }
 
@@ -520,7 +539,7 @@ void Game::DrawPieceCard(int piece, const SDL_FRect& tile, const SDL_FRect& stag
     // the left of the right one, above the two hands.
     SDL_FRect card = {0, 0, w, h};
     const int side = piece / kPerSide, at = piece % kPerSide;
-    if (at == 4) {
+    if (at == kPerSide - 1 || piece == PIECE_TALISMAN) {
         card.x = tile.x + tile.w / 2.0f - w / 2.0f;
         card.y = tile.y - h - 10.0f;
     } else {

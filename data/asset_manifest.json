@@ -2264,6 +2264,10 @@
                                           "w":  48,
                                           "h":  48
                                       },
+                   "props/cauldron_cold":  {
+                                               "w":  48,
+                                               "h":  48
+                                           },
                    "props/cell_bars":  {
                                            "w":  84,
                                            "h":  84
@@ -2311,6 +2315,10 @@
                    "props/clothier_shop":  {
                                                "w":  192,
                                                "h":  192
+                                           },
+                   "props/clothier_sign":  {
+                                               "w":  40,
+                                               "h":  40
                                            },
                    "props/cloud_pillar":  {
                                               "w":  96,
@@ -2460,6 +2468,10 @@
                                               "w":  56,
                                               "h":  56
                                           },
+                   "props/door_fallen":  {
+                                             "w":  48,
+                                             "h":  48
+                                         },
                    "props/dragon_shadow":  {
                                                "w":  640,
                                                "h":  320
@@ -2496,6 +2508,22 @@
                                               "w":  124,
                                               "h":  124
                                           },
+                   "props/dress_form_bare":  {
+                                                 "w":  64,
+                                                 "h":  64
+                                             },
+                   "props/dress_form_bodice":  {
+                                                   "w":  64,
+                                                   "h":  64
+                                               },
+                   "props/dress_form_full":  {
+                                                 "w":  64,
+                                                 "h":  64
+                                             },
+                   "props/dress_form_skirt":  {
+                                                  "w":  64,
+                                                  "h":  64
+                                              },
                    "props/driftwood":  {
                                            "w":  84,
                                            "h":  84
@@ -2595,6 +2623,10 @@
                    "props/giant_shell":  {
                                              "w":  80,
                                              "h":  80
+                                         },
+                   "props/giant_spool":  {
+                                             "w":  64,
+                                             "h":  64
                                          },
                    "props/glass_light":  {
                                              "w":  64,
@@ -2812,6 +2844,10 @@
                                                  "w":  48,
                                                  "h":  48
                                              },
+                   "props/hoarfang_trophy":  {
+                                                 "w":  64,
+                                                 "h":  64
+                                             },
                    "props/house_rug":  {
                                            "w":  160,
                                            "h":  160
@@ -2904,6 +2940,10 @@
                                            "w":  40,
                                            "h":  40
                                        },
+                   "props/lizard_cave":  {
+                                             "w":  144,
+                                             "h":  144
+                                         },
                    "props/lizard_hut":  {
                                             "w":  128,
                                             "h":  128
@@ -3004,6 +3044,10 @@
                                           "w":  12,
                                           "h":  12
                                       },
+                   "props/nail_patch":  {
+                                            "w":  60,
+                                            "h":  60
+                                        },
                    "props/net_rack":  {
                                           "w":  64,
                                           "h":  64
@@ -3116,10 +3160,18 @@
                                             "w":  208,
                                             "h":  208
                                         },
+                   "props/pit_rune":  {
+                                          "w":  48,
+                                          "h":  48
+                                      },
                    "props/planter":  {
                                          "w":  48,
                                          "h":  48
                                      },
+                   "props/portrait_gown":  {
+                                               "w":  60,
+                                               "h":  60
+                                           },
                    "props/post_lantern":  {
                                               "w":  64,
                                               "h":  64
@@ -3164,6 +3216,10 @@
                                          "w":  128,
                                          "h":  128
                                      },
+                   "props/rubble_throne":  {
+                                               "w":  96,
+                                               "h":  96
+                                           },
                    "props/rug":  {
                                      "w":  88,
                                      "h":  88
@@ -3184,6 +3240,14 @@
                                          "w":  144,
                                          "h":  144
                                      },
+                   "props/sewing_desk":  {
+                                             "w":  80,
+                                             "h":  80
+                                         },
+                   "props/shears_lying":  {
+                                              "w":  28,
+                                              "h":  28
+                                          },
                    "props/shell_midden":  {
                                               "w":  60,
                                               "h":  60
@@ -3396,6 +3460,42 @@
                                       "w":  72,
                                       "h":  72
                                   },
+                   "props/thread_net":  {
+                                            "w":  64,
+                                            "h":  64
+                                        },
+                   "props/thread_rack":  {
+                                             "w":  96,
+                                             "h":  96
+                                         },
+                   "props/thread_snarl":  {
+                                              "w":  96,
+                                              "h":  96
+                                          },
+                   "props/thread_strand_cobalt":  {
+                                                      "w":  96,
+                                                      "h":  96
+                                                  },
+                   "props/thread_strand_crimson":  {
+                                                       "w":  96,
+                                                       "h":  96
+                                                   },
+                   "props/thread_strand_gold":  {
+                                                    "w":  96,
+                                                    "h":  96
+                                                },
+                   "props/thread_strand_ivory":  {
+                                                     "w":  96,
+                                                     "h":  96
+                                                 },
+                   "props/thread_strand_moss":  {
+                                                    "w":  96,
+                                                    "h":  96
+                                                },
+                   "props/thread_strand_violet":  {
+                                                      "w":  96,
+                                                      "h":  96
+                                                  },
                    "props/throne_door":  {
                                              "w":  224,
                                              "h":  224

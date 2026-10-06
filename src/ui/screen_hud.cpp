@@ -370,7 +370,10 @@ void Game::DrawHud() {
         string quick = me.QuickItem();
         if (quick.empty() && !me.QuickChoices().empty()) quick = me.QuickChoices().front();
         const ItemDef* quick_def = quick.empty() ? nullptr : items.Get(quick);
-        const int rows_up = carrying + (quick_def ? 1 : 0);
+        // And the death talisman, worn, at the very foot: its key, and its
+        // five seconds coming back.
+        const ItemDef* talisman = items.Get(me.equipment.InSlot(SLOT_TALISMAN));
+        const int rows_up = carrying + (quick_def ? 1 : 0) + (talisman ? 1 : 0);
         const float ay = ui.ViewHeight() - 40.0f - 30.0f * static_cast<float>(std::max(1, rows_up));
         // Where what is running is written, beside the top box -- pushed along
         // when the top box is what is to hand and has its tab beside it.
@@ -434,6 +437,26 @@ void Game::DrawHud() {
             if (left > 0.0f)
                 ui.Text(std::to_string(static_cast<int>(std::ceil(left))), box.x + box.w - 8.0f, box.y + 4.0f,
                         TextSize::Small, Palette::TextDim, Align::Right);
+        }
+        if (talisman && live) {
+            const SDL_FRect box = {18.0f, ay + static_cast<float>(carrying + (quick_def ? 1 : 0)) * 30.0f, 214.0f, 26.0f};
+            const float rest = std::clamp(world->TalismanRest() / World::TALISMAN_REST, 0.0f, 1.0f);
+            ui.Fill(box, {18, 15, 13, 190});
+            ui.Region(box);
+            ui.Fill({box.x, box.y, box.w * (1.0f - rest), box.h},
+                    rest > 0.0f ? SDL_Color{52, 46, 70, 210} : SDL_Color{74, 60, 108, 225});
+            ui.Outline(box, rest <= 0.0f ? SDL_Color{206, 186, 250, 255} : Palette::BorderDim, 1.0f);
+            const string key = input.ActiveDevice() == InputMode::Controller
+                                   ? input.PromptFor(Action::Ability) + "+" + input.PromptFor(Action::Inventory)
+                                   : input.PromptFor(Action::Talisman);
+            ui.Text(key, box.x + 6.0f, box.y + 4.0f, TextSize::Small, Palette::TextDim);
+            if (!talisman->icon.empty())
+                if (SDL_Texture* tex = textures->Get(talisman->icon)) {
+                    const SDL_FRect ic = {box.x + 60.0f, box.y + 3.0f, 20.0f, 20.0f};
+                    SDL_RenderTexture(renderer, tex, nullptr, &ic);
+                }
+            ui.Text(ui.Fit(talisman->name, box.w - 92.0f, TextSize::Small), box.x + 84.0f, box.y + 4.0f, TextSize::Small,
+                    Palette::Text);
         }
         string running;
         if (me.WarCry())     running += "War Cry " + std::to_string(static_cast<int>(std::ceil(me.WarCryLeft()))) + "   ";
@@ -1045,9 +1068,11 @@ void Game::DrawHud() {
                         input.PromptFor(Action::LightAttack) + " attack    " +
                         input.PromptFor(Action::StrongAttack) + " heavy    " +
                         input.PromptFor(Action::Target) + " target    " +
-                        // Only worth a word when there is a shield to raise --
-                        // or, for the warden with nothing to raise, a roll.
-                        (p.Shield() ? input.PromptFor(Action::Block) + " block    "
+                        // Only worth a word when there is a shield (or the
+                        // Warden's lantern) to raise, a blade to parry with --
+                        // or, for the Ranger with nothing to raise, a roll.
+                        (p.Shield() || p.LanternStyle() ? input.PromptFor(Action::Block) + " block    "
+                         : p.ParryStyle() ? input.PromptFor(Action::Block) + " parry    "
                          : p.RollsOnGuard() ? input.PromptFor(Action::Block) + " roll    " : string()) +
                         input.PromptFor(Action::Sprint) + " sprint    " +
                         input.PromptFor(Action::Inventory) + " bag    " +
@@ -1075,7 +1100,7 @@ void Game::DrawToasts() {
     // they usually go is where the tree says what a node does. Inside the
     // panel instead, in the gap under the description.
     if (state == GameState::SkillsPanel && skills_tab == TAB_TREE) {
-        const AttackStyle mine = world->player.talents.HasPath() ? world->player.talents.Path() : world->player.Affinity();
+        const int mine = world->player.TreeIndex();
         const float tree_w = 860.0f + 172.0f * (skill_trees.Tree(mine).BranchCount() - SkillTrees::BRANCHES);
         y = ui.ViewHeight() / 2.0f + 8.0f;
         right = ui.ViewWidth() / 2.0f + tree_w / 2.0f - 24.0f;

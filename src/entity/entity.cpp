@@ -10,7 +10,7 @@ SDL_FRect Entity::BodyBox() const {
 
 void Entity::Damage(int amount) {
     if (amount <= 0) return;
-    hp = std::max(0, hp - amount);
+    hp = std::max(unfelled ? std::min(hp, 1) : 0, hp - amount);
     hurt_flash = 0.18f;
 }
 

@@ -324,7 +324,8 @@ single-player game, either way first carries the game to a multiplayer slot
   is Player One's. With two, each has a controller and the keyboard stays with
   Player One. Neither hears the other's.
 - **Who Player Two is.** Left and right on the row choose who they arrive as
-  the first time -- the hero, the warden or the wayfarer. After that they are
+  the first time -- the Lucid Knight, the Shade Ranger, the Dreamweaver or the
+  Lantern Warden. After that they are
   their own kept character, in `saves/characters/<p2_name>.json`, written
   whenever the game saves and when they leave. `p2_name`, `p2_look` and
   `split_stacked` (one half above the other instead of side by side) are in
@@ -692,6 +693,7 @@ right rests on `J` `K` `L` for the fight, with the panels on the row above.
 | **The spell in the slot chosen**, back and on | `[` `]` | **Right stick pushed left / right** |
 | The spellbook: what is on every slot | `O`, then `O` twice more | RB, then RB twice more |
 | Drop what the cursor is on (in the bag) | `G` | Y (north) |
+| **The death talisman**, worn: into the Reverie and back | `T` | **RB + LB** |
 | Lift a thing and put it down elsewhere (in the bag) | `F` | RB |
 | **Reorganize** the bag, or the chest's side the cursor is on | `R` | Right stick click |
 | Pause | `Esc` | Start |
@@ -806,7 +808,7 @@ What an average hit costs to block, out of a bar of 100:
 | Lizardman Chief | 15 | 22 | 17 | 11 | 9 | 5 | 2 |
 | Orc Warchief | 28 | 51 | 41 | 26 | 21 | 11 | 5 |
 | Ice Troll | 29 | 52 | 41 | 26 | 21 | 11 | 5 |
-| Hoarfang | 44 | 106 | 85 | 54 | 44 | 22 | 10 |
+| Hoarfang | 41 | 72 | 57 | 37 | 29 | 15 | 6 |
 
 (The level a block is priced by is the attacker's highest combat stat --
 `CombatLevelOf` -- which is what the column gives. Under the old rule the
@@ -902,9 +904,10 @@ it follows the **combat level** instead, to 99:
 
 | Who | Defence | New (Combat 5) | Combat 20 | Combat 40 | Combat 50 |
 | --- | --- | --- | --- | --- | --- |
-| **The hero** | **twice** the combat level | 10 | 40 | 80 | 99 |
-| **The warden** | the combat level | 5 | 20 | 40 | 50 |
-| **The wayfarer** | the combat level | 5 | 20 | 40 | 50 |
+| **The Lucid Knight** | **twice** the combat level | 10 | 40 | 80 | 99 |
+| **The Shade Ranger** | the combat level | 5 | 20 | 40 | 50 |
+| **The Dreamweaver** | the combat level | 5 | 20 | 40 | 50 |
+| **The Lantern Warden** | **four times** the combat level | 20 | 80 | 99 | 99 |
 
 - **The combat level no longer counts Defence.** It would feed itself.
   Hitpoints stands in its place as well as its own: a quarter of Hitpoints twice,
@@ -920,8 +923,10 @@ it follows the **combat level** instead, to 99:
     a new character would already have met, so its warning never showed). The
     gates from Combat 10 up are where they were: a character's level there
     moves by nothing to three, by how they had trained.
-- **The hero is the sturdy one.** At twice the combat level, a hero reaches 99
-  at Combat 50, and every blow that reaches them is softened accordingly.
+- **The Knight is sturdy, and the Warden sturdier.** At twice the combat level
+  a Knight reaches 99 at Combat 50; at four times it, a Lantern Warden reaches
+  it at Combat 25 -- standing is the Warden's whole calling. Every blow that
+  reaches them is softened accordingly (`Player::DefencePerLevel`, by calling).
 - **Every combat skill moves it.** Any level of Attack, Strength, Hitpoints,
   Ranged or Magic that raises the combat level raises Defence with it, and the
   rise is said with the other level-ups. A skill that is no part of the combat
@@ -2459,20 +2464,22 @@ what the fight does with them; the panel is `ui/screen_character.cpp`.
 
 ### Skill trees
 
-**A character has one path, and one tree: their path's.** The hero's is the
-blade's (Melee), the warden's the bow's (Ranged), the wayfarer's the staff's
-(Magic) -- the same affinity that gives them their starting weapon and their
-edge with it. The other two trees belong to other characters and cannot be
-learned from, whatever the levels. It is opened from the Skills panel (`O`);
+**A character has one path, and one tree: their calling's.** The Knight's is
+the blade's (Melee), the Ranger's the bow's (Ranged), the Weaver's the staff's
+(Magic), and the Lantern Warden has its own -- earned by **Hitpoints**, its
+numbers going to melee blows as the Knight's do (`TalentTree::style`). The
+other three trees belong to other callings and cannot be learned from,
+whatever the levels. It is opened from the Skills panel (`O`);
 `I` and `O`, or the shoulder buttons on a pad, step between the level list and
 the tree. A save from before the paths keeps what it had bought in its own tree
 and loses the rest.
 
 | Tree | Whose | Earned by | Branches |
 | --- | --- | --- | --- |
-| Melee | the hero | Attack | Blade, Brawn, Guard, and Footwork |
-| Ranged | the warden | Ranged | Marksman, Skirmisher, Hunter |
-| Magic | the wayfarer | Magic | Evoker, Channeler, Warden, and Aegis |
+| Melee | the Lucid Knight | Attack | Blade, Brawn, Guard, and Footwork |
+| Ranged | the Shade Ranger | Ranged | Marksman, Skirmisher, Hunter |
+| Magic | the Dreamweaver | Magic | Evoker, Channeler, Warden, and Aegis |
+| Warden | the Lantern Warden | Hitpoints | Lantern, Bulwark, Maul |
 
 A tree is three branches, eleven rows deep, and every branch has the same shape:
 
@@ -2505,6 +2512,48 @@ rows more in every branch, eight levels apart as the rest are:
 | Magic | Evoker | **Empowered**: +3% damage a rank | **Overcharge**: an Overloaded spell 2.5x where it was 2x | **Cataclysm**: +15% against the element a creature fears, +5% crit |
 | | Channeler | **Deep Currents**: mana 8% faster a rank | **Deep Invocation**: Invoke draws back three quarters | **Font of Power**: +15% mana, spells a tenth cheaper |
 | | Warden | **Spellward**: Defence +5 a rank | **Bastion**: the Mana Shield 5 s longer | **Undying**: +10% health, +3 mana for every blow that draws blood |
+
+#### The Lantern Warden's tree
+
+Tank and support: the **Lantern** keeps friends standing, the **Bulwark** keeps
+the Warden standing and everything looking at them, and the **Maul** is the
+mace. The same eleven rows as every tree, three techniques and six abilities;
+"friends near" is anyone within a few steps (150 px), and a "thing of the
+Reverie" is anything in a dream.
+
+| Level | Lantern | Bulwark | Maul |
+| --- | --- | --- | --- |
+| 5 | **Warm Glow** (3): every heal you take -- food, a draught, the lantern's own -- 8% larger a rank | **Iron Will** (3): Defence +4 a rank | **Heavy Head** (3): maces +4% a rank |
+| 15 | **Kindred Light** (3): friends near take 3% less a rank, you 1% | **Steady Guard** (3): a blow caught costs 10% less breath a rank | **Ringing Blows** (3): maces 4% likelier a rank to concuss |
+| 30 | *Beacon*: the charged blow plants a pool of light for 5 s that mends whoever stands in it (3% of their health a second) | *Grounding Blow*: the charged blow drives the mace into the ground -- everything round staggers and turns on you for 4 s | *Toll*: the charged blow is one overhead on what is in front, which always concusses and staggers what stands beside it |
+| 40 | **Mending Light** (24 s, 15 stamina): you and friends near get back a fifth of your health over 4 s | **Challenge** (20 s, 12 stamina): everything near turns on you for 6 s, and you take 15% less meanwhile | **Lantern Flare** (16 s, 15 stamina): a fan of flame in front -- everything in it burns, and things of the Reverie reel |
+| 47 | **Afterglow** (2): Mending Light puts out burning and clears poison and bleeding; at rank 2 chill and concussion too | **Unyielding** (2): thrown back 25% less a rank | **Embers** (2): your burns last a second longer and bite 10% harder a rank |
+| 54 | **Sanctuary** (40 s, 20 stamina): a dome of light for 6 s -- everyone inside takes 30% less, things of the Reverie inside go at half pace | **Bastion** (35 s, 20 stamina): 6 s when nothing moves you, 40% less, and 15% of each blow that lands goes back | **Hammerfall** (14 s, 20 stamina): a leap, and the mace comes down where you land on everything round it |
+| 62 | **Long Wick** (2): Mending Light and Sanctuary 10% sooner a rank | **Thorned Mail** (2): 5% a rank of every melee blow that lands goes back | **Weight of Faith** (2): +12% a rank against anything concussed or burning |
+| 70 | *Dawnbearer*: things of the Reverie in your lantern's light suffer 10% more from everyone's blows; 3% of your damage back as health | *Warden's Oath*: +15% health, and 10% less above half of it | *Judgement*: every fifth blow of a chain with a mace is a critical that concusses |
+| 78 | **Deep Reserves** (2): heals 8% larger again and +3% health a rank | **Tempered Watch** (2): Defence +6 a rank | **Iron Bell** (2): charged blows and techniques +7% a rank |
+| 86 | **Hallowed Ground**: Sanctuary 3 s longer, and it mends 1% a second | **Last Light**: Bastion 3 s longer, and 15% of your health back when it ends | **Wildfire**: Lantern Flare twice as far, and its burns catch on what stands next to what burns |
+| 94 | *Undying Flame*: once every three minutes a blow that would fell you leaves you on one and lights Mending Light | *Unmoving Lamp*: +10% of all Defence, +10% health, and what you Challenge is slowed | *Dawn Hammer*: maces +10%, and every blow on a thing of the Reverie concusses |
+
+- **Friends are the host's to keep.** Every heal and every share taken off a blow
+  is worked out where the blow lands, which with friends is the host
+  (`World::HurtShare`, `PayHurt`), so a guest standing in a Sanctuary or beside
+  a Warden with Kindred Light takes less on the host's machine, which their
+  health follows. Mending Light mends friends near when it is used and Undying
+  Flame lights it for them too. Two Wardens' Kindred Light do not add up: the
+  best one counts.
+- **Two of the approved words changed when they met the game.** Health has no
+  regeneration of its own here -- it comes back from food, draughts, rest,
+  lifesteal and the Warden's own light -- so "health comes back 8% faster"
+  (Warm Glow, Deep Reserves) is every heal being 8% larger, scaled on the
+  whole of a heal that is paid a point at a time so rounding does not eat it
+  (`Player::HealingShare`). And a player is never staggered, only thrown back,
+  so Unyielding is "thrown back 25% less" alone.
+- **Buffs go to friends' windows** as two bytes now: the Challenge's ring, the
+  Bastion's sigil and Mending Light's rising light are drawn round a friend
+  too (`PlayerState::buffs`, protocol 24), and the Beacon's pool and the
+  Sanctuary's dome are ground a friend's window draws (`GroundEffect::Draw::Glow`
+  and `Dome`).
 
 What an ability is grown by is asked in one place for each (`Player::WarCryDamage`,
 `FrenzySpeed`, `StandFastShare`, `StandFastTime`, `OverloadDamage`, and the
@@ -4713,11 +4762,44 @@ character loosing arrows with a shield on the other arm. A weapon that brings it
 sword layers, and is mirrored when the character faces right so it is not held
 backwards.
 
+### The four callings
+
+A character is made as one of the screenplay's four callings (Appendix C),
+chosen from four cards at character select, each saying how its calling
+fights:
+
+| Calling | Fights | Sets out with | Defence a combat level | Guard button | Skill tree |
+| --- | --- | --- | --- | --- | --- |
+| **Lucid Knight** | heavy melee | a greatsword, barkwood helm, cuirass and greaves | 2 | parries with the greatsword | Melee, earned by Attack |
+| **Shade Ranger** | agile ranged and melee | a short bow, rawhide, hide boots, and a dagger in the pack | 1 | rolls | Ranged, earned by Ranged |
+| **Dreamweaver** | ranged magic | a staff, homespun, a wooden shield | 1 | the shield, then the Aegis's ward | Magic, earned by Magic |
+| **Lantern Warden** | tank and support | a mace and the **Lit Lantern**, barkwood helm, cuirass and greaves | **4** | **raises the lantern** | the **Warden's own**, earned by **Hitpoints** |
+
+- **The ids are the old ones.** `player_hero` is the Knight (it was the
+  Hollow-born), `player_warden` the Ranger (the Greenwarden), `player_wayfarer`
+  the Weaver (the Wayfarer); only the names changed, so every save, kept
+  character and friend's game loads as it did. The Lantern Warden is new,
+  `player_lantern`. `Player::CallingFor` says which is which; `--scratch`
+  takes `knight`, `ranger`, `weaver` or `lantern` as well as the old words.
+- **The lantern is the Warden's shield.** No shield on the arm and the Lit
+  Lantern in the off hand, the guard raises the lantern, and it blocks as the
+  shield of the best tier the Attack level reaches would -- a bronze one's at
+  Attack 1, an azuryte one's at 30 (`Player::LanternStyle`, `GuardNow`):
+  everything a raised shield is, the guarded step and the breath a blow costs
+  and a heavy blow shattering it, the lantern is. Anyone else's lantern is a
+  light and nothing more. It is drawn in the hand on the character's own shield
+  sheet in its own cut (`"layer": "shield", "cut": "lantern"` on the item), so
+  it swings with the arm and goes up with the guard.
+- **The prologue's weapon chest offers the same four kits**, each marked
+  **Recommended** for its own calling -- by its `calling` in `data/quests.json`,
+  since the Knight and the Warden both fight in melee -- and any of them can be
+  taken.
+
 ### Affinities
 
-Each of the three characters favours one way of fighting, and says so on the
-card at character select: **the hero the blade, the warden the bow, the
-wayfarer the staff.** Attacks of that style hit a tenth harder and carry eight
+Each calling favours one way of fighting, and says so on the card at character
+select: **the Knight and the Warden the blade, the Ranger the bow, the
+Weaver the staff.** Attacks of that style hit a tenth harder and carry eight
 points more accuracy, from the first swing and for good. **The eight is aim
 alone, for all three** (`CombatProfile::melee_aim`, `ranged_aim`, `magic_aim`,
 read by `HitChanceFor` and nothing else). It used to be added to the style's
@@ -4844,33 +4926,45 @@ prop:
 
 ### The player characters
 
-`tools/blender_character.py` builds the three playable characters, poses them
+`tools/blender_character.py` builds the four playable characters, poses them
 and renders every clip -- idle, walk, run, sprint, attack, thrust, jump, hurt,
 death, the combos, War Cry's shout and the warden's two rolls, and the four
 gathering clips, in all four facings -- straight into the layered sheets the
 game reads:
 
 ```powershell
-.\tools\make_character.ps1                      # all three, every clip
+.\tools\make_character.ps1                      # all four, every clip
 .\tools\make_character.ps1 -Look player_warden  # one of them
 .\tools\make_character.ps1 -Only walk,sprint    # a couple of clips
 ```
 
-There is **one rig in three sets of clothes**: a `LOOKS` table of palette
+There is **one rig in four sets of clothes**: a `LOOKS` table of palette
 overrides plus two shape switches -- how far the hair locks stretch from their
 roots, and whether the character wears the scarf or a rolled collar.
 
 | Character | Looks like |
 | --- | --- |
-| **Hollow-born** | auburn, cream tunic, the red scarf streaming behind |
-| **Greenwarden** | cropped black hair, forest green, a collar instead of a scarf |
-| **Wayfarer** | long ash-blond hair, slate blue, a deep blue scarf |
+| **Lucid Knight** (was the Hollow-born) | auburn, cream tunic, the red scarf streaming behind |
+| **Shade Ranger** (was the Greenwarden) | cropped black hair, forest green, a collar instead of a scarf |
+| **Dreamweaver** (was the Wayfarer) | long ash-blond hair, slate blue, a deep blue scarf |
+| **Lantern Warden** | dark hair, slate and iron with brass at the hems, an amber mantle the colour of the light carried |
+
+**The Lit Lantern is drawn on the rig, not pasted on.** `ARMOUR_STYLES` has a
+`lantern` style that is not armour: an iron frame on a bail in the left fist,
+lit horn panes, a flame showing front and back, a brass cap and an iron foot
+(`build_lantern`), hanging along the hand the way a haft runs so it swings with
+the arm and rises with the guard. It is rendered onto the shield's sheet only
+(`<clip>_10_armour_shield_lantern.png`), for all four looks, so anyone carrying
+one holds it: `make_character.ps1 -Style lantern`. Its glass and flame are
+emitted flat and its iron and brass keep their own colours (the item is drawn
+untinted), and it is chunkier than life -- at forty pixels a fine frame is all
+outline.
 
 The two that used to stand beside the first were a CraftPix male and female
 character. That licence covers using the art in a game but not passing the
 files on, which is what made the repository undistributable; these are the
 game's own. A save naming a character this build no longer has falls back to
-the Hollow-born rather than loading as an invisible player.
+the Lucid Knight rather than loading as an invisible player.
 
 The first version was bevelled boxes and read as boxes -- a crate of a head on
 planks. The second is modelled the way a sprite is drawn rather than the way a
@@ -5742,9 +5836,10 @@ control back and forth with short stretches of play.
   time something needs saying, in the player's own keys or buttons: getting
   about and the journal, eating what is to hand, the Reverie, the Waking Stone,
   the Echo, fighting, and the sleeping town.
-- **The chest's choice** is the three starting kits -- the sword and the
-  cuirass, the bow and the rawhide, the staff and the homespun -- with the
-  player's own marked *recommended*, and 25 coins. The kit is taken from the
+- **The chest's choice** is the four starting kits -- the greatsword and the
+  barkwood, the bow, dagger and rawhide, the staff and the homespun, the
+  lantern and mace -- with the player's own calling's marked *Recommended*,
+  and 25 coins. The kit is taken from the
   chest, not given at the start (see [Starting out](#starting-out)).
 - **Alone.** Play Together and Player Two open once the prologue is over, and
   dying in it brings the player back on the map they fell on (its `respawn`
@@ -6044,9 +6139,111 @@ to do*), and only the host is asked at the Mayor's door -- a friend walks
 through. Friends and Player Two play on in Solace meanwhile; a flag the host's
 story sets is everybody's. A friend's gathering is never locked.
 
-## Act II -- the Guild's ledger
+## Act II -- WWDD
 
-Act II is not scripted yet; it opens on the Guild Master. Once the dragon's
+From `Screenplay.md`, scenes 63-85, with its lines as written -- the
+"placeholder" ones too, until there are others. The card after the dragon's
+shadow reads **ACT II / WWDD**, and the act runs with no time skip. As in Act I,
+the story is the host's (see [In company](#in-company)).
+
+1. **Elder Vask, furious (63).** He stays on the guild hall's porch, rigid in
+   his rocker, red in the face, a jet of steam off him every few seconds
+   (`NpcState` `tint` and `steam`). "Not now, lad." -- then one of three lines
+   in turn, never the same twice running. At **Combat 35** (a story trigger on
+   the level, `"on": {"level": 35}`) the red fades, the steam stops and a bell
+   hangs over him.
+2. **The Torn Pages (65, 65A)** -- a ladder to 35, each page where its stub's
+   trace says: the graveyard of Hollowrest (14-18, among the stones, away from
+   the crypt's wight), the **Lizardmen's Cave** south of their camp (a new
+   dungeon, 18-22, the Chief at the back), the **Bear's Den** in the Westwold's
+   north meadow (a new dungeon, 25-28, a Mossback at the back), and the Orc
+   Warchief's chest in Emberfell's lower workings (34, there once he is down).
+   Every second page, the rival: the colours flatten and the player cannot lift
+   a hand. Apocolo's book is mended on Oona's bench, and the cure brewed at
+   **Apocolo's cauldron**, cold in Havenbrook until it is lit.
+3. **Wynn in Mossvale (66).** Her Havenbrook shop is shuttered, a note on the
+   door; she is crouched behind her Mossvale counter. Her loom in Havenbrook
+   stays the player's.
+4. **Wake the Neighbors (67-69, 68A/B).** A dose a sleeper, Mossvale and
+   Fernhollow; Oona teaches brewing; Bess points at the Mayor, who sells the
+   Mossvale house for thirty thousand (the key under the stone is the old way,
+   and not there for a character of the story).
+5. **The college courtyard (70).** With everyone outside it awake, the college
+   gate opens on Vexel at the top of the far steps, Magister Orrin asleep in a
+   net of black thread beside him, and the **rival** (`rival_dreamwalker`, the
+   player's own rig in the visits' colours, a level-32 story boss: a quick
+   double strike, a lunge, a whirl). At half its health Vexel takes a hand
+   (`phase2` sets `ACT2_RIVAL_PHASE2`, which wakes him): a thin red line laid
+   down toward the player, then a bolt along it (`EnemyMove` `beam`) that
+   leaves one in four confused. Nothing reaches Vexel (`EnemyDef::untouchable`). The rival falls; Vexel grimaces and
+   is gone in a violet flash. **Spare and recruit**, or **Capture** -- a choice
+   with no backing out of it -- and a captured rival is led down into the
+   **cells under the Mayor's Hall** (a new map, through a hatch in the hall).
+6. **Orrin wakes (71)** and asks for his college: agree, and the **first
+   lesson** -- Eldritch Blast, and any staff holds the old magic
+   (`ACT2_ANCIENT_SLOT_UNLOCKED` opens the ancient box for every staff).
+   **Wake the College**: the council (Ferris, Wren), the staff (Battlemaster
+   Ysolde, Lector Maud) and fourteen students, a dose each, lying where they
+   fell. The council's waking (71A) points at the **Ashen Path**, which was
+   choked with ash and smoke until then; with the council and the staff awake
+   Orrin teaches the rest of the ancient magic.
+7. **The death talisman (72-73).** In the archive Orrin sends the player to the
+   bottom of Hollowrest Crypt, where **Lord Ashcroft, the Ashlord** (71) stands
+   before a chest: claws that give back 3% of what they take, a quick fury
+   that gives back 1%, and a slam that comes down where a red mark was
+   (`EnemyMove` `slam`). The chest gives **the Death Talisman**, worn in a place
+   of its own (`SLOT_TALISMAN`, an eleventh square on the character panel,
+   under the figure between the hands). `T` --
+   RB + LB on a pad -- steps into the dreamt twin of where you stand
+   (Havenbrook, the college, the Ashen Path, the Plateau's stronghold, the
+   Bayou) and back again; five seconds between; nothing healed and no time
+   gone. It does nothing elsewhere, and is cold in the dreamworld a bed sends
+   you to (the script's one exception).
+8. **The deep well (74-76).** Bess asks; the well is shut until she does. At
+   the bottom, **the Thing in the Spring** throws rings of gusts with a gap to
+   step through (`EnemyMove` `gusts`) and sags after each -- the opening. Her
+   thanks is two Farmer's Suppers and the well to explore.
+9. **Icespire's Peak (77-78A).** Vask's reveal -- a dragon slayer in his warrior
+   days -- and **Hoarfang**, brought down to level 42, just over the climb's 31-41
+   (400 hit points, as a boss has, and an attack over everything else on the peak). Its
+   head goes back to the porch: five weapons worked from the dragon to choose
+   from (twin fang daggers, a scale bow, a staff, a greatsword, a maul; power
+   between Damascus and Orichalcum, asked at 42; the Talon bleeds and the Maul
+   rings heads as their kinds do, and nothing else carries a proc)
+   and the head mounted at home.
+10. **The Ashen Path (79-85).** The **Pit Lord** calls up Nightmares of what has
+    been fought before -- spiders, wolves, brutes -- one call at a time
+    (`EnemyMove` `summon`; its calls are `FIGHT_` flags, gone with the map, so
+    every fight starts from the beginning). Down, and the **Cinder King**'s voice
+    shakes the whole Ashen Land (`fx` `quake`). Behind a throne of rubble, a
+    rune opens on the Reverie. The way out is a scripted struggle the player
+    always comes out of (`Entity::unfelled`, on the Ashen Path while
+    `ACT2_ESCAPE_ACTIVE`); the road to Fernhollow in pieces; a collapse at the
+    college door; Orrin's **Healing Palm**. With the council and the staff
+    awake, the meeting in the great hall: Ferris would destroy the rune, Wren
+    would experiment with it, and the choice is the player's. Then the card:
+    **ACT III / Attack on the Reverie**.
+
+`bin\selftest.exe --only act2` plays all of it through from the end of Act I.
+
+How its art is made: Wynn's rescue is `tools/blender_act1b.py` (the Shear
+Mannequin, with its whirl and its snip, the blades shut on frame 5) and
+`tools/blender_act1_props.py` (the thread rack and its six strands -- each a
+pair of hooks fifteen pixels apart, the strand ten below the rack's foot --
+the snarl, the four dress forms, the portrait and the patch it leaves, the
+desk, the shears, the spool, the sign and the fallen door). Act II's props
+are in the same file: the thread net Orrin hangs in, the pit's rune and its
+throne of rubble, Hoarfang's trophy, the lizardmen's cave (the bear's den's
+shape, so one collision layout serves both: `CaveMouth` in genmaps) and the
+cold cauldron. `tools/make_act2_icons.py` makes Hoarfang's five weapons from
+the Damascus pieces they are the shape of, recoloured to the dragon's ice,
+and draws the talisman, the rune's rubbing and the head; the shears, the
+thread spools and the recipe are `tools/icons.txt` text icons. The college's
+mages lie down and sit up with the rig's own clips, rendered for their looks.
+
+### The Guild's ledger
+
+Once the dragon's
 shadow has crossed Havenbrook (`ACT1_DRAGON_SHADOW_SEEN`) -- or straight away,
 for a character from before the prologue, who has no Act I to finish --
 **Guild Master Orlend** has a bell over him at his desk in the Guild Hall, and
@@ -6061,8 +6258,9 @@ stands from the start of Act II, empty for anyone whose ledger is not open
 because a flag set in a friend's conversation stays on the friend's machine.
 
 **Guild Bounties** are one page a boss -- seventeen of them, every boss in the
-game but **Hoarfang**, who is Elder Vask's to send you after (*The Dragon of
-the Ice Spire*, and the dragon of Act II). Each page introduces its beast: the
+game but **Hoarfang**, who is Elder Vask's to send you after (*Icespire's
+Peak* for a character of the story, *The Dragon of the Ice Spire* for one from
+before it). Each page introduces its beast: the
 beast itself drawn beside its name, its lair, and a few lines on what it does
 -- what its blows leave you with, what does not touch it, when it is out.
 
@@ -6115,7 +6313,7 @@ beast itself drawn beside its name, its lair, and a few lines on what it does
 ## Starting out
 
 A new game plays [the prologue](#the-prologue), and the kit below comes out of
-the chest in the stranger's cells, the player's own chosen from the three. A
+the chest in the stranger's cells, the player's own chosen from the four. A
 character made with `--scratch` for looking at something starts the way every
 character used to: on the Sunken Road with **a note of welcome** on the
 parchment a sign is read on -- where they are standing, where the town, the
@@ -6123,20 +6321,23 @@ mine and the trail are, what every key does, named for the device in use -- and
 the kit already worn.
 
 That kit is **25 coins, three cooked meat, and the wood tier's weapon of their
-affinity, worn with the wood tier's armour of their own kind**:
+calling, worn with the wood tier's armour of their own kind**:
 
 | | Weapon | Armour | And |
 | --- | --- | --- | --- |
-| The hero | Wooden Sword | Barkwood Cuirass | Wooden Shield |
-| The warden | Oak Shortbow | **Rawhide** Coif, Jerkin and Chaps | Hide Boots -- a bow takes both hands, and a shield they could not raise is no use to them |
-| The wayfarer | Wooden Staff | **Homespun** Hat, Robe and Skirt | Wooden Shield -- a staff is held in one hand |
+| The Lucid Knight | Wooden Greatsword | **Barkwood** Helm, Cuirass and Greaves | -- both hands are on the greatsword, which parries |
+| The Shade Ranger | Oak Shortbow | **Rawhide** Coif, Jerkin and Chaps | Hide Boots -- a bow takes both hands -- and a Wooden Dagger in the pack, for when it comes close |
+| The Dreamweaver | Wooden Staff | **Homespun** Hat, Robe and Skirt | Wooden Shield -- a staff is held in one hand |
+| The Lantern Warden | Wooden Mace | **Barkwood** Helm, Cuirass and Greaves | the **Lit Lantern** in the off hand |
 
-All three used to set out in the hero's cuirass, which is plate: it does
-nothing for a bow or a staff, and the first thing the other two learned about
-armour was that theirs was the wrong sort. Hide and cloth turn less than wood
-a piece, so it is the whole set, and it comes out even -- Defence 26, 26 and
-25 -- with the set's own small push on top: +5 Ranged for the warden, +7 Magic
-for the wayfarer. The character card draws each in what they wear. Nothing
+All of them used to set out in the Knight's cuirass, which is plate: it does
+nothing for a bow or a staff, and the first thing the Ranger and the Weaver
+learned about armour was that theirs was the wrong sort. Hide and cloth turn
+less than wood a piece, so it is the whole set, and it comes out about even --
+Defence 30 for the Knight and the Warden, 26 for the Ranger, 25 for the Weaver
+-- with the set's own small push on top: +5 Ranged for the Ranger, +7 Magic
+for the Weaver. The Knight used to carry a sword and a shield (26); with both
+hands on a greatsword the helm and greaves stand in for the shield. The character card draws each in what they wear. Nothing
 else: a bedroll and anything better are bought from the traders, found or made. The tools are lent, by the three people in Havenbrook
 who work with them. Every character used to start with the sword, which sent
 two of the three into their first fight with the one weapon their affinity
@@ -8493,7 +8694,7 @@ draw every bar wrong, so the co-op protocol went up to 12.
 | Ice Troll | the Ice Spire's slopes | 31-35 | troll hide, damascus ore, azuryte gear |
 | Frost Wyvern | round the Ice Spire's summit | 37-41 | wyvern scales, platinum ore, damascus gear |
 | Wyvern Matriarch | the summit | 49 | scales, platinum gear, diamond ore |
-| **Hoarfang** | its own ground above the summit | 52 | dragon fangs, scales and dragonhide, diamond and orichalcum, diamond gear |
+| **Hoarfang** | its own ground above the summit | 42 | dragon fangs, scales and dragonhide, diamond and orichalcum, diamond gear |
 | Cellar Slime | the well's upper workings | 11-13 | empty vials, bones, coins |
 | Well Bat | the well's upper workings | 10-11 | bones, coins |
 | Pit Hound | the well's deep cut | 22-24 | bones, hides, raw meat, coins |

@@ -32,6 +32,10 @@ string Game::FillPrompts(const string& text) const {
     // Eating what is to hand is a chord: the shift and interact (Game::SeatChores).
     put("{Eat}", input.PromptFor(input.ShiftAction()) + "+" + input.PromptFor(Action::Interact));
     put("{Next}", input.PromptFor(input.ShiftAction()) + "+" + input.PromptFor(Action::Sprint));
+    // The death talisman's: its own key, or on a pad the abilities' shift and the bag's button.
+    put("{Talisman}", input.ActiveDevice() == InputMode::Controller
+                          ? input.PromptFor(Action::Ability) + "+" + input.PromptFor(Action::Inventory)
+                          : input.PromptFor(Action::Talisman));
     return out;
 }
 

@@ -28,12 +28,14 @@
 
 namespace {
 
-const char* kLooks[] = {"player_hero", "player_warden", "player_wayfarer"};
+const char* kLooks[] = {"player_hero", "player_warden", "player_wayfarer", "player_lantern"};
+constexpr int kLookCount = static_cast<int>(sizeof(kLooks) / sizeof(kLooks[0]));
 
 string LookName(const string& look) {
-    if (look == "player_warden")   return "the warden";
-    if (look == "player_wayfarer") return "the wayfarer";
-    return "the hero";
+    if (look == "player_warden")   return "the Shade Ranger";
+    if (look == "player_wayfarer") return "the Dreamweaver";
+    if (look == "player_lantern")  return "the Lantern Warden";
+    return "the Lucid Knight";
 }
 
 } // namespace
@@ -284,8 +286,8 @@ string Game::SplitRowLabel() const {
 
 void Game::CycleSplitLook(int step) {
     int at = 0;
-    for (int i = 0; i < 3; ++i) if (settings.p2_look == kLooks[i]) at = i;
-    at = ((at + step) % 3 + 3) % 3;
+    for (int i = 0; i < kLookCount; ++i) if (settings.p2_look == kLooks[i]) at = i;
+    at = ((at + step) % kLookCount + kLookCount) % kLookCount;
     settings.p2_look = kLooks[at];
     settings.Save();
     Audio::Play(Sfx::UiMove);

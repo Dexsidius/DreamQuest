@@ -20,9 +20,9 @@
 param(
     [string]$Blender = "C:\Program Files\Blender Foundation\Blender 5.2\blender.exe",
     [string[]]$Only = @(),
-    # Which of the three playable characters to render. They are one rig in
-    # three sets of clothes -- see LOOKS in tools/blender_character.py.
-    [string[]]$Look = @("player_hero", "player_warden", "player_wayfarer"),
+    # Which of the four playable characters to render. They are one rig in
+    # four sets of clothes -- see LOOKS in tools/blender_character.py.
+    [string[]]$Look = @("player_hero", "player_warden", "player_wayfarer", "player_lantern"),
     # Which cuts of armour to render over the character. "plate" is the one the
     # sheets are named after; the other two are written with a suffix and are
     # picked up by the tier that wears them. Rendering only the armour for the

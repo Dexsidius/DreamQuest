@@ -190,6 +190,20 @@ $sizes = @{
     claw_marks = 24; wolf_pelt_rack = 48; frost_patch = 48; knight_scrap = 36
     boo_note = 14; desk_tilted = 56; papers_drift = 40; great_desk = 88
     forge_chimney = 32
+    # Wynn's shop and her dream of it (blender_act1_props.py). The strands
+    # are rendered in the rack's own frame, so they are its size before
+    # they are cut down.
+    thread_rack = 96; thread_snarl = 96
+    thread_strand_crimson = 96; thread_strand_ivory = 96; thread_strand_gold = 96
+    thread_strand_cobalt = 96; thread_strand_moss = 96; thread_strand_violet = 96
+    dress_form_bare = 64; dress_form_bodice = 64; dress_form_skirt = 64; dress_form_full = 64
+    portrait_gown = 60; nail_patch = 60
+    sewing_desk = 80; shears_lying = 28; giant_spool = 64; clothier_sign = 40; door_fallen = 48
+    # Act II (blender_act1_props.py): the net the old man hangs in, the
+    # Infernal Pit's rune and the Pit Lord's seat, Hoarfang's head, the
+    # lizardmen's cave (bear_den's size and doorway) and the cauldron gone cold.
+    thread_net = 64; pit_rune = 48; rubble_throne = 96; hoarfang_trophy = 64; lizard_cave = 144
+    cauldron_cold = 48
 }
 
 # Pieces the game colours itself, as two pictures laid one on the other: the
@@ -233,7 +247,24 @@ $CROP = @{
 # (claw marks on a door frame, webbing over casks, frost on the stones) and
 # things hanging in the air, whose foot is not on the floor.
 $NOSHADOW = @("claw_marks", "frost_patch", "web_patch", "web_strand", "papers_drift", "boo_note",
-              "hanging_hammer", "dream_barrier_v", "dawn_chime", "apron_hook", "sampler")
+              "hanging_hammer", "dream_barrier_v", "dawn_chime", "apron_hook", "sampler",
+              "thread_rack", "thread_snarl", "thread_strand_crimson", "thread_strand_ivory", "thread_strand_gold",
+              "thread_strand_cobalt", "thread_strand_moss", "thread_strand_violet", "portrait_gown", "nail_patch",
+              "shears_lying", "giant_spool", "clothier_sign", "thread_net", "hoarfang_trophy")
+
+# Pictures that stand in for one another in the same spot -- a dress form
+# dressed a piece at a time, the portrait and the clean patch where it hung,
+# the thread rack and the snarl the dream buries it in. Each is sat on the
+# floor by the same amount as the rest of its group: whichever of them
+# reaches lowest decides, so nothing is cut off and they swap to the pixel.
+# Sat down each by its own lowest pixel, a skirt or a frame a pixel deeper
+# than the stand or the patch moved the whole picture.
+$ALIGN = @{
+    dress_form_bare = "dress_form"; dress_form_bodice = "dress_form"
+    dress_form_skirt = "dress_form"; dress_form_full = "dress_form"
+    portrait_gown = "portrait"; nail_patch = "portrait"
+    thread_rack = "thread_rack"; thread_snarl = "thread_rack"
+}
 
 # Pieces laid end to end, whose outline must not close at the join: the edge
 # of the picture across which they repeat is outlined as if the next piece
@@ -583,6 +614,29 @@ function Set-OnFloor($buf, $name) {
     Move-Down $buf (Get-FloorShift $buf $name)
 }
 
+# How far a group in $ALIGN is sat down: every member's render is taken through
+# the steps below as far as the shift (the outline changes no alpha, so it is
+# left out), and the smallest shift -- the member reaching lowest -- is the
+# group's, worked out once a run. Every member's render is read whether or not
+# it is in -Only, so one re-rendered alone still lands where the rest do.
+$groupShift = @{}
+function Get-GroupShift($group) {
+    if ($groupShift.ContainsKey($group)) { return $groupShift[$group] }
+    $best = -1
+    foreach ($member in @($ALIGN.Keys | Where-Object { $ALIGN[$_] -eq $group } | Sort-Object)) {
+        $path = Join-Path $renders "$member.png"
+        if (-not (Test-Path $path) -or -not $sizes.ContainsKey($member)) { continue }
+        $bmp = [System.Drawing.Bitmap]::FromFile($path)
+        try { $b = Resize-Box (Read-Pixels $bmp) $sizes[$member] } finally { $bmp.Dispose() }
+        Flatten $b
+        if ($NOSHADOW -notcontains $member) { Add-ContactShadow $b }
+        $s = Get-FloorShift $b $member
+        if ($s -ge 0 -and ($best -lt 0 -or $s -lt $best)) { $best = $s }
+    }
+    $groupShift[$group] = $best
+    return $best
+}
+
 # --- the undyed pieces ------------------------------------------------------------
 # No colour at all: the light in the render is warm, and a warm white tinted
 # with a totem's blue comes out a shade of green.
@@ -677,7 +731,13 @@ foreach ($file in (Get-ChildItem $renders -Filter *.png -File -EA SilentlyContin
     Add-Outline $buf 0.62 $(if ($WRAP.ContainsKey($name)) { $WRAP[$name] } else { "" })
     # After the outline, so the shadow is not itself outlined.
     if ($NOSHADOW -notcontains $name) { Add-ContactShadow $buf }
-    Set-OnFloor $buf $name
+    if ($ALIGN.ContainsKey($name)) {
+        $shift = Get-GroupShift $ALIGN[$name]
+        if ($shift -lt 0) { $shift = Get-FloorShift $buf $name }
+        Move-Down $buf $shift
+    } else {
+        Set-OnFloor $buf $name
+    }
     if ($REGION.ContainsKey($name)) {
         $r = $REGION[$name]
         $buf = Crop-Region $buf $r[0] $r[1] $r[2] $r[3]

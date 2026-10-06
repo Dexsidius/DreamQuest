@@ -7,9 +7,13 @@ class Skills;
 // ---------------------------------------------------------------------------
 //  Skill trees
 //
-//  One tree for each combat style, in data/skill_trees.json, and a character
-//  has one: their path's. A tree is three branches eight nodes deep. Its skill
-//  -- Attack for melee, Ranged, Magic -- earns a point at every third level,
+//  One tree for each calling, in data/skill_trees.json, and a character has
+//  one: their calling's -- the Lucid Knight the blade's, the Shade Ranger the
+//  bow's, the Dreamweaver the staff's, the Lantern Warden the lantern's. A
+//  tree's numbers go to attacks of its style (TalentTree::style): the
+//  Warden's, like the Knight's, to melee. A tree is three branches eleven
+//  nodes deep. Its skill -- Attack for the blade, Ranged, Magic, and
+//  Hitpoints for the lantern -- earns a point at every third level,
 //  and a rank of a node costs one point, needs its milestone level (5, 15, 30,
 //  40, 47, 54, 62, 70 -- closer together as levels come slower) and needs a
 //  rank of the node above it in its branch. Thirty-three points by level 99
@@ -73,6 +77,9 @@ struct TotemDef {
 struct TalentTree {
     string id, name;
     int    skill = 0;              // SkillId that earns points and gates nodes
+    // Whose attacks its numbers go to. The first three trees are their own
+    // style's; the Lantern Warden's is melee's, as the Knight's is.
+    AttackStyle style = AttackStyle::Melee;
     vector<string> branches;
     vector<TalentNode> nodes;
 
@@ -84,6 +91,11 @@ struct TalentTree {
 
 class SkillTrees {
 public:
+    // One a calling, in Player::Calling's order: the blade's, the bow's, the
+    // staff's -- AttackStyle's own numbers, which saves from before there was
+    // a fourth were keyed by -- and the lantern's.
+    static constexpr int TREES = 4;
+    static constexpr int BLADE = 0, BOW = 1, STAFF = 2, LANTERN = 3;
     static constexpr int BRANCHES = 3;          // the full columns every tree has
     // Eight rows from 5 to 70, and three past them at 78, 86 and 94: the levels
     // past 70 opened nothing, and a row is never more than eight levels after
@@ -97,9 +109,9 @@ public:
     static constexpr int ABILITY_SLOTS = 3;
 
     bool Load(const string& path);
-    const TalentTree& Tree(AttackStyle style) const { return trees[static_cast<int>(style)]; }
-    // The node and the style whose tree it is in; null if nobody has that id.
-    const TalentNode* Find(const string& id, AttackStyle* style = nullptr) const;
+    const TalentTree& Tree(int tree) const { return trees[std::clamp(tree, 0, TREES - 1)]; }
+    // The node and the tree it is in; null if nobody has that id.
+    const TalentNode* Find(const string& id, int* tree = nullptr) const;
 
     // The boons, from the same file: see Talents::SlayBoss.
     const vector<BoonDef>& Boons() const { return boons; }
@@ -111,7 +123,7 @@ public:
     const TotemDef* TotemOf(const string& boss) const;
 
 private:
-    TalentTree trees[3];
+    TalentTree trees[TREES];
     vector<BoonDef> boons;
     vector<TotemDef> totems;
 };
@@ -131,14 +143,16 @@ public:
     void SetDatabase(const SkillTrees* d) { db = d; }
     const SkillTrees* Database() const { return db; }
 
-    // A character has one path -- the hero the blade, the warden the bow, the
-    // wayfarer the staff -- and one tree, their path's. The other two cannot
-    // be learned from, and a save from before this was so loses what it had
-    // bought in them. Unset, every tree is open: the self-test's plain Talents.
-    void SetPath(AttackStyle style);
+    // A character has one path -- their calling's tree (SkillTrees::Tree) --
+    // and the other three cannot be learned from: a save from before this was
+    // so loses what it had bought in them. Unset, every tree is open: the
+    // self-test's plain Talents.
+    void SetPath(int tree);
     bool HasPath() const { return has_path; }
-    AttackStyle Path() const { return path; }
-    bool Open(AttackStyle style) const { return !has_path || style == path; }
+    int  Path() const { return path; }
+    bool Open(int tree) const { return !has_path || tree == path; }
+    // The style the path's numbers go to; melee with no path set.
+    AttackStyle PathStyle() const;
 
     // --- what a boss leaves -----------------------------------------------------------
     // Killing a boss paid what it dropped and nothing else: the Pit Lord was a
@@ -221,10 +235,10 @@ public:
     // either way, brighter while it is awake.
     const TotemDef* PlacedTotemDef() const;
 
-    int  PointsEarned(AttackStyle style, const Skills& skills) const;
-    int  PointsSpent(AttackStyle style) const;
-    int  PointsFree(AttackStyle style, const Skills& skills) const {
-        return PointsEarned(style, skills) - PointsSpent(style);
+    int  PointsEarned(int tree, const Skills& skills) const;
+    int  PointsSpent(int tree) const;
+    int  PointsFree(int tree, const Skills& skills) const {
+        return PointsEarned(tree, skills) - PointsSpent(tree);
     }
 
     Why  CanLearn(const string& id, const Skills& skills) const;
@@ -235,7 +249,7 @@ public:
         return it == ranks.end() ? 0 : it->second;
     }
     // Unlearns a whole tree, points, technique and abilities together.
-    void Reset(AttackStyle style);
+    void Reset(int tree);
 
     // The three abilities carried: slot 0 is guard + light, slot 1 guard +
     // heavy, slot 2 guard + lock on. Each holds a node id, or nothing.
@@ -260,8 +274,8 @@ public:
     // the plain charged attack.
     bool SetTechnique(AttackStyle style, const string& node_id);
 
-    // Summed effect of every learned node: a style-scoped effect from that
-    // style's tree, a global one from all three.
+    // Summed effect of every learned node: a style-scoped effect from the
+    // trees of that style, a global one from all of them.
     float Effect(const string& effect, AttackStyle style) const;
     float Global(const string& effect) const;
 
@@ -289,8 +303,8 @@ private:
     string placed;                   // the totem in the ring, by item id
     int    totem_day = -1;           // the day it was last touched
     int    today = 0;
-    string technique[3];
+    string technique[3];             // by style: the charged attack with that style's weapon
     string ability[SkillTrees::ABILITY_SLOTS];
     bool has_path = false;
-    AttackStyle path = AttackStyle::Melee;
+    int  path = 0;
 };

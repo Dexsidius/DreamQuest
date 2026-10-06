@@ -3055,6 +3055,12 @@ import blender_act1  # noqa: E402
 
 blender_act1.register()
 
+# And the rest of Act I's: Wynn's nightmare, the Shear Mannequin, with its spin
+# cycle and its snip.
+import blender_act1b  # noqa: E402
+
+blender_act1b.register()
+
 
 if __name__ == "__main__":
     main()

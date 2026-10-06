@@ -265,6 +265,11 @@ struct NpcState {
     // A little bell hung over them: there is something of the story's to do
     // here (a sleeper whose dream can be caught). The host's alone.
     bool   mark = false;
+    // A colour laid over them, and a puff of steam off them every `steam`
+    // seconds: Elder Vask, red in the face, until he is ready to talk (63).
+    bool   tinted = false;
+    SDL_Color tint{255, 255, 255, 255};
+    float  steam = 0.0f;
 };
 
 struct NpcDef {

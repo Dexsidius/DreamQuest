@@ -75,6 +75,13 @@
       "kind": "interior",
       "name": "Wenna's Home, Dreaming"
     },
+    "clothier_havenbrook": {
+      "exits": [
+        "town_havenbrook"
+      ],
+      "kind": "interior",
+      "name": "Wynn's, Havenbrook"
+    },
     "college_classroom": {
       "exits": [
         "college_grounds"
@@ -141,6 +148,11 @@
       "kind": "interior",
       "name": "The Cellar, Dreaming"
     },
+    "dream_clothier": {
+      "exits": [],
+      "kind": "interior",
+      "name": "Wynn's, Dreaming"
+    },
     "dream_college": {
       "exits": [
         "dream_havenbrook"
@@ -170,6 +182,11 @@
       ],
       "kind": "land",
       "name": "Havenbrook, Dreaming"
+    },
+    "dream_mara": {
+      "exits": [],
+      "kind": "interior",
+      "name": "Mara's House, Dreaming"
     },
     "dream_mayor_hall": {
       "exits": [
@@ -220,6 +237,13 @@
       "kind": "dungeon",
       "name": "The Barrow Beneath the Mire"
     },
+    "dungeon_bear_den": {
+      "exits": [
+        "westwold"
+      ],
+      "kind": "dungeon",
+      "name": "The Bear's Den"
+    },
     "dungeon_emberfell_1": {
       "exits": [
         "overworld",
@@ -242,11 +266,19 @@
       "kind": "dungeon",
       "name": "The Infernal Pit"
     },
+    "dungeon_lizard_cave": {
+      "exits": [
+        "overworld"
+      ],
+      "kind": "dungeon",
+      "name": "The Lizardmen's Cave"
+    },
     "fernhollow": {
       "exits": [
         "fernhollow_cottage",
         "college_grounds",
-        "whisperwood_trail"
+        "whisperwood_trail",
+        "fernhollow_mara"
       ],
       "kind": "land",
       "name": "Fernhollow"
@@ -264,6 +296,13 @@
       ],
       "kind": "interior",
       "name": "The Ferry Cottage"
+    },
+    "fernhollow_mara": {
+      "exits": [
+        "fernhollow"
+      ],
+      "kind": "interior",
+      "name": "Mara's House"
     },
     "frost_barrows": {
       "exits": [
@@ -320,6 +359,13 @@
       ],
       "kind": "interior",
       "name": "Havenbrook Guild Hall"
+    },
+    "havenbrook_cells": {
+      "exits": [
+        "mayor_hall"
+      ],
+      "kind": "dungeon",
+      "name": "The Cells under the Hall"
     },
     "hex_drowns": {
       "exits": [
@@ -450,7 +496,8 @@
     },
     "mayor_hall": {
       "exits": [
-        "town_havenbrook"
+        "town_havenbrook",
+        "havenbrook_cells"
       ],
       "kind": "interior",
       "name": "The Mayor's Hall"
@@ -511,7 +558,8 @@
         "bayou",
         "crypt_1",
         "ice_spire_peak",
-        "ashen_path"
+        "ashen_path",
+        "dungeon_lizard_cave"
       ],
       "kind": "land",
       "name": "The Hollowmarch"
@@ -671,7 +719,8 @@
         "house_smith",
         "well_shallow",
         "house_sleeper",
-        "house_havenbrook"
+        "house_havenbrook",
+        "clothier_havenbrook"
       ],
       "kind": "land",
       "name": "Havenbrook"
@@ -694,7 +743,8 @@
     "westwold": {
       "exits": [
         "town_havenbrook",
-        "brackenwood"
+        "brackenwood",
+        "dungeon_bear_den"
       ],
       "kind": "land",
       "name": "The Westwold"
@@ -789,6 +839,12 @@
       "label": "The Ashen Path  (Combat 40)",
       "x": 4696,
       "y": 1616
+    },
+    {
+      "kind": "dungeon",
+      "label": "The Lizardmen's Cave",
+      "x": 1062,
+      "y": 2706
     }
   ],
   "width": 4736

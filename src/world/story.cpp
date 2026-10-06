@@ -26,7 +26,7 @@ static Sfx SfxNamed(const string& n) {
         {"echo", Sfx::Echo}, {"grind", Sfx::Grind}, {"vanish", Sfx::Vanish}, {"thunder", Sfx::Thunder},
         {"bell", Sfx::Bell}, {"chime", Sfx::Chime}, {"anvil", Sfx::Anvil}, {"howl", Sfx::Howl},
         {"laugh", Sfx::Laugh}, {"tear", Sfx::Tear}, {"bump", Sfx::Bump}, {"shatter", Sfx::Shatter},
-        {"gust", Sfx::Gust}, {"plop", Sfx::Plop}, {"reel", Sfx::Reel}, {"snap", Sfx::Snap},
+        {"gust", Sfx::Gust}, {"plop", Sfx::Plop}, {"reel", Sfx::Reel}, {"snap", Sfx::Snap}, {"snip", Sfx::Snip},
     };
     const auto it = names.find(n);
     return it == names.end() ? Sfx::UiMove : it->second;
@@ -77,16 +77,20 @@ bool StoryDirector::Load(const string& path) {
             if (s.id.empty()) continue;
             s.then = j.value("then", string(""));
             s.needs = j.value("needs", string(""));
+            s.needs_qty = j.value("needs_qty", 1);
             if (j.contains("when")) s.when = FlagCond::FromJson(j["when"]);
             if (j.contains("on")) {
                 const json& on = j["on"];
                 if (on.is_string()) s.on = on.get<string>();
                 else if (on.is_object()) {
-                    for (const char* kind : {"enter", "near", "talk", "use", "flag"})
+                    for (const char* kind : {"enter", "near", "look", "talk", "use", "flag"})
                         if (on.contains(kind)) { s.on = kind; s.at = on[kind].get<string>(); }
+                    // The combat level reached: Elder Vask, at last ready to talk (77).
+                    if (on.contains("level") && on["level"].is_number()) { s.on = "level"; s.level = on["level"].get<int>(); }
                     s.map = on.value("map", string(""));
                     s.radius = on.value("radius", 48.0f);
-                    // "enter" names the map it is about; "near" the mark on it.
+                    // "enter" names the map it is about; "near" the mark on it,
+                    // and "look" a mark the player is near and facing.
                     if (s.on == "enter") { s.map = s.at; s.at = on.value("spawn", string("")); }
                 }
             }
@@ -123,7 +127,7 @@ void StoryDirector::Reset() {
 }
 
 bool StoryDirector::Carries(const Scene& s, const World& w) const {
-    return s.needs.empty() || w.player.inventory.Has(s.needs, 1);
+    return s.needs.empty() || w.player.inventory.Has(s.needs, std::max(1, s.needs_qty));
 }
 
 // -----------------------------------------------------------------------------
@@ -304,11 +308,20 @@ void StoryDirector::CheckTriggers(World& w, QuestLog& q, const GameContext& ctx)
         }
     }
     for (const Scene& s : scenes) {
-        if (s.on == "near") {
+        if (s.on == "near" || s.on == "look") {
             if ((!s.map.empty() && s.map != w.MapId()) || !w.Holds(s.when) || !Carries(s, w)) continue;
             float x = 0, y = 0;
             if (!Point(json(s.at), w, x, y)) continue;
             if (Length(w.player.x - x, w.player.y - y) > s.radius) continue;
+            // Turned to face it: something seen out of the corner of the eye
+            // that is gone when looked at straight (Vexel in the Whisperwood).
+            if (s.on == "look" && !InFrontOf(w.player.facing, x - w.player.x, y - w.player.y)) continue;
+            StartScene(&s, w, q, ctx, false);
+            return;
+        }
+        if (s.on == "level") {
+            if (w.player.skills.CombatLevel() < s.level || !w.Holds(s.when) || !Carries(s, w)) continue;
+            if (!s.map.empty() && s.map != w.MapId()) continue;
             StartScene(&s, w, q, ctx, false);
             return;
         }
@@ -788,6 +801,28 @@ bool StoryDirector::Begin(const json& s, World& w, QuestLog& q, const GameContex
             w.Steam(n->x, n->y - 34.0f, 10.0f);
             return true;
         }
+        if (kind == "quake") {
+            // The ground shaking where the player stands, and a low rumble:
+            // the Cinder King, heard and not seen (80).
+            w.Shock(w.player.x, w.player.y, s.value("amount", 0.8f), s.value("shake", 0.6f));
+            Audio::Play(Sfx::Thunder, s.value("volume", 0.5f), s.value("pitch", 0.45f));
+            return true;
+        }
+        if (kind == "beam") {
+            // A beam from an eye -- "from", raised by "lift" -- swept across
+            // "at" (the player, unless it says), "spread" either side.
+            float ex = 0, ey = 0, tx = w.player.x, ty = w.player.y - 22.0f;
+            if (!s.contains("from") || !Point(s["from"], w, ex, ey)) return true;
+            ey -= s.value("lift", 40.0f);
+            if (s.contains("at") && Point(s["at"], w, tx, ty)) ty -= 22.0f;
+            const float spread = s.value("spread", 40.0f);
+            SDL_Color c{255, 40, 40, 255};
+            if (s.contains("colour") && s["colour"].is_array() && s["colour"].size() >= 3)
+                c = {static_cast<Uint8>(s["colour"][0].get<int>()), static_cast<Uint8>(s["colour"][1].get<int>()),
+                     static_cast<Uint8>(s["colour"][2].get<int>()), 255};
+            w.SweepBeam(ex, ey, tx - spread, ty + 6.0f, tx + spread, ty - 6.0f, s.value("time", 1.4f), c);
+            return !wait;
+        }
         if (kind == "shadow") {
             // A shadow sliding over everything -- a dragon's, never the dragon.
             float x0 = 0, y0 = 0, x1 = 0, y1 = 0;
@@ -831,6 +866,7 @@ bool StoryDirector::Begin(const json& s, World& w, QuestLog& q, const GameContex
         view.ask_text = s.value("text", string(""));
         view.ask_yes = s.value("yes", string("Yes"));
         view.ask_no = s.value("no", string("Not yet"));
+        view.ask_choice = s.value("choice", false);
         run.answer = -1;
         return false;
     }
@@ -907,6 +943,12 @@ bool StoryDirector::Begin(const json& s, World& w, QuestLog& q, const GameContex
         w.SettleStory(true);
         return true;
     }
+    if (op == "rest") {
+        // Health and breath back, and whatever ailed them gone: the Healing
+        // Palm (84).
+        w.player.Rest();
+        return true;
+    }
     if (op == "count") {
         // One more of something counted: the first of FLAG_1..FLAG_n not yet set.
         const string f = s.value("flag", string(""));
@@ -941,7 +983,9 @@ bool StoryDirector::Done(const json& s, World& w, bool confirm) {
         if (run.answer == 1) {
             if (s.contains("flag")) { w.SetFlag(s["flag"].get<string>()); w.SettleStory(); }
         } else if (run.scene) {
-            // No: nothing more of this scene.
+            // No: nothing more of this scene -- and, for a choice, the second
+            // answer's flag, which the scene for it waits on.
+            if (s.contains("no_flag")) { w.SetFlag(s["no_flag"].get<string>()); w.SettleStory(); }
             run.step = run.scene->steps.size() - 1;
         }
         return true;

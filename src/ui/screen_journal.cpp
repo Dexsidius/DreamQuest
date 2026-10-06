@@ -91,6 +91,22 @@ SDL_Color StyleColour(const string& style) {
     return Palette::Xp;
 }
 
+// Whether an option is the character's own: by its calling where it names one
+// -- the Knight and the Warden both fight in melee -- else by its way of
+// fighting.
+bool IsMine(const QuestRewardChoice& c, const string& style, const Player& p) {
+    if (!c.calling.empty()) return c.calling == Player::CallingKey(p.GetCalling());
+    return !style.empty() && style == StyleWord(p.Affinity());
+}
+
+// And its colour: the calling's where it names one, else its way of fighting's.
+SDL_Color ChoiceColour(const QuestRewardChoice& c, const string& style) {
+    for (int k = 0; k < Player::CALLINGS; ++k)
+        if (c.calling == Player::CallingKey(static_cast<Player::Calling>(k)))
+            return CallingColour(static_cast<Player::Calling>(k));
+    return StyleColour(style);
+}
+
 // What an option is called: its own label, else its way of fighting, else
 // the first thing it holds.
 string ChoiceTitle(const QuestRewardChoice& c, const string& style, const ItemDatabase& items) {
@@ -154,8 +170,12 @@ float Game::DrawQuestRewards(const QuestDef& d, const string& quest_id, float x,
             const string title = ChoiceTitle(c, style, items);
             const string holds = ChoiceContents(c, items);
             string line = title == holds ? holds : title + ": " + holds;
-            if (owed == 0 && static_cast<int>(i) == took) line += "  (taken)";
-            y += ui.TextWrapped(line, x + 10.0f, y, w - 10.0f, TextSize::Small, StyleColour(style)) + 2.0f;
+            if (owed == 0 && static_cast<int>(i) == took) line = "Taken -- " + line;
+            // A line each, cut to the width: five weapons, or four kits of four
+            // pieces, wrapped, ran the detail off the foot of the page. The
+            // choosing panel has each whole.
+            ui.Text(ui.Fit(line, w - 10.0f, TextSize::Small), x + 10.0f, y, TextSize::Small, ChoiceColour(c, style));
+            y += 18.0f;
         }
     }
     return y - top;
@@ -198,9 +218,9 @@ void Game::NextRewardOrClose() {
 }
 
 int Game::OwnRewardChoice(const QuestDef& d) const {
-    const string mine = StyleWord(world->player.Affinity());
     for (size_t i = 0; i < d.rewards.choices.size(); ++i)
-        if (QuestLog::StyleOf(d.rewards.choices[i], items) == mine) return static_cast<int>(i);
+        if (IsMine(d.rewards.choices[i], QuestLog::StyleOf(d.rewards.choices[i], items), world->player))
+            return static_cast<int>(i);
     return 0;
 }
 
@@ -249,7 +269,6 @@ void Game::DrawRewardChoice() {
     const float gap = 14.0f;
     const float card_w = std::min(230.0f, (ui.ViewWidth() - 120.0f - gap * (n - 1)) / static_cast<float>(n));
     const float cards_w = card_w * n + gap * (n - 1);
-    const string mine = StyleWord(world->player.Affinity());
     // As tall as the fullest card needs: its name, whose it is, what it holds,
     // and the numbers of the first thing in it that can be worn -- the same
     // lines, in the same order, as the cards below draw them.
@@ -257,7 +276,7 @@ void Game::DrawRewardChoice() {
     for (const QuestRewardChoice& c : d->rewards.choices) {
         const string style = QuestLog::StyleOf(c, items);
         const size_t shown = std::min<size_t>(c.items.size(), 3);
-        float h = 16.0f + 26.0f + (!style.empty() && style == mine ? 20.0f : 0.0f) + 4.0f;
+        float h = 16.0f + 26.0f + (IsMine(c, style, world->player) ? 20.0f : 0.0f) + 4.0f;
         h += shown * 42.0f + (c.items.size() > shown ? 18.0f : 0.0f);
         h += (c.coins > 0 ? 18.0f : 0.0f) + c.xp.size() * 18.0f;
         for (const auto& t : c.items) {
@@ -293,7 +312,7 @@ void Game::DrawRewardChoice() {
     for (int i = 0; i < n; ++i) {
         const QuestRewardChoice& c = d->rewards.choices[i];
         const string style = QuestLog::StyleOf(c, items);
-        const SDL_Color tone = StyleColour(style);
+        const SDL_Color tone = ChoiceColour(c, style);
         const SDL_FRect card = {left + i * (card_w + gap), top, card_w, card_h};
         const bool on = i == reward_cursor;
 
@@ -306,8 +325,8 @@ void Game::DrawRewardChoice() {
         ui.Text(ChoiceTitle(c, style, items), card.x + 12.0f, y, TextSize::Body, on ? Palette::Highlight : tone);
         y += 26.0f;
         // The character's own: said, and lit first.
-        if (!style.empty() && style == mine) {
-            ui.Text("recommended", card.x + 12.0f, y, TextSize::Small, tone);
+        if (IsMine(c, style, world->player)) {
+            ui.Text("Recommended", card.x + 12.0f, y, TextSize::Small, tone);
             y += 20.0f;
         }
         y += 4.0f;

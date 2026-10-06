@@ -66,6 +66,8 @@ struct QuestStage {
 struct QuestRewardChoice {
     string label;             // what the option is called; empty: its way of fighting, or its first thing
     string style;             // "melee", "ranged" or "magic": whose option it is; empty for anyone's
+    string calling;           // "knight", "ranger", "weaver", "warden": whose, more exactly -- the
+                              // Knight and the Warden both fight in melee (Player::CallingKey)
     map<int, int> xp;         // SkillId -> amount
     vector<pair<string,int>> items;
     int    coins = 0;

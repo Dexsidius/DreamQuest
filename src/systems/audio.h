@@ -38,6 +38,9 @@ enum class Sfx {
     Bell, Chime, Anvil, Howl, Laugh, Tear, Bump, Shatter, Gust,
     // Fishing's: the bobber pulled under, the reel's ratchet, a line snapping.
     Plop, Reel, Snap,
+    // The clothier's: a pair of shears snipping -- a thread cut, a dream's
+    // black thread parted, the Shear Mannequin's blades shutting.
+    Snip,
     Count
 };
 

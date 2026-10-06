@@ -110,7 +110,7 @@ void ReadPatchKind(uint8_t kind, GroundEffect& g) {
     g.rain = kind == 1 || kind == net::PatchState::RAIN_KNIVES;
     g.knives = kind == net::PatchState::RAIN_KNIVES;
     g.draw = g.rain ? GroundEffect::Draw::Rain
-                    : static_cast<GroundEffect::Draw>(std::min<uint8_t>(kind, static_cast<uint8_t>(GroundEffect::Draw::Blades)));
+                    : static_cast<GroundEffect::Draw>(std::min<uint8_t>(kind, static_cast<uint8_t>(GroundEffect::Draw::Dome)));
 }
 
 // A range, not only a list: the menus and the fanfares are the window's own.
@@ -643,6 +643,7 @@ void Host::Arrive(uint8_t seat_no, Seat& s, net::Server& server, World& home, co
             for (const string& worn : kit)
                 for (int slot = 0; slot < g->inventory.SlotCount(); ++slot)
                     if (g->inventory.Slot(slot).id == worn) { g->EquipFromInventory(slot, why); break; }
+            for (const string& id : Player::StartingPack(g->sprite_id)) g->inventory.Add(id, 1);
             g->inventory.Add("coins", 25);
             g->inventory.Add("cooked_meat", 3);
         }
@@ -1043,6 +1044,7 @@ bool Host::Transfer(uint8_t seat_no, Seat& s, const string& map, const string& s
         if (g->Fallen()) g->Respawn(p.x, p.y);
         g->Rest();
         state.dream_active = false;
+        state.dream_talisman = false;
         using W = World::WakeReason;
         caption = waking < 0                                  ? "You wake in Havenbrook, aching but alive."
                 : waking == static_cast<int>(W::Nightmare)    ? "The nightmare jolted you awake."

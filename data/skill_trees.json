@@ -1,5 +1,5 @@
 {
-  "_comment": "One tree per combat style, and a character has one: their path's -- the hero the blade, the warden the bow, the wayfarer the staff. A tree earns a point at every third level of its skill. A node needs its milestone level in that skill and at least one rank of the node above it in its branch; each rank costs a point, and 'effects' is what one rank gives (fractions unless noted: damage 0.04 is +4%). Eleven rows, at 5, 15, 30, 40, 47, 54, 62, 70, 78, 86 and 94 -- closer together as levels come slower, and never more than eight levels apart once past the first ability: two passives of three ranks, a technique (a move that replaces the charged heavy attack once chosen), an ability (a move of its own with a cooldown and a cost, carried in one of three slots: guard + light, guard + heavy, guard + lock on), a passive of two ranks that asks when, a second ability, a second passive of two, and a capstone. Past the capstone, three rows more for the levels that opened nothing: a passive of two ranks, one point that grows the branch's own ability (Frenzy longer, the Mark harder, the Mana Shield longer), and a second capstone. Fifty-four ranks a tree against thirty-three points by level 99. The melee tree has a fourth branch, Footwork, for moves made on the run; it is not a full column and its nodes need nothing above them.",
+  "_comment": "One tree per calling, and a character has one: their path's -- the Lucid Knight the blade's, the Shade Ranger the bow's, the Dreamweaver the staff's, and the Lantern Warden's own (\"warden\", earned by Hitpoints, its numbers going to melee as the Knight's do: \"style\"). A tree earns a point at every third level of its skill. A node needs its milestone level in that skill and at least one rank of the node above it in its branch; each rank costs a point, and 'effects' is what one rank gives (fractions unless noted: damage 0.04 is +4%). Eleven rows, at 5, 15, 30, 40, 47, 54, 62, 70, 78, 86 and 94 -- closer together as levels come slower, and never more than eight levels apart once past the first ability: two passives of three ranks, a technique (a move that replaces the charged heavy attack once chosen), an ability (a move of its own with a cooldown and a cost, carried in one of three slots: guard + light, guard + heavy, guard + lock on), a passive of two ranks that asks when, a second ability, a second passive of two, and a capstone. Past the capstone, three rows more for the levels that opened nothing: a passive of two ranks, one point that grows the branch's own ability (Frenzy longer, the Mark harder, the Mana Shield longer), and a second capstone. Fifty-four ranks a tree against thirty-three points by level 99. The melee tree has a fourth branch, Footwork, for moves made on the run; it is not a full column and its nodes need nothing above them.",
   "melee": {
     "name": "Melee",
     "skill": "Attack",
@@ -1244,6 +1244,408 @@
         "effects": {
           "max_health": 0.1,
           "hurt_mana": 3
+        }
+      }
+    ]
+  },
+  "warden": {
+    "name": "Warden",
+    "skill": "Hitpoints",
+    "style": "melee",
+    "branches": [
+      "Lantern",
+      "Bulwark",
+      "Maul"
+    ],
+    "nodes": [
+      {
+        "id": "warm_glow",
+        "name": "Warm Glow",
+        "branch": 0,
+        "row": 0,
+        "level": 5,
+        "ranks": 3,
+        "desc": "The lantern's warmth in you. Health comes back 8% faster a rank: every heal you take -- food, a draught, the lantern's own -- is that much larger.",
+        "effects": {
+          "healing": 0.08
+        }
+      },
+      {
+        "id": "kindred_light",
+        "name": "Kindred Light",
+        "branch": 0,
+        "row": 1,
+        "level": 15,
+        "ranks": 3,
+        "desc": "Friends within a few steps of you take 3% less from every blow a rank, and you take 1% less.",
+        "effects": {
+          "kindred": 0.03
+        }
+      },
+      {
+        "id": "beacon",
+        "name": "Beacon",
+        "branch": 0,
+        "row": 2,
+        "level": 30,
+        "technique": "beacon",
+        "desc": "Technique. The charged attack plants the lantern's light where it comes down: a pool for five seconds that mends you and any friend standing in it.",
+        "effects": {}
+      },
+      {
+        "id": "mending_light",
+        "name": "Mending Light",
+        "branch": 0,
+        "row": 3,
+        "level": 40,
+        "ability": "mending_light",
+        "cooldown": 24,
+        "stamina": 15,
+        "desc": "Ability. You and friends near you get back a fifth of your health over four seconds.",
+        "effects": {}
+      },
+      {
+        "id": "afterglow",
+        "name": "Afterglow",
+        "branch": 0,
+        "row": 4,
+        "level": 47,
+        "ranks": 2,
+        "desc": "Mending Light also puts out burning and clears poison and bleeding; at the second rank, chill and concussion too.",
+        "effects": {
+          "afterglow": 1
+        }
+      },
+      {
+        "id": "sanctuary",
+        "name": "Sanctuary",
+        "branch": 0,
+        "row": 5,
+        "level": 54,
+        "ability": "sanctuary",
+        "cooldown": 40,
+        "stamina": 20,
+        "desc": "Ability. A dome of light where you stand for six seconds: everyone inside takes 30% less, and things of the Reverie inside are slowed to half their pace.",
+        "effects": {}
+      },
+      {
+        "id": "long_wick",
+        "name": "Long Wick",
+        "branch": 0,
+        "row": 6,
+        "level": 62,
+        "ranks": 2,
+        "desc": "Mending Light and Sanctuary come back 10% sooner a rank.",
+        "effects": {
+          "wick": 0.1
+        }
+      },
+      {
+        "id": "dawnbearer",
+        "name": "Dawnbearer",
+        "branch": 0,
+        "row": 7,
+        "level": 70,
+        "desc": "Capstone. Things of the Reverie in your lantern's light suffer 10% more from everyone's blows, and 3% of the damage you deal comes back as health.",
+        "effects": {
+          "dawnbearer": 0.1,
+          "lifesteal": 0.03
+        }
+      },
+      {
+        "id": "deep_reserves",
+        "name": "Deep Reserves",
+        "branch": 0,
+        "row": 8,
+        "level": 78,
+        "ranks": 2,
+        "desc": "Health comes back 8% faster again a rank, and 3% more health a rank.",
+        "effects": {
+          "healing": 0.08,
+          "max_health": 0.03
+        }
+      },
+      {
+        "id": "hallowed_ground",
+        "name": "Hallowed Ground",
+        "branch": 0,
+        "row": 9,
+        "level": 86,
+        "desc": "After Deep Reserves. Sanctuary lasts three seconds longer, and mends 1% of everyone's health a second inside it.",
+        "effects": {
+          "sanctuary_time": 3.0,
+          "sanctuary_mend": 0.01
+        }
+      },
+      {
+        "id": "undying_flame",
+        "name": "Undying Flame",
+        "branch": 0,
+        "row": 10,
+        "level": 94,
+        "desc": "Second capstone. Once every three minutes, a blow that would fell you leaves you on one health and lights Mending Light at once.",
+        "effects": {
+          "undying": 1
+        }
+      },
+      {
+        "id": "iron_will",
+        "name": "Iron Will",
+        "branch": 1,
+        "row": 0,
+        "level": 5,
+        "ranks": 3,
+        "desc": "Defence +4 a rank, whatever is in hand.",
+        "effects": {
+          "defence": 4
+        }
+      },
+      {
+        "id": "steady_guard",
+        "name": "Steady Guard",
+        "branch": 1,
+        "row": 1,
+        "level": 15,
+        "ranks": 3,
+        "desc": "A blow caught on the lantern or a shield costs 10% less breath a rank.",
+        "effects": {
+          "block_cost": 0.1
+        }
+      },
+      {
+        "id": "grounding_blow",
+        "name": "Grounding Blow",
+        "branch": 1,
+        "row": 2,
+        "level": 30,
+        "technique": "grounding_blow",
+        "desc": "Technique. The charged attack drives the mace into the ground: everything around you staggers, and turns on you for four seconds.",
+        "effects": {}
+      },
+      {
+        "id": "challenge",
+        "name": "Challenge",
+        "branch": 1,
+        "row": 3,
+        "level": 40,
+        "ability": "challenge",
+        "cooldown": 20,
+        "stamina": 12,
+        "desc": "Ability. Every enemy near you turns on you for six seconds, and you take 15% less while it lasts.",
+        "effects": {}
+      },
+      {
+        "id": "unyielding",
+        "name": "Unyielding",
+        "branch": 1,
+        "row": 4,
+        "level": 47,
+        "ranks": 2,
+        "desc": "Thrown back 25% less a rank.",
+        "effects": {
+          "steadfast": 0.25
+        }
+      },
+      {
+        "id": "warden_bastion",
+        "name": "Bastion",
+        "branch": 1,
+        "row": 5,
+        "level": 54,
+        "ability": "warden_bastion",
+        "cooldown": 35,
+        "stamina": 20,
+        "desc": "Ability. Six seconds when nothing moves you: you take 40% less, and 15% of each blow that lands goes back to whoever dealt it.",
+        "effects": {}
+      },
+      {
+        "id": "thorned_mail",
+        "name": "Thorned Mail",
+        "branch": 1,
+        "row": 6,
+        "level": 62,
+        "ranks": 2,
+        "desc": "5% a rank of every melee blow you take goes back to whoever dealt it.",
+        "effects": {
+          "thorns": 0.05
+        }
+      },
+      {
+        "id": "wardens_oath",
+        "name": "Warden's Oath",
+        "branch": 1,
+        "row": 7,
+        "level": 70,
+        "desc": "Capstone. Health +15%, and above half your health you take 10% less from everything.",
+        "effects": {
+          "max_health": 0.15,
+          "oath": 0.1
+        }
+      },
+      {
+        "id": "tempered_watch",
+        "name": "Tempered Watch",
+        "branch": 1,
+        "row": 8,
+        "level": 78,
+        "ranks": 2,
+        "desc": "Defence +6 a rank, whatever is worn.",
+        "effects": {
+          "defence": 6
+        }
+      },
+      {
+        "id": "last_light",
+        "name": "Last Light",
+        "branch": 1,
+        "row": 9,
+        "level": 86,
+        "desc": "After Tempered Watch. Bastion lasts three seconds longer, and gives back 15% of your health when it ends.",
+        "effects": {
+          "bastion_time": 3.0,
+          "last_light": 0.15
+        }
+      },
+      {
+        "id": "unmoving_lamp",
+        "name": "Unmoving Lamp",
+        "branch": 1,
+        "row": 10,
+        "level": 94,
+        "desc": "Second capstone. 10% more of all your Defence, 10% more health, and what you Challenge is slowed while it lasts.",
+        "effects": {
+          "defence_share": 0.1,
+          "max_health": 0.1,
+          "challenge_slow": 0.3
+        }
+      },
+      {
+        "id": "heavy_head",
+        "name": "Heavy Head",
+        "branch": 2,
+        "row": 0,
+        "level": 5,
+        "ranks": 3,
+        "desc": "Maces hit 4% harder a rank.",
+        "effects": {
+          "mace_damage": 0.04
+        }
+      },
+      {
+        "id": "ringing_blows",
+        "name": "Ringing Blows",
+        "branch": 2,
+        "row": 1,
+        "level": 15,
+        "ranks": 3,
+        "desc": "Maces are 4% likelier a rank to leave what they strike concussed.",
+        "effects": {
+          "concuss": 0.04
+        }
+      },
+      {
+        "id": "toll",
+        "name": "Toll",
+        "branch": 2,
+        "row": 2,
+        "level": 30,
+        "technique": "toll",
+        "desc": "Technique. The charged attack is an overhead blow like a bell's clapper: one heavy hit on what is in front of you that always concusses, and staggers what stands beside it.",
+        "effects": {}
+      },
+      {
+        "id": "lantern_flare",
+        "name": "Lantern Flare",
+        "branch": 2,
+        "row": 3,
+        "level": 40,
+        "ability": "lantern_flare",
+        "cooldown": 16,
+        "stamina": 15,
+        "desc": "Ability. The lantern swung out in a burst of flame: everything in front of you burns for five seconds, and nightmares reel.",
+        "effects": {}
+      },
+      {
+        "id": "embers",
+        "name": "Embers",
+        "branch": 2,
+        "row": 4,
+        "level": 47,
+        "ranks": 2,
+        "desc": "Burns you cause last a second longer and bite 10% harder a rank.",
+        "effects": {
+          "burn_time": 1.0,
+          "burn_damage": 0.1
+        }
+      },
+      {
+        "id": "hammerfall",
+        "name": "Hammerfall",
+        "branch": 2,
+        "row": 5,
+        "level": 54,
+        "ability": "hammerfall",
+        "cooldown": 14,
+        "stamina": 20,
+        "desc": "Ability. A leap, and the mace comes down where you land: a heavy blow on everything around, thrown back.",
+        "effects": {}
+      },
+      {
+        "id": "weight_of_faith",
+        "name": "Weight of Faith",
+        "branch": 2,
+        "row": 6,
+        "level": 62,
+        "ranks": 2,
+        "desc": "+12% damage a rank against anything concussed or burning.",
+        "effects": {
+          "faith": 0.12
+        }
+      },
+      {
+        "id": "judgement",
+        "name": "Judgement",
+        "branch": 2,
+        "row": 7,
+        "level": 70,
+        "desc": "Capstone. Every fifth blow of a chain with a mace strikes critically and concusses.",
+        "effects": {
+          "judgement": 1
+        }
+      },
+      {
+        "id": "iron_bell",
+        "name": "Iron Bell",
+        "branch": 2,
+        "row": 8,
+        "level": 78,
+        "ranks": 2,
+        "desc": "Charged attacks, and the techniques that replace them, hit 7% harder a rank.",
+        "effects": {
+          "charged_damage": 0.07
+        }
+      },
+      {
+        "id": "wildfire",
+        "name": "Wildfire",
+        "branch": 2,
+        "row": 9,
+        "level": 86,
+        "desc": "After Iron Bell. Lantern Flare reaches twice as far, and its burns catch on whatever stands next to what burns.",
+        "effects": {
+          "wildfire": 1
+        }
+      },
+      {
+        "id": "dawn_hammer",
+        "name": "Dawn Hammer",
+        "branch": 2,
+        "row": 10,
+        "level": 94,
+        "desc": "Second capstone. Maces hit 10% harder, and every blow of one against a thing of the Reverie concusses.",
+        "effects": {
+          "mace_damage": 0.1,
+          "dawn_hammer": 1
         }
       }
     ]

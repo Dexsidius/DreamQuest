@@ -959,7 +959,7 @@ void World::Burst(float x, float y, float radius, SDL_Color color, int count, fl
 }
 
 bool World::Strikeable(const Enemy& e) const {
-    if (e.Dead() || e.CurrentState() == Enemy::State::Dead) return false;
+    if (e.Dead() || e.CurrentState() == Enemy::State::Dead || e.Untouchable()) return false;
     // Under the water: there is nothing there to hit. See Enemy::Hidden.
     if (e.Hidden()) return false;
     return std::abs(map.LevelAt(e.x, e.y) - map.LevelAt(player.x, player.y)) <= 1;
@@ -1039,6 +1039,73 @@ bool World::MeleeTechnique(const string& technique, const GameContext& ctx) {
                 AddDust(player.x + cosf(a) * radius * 0.6f, player.y + sinf(a) * radius * 0.35f, cosf(a), sinf(a));
             }
         Audio::Play(Sfx::Impact, 1.0f, 0.6f);
+        return true;
+    }
+    if (technique == "beacon") {
+        // The lantern's light planted where the blow comes down: a short blow
+        // round the feet, and a pool of light that mends whoever stands in it.
+        count.handled = true;
+        hit_round(52.0f * atk.reach_scale, mult * 0.7f, 90.0f);
+        GroundEffect g;
+        g.x = player.x; g.y = player.y;
+        g.radius = Player::BEACON_RADIUS;
+        g.life = g.max_life = Player::BEACON_TIME;
+        g.tick_interval = 0.5f;
+        g.damage = 0;
+        g.hit_mult = 0.0f;
+        g.mend = Player::BEACON_MEND;
+        g.from_player = true;
+        g.owner = player.Profile();
+        g.draw = GroundEffect::Draw::Glow;
+        g.look = Element::Fire;
+        AddGroundEffect(g);
+        AbilityFx("beacon", Element::None, nullptr);
+        Audio::Play(Sfx::Impact, 0.9f, 0.9f);
+        return true;
+    }
+    if (technique == "grounding_blow") {
+        // The mace driven into the ground: everything round staggers and turns
+        // on whoever drove it.
+        count.handled = true;
+        const float radius = 64.0f * atk.reach_scale;
+        struck += HitAround(radius, mult * 0.9f, 60.0f * knock, ctx, [&](Enemy& e) {
+            e.Stagger(1.0f);
+            e.Taunt(static_cast<int>(player.seat), 4.0f);
+        });
+        SlamFx(radius);
+        AbilityFx("grounding_blow", Element::None, nullptr);
+        Audio::Play(Sfx::Impact, 1.0f, 0.55f);
+        return true;
+    }
+    if (technique == "toll") {
+        // An overhead blow like a bell's clapper, on the one thing in front:
+        // it always rings, and what stands beside it reels.
+        count.handled = true;
+        AttackProfile bell = atk.profile;
+        bell.reach *= 1.15f;
+        const SDL_FPoint from = player.GroundCentre();
+        const StrikeArc arc = ArcFor(from.x, from.y, player.facing, bell, atk.reach_scale);
+        Enemy* struck_one = nullptr;
+        float nearest = 1e9f;
+        for (auto& e : enemies) {
+            if (!Strikeable(*e)) continue;
+            const SDL_FPoint a = e->GroundCentre();
+            if (!ArcHits(arc, a.x, a.y, e->GroundRadius())) continue;
+            const float d = Length(a.x - from.x, a.y - from.y);
+            if (d < nearest) { nearest = d; struck_one = e.get(); }
+        }
+        if (struck_one) {
+            HitEnemy(*struck_one, player.Profile(), AttackStyle::Melee, Element::None, mult * 1.25f,
+                     atk.profile.knockback * knock, player.x, player.y, ctx, atk.type);
+            TryAfflict(*struck_one, {Status::Concussed, 1.0f}, 1, ctx);
+            for (auto& e : enemies)
+                if (e.get() != struck_one && Strikeable(*e) &&
+                    Length(e->x - struck_one->x, e->y - struck_one->y) <= 48.0f)
+                    e->Stagger(0.9f);
+            ++struck;
+        }
+        AbilityFx("toll", Element::None, struck_one);
+        Audio::Play(Sfx::Impact, 1.0f, 1.3f);
         return true;
     }
     if (technique == "lunge") {
@@ -1274,6 +1341,89 @@ void World::ApplyPlayerAbility(const GameContext& ctx) {
     } else if (ability == "invoke") {
         say("Invoke", {130, 170, 255, 255});
         AbilityFx(ability, Element::None, nullptr);
+    } else if (ability == "mending_light") {
+        // Theirs began on the player; friends near are mended with it.
+        const int glow = static_cast<int>(player.talents.Global("afterglow"));
+        int friends = 0;
+        for (Player* f : Players())
+            if (f != &player && !f->IsDead() && !f->absent &&
+                Length(f->x - px, f->y - py) <= Player::MEND_REACH) {
+                f->StartMending(Player::MEND_SHARE, glow);
+                ++friends;
+            }
+        say(friends > 0 ? "Mending Light" : "Mending Light", {255, 222, 140, 255});
+        AbilityFx(ability, Element::None, nullptr);
+        Audio::Play(Sfx::SpellCast, 0.8f, 1.3f);
+    } else if (ability == "challenge") {
+        // Everything near turns on them; with the Unmoving Lamp, it is slowed
+        // while it does.
+        const float slow = player.talents.Global("challenge_slow");
+        for (auto& e : enemies)
+            if (Targeting::Targetable(*e) && Length(e->x - px, e->y - py) < Player::CHALLENGE_REACH) {
+                e->Taunt(static_cast<int>(player.seat), Player::CHALLENGE_TIME);
+                if (slow > 0.0f) e->Slow(Player::CHALLENGE_TIME, 1.0f - slow);
+            }
+        say("Challenge!", {255, 200, 120, 255});
+        AbilityFx(ability, Element::None, nullptr);
+    } else if (ability == "warden_bastion") {
+        say("Bastion", {200, 214, 240, 255});
+        AbilityFx(ability, Element::None, nullptr);
+    } else if (ability == "sanctuary") {
+        // A dome of light where they stand: blows inside are softened, things
+        // of the Reverie inside are slowed, and with Hallowed Ground it mends.
+        GroundEffect g;
+        g.x = px; g.y = py;
+        g.radius = Player::SANCTUARY_RADIUS;
+        g.life = g.max_life = Player::SANCTUARY_TIME + player.talents.Global("sanctuary_time");
+        g.tick_interval = 0.5f;
+        g.damage = 0;
+        g.hit_mult = 0.0f;
+        g.ward = Player::SANCTUARY_WARD;
+        g.hush = Player::SANCTUARY_HUSH;
+        g.mend = player.talents.Global("sanctuary_mend");
+        g.from_player = true;
+        g.owner = player.Profile();
+        g.draw = GroundEffect::Draw::Dome;
+        g.look = Element::Fire;
+        AddGroundEffect(g);
+        say("Sanctuary", {255, 230, 160, 255});
+        AbilityFx(ability, Element::None, nullptr);
+        Audio::Play(Sfx::SpellCast, 0.9f, 0.8f);
+    } else if (ability == "lantern_flare") {
+        // The lantern swung out in a burst of flame: everything in front
+        // burns, and anything of the Reverie reels. Wildfire: twice as far,
+        // and the burns catch on what stands next to what burns.
+        const bool wild = player.talents.Global("wildfire") > 0.0f;
+        const float reach = Player::FLARE_REACH * (wild ? 2.0f : 1.0f);
+        const float face = player.facing == FACE_LEFT ? 3.14159265f : player.facing == FACE_RIGHT ? 0.0f
+                         : player.facing == FACE_UP ? -1.5707963f : 1.5707963f;
+        const float mult = 0.5f * player.TalentDamage(AttackStyle::Melee, AttackType::Light);
+        vector<Enemy*> burnt;
+        for (auto& e : enemies) {
+            if (!Targeting::Targetable(*e) || !Strikeable(*e)) continue;
+            const float dx = e->x - px, dy = e->y - py, far = Length(dx, dy);
+            if (far > reach + e->GroundRadius()) continue;
+            float off = atan2f(dy, dx) - face;
+            while (off > 3.14159265f)  off -= 6.2831853f;
+            while (off < -3.14159265f) off += 6.2831853f;
+            if (far > 20.0f && fabsf(off) > Player::FLARE_SPREAD) continue;
+            HitEnemy(*e, player.Profile(), AttackStyle::Melee, Element::Fire, mult, 40.0f, px, py, ctx);
+            TryAfflict(*e, {Status::Burn, 1.0f}, 6, ctx);
+            if (OfTheReverie(*e)) e->Stagger(1.2f);
+            burnt.push_back(e.get());
+        }
+        if (wild)
+            for (Enemy* b : burnt)
+                for (auto& e : enemies)
+                    if (std::find(burnt.begin(), burnt.end(), e.get()) == burnt.end() && Strikeable(*e) &&
+                        Length(e->x - b->x, e->y - b->y) <= Player::FLARE_SPREADS)
+                        TryAfflict(*e, {Status::Burn, 1.0f}, 6, ctx);
+        AbilityFx(ability, Element::Fire, nullptr);
+        Audio::Play(Sfx::SpellCast, 1.0f, 0.7f);
+    } else if (ability == "hammerfall") {
+        // Off the ground: the landing is the swing's (ApplyPlayerAttack).
+        if (!map.IsInterior()) AddDust(px, py, -player.RushDirection().x, -player.RushDirection().y);
+        AbilityFx(ability, Element::None, nullptr);
     } else if (ability == "repulse") {
         const SpellDef* spell = ctx.spells
             ? ctx.spells->BestFor(player.SelectedElement() == Element::Arcane ? Element::Fire : player.SelectedElement(),
@@ -1307,6 +1457,18 @@ void World::ApplyPlayerAttack(const GameContext& ctx) {
     }
     if (atk.type == AttackType::Charged && MeleeTechnique(player.ActiveTechnique(), ctx))
         return;
+    // The Hammerfall comes down: everything round where it lands, thrown back.
+    if (player.Hammering()) {
+        const float mult = atk.damage_mult * player.TalentDamage(AttackStyle::Melee, atk.type);
+        const float knock = atk.profile.knockback * (1.0f + player.talents.Effect("knockback", AttackStyle::Melee));
+        if (HitAround(Player::HAMMERFALL_RADIUS, mult, knock, ctx, [&](Enemy& e) { e.Stagger(0.8f); }) > 0)
+            player.CountChainHit("Hammerfall");
+        else player.BreakChain();
+        SlamFx(Player::HAMMERFALL_RADIUS);
+        AbilityFx("hammerfall_land", Element::None, nullptr);
+        Audio::Play(Sfx::Impact, 1.0f, 0.5f);
+        return;
+    }
 
     const ItemDef* in_hand = player.equipment.Weapon();
     const float mult  = atk.damage_mult * player.TalentDamage(AttackStyle::Melee, atk.type) * (in_hand ? in_hand->damage : 1.0f);
@@ -1381,6 +1543,11 @@ void World::TryAfflict(Enemy& e, const StatusProc& proc, int blow, const GameCon
     const bool had = e.Afflicted(proc.kind);
     const Status left = e.Afflict(proc.kind, blow, *ctx.statuses);
     if (left == Status::COUNT) return;
+    // Embers: a burn the player leaves lasts longer and bites harder.
+    if (left == Status::Burn) {
+        const float more = player.talents.Global("burn_time"), fiercer = player.talents.Global("burn_damage");
+        if (more > 0.0f || fiercer > 0.0f) e.Stoke(Status::Burn, had ? 0.0f : more, had ? 1.0f : 1.0f + fiercer);
+    }
     // Said once, as it takes: a fire kept burning by a second bolt says nothing.
     if (had && left == proc.kind) return;
     if (const StatusDef* d = ctx.statuses->Get(left))
@@ -1390,6 +1557,7 @@ void World::TryAfflict(Enemy& e, const StatusProc& proc, int blow, const GameCon
 void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
                      Element element, float damage_mult, float knockback,
                      float from_x, float from_y, const GameContext& ctx, AttackType swing) {
+    if (e.Untouchable()) return;
     // The player's talents. Everything that reaches this function is the
     // player hitting something, so they apply to all of it.
     std::uniform_real_distribution<float> unit(0.0f, 1.0f);
@@ -1409,7 +1577,20 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
     // Executioner: what is nearly down is always struck critically.
     const float execute = player.talents.Effect("execute", style);
     if (execute > 0.0f && e.HealthFraction() < execute) crit = true;
+    // Judgement: every fifth blow of a chain with a mace, critical and ringing.
+    const ItemDef* held_mace = nullptr;
+    if (style == AttackStyle::Melee)
+        if (const ItemDef* w = player.equipment.Weapon()) if (w->weapon_class == "mace") held_mace = w;
+    const bool judged = held_mace && player.talents.Effect("judgement", style) > 0.0f &&
+                        (player.ChainHits() + 1) % Player::JUDGEMENT_EVERY == 0;
+    if (judged) crit = true;
     if (crit) damage_mult *= 1.5f + player.talents.Effect("crit_damage", style) + charm_crit_damage;
+    // Weight of Faith: what is ringing or burning is easier to finish.
+    if (e.Afflicted(Status::Concussed) || e.Afflicted(Status::Burn))
+        damage_mult *= 1.0f + player.talents.Effect("faith", style);
+    // Dawnbearer: a thing of the Reverie in a Warden's lantern-light takes
+    // more from everyone.
+    if (const float dawn = DawnLight(e); dawn > 0.0f) damage_mult *= 1.0f + dawn;
 
     // The passives that ask where, when and on what. Each is its tree's, so a
     // hero's Momentum does nothing for a bow in the hero's hand.
@@ -1538,6 +1719,8 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
             if (const ItemDef* blade = player.equipment.Weapon()) proc = blade->on_hit;
         // A combo that always leaves its mark: the mace's Skull Crack.
         if (twist && twist->status != Status::COUNT) proc = {twist->status, 1.0f};
+        // Ringing Blows: a mace's head rings more often.
+        if (held_mace && proc.kind == Status::Concussed) proc.chance += player.talents.Effect("concuss", style);
         // Affliction: whatever it leaves, it leaves more often.
         if (proc.Any()) proc.chance += charm_proc;
         TryAfflict(e, proc, damage, ctx);
@@ -1556,6 +1739,12 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
             const float chill = player.talents.Effect("chill", style);
             if (chill > 0.0f) TryAfflict(e, {Status::Chill, chill}, damage, ctx);
         }
+        // Judgement rings; and the Dawn Hammer rings anything of the Reverie.
+        if (e.hp > 0 && held_mace &&
+            (judged || (player.talents.Effect("dawn_hammer", style) > 0.0f && OfTheReverie(e)))) {
+            TryAfflict(e, {Status::Concussed, 1.0f}, damage, ctx);
+            if (judged) AddText("Judgement!", e.x, e.y - 76.0f, {255, 226, 140, 255}, 1.0f);
+        }
     }
 
     // The Vampiric Touch's share comes back with the talent's.
@@ -1569,12 +1758,11 @@ void World::HitEnemy(Enemy& e, const CombatProfile& owner, AttackStyle style,
         if (player.hp >= player.max_hp) {
             lifesteal_bank = 0.0f;
         } else {
-            lifesteal_bank += damage * steal;
+            lifesteal_bank += damage * steal * player.HealingShare();
             const int whole = static_cast<int>(lifesteal_bank);
             if (whole > 0) {
                 lifesteal_bank -= static_cast<float>(whole);
-                player.Heal(std::min(whole, player.max_hp - player.hp));
-                player.skills.SetCurrent(SKILL_HITPOINTS, player.hp);
+                player.Mend(whole);
                 if (player.hp >= player.max_hp) lifesteal_bank = 0.0f;
             }
         }
@@ -1656,6 +1844,9 @@ int World::HitPlayer(int damage, const CombatProfile& attacker, float from_x, fl
         damage = std::max(1, static_cast<int>(std::lround(damage * player.StandFastShare())));
         knock_x = knock_y = 0.0f;
     }
+    // Unyielding, and the Bastion: thrown back less, or not at all.
+    knock_x *= player.ShoveShare();
+    knock_y *= player.ShoveShare();
     // A dagger's or a greatsword's parry: caught outright in its first
     // moment, and after that a poor guard. With no blade raised, the shield,
     // as ever.
@@ -1676,7 +1867,10 @@ int World::HitPlayer(int damage, const CombatProfile& attacker, float from_x, fl
     if (b.broke)
         AddText("Guard broken!", player.x, player.y - 72.0f, {255, 176, 96, 255}, 1.6f);
     if (b.taken > 0) player.BreakChain();
-    if (b.taken > 0) PayHurt(b.taken, {235, 70, 70, 255});
+    int paid = 0;
+    if (b.taken > 0) paid = PayHurt(b.taken, {235, 70, 70, 255});
+    // Thorned Mail, the Bastion: some of what landed goes back.
+    if (paid > 0) ThornsBack(by, paid);
     // A blow on the shield still shoves, only less.
     const float push = b.taken > 0 ? 1.0f : 0.35f;
     player.knock_x += knock_x * push;
@@ -1740,7 +1934,9 @@ int World::HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x,
     }
     // The Mana Shield takes its half of this too, and Resolve feeds on it:
     // both answered every blow but the one most likely to kill.
-    PayHurt(damage, {255, 60, 40, 255}, 1.2f);
+    const int paid = PayHurt(damage, {255, 60, 40, 255}, 1.2f);
+    if (paid > 0) ThornsBack(by, paid);
+    push *= player.ShoveShare();
     player.knock_x += knock_x * push;
     player.knock_y += knock_y * push;
     if (damage > 0 && !player.IsDead()) {
@@ -1750,10 +1946,73 @@ int World::HeavyHitPlayer(int damage, float from_x, float from_y, float knock_x,
     return damage;
 }
 
+float World::HurtShare(Player& who) {
+    float share = who.OwnHurtShare();
+    // Kindred Light: the best of any friend within a few steps -- not two
+    // Wardens' together.
+    float kin = 0.0f;
+    for (Player* f : Players())
+        if (f != &who && !f->IsDead() && !f->absent &&
+            Length(f->x - who.x, f->y - who.y) <= Player::KINDRED_REACH)
+            kin = std::max(kin, f->talents.Global("kindred"));
+    share *= 1.0f - std::min(0.5f, kin);
+    // A Sanctuary stood in: the strongest of them.
+    float ward = 0.0f;
+    const SDL_FPoint at = who.GroundCentre();
+    for (const GroundEffect& g : ground_effects)
+        if (!g.finished && g.ward > 0.0f && g.Active() &&
+            CircleHits(g.x, g.y, g.radius, at.x, at.y, who.GroundRadius()))
+            ward = std::max(ward, g.ward);
+    share *= 1.0f - ward;
+    return std::clamp(share, 0.05f, 1.0f);
+}
+
+void World::ThornsBack(Enemy* by, int taken) {
+    if (!by || taken <= 0 || by->Dead() || by->hp <= 0 || by->Untouchable()) return;
+    // A blow from beside them, not a shot from across the room.
+    if (Length(by->x - player.x, by->y - player.y) > 110.0f) return;
+    const float thorns = player.Thorns();
+    if (thorns <= 0.0f) return;
+    const int back = std::max(1, static_cast<int>(std::lround(static_cast<float>(taken) * thorns)));
+    by->Damage(back);
+    by->Provoke(static_cast<int>(player.seat));
+    by->RevealHealthBar();
+    AddText(std::to_string(back), by->x, by->y - 46.0f, {255, 214, 140, 255}, 0.9f);
+}
+
+float World::DawnLight(const Enemy& e) {
+    if (!OfTheReverie(e)) return 0.0f;
+    float most = 0.0f;
+    for (Player* w : Players()) {
+        if (w->IsDead() || w->absent) continue;
+        const float bear = w->talents.Global("dawnbearer");
+        if (bear <= 0.0f) continue;
+        const float reach = w->LanternLight();
+        if (reach > 0.0f && Length(e.x - w->x, e.y - w->y) <= reach) most = std::max(most, bear);
+    }
+    return most;
+}
+
 int World::PayHurt(int taken, SDL_Color colour, float size) {
     if (taken <= 0 || player.IsDead()) return 0;
+    // The Lantern Warden's light: their own, a friend's, a Sanctuary's.
+    taken = std::max(1, static_cast<int>(std::lround(static_cast<float>(taken) * HurtShare(player))));
     // A mana shield pays half of it in mana, while there is mana to pay.
-    const int in_blood = player.AbsorbWithMana(taken);
+    int in_blood = player.AbsorbWithMana(taken);
+    // Undying Flame: what would fell them leaves them on one, and lights
+    // Mending Light at once -- for friends near as for them.
+    if (in_blood >= player.hp && player.hp > 1 && !player.unfelled && player.UndyingReady()) {
+        in_blood = player.hp - 1;
+        player.SpendUndying();
+        const int glow = static_cast<int>(player.talents.Global("afterglow"));
+        player.StartMending(Player::MEND_SHARE, glow);
+        for (Player* f : Players())
+            if (f != &player && !f->IsDead() && !f->absent &&
+                Length(f->x - player.x, f->y - player.y) <= Player::MEND_REACH)
+                f->StartMending(Player::MEND_SHARE, glow);
+        AddText("Undying Flame!", player.x, player.y - 74.0f, {255, 214, 120, 255}, 1.5f);
+        AbilityFx("mending_light", Element::None, nullptr);
+    }
     if (in_blood < taken)
         AddText("-" + std::to_string((taken - in_blood) * Player::MANA_PER_HP) + " mana", player.x, player.y - 58.0f,
                 {130, 170, 255, 255});
@@ -1778,6 +2037,7 @@ int World::GroundHitPlayer(int damage, bool fire) {
         const CombatProfile mine = player.Profile();
         damage = SoakHeavy(damage, mine.defence_level, mine.defence_bonus);
     }
+    // Unyielding has nothing to do here: a patch does not shove.
     // Half, in the Drowned King's boots, or of a fire on anyone warded against
     // burning -- as the lava is (World::Update's hazards). The two do not add
     // up to nothing.

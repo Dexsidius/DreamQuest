@@ -4,7 +4,7 @@
 #include <tuple>
 
 static const char* kSlotNames[SLOT_COUNT] = {
-    "weapon", "shield", "head", "body", "hands", "legs", "feet", "amulet", "ring"
+    "weapon", "shield", "head", "body", "hands", "legs", "feet", "amulet", "ring", "talisman"
 };
 
 const char* EquipSlotName(int slot) {
@@ -149,6 +149,10 @@ bool ItemDatabase::Load(const string& path, bool required) {
                           static_cast<Uint8>(t[1].get<int>()),
                           static_cast<Uint8>(t[2].get<int>()), 255};
         }
+        // A plain item drawn on one of the character's own sheets, as a tier
+        // piece is: the Lit Lantern, on the shield's sheet in its own cut.
+        d.armour_layer = o.value("layer", string(""));
+        d.armour_cut   = o.value("cut", string(""));
 
         if (o.contains("worn")) {
             const json& w = o["worn"];
@@ -785,6 +789,15 @@ vector<ItemStat> ItemStatLines(const ItemDef& d, const ItemDef* worn, bool compa
             r.value = v;
             rows.push_back(r);
         }
+    }
+
+    // The death talisman adds nothing to a fight: what it does, and how often,
+    // is its line (World::TALISMAN_REST).
+    if (d.slot == SLOT_TALISMAN) {
+        ItemStat r;
+        r.label = "Into the Reverie";
+        r.value = "every 5 s";
+        rows.push_back(r);
     }
 
     // A lamp is not a stat block, but how far it throws is the only number

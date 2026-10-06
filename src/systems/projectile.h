@@ -278,13 +278,23 @@ struct GroundEffect {
     // How it is drawn, where a disc of its colour is not it.
     // Blades: the Hail of Blades, which is the tornado's turning column with a
     // conjured blade on every ring of it instead of a speck of dust.
-    enum class Draw : uint8_t { Disc = 0, Rain = 1, Whirlpool = 2, Tornado = 3, Turbulence = 4, Blades = 5 };
+    // Glow: the Beacon's pool of the lantern's light; Dome: the Sanctuary.
+    enum class Draw : uint8_t { Disc = 0, Rain = 1, Whirlpool = 2, Tornado = 3, Turbulence = 4, Blades = 5,
+                                Glow = 6, Dome = 7 };
     Draw draw = Draw::Disc;
     // What it looks like, where that is not what it is: a Hellish Rebuke is
     // the ancient magic's and is drawn as the fire it is. None for its own.
     Element look = Element::None;
     Element Look() const { return look != Element::None ? look : element; }
     float stagger = 0.0f;        // seconds each tick staggers what it cuts: caltrops
+    // --- a kindly patch: the Lantern Warden's ----------------------------------------------
+    // Harms nothing. `mend` is the share of their health everyone standing in
+    // it gets back a second; `ward` the share of every blow it takes off them
+    // (World::HurtShare); `hush` how much of their pace things of the Reverie
+    // lose in it. The Beacon's pool mends; the Sanctuary wards, hushes, and
+    // with Hallowed Ground mends a little too.
+    float mend = 0.0f, ward = 0.0f, hush = 0.0f;
+    bool  Kindly() const { return mend > 0.0f || ward > 0.0f || hush > 0.0f; }
     bool  once = false;          // a snare: it takes the first thing to step in it, and is sprung
     bool  sure_crit = false;     // loosed with Take Aim
     // Arrow Rain: arrows keep coming down on the circle for as long as it

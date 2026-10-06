@@ -738,6 +738,17 @@ Buf Make(Sfx s) {
         LowpassAll(b, 7000.0f);
         Normalize(b, 0.40f);
         break;
+    case Sfx::Snip:
+        // Shears: the blades sliding along each other, and the bright click
+        // of them meeting.
+        b = Blank(0.32f);
+        Hiss(b, 0.00f, 0.09f, 0.55f, 0.002f, 0.03f, 5200.0f, 7400.0f, 1400.0f, 271);
+        Tone(b, 0.08f, 0.06f, 3100.0f, 2600.0f, 0.55f, 0.0005f, 0.03f, TRI);
+        Tone(b, 0.08f, 0.10f, 1250.0f, 1100.0f, 0.30f, 0.0005f, 0.05f, SAW);
+        Hiss(b, 0.08f, 0.05f, 0.80f, 0.0005f, 0.015f, 9000.0f, 6000.0f, 2200.0f, 272);
+        LowpassAll(b, 10000.0f);
+        Normalize(b, 0.42f);
+        break;
     default:
         b = Blank(0.01f);
         break;

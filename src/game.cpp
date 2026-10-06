@@ -266,8 +266,13 @@ int Game::Start(int argc, char** argv) {
     // --host and --join land on the Play Together screen with the thing
     // already under way, so whatever goes wrong is said where it can be read.
     if (!launch_scratch.empty()) {
-        // A game nobody keeps: "hero", "warden", "wayfarer", or a full id.
+        // A game nobody keeps: a calling -- "knight", "ranger", "weaver",
+        // "lantern" -- the ids' own words ("hero", "warden", "wayfarer": the
+        // warden there is the Shade Ranger), or a full id.
         string who = launch_scratch;
+        if (who == "knight")      who = "hero";
+        else if (who == "ranger") who = "warden";
+        else if (who == "weaver") who = "wayfarer";
         if (who.rfind("player_", 0) != 0) who = "player_" + who;
         if (!sprites.Has(who)) who = Player::kDefaultCharacter;
         pending_character = who;
@@ -286,7 +291,7 @@ int Game::Start(int argc, char** argv) {
             if (launch_level > 1) {
                 LevelUp up;
                 Player& p = world->player;
-                p.skills.AddXp(skill_trees.Tree(p.Affinity()).skill, XpForLevel(launch_level), up);
+                p.skills.AddXp(skill_trees.Tree(p.TreeIndex()).skill, XpForLevel(launch_level), up);
                 p.skills.AddXp(SKILL_HITPOINTS, XpForLevel(std::max(10, launch_level)), up);
                 p.SyncDefence(false);             // it follows the combat level: see Player::SyncDefence
                 p.SyncHitpoints();
@@ -652,15 +657,15 @@ void Game::NewGame(const string& character, SlotRef slot) {
     }
 
     // Starting kit: a few coins, a bit of food, the wood tier's weapon of the
-    // character's affinity -- a sword for the hero, a bow for the warden, a
-    // staff for the wayfarer -- and something to put between yourself and the
-    // first boar. Everything else -- the rest of a set, the tools to work the
+    // character's calling -- a greatsword for the Knight, a bow and a dagger
+    // for the Ranger, a staff for the Weaver, a mace and the lantern for the
+    // Warden -- and something to put between yourself and the first boar. Everything else -- the rest of a set, the tools to work the
     // land, a bedroll -- is bought, found or made. Every character used to
     // start with the sword, which sent the warden and the wayfarer into their
     // first fight with the one weapon their affinity does nothing for.
     //
-    // The armour is not generosity -- the hero's cuirass and shield, the
-    // warden's rawhide, the wayfarer's homespun and shield. Accuracy here is
+    // The armour is not generosity -- the Knight's and the Warden's barkwood,
+    // the Ranger's rawhide, the Weaver's homespun and shield. Accuracy here is
     // (level + 8) x (bonus + 64) on both sides, so at level 1 the bonus from
     // gear is most of the number: with nothing worn a boar hits a new
     // character 60% of the time and an orc 65%, while they hit back at about
@@ -669,6 +674,7 @@ void Game::NewGame(const string& character, SlotRef slot) {
     const vector<string> kit = Player::StartingKit(character);
     world->player.inventory.Add("coins", 25);
     for (const string& id : kit) world->player.inventory.Add(id, 1);
+    for (const string& id : Player::StartingPack(character)) world->player.inventory.Add(id, 1);
     world->player.inventory.Add("cooked_meat", 3);
     // Marked, so loading this character never hands them the tools a character
     // from before gathering needed tools is given.
@@ -1218,9 +1224,14 @@ void Game::UpdatePlay(float dt) {
                      "is the first of it. North, the road runs to the Emberfell mine. East, the trail goes under "
                      "the trees to Mossvale.\n\n" +
                      J + " swings. " + K + " strikes hard, and held, charges. Mix the two for combos. " +
-                     // A warden has a bow in both hands and nothing to hide behind.
+                     // A Ranger has a bow in both hands and nothing to hide behind, a
+                     // Knight a greatsword to hold a blow off with, a Warden the lantern.
                      (world->player.RollsOnGuard()
                           ? "Tap " + input.PromptFor(Action::Block) + " to roll out of the way, the way you are steering. "
+                      : world->player.ParryStyle()
+                          ? "Press " + input.PromptFor(Action::Block) + " as a blow comes to parry it with the blade. "
+                      : world->player.LanternStyle()
+                          ? "Hold " + input.PromptFor(Action::Block) + " to raise the lantern against a blow. "
                           : "Hold " + input.PromptFor(Action::Block) + " behind a shield. ") +
                      input.PromptFor(Action::Interact) + " talks, opens and works. " +
                      input.PromptFor(Action::Inventory) + " is your pack, " +
@@ -1284,6 +1295,7 @@ void Game::UpdatePlay(float dt) {
             ask_text = story.View().ask_text;
             ask_yes = story.View().ask_yes;
             ask_no = story.View().ask_no;
+            ask_choice = story.View().ask_choice;
             ask_flag.clear();
             ask_story = true;
             ask_cursor = 0;
@@ -1372,11 +1384,11 @@ void Game::SeatChores() {
     for (const LevelUp& up : ups) {
         PushToast(string(SkillName(up.skill)) + " level " + std::to_string(up.level) + "!",
                   Palette::Highlight);
-        // Every fourth level of the skill their tree grows from is a point to
-        // spend in it. The other two trees are other characters'.
-        for (int t = 0; t < 3; ++t) {
-            const TalentTree& tree = skill_trees.Tree(static_cast<AttackStyle>(t));
-            if (!world->player.talents.Open(static_cast<AttackStyle>(t))) continue;
+        // Every third level of the skill their tree grows from is a point to
+        // spend in it. The other trees are other callings'.
+        for (int t = 0; t < SkillTrees::TREES; ++t) {
+            const TalentTree& tree = skill_trees.Tree(t);
+            if (!world->player.talents.Open(t)) continue;
             if (tree.skill == up.skill && up.level % SkillTrees::LEVELS_PER_POINT == 0)
                 PushToast(tree.name + " skill point  -  " + input.PromptFor(Action::Skills) +
                           " to spend it", Palette::Xp);
@@ -1499,11 +1511,24 @@ void Game::SeatChores() {
         }
     }
 
+    // --- the death talisman --------------------------------------------------
+    // Its own key; on a pad, the abilities' shift and the bag's button, which
+    // then does not open the bag.
+    const bool pad_talisman = input.ActiveDevice() == InputMode::Controller && input.ShiftDown() &&
+                              input.Pressed(Action::Inventory);
+    if (input.Pressed(Action::Talisman) || pad_talisman) {
+        string why;
+        if (!world->TalismanShift(why) && !why.empty()) {
+            PushToast(why, Palette::TextDim);
+            Audio::Play(Sfx::UiError);
+        }
+    }
+
     // --- panel hotkeys -------------------------------------------------------
     if (!chorded && input.Pressed(Action::Interact)) world->TryInteract(ctx);
     if (input.Pressed(Action::Menu))       { hub_cursor = 0; OpenPanel(GameState::Hub); }
     if (input.Pressed(Action::Character))  OpenPanel(GameState::CharacterPanel);
-    if (input.Pressed(Action::Inventory))  OpenPanel(GameState::Inventory);
+    if (input.Pressed(Action::Inventory) && !pad_talisman) OpenPanel(GameState::Inventory);
     if (input.Pressed(Action::Skills))     OpenPanel(GameState::SkillsPanel);
     if (input.Pressed(Action::QuestLog))   OpenPanel(GameState::QuestPanel);
     if (input.Pressed(Action::WorldMap))   OpenPanel(GameState::WorldMapPage);
@@ -1863,7 +1888,7 @@ void Game::RunAudit() {
     const std::set<string> flags_was = world->Flags();
     const auto hud_pose = [&](bool staff) {
         has_session = true;
-        const AttackStyle path = staff ? AttackStyle::Magic : AttackStyle::Melee;
+        const int path = Player::TreeOf(staff ? Player::Calling::Weaver : Player::Calling::Knight);
         const TalentTree& tree = skill_trees.Tree(path);
         p.talents = talents_was;
         p.talents.SetPath(path);
@@ -1879,6 +1904,8 @@ void Game::RunAudit() {
         }
         if (longest) p.talents.ToggleTechnique(longest->id);
         p.equipment.Equip(SLOT_WEAPON, staff ? "apprentice_staff" : "orichalcum_sword");
+        // And the death talisman worn, so its box is at the foot of the stack.
+        p.equipment.Equip(SLOT_TALISMAN, "death_talisman");
         p.SelectElement(Element::Fire);
         if (staff) {
             for (const SpellDef* s : spells.Arcane()) world->SetFlag("recipe:spell:" + s->id);
@@ -1958,7 +1985,7 @@ void Game::RunAudit() {
             // row has its longest choice somewhere along it.
             {"spellbook",      GameState::SkillsPanel,     [&] {
                 skills_tab = TAB_BOOK;
-                const AttackStyle path = p.talents.HasPath() ? p.talents.Path() : p.Affinity();
+                const int path = p.TreeIndex();
                 for (int pass = 0; pass < 4; ++pass)
                     for (const TalentNode& n : skill_trees.Tree(path).nodes) p.talents.Learn(n.id, p.skills);
                 for (const SpellDef* s : spells.Arcane()) world->SetFlag("recipe:spell:" + s->id);

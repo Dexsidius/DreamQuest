@@ -1122,7 +1122,1095 @@ def prop_forge_chimney():
     return 1.6
 
 
+# =================================================================================
+#  Wynn's shop and her dream of it -- the thread rack, the dress form, the
+#  portrait, her desk and shears, the dream's spool and snarl, her sign
+# =================================================================================
+# The six threads on her wall. Crimson, ivory and gold are the gown's -- the
+# portrait's, the dress form's and the Shear Mannequin's (blender_act1b.py,
+# "sm_*"): the same values, which is the puzzle.
+THREADS = {
+    "crimson": (0.70, 0.10, 0.14), "ivory": (0.93, 0.89, 0.78), "gold": (0.86, 0.66, 0.20),
+    "cobalt": (0.16, 0.30, 0.70), "moss": (0.30, 0.52, 0.24), "violet": (0.48, 0.26, 0.62),
+}
+bp.PALETTE.update({"thr_" + k: v for k, v in THREADS.items()})
+bp.PALETTE.update({
+    "thr_crimson_dk": (0.50, 0.06, 0.10), "thr_ivory_dk": (0.78, 0.73, 0.62), "thr_gold_dk": (0.64, 0.46, 0.12),
+    # The dress form's own cover, a grey-brown canvas: plain enough that the
+    # gown going on over it is the change anyone sees.
+    "form_canvas": (0.60, 0.56, 0.50), "form_canvas_dk": (0.40, 0.37, 0.33),
+    "spool_wood": (0.76, 0.60, 0.40), "spool_wood_dk": (0.36, 0.24, 0.16),
+    # The portrait: gilt, a dark green-grey ground the crimson stands out of,
+    # and the sitter.
+    "gilt": (0.78, 0.60, 0.24), "gilt_dk": (0.50, 0.36, 0.14), "gilt_lt": (0.94, 0.80, 0.42),
+    "portrait_bg": (0.16, 0.27, 0.27), "portrait_bg_lt": (0.25, 0.37, 0.36),
+    "sitter_skin": (0.92, 0.76, 0.62), "sitter_hair": (0.30, 0.17, 0.11),
+    # Where a picture hung: the plaster it kept the sun and the smoke off.
+    # Aimed at one step of make_props.ps1's ten paler than the shop's wall
+    # (plaster_wall_warm, #d6be96) and the same hue -- it comes out #e3c68e,
+    # its edge darkened by the outline into the line of dust round it. Paler
+    # than that, it was a blank sheet of paper pinned up.
+    "wall_clean": (0.824, 0.722, 0.518), "nail_iron": (0.26, 0.25, 0.27),
+    "shear_steel": (0.86, 0.89, 0.94), "shear_steel_dk": (0.46, 0.49, 0.55), "shear_grip": (0.13, 0.12, 0.14),
+    "tape_yellow": (0.92, 0.80, 0.38), "pin_head": (0.86, 0.20, 0.20),
+    "sign_board": (0.90, 0.85, 0.72), "felt": (0.52, 0.56, 0.50),
+})
+
+# The rack's frame, which the strands are rendered in too so that they land
+# on its hooks to the pixel: 96 pixels across 2.4 units is forty to the unit,
+# and the pairs of hooks are fifteen pixels apart. Six pairs fifteen apart
+# cannot all sit a whole number of pixels from the middle of a picture an
+# even number wide, so they are half a pixel left of it: each pair's middle
+# is then -37, -22, -7, 8, 23 and 38 pixels from the picture's, and a strand
+# placed that far along lands on its hooks exactly.
+RACK_SPAN, RACK_PX = 2.4, 96
+PPU = RACK_PX / RACK_SPAN
+SLOT_PX = tuple(-37 + 15 * k for k in range(6))
+SLOT_X = tuple(px / PPU for px in SLOT_PX)
+HOOK_HALF = 5.0 / PPU               # each hook of a pair from the pair's middle
+HOOK_Z = 1.00                       # the pegs' height on the board
+CROOK = (-0.062, HOOK_Z + 0.036)    # where a thread rests in a hook: y, z
+
+
+def _rack_board():
+    """The board and its mouldings, with the hooks. Back against the wall at
+    +Y; the hooks' pegs stand out toward the room and turn up at the end.
+    Each pair is set in a panel of grey-green felt: the two hooks of a pair
+    are further apart than one pair's hook is from the next pair's, and with
+    nothing between them the eye paired the gaps. The felt is a middling
+    grey every one of the six colours stands out from -- on the oak the
+    crimson and the cobalt were the board's own darkness."""
+    blk("board", (2.26, 0.06, 0.32), (0.0125, 0.075, 1.0), "oak", bev=0.01)
+    blk("rail_top", (2.32, 0.11, 0.06), (0.0125, 0.06, 1.185), "oak_light", bev=0.012)
+    blk("rail_bottom", (2.32, 0.09, 0.05), (0.0125, 0.065, 0.815), "oak_light", bev=0.012)
+    for sx in (-1, 1):
+        sphere("screw_%d" % sx, 0.022, (0.0125 + sx * 1.10, 0.040, 1.0), "brass", rough=0.4)
+    for k, x0 in enumerate(SLOT_X):
+        blk("felt_%d" % k, (2 * HOOK_HALF + 0.03, 0.02, 0.20), (x0, 0.040, HOOK_Z + 0.01), "felt", rough=0.95,
+            bev=0.006)
+        for side in (-1, 1):
+            x = x0 + side * HOOK_HALF
+            tag = "%d_%d" % (k, side)
+            # Brass, and fat for a hook: a true one is a pixel and vanishes.
+            # They throw no shadow: on the felt it was a dark smudge beside
+            # every hook, like an eye.
+            for ob in (limb("peg_" + tag, (x, 0.04, HOOK_Z), (x, -0.075, HOOK_Z), 0.024, 0.022, "brass"),
+                       limb("tip_" + tag, (x, -0.075, HOOK_Z - 0.01), (x, -0.080, HOOK_Z + 0.075), 0.021, 0.018,
+                            "brass"),
+                       sphere("knob_" + tag, 0.025, (x, -0.080, HOOK_Z + 0.080), "brass", rough=0.4)):
+                ob.visible_shadow = False
+
+
+def prop_thread_rack():
+    """The rack on Wynn's back wall: an oak board under a moulding, with six
+    pairs of brass hooks in a row -- one pair for each of her threads, every
+    pair empty."""
+    _rack_board()
+    return RACK_SPAN
+
+
+def _thread_strand(colour):
+    """One thread strung taut across a pair of the rack's hooks -- the pair
+    whose middle is x=0 -- wound once round each, and from the right-hand
+    hook running down to the little spool it came off, hanging under the
+    board. Built in the rack's own frame and height, so it lands on any
+    pair's hooks when placed that pair's offset along from the rack."""
+    c, dk = "thr_" + colour, "spool_wood"
+    y, z = CROOK
+    # Three pixels thick: two was all outline and no colour.
+    limb("strand", (-HOOK_HALF, y, z), (HOOK_HALF, y, z), 0.038, 0.038, c, verts=10)
+    for side in (-1, 1):
+        ring("wind_%d" % side, 0.030, 0.017, (side * HOOK_HALF, -0.072, HOOK_Z + 0.045), c)
+    # The end hanging down off the right hook to its spool.
+    sx, sz = HOOK_HALF + 0.035, 0.665
+    limb("drop", (HOOK_HALF + 0.006, y, z - 0.01), (sx, -0.07, sz + 0.07), 0.026, 0.024, c, verts=8)
+    # The spool lies on its side, its thread toward the camera: a band of
+    # the colour between two wooden flanges.
+    cyl("spool_thread", 0.072, 0.115, (sx, -0.07, sz), c, rot=(0, math.radians(90), 0), verts=16)
+    for side in (-1, 1):
+        cyl("spool_flange_%d" % side, 0.088, 0.026, (sx + side * 0.070, -0.07, sz), dk,
+            rot=(0, math.radians(90), 0), verts=16)
+    return RACK_SPAN
+
+
+def prop_thread_strand_crimson(): return _thread_strand("crimson")
+def prop_thread_strand_ivory():   return _thread_strand("ivory")
+def prop_thread_strand_gold():    return _thread_strand("gold")
+def prop_thread_strand_cobalt():  return _thread_strand("cobalt")
+def prop_thread_strand_moss():    return _thread_strand("moss")
+def prop_thread_strand_violet():  return _thread_strand("violet")
+
+
+def prop_thread_snarl():
+    """The rack as the dream has it: buried in a snarl of the Reverie's black
+    thread, knots of it all along the board and bulging up over the
+    moulding, cords dragged across from end to end, a hook or two still
+    showing, and loose ends hanging down its face. The rack's own frame and
+    footing, and nothing lower than the rack's own foot -- make_props.ps1
+    sits the two by the same amount so the one swaps for the other -- which
+    is why the snarl climbs and does not hang: in front of the board, a knot
+    low enough to hide its foot would be drawn below it."""
+    before = set(bpy.context.scene.objects)
+    _rack_board()
+    rack = [ob for ob in bpy.context.scene.objects if ob not in before and ob.type == "MESH"]
+    # A dark mass along the board for the loops to be wound round: without
+    # it they were thin spikes at every angle, a purple thicket.
+    for k, x in enumerate((-0.86, -0.42, 0.02, 0.46, 0.92)):
+        sphere("snarl_core_%d" % k, 0.20, (x, 0.0, 1.21 + 0.02 * (k % 2)), ("thread", "thread_lt")[k % 2],
+               rough=0.4).scale = (1.55, 0.45, 0.72)
+    for k, x in enumerate((-0.92, -0.52, -0.12, 0.30, 0.70, 1.02)):
+        knot("snarl_%d" % k, (x, -0.03, 1.23 + 0.03 * (k % 2)), 9, (0.13, 0.22), (0.026, 0.040), 4100 + k,
+             squash=(1.35, 0.50, 0.85), colours=("thread", "thread_sheen", "thread_lt", "thread"))
+    # Cords from end to end, sagging, over and under the knots.
+    for k, (z0, z1, sag) in enumerate(((1.22, 1.10, 0.06), (1.06, 1.18, 0.05), (1.30, 1.26, 0.10),
+                                      (1.12, 1.02, 0.04))):
+        strand("cord_%d" % k, (-1.12, -0.06 - 0.01 * k, z0), (1.14, -0.06 - 0.01 * k, z1), 0.030, 0.024,
+               ("thread_lt", "thread", "thread_sheen", "thread")[k], sag=sag, segs=6)
+    # Loose ends down the board's face, lying against it.
+    for k, x in enumerate((-0.80, -0.30, 0.18, 0.86)):
+        strand("end_%d" % k, (x, 0.0, 1.02), (x + 0.05 * (1 - 2 * (k % 2)), 0.02, 0.86), 0.020, 0.014,
+               ("thread", "thread_sheen")[k % 2], sag=-0.02, segs=2)
+    # Nothing of the snarl may be drawn below the rack's own foot: whatever
+    # would be is lifted until it clears it by a pixel.
+    floor = _lowest_seen(rack) + 1.0 / PPU
+    cos_e = math.cos(math.radians(bp.CAMERA_ELEVATION))
+    for ob in bpy.context.scene.objects:
+        if ob.type == "MESH" and ob not in rack and ob.parent is None:
+            low = _lowest_seen([ob])
+            if low < floor:
+                ob.location.z += (floor - low) / cos_e
+    return RACK_SPAN
+
+
+def _lowest_seen(objects):
+    """How low on the screen the lowest corner of any of these objects is
+    drawn, along the props camera's up (bounding boxes, so a little
+    generous)."""
+    bpy.context.view_layer.update()
+    e = math.radians(bp.CAMERA_ELEVATION)
+    up = Vector((0.0, math.sin(e), math.cos(e)))
+    return min((ob.matrix_world @ Vector(c)).dot(up) for ob in objects for c in ob.bound_box)
+
+
+# --- the dress form ---------------------------------------------------------------
+# blender_props._mannequin's form -- the oak foot, the turned stand, the knob
+# on its neck -- with a padded torso of its own that the gown goes on over a
+# piece at a time: the bare form, the bodice, the skirt, the sash. Every piece
+# keeps above the foot as the camera sees it (the hem well up off the floor),
+# so the four pictures sit down by the same amount and swap in place.
+DF_TORSO = ((0.001, 1.585), (0.10, 1.585), (0.185, 1.565), (0.232, 1.51), (0.240, 1.43), (0.226, 1.34),
+            (0.193, 1.24), (0.168, 1.14), (0.172, 1.06), (0.200, 0.98), (0.214, 0.92), (0.205, 0.86),
+            (0.150, 0.83), (0.001, 0.83))
+DF_BODICE = ((0.001, 1.598), (0.11, 1.598), (0.197, 1.577), (0.246, 1.518), (0.254, 1.43), (0.240, 1.34),
+             (0.207, 1.24), (0.182, 1.14), (0.186, 1.05), (0.205, 0.99), (0.001, 0.99))
+DF_SKIRT = ((0.001, 1.09), (0.17, 1.09), (0.198, 1.05), (0.222, 0.98), (0.262, 0.87), (0.31, 0.75),
+            (0.36, 0.63), (0.41, 0.51), (0.452, 0.41), (0.476, 0.34), (0.482, 0.31), (0.468, 0.295),
+            (0.40, 0.29), (0.001, 0.29))
+DF_FLAT = 0.78
+
+
+def _profile_r(profile, z):
+    pts = [p for p in profile if p[0] > 0.01]
+    for (r0, z0), (r1, z1) in zip(pts, pts[1:]):
+        if (z0 - z) * (z1 - z) <= 0 and z0 != z1:
+            return r0 + (r1 - r0) * (z - z0) / (z1 - z0)
+    return pts[-1][0]
+
+
+def _dress_form(bodice=False, skirt=False, sash=False):
+    cyl("foot", 0.26, 0.06, (0, 0, 0.03), "oak", verts=24)
+    cyl("foot_rim", 0.20, 0.03, (0, 0, 0.075), "oak_light", verts=24)
+    cyl("stand", 0.042, 0.80, (0, 0, 0.47), "oak", verts=10)
+    cyl("knop", 0.065, 0.05, (0, 0, 0.26), "oak_light", verts=12)
+    torso = lathe("torso", DF_TORSO, (0, 0, 0), "form_canvas", rough=0.9)
+    torso.scale = (1.0, DF_FLAT, 1.0)
+    # The dressmaker's lines on it: a seam down the front and the waist tape.
+    for z0, z1 in ((1.54, 1.30), (1.30, 1.06), (1.06, 0.88)):
+        r0, r1 = _profile_r(DF_TORSO, z0), _profile_r(DF_TORSO, z1)
+        limb("seam_%d" % int(z0 * 100), (0, -r0 * DF_FLAT - 0.004, z0), (0, -r1 * DF_FLAT - 0.004, z1), 0.010,
+             0.010, "form_canvas_dk", verts=6)
+    tape = ring("waist_tape", 0.172, 0.012, (0, 0, 1.10), "form_canvas_dk")
+    tape.scale = (1.0, DF_FLAT, 1.0)
+    cyl("neck_cap", 0.085, 0.03, (0, 0, 1.595), "form_wood", verts=16)
+    cyl("neck", 0.065, 0.13, (0, 0, 1.665), "form_wood", verts=12)
+    sphere("knob", 0.10, (0, 0, 1.79), "form_wood")
+    sphere("finial", 0.032, (0, 0, 1.895), "oak_light")
+    if bodice:
+        b = lathe("bodice", DF_BODICE, (0, 0, 0), "thr_crimson", rough=0.8)
+        b.scale = (1.0, DF_FLAT * 1.02, 1.0)
+        for sx in (-1, 1):
+            sphere("puff_%d" % sx, 0.10, (sx * 0.235, 0, 1.49), "thr_crimson").scale = (1.0, 0.95, 0.85)
+    if skirt:
+        lathe("skirt", DF_SKIRT, (0, 0, 0), "thr_ivory", rough=0.85)
+        ring("hem", 0.474, 0.020, (0, 0, 0.318), "thr_ivory_dk")
+        for k in range(5):
+            a = math.radians(-90 + (k - 2) * 30)
+            pts = [(math.cos(a) * _profile_r(DF_SKIRT, z) * 1.01, math.sin(a) * _profile_r(DF_SKIRT, z) * 1.01, z)
+                   for z in (1.00, 0.72, 0.45, 0.33)]
+            for i in range(3):
+                limb("pleat_%d_%d" % (k, i), pts[i], pts[i + 1], 0.012 + 0.004 * i, 0.014 + 0.004 * i,
+                     "thr_ivory_dk", verts=6)
+    if sash:
+        # Round, and wider than the skirt's top: the skirt is round where the
+        # bodice is flattened, and in front of the band it hid it.
+        cyl("sash", 0.226, 0.09, (0, 0, 1.065), "thr_gold", verts=24)
+        ring("sash_edge", 0.226, 0.010, (0, 0, 1.022), "thr_gold_dk")
+        bow = Vector((-0.12, -0.215, 1.07))
+        for sx in (-1, 1):
+            loop = sphere("bow_%d" % sx, 0.06, tuple(bow + Vector((sx * 0.055, -0.01, 0.012))), "thr_gold")
+            loop.scale = (1.25, 0.55, 0.85)
+            loop.rotation_euler = (0, math.radians(sx * -28), 0)
+        sphere("bow_knot", 0.032, tuple(bow + Vector((0, -0.03, 0))), "thr_gold_dk")
+        for k, (a, z) in enumerate(((-122.0, 0.70), (-104.0, 0.78))):
+            rr = _profile_r(DF_SKIRT, z) + 0.022
+            end = (math.cos(math.radians(a)) * rr, math.sin(math.radians(a)) * rr, z)
+            mid_z = (1.04 + z) / 2
+            rm = _profile_r(DF_SKIRT, mid_z) + 0.022
+            mid = (math.cos(math.radians(a)) * rm, math.sin(math.radians(a)) * rm, mid_z)
+            limb("tail_%d_a" % k, tuple(bow + Vector((0, -0.02, -0.02))), mid, 0.028, 0.026, "thr_gold", verts=8)
+            limb("tail_%d_b" % k, mid, end, 0.026, 0.024, "thr_gold", verts=8)
+    return 2.5
+
+
+def prop_dress_form_bare():   return _dress_form()
+def prop_dress_form_bodice(): return _dress_form(bodice=True)
+def prop_dress_form_skirt():  return _dress_form(bodice=True, skirt=True)
+def prop_dress_form_full():   return _dress_form(bodice=True, skirt=True, sash=True)
+
+
+# --- the portrait, and where it hung ------------------------------------------------
+# Both in one frame -- sixty pixels across 1.5 units, forty to the unit,
+# the thread rack's scale -- with the nail in the same place, and sat down by
+# the same amount (make_props.ps1's $ALIGN), so taking the picture down shows
+# the clean plaster it covered exactly where it was.
+PORTRAIT_SPAN = 1.50
+PF_W, PF_H, PF_Z0 = 1.08, 1.36, -0.20          # the frame: outer width, height, bottom (low, to fit the nail in)
+PF_NAIL = (0.0, 0.006, PF_Z0 + PF_H + 0.17)     # the nail it hangs from
+
+
+def _nail():
+    limb("nail_shank", (PF_NAIL[0], 0.03, PF_NAIL[2]), (PF_NAIL[0], PF_NAIL[1] - 0.02, PF_NAIL[2] + 0.004), 0.010,
+         0.010, "nail_iron", verts=6)
+    cyl("nail_head", 0.026, 0.012, (PF_NAIL[0], PF_NAIL[1] - 0.024, PF_NAIL[2] + 0.004), "nail_iron",
+        rot=(math.radians(90), 0, 0), verts=12)
+
+
+def prop_portrait_gown():
+    """The portrait in Wynn's dream shop: a woman standing in the gown, full
+    length, against a dark green-grey ground -- a crimson bodice with puffed
+    sleeves, a gold sash at the waist with its bow and tails, a full ivory
+    skirt to the floor -- in a gilt frame on a cord from a nail. Three blocks
+    of colour, one over the other, big enough to be the first thing seen."""
+    z0, w, h = PF_Z0, PF_W, PF_H
+    m = 0.10                                   # the moulding's width
+    cz = z0 + h / 2
+    # The gilt frame: four mitred bars, an inner lip, a bead at each corner.
+    for name, size, loc in (("top", (w, 0.07, m), (0, -0.005, z0 + h - m / 2)),
+                            ("bottom", (w, 0.07, m), (0, -0.005, z0 + m / 2)),
+                            ("left", (m, 0.07, h - 2 * m), (-w / 2 + m / 2, -0.005, cz)),
+                            ("right", (m, 0.07, h - 2 * m), (w / 2 - m / 2, -0.005, cz))):
+        blk("frame_" + name, size, loc, "gilt", rough=0.45, metal=0.5, bev=0.02)
+    for name, size, loc in (("lip_t", (w - 2 * m, 0.03, 0.03), (0, -0.025, z0 + h - m - 0.012)),
+                            ("lip_b", (w - 2 * m, 0.03, 0.03), (0, -0.025, z0 + m + 0.012)),
+                            ("lip_l", (0.03, 0.03, h - 2 * m), (-w / 2 + m + 0.012, -0.025, cz)),
+                            ("lip_r", (0.03, 0.03, h - 2 * m), (w / 2 - m - 0.012, -0.025, cz))):
+        blk(name, size, loc, "gilt_dk", rough=0.5, metal=0.4, bev=0)
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            sphere("corner_%d_%d" % (sx, sz), 0.042, (sx * (w / 2 - m / 2), -0.045, cz + sz * (h / 2 - m / 2)),
+                   "gilt_lt", rough=0.4)
+    sphere("crest", 0.05, (0, -0.045, z0 + h - m / 2), "gilt_lt", rough=0.4).scale = (1.4, 0.6, 0.9)
+    # The canvas, and on it the sitter.
+    cw, ch = w - 2 * m, h - 2 * m
+    blk("canvas", (cw, 0.02, ch), (0, 0.010, cz), "portrait_bg", rough=0.95, bev=0)
+    paint = lambda name, pts, colour, y=-0.004: bp._cloth_shape(name, pts, y, 0.006, colour)  # noqa: E731
+    paint("glow", [(-0.26, z0 + m + 0.10), (0.26, z0 + m + 0.10), (0.24, z0 + h - m - 0.08),
+                   (-0.24, z0 + h - m - 0.08)], "portrait_bg_lt", y=-0.002)
+    paint("floor", [(-cw / 2, z0 + m), (cw / 2, z0 + m), (cw / 2, z0 + m + 0.07), (-cw / 2, z0 + m + 0.07)],
+          "sitter_hair", y=-0.002)
+    base, waist, shoulder = z0 + m + 0.04, z0 + 0.66, z0 + 0.94
+    # The skirt: wide at the hem, belled out over the floor.
+    paint("skirt", [(-0.30, base), (0.30, base), (0.27, base + 0.10), (0.17, waist - 0.02), (-0.17, waist - 0.02),
+                    (-0.27, base + 0.10)], "thr_ivory")
+    for k, x in enumerate((-0.14, -0.04, 0.06, 0.15)):
+        paint("fold_%d" % k, [(x - 0.012, base + 0.02), (x + 0.012, base + 0.02), (x * 0.45 + 0.006, waist - 0.04),
+                              (x * 0.45 - 0.006, waist - 0.04)], "thr_ivory_dk", y=-0.006)
+    # The bodice, puffed at the shoulder.
+    paint("bodice", [(-0.11, waist - 0.02), (0.11, waist - 0.02), (0.14, waist + 0.12), (0.16, shoulder),
+                     (-0.16, shoulder), (-0.14, waist + 0.12)], "thr_crimson")
+    for sx in (-1, 1):
+        paint("puff_%d" % sx, [(sx * 0.13, shoulder - 0.10), (sx * 0.22, shoulder - 0.08), (sx * 0.23, shoulder - 0.01),
+                               (sx * 0.15, shoulder + 0.02)], "thr_crimson")
+        # Her arms down her sides to her hands, folded at the sash.
+        paint("arm_%d" % sx, [(sx * 0.17, shoulder - 0.09), (sx * 0.215, shoulder - 0.08), (sx * 0.17, waist + 0.02),
+                              (sx * 0.08, waist - 0.01), (sx * 0.07, waist + 0.04), (sx * 0.13, waist + 0.06)],
+              "sitter_skin", y=-0.007)
+    # The sash, its bow on her left hip and the tails down the skirt.
+    paint("sash", [(-0.125, waist - 0.05), (0.125, waist - 0.05), (0.125, waist + 0.02), (-0.125, waist + 0.02)],
+          "thr_gold", y=-0.008)
+    paint("bow", [(-0.17, waist - 0.07), (-0.07, waist - 0.01), (-0.17, waist + 0.05)], "thr_gold", y=-0.009)
+    paint("tail_a", [(-0.12, waist - 0.04), (-0.09, waist - 0.04), (-0.15, waist - 0.26), (-0.18, waist - 0.25)],
+          "thr_gold", y=-0.009)
+    paint("tail_b", [(-0.10, waist - 0.04), (-0.08, waist - 0.04), (-0.08, waist - 0.20), (-0.11, waist - 0.20)],
+          "thr_gold_dk", y=-0.009)
+    # Neck and head, her hair put up.
+    paint("neck", [(-0.035, shoulder - 0.01), (0.035, shoulder - 0.01), (0.03, shoulder + 0.06), (-0.03, shoulder + 0.06)],
+          "sitter_skin", y=-0.007)
+    paint("face", [(-0.065, shoulder + 0.05), (0.065, shoulder + 0.05), (0.075, shoulder + 0.14), (0.05, shoulder + 0.19),
+                   (-0.05, shoulder + 0.19), (-0.075, shoulder + 0.14)], "sitter_skin", y=-0.007)
+    paint("hair", [(-0.085, shoulder + 0.12), (-0.06, shoulder + 0.21), (0.0, shoulder + 0.23), (0.06, shoulder + 0.21),
+                   (0.085, shoulder + 0.12), (0.06, shoulder + 0.17), (-0.06, shoulder + 0.17)], "sitter_hair", y=-0.008)
+    paint("bun", [(-0.04, shoulder + 0.21), (0.04, shoulder + 0.21), (0.035, shoulder + 0.27), (-0.035, shoulder + 0.27)],
+          "sitter_hair", y=-0.008)
+    # The cord up to the nail.
+    for sx in (-1, 1):
+        limb("cord_%d" % sx, (sx * (w / 2 - 0.16), -0.01, z0 + h - 0.02), (PF_NAIL[0] + sx * 0.02, PF_NAIL[1] - 0.012,
+                                                                       PF_NAIL[2] - 0.01), 0.011, 0.011, "rope", verts=6)
+    _nail()
+    return PORTRAIT_SPAN
+
+
+def prop_nail_patch():
+    """Where the portrait hung: a rectangle of plaster paler and cleaner than
+    the wall round it, the frame's own size and place, and the empty nail
+    over it."""
+    blk("patch", (PF_W, 0.004, PF_H), (0, 0.028, PF_Z0 + PF_H / 2), "wall_clean", rough=0.95, bev=0)
+    _nail()
+    return PORTRAIT_SPAN
+
+
+# --- Wynn's desk, her shears, the dream's spool, her sign, a door knocked flat ------
+DESK_SPAN, DESK_PX = 2.6, 80
+DESK_H = 0.80
+SHEARS_AT = (0.50, -0.07)          # where on the desk's top the shears are laid
+
+
+def prop_sewing_desk():
+    """Wynn's desk: a long oak table with two drawers, and on it what she
+    works with -- bolts of cloth stacked at one end, a fat red pincushion
+    stuck with pins, her tape unrolled across the top and over the front
+    edge, a couple of spools -- and at the other end a bare stretch of the
+    top where her shears lie when they are not in her hand (shears_lying)."""
+    W, D, H = 1.80, 0.80, DESK_H
+    blk("top", (W, D, 0.07), (0, 0, H - 0.035), "oak_light", bev=0.015)
+    blk("apron", (W - 0.14, 0.04, 0.15), (0, -D / 2 + 0.05, H - 0.145), "oak", bev=0.008)
+    for sx in (-1, 1):
+        blk("drawer_%d" % sx, (0.56, 0.02, 0.10), (sx * 0.42, -D / 2 + 0.025, H - 0.145), "oak_light", bev=0.008)
+        sphere("pull_%d" % sx, 0.022, (sx * 0.42, -D / 2 + 0.005, H - 0.145), "brass", rough=0.4)
+        for sy in (-1, 1):
+            blk("leg_%d_%d" % (sx, sy), (0.09, 0.09, H - 0.07), (sx * (W / 2 - 0.08), sy * (D / 2 - 0.08), (H - 0.07) / 2),
+                "oak", bev=0.012)
+    blk("stretcher", (W - 0.22, 0.05, 0.05), (0, 0.0, 0.16), "oak", bev=0.008)
+    # Bolts of cloth at the left end, folded flat and stacked, and one on a
+    # roll behind them.
+    blk("bolt_a", (0.46, 0.34, 0.09), (-0.58, 0.03, H + 0.045), "fab_blue", bev=0.03)
+    blk("bolt_b", (0.42, 0.30, 0.08), (-0.57, 0.05, H + 0.13), "fab_rose", rot=(0, 0, math.radians(7)), bev=0.03)
+    blk("bolt_c", (0.38, 0.28, 0.07), (-0.59, 0.04, H + 0.205), "fab_teal", rot=(0, 0, math.radians(-4)), bev=0.03)
+    cyl("roll", 0.075, 0.62, (-0.50, 0.28, H + 0.075), "fab_green", rot=(0, math.radians(90), 0), verts=14)
+    for sx in (-1, 1):
+        cyl("roll_end_%d" % sx, 0.03, 0.64, (-0.50, 0.28, H + 0.075), "oak_pale", rot=(0, math.radians(90), 0), verts=8)
+    # The pincushion, a fat red tomato with pins in it.
+    cushion = sphere("pincushion", 0.095, (-0.08, -0.10, H + 0.058), "fab_red", rough=0.9)
+    cushion.scale = (1.0, 1.0, 0.68)
+    sphere("cushion_cap", 0.03, (-0.08, -0.10, H + 0.125), "leaf")
+    for k, (dx, dy, c) in enumerate(((-0.05, -0.04, "pewter"), (0.04, -0.05, "brass"), (0.06, 0.03, "pewter"),
+                                     (-0.03, 0.05, "stitch_gold"), (0.0, -0.08, "pin_head"))):
+        limb("pin_%d" % k, (-0.08 + dx * 0.8, -0.10 + dy * 0.8, H + 0.09), (-0.08 + dx * 1.3, -0.10 + dy * 1.3, H + 0.15),
+             0.006, 0.006, "pewter", verts=5)
+        sphere("pinhead_%d" % k, 0.017, (-0.08 + dx * 1.3, -0.10 + dy * 1.3, H + 0.155), c)
+    # Her tape: unrolled across the top and over the front edge, its coil
+    # by the spools.
+    blk("tape", (0.86, 0.06, 0.008), (0.06, -0.28, H + 0.004), "tape_yellow", rot=(0, 0, math.radians(3)), bev=0)
+    blk("tape_hang", (0.06, 0.008, 0.20), (0.48, -D / 2 - 0.006, H - 0.09), "tape_yellow", bev=0)
+    cyl("tape_coil", 0.065, 0.035, (0.22, 0.20, H + 0.018), "tape_yellow", verts=16)
+    cyl("tape_hub", 0.022, 0.04, (0.22, 0.20, H + 0.02), "oak_pale", verts=10)
+    # Two spools at the back, out of the shears' way.
+    for k, (x, y, c) in enumerate(((0.62, 0.26, "fab_purple"), (0.78, 0.20, "fab_gold"))):
+        cyl("spool_%d" % k, 0.045, 0.10, (x, y, H + 0.05), c, verts=12)
+        for z in (0.005, 0.095):
+            cyl("spool_%d_end_%d" % (k, int(z * 1000)), 0.058, 0.014, (x, y, H + z), "spool_wood", verts=12)
+    # A scrap of chalk and a few snippets of thread by where the shears go.
+    blk("chalk", (0.10, 0.04, 0.025), (0.70, -0.24, H + 0.012), "paper", rot=(0, 0, math.radians(20)), bev=0.004)
+    return DESK_SPAN
+
+
+SHEARS_PX = 28
+
+
+def prop_shears_lying():
+    """Wynn's long dressmaker's shears laid flat: two long bright blades
+    shut together to a point, the screw at the pivot, the black bows -- one
+    small for the thumb, one long for the fingers. Drawn to the desk's scale
+    (about thirty-one pixels to the unit), lying a little askew. Twice as
+    broad in the blade as real shears: lying flat under a camera thirty-four
+    degrees up, a true blade is one pixel high and reads as a crack in the
+    table."""
+    z = 0.016
+    # The blades: two long flat wedges side by side, the near one bright,
+    # the far one showing its darker back.
+    for k, (colour, off, w) in enumerate((("shear_steel", -0.030, 0.056), ("shear_steel_dk", 0.034, 0.050))):
+        blade = cone("blade_%d" % k, w, 0.50, (0.25, off, z + 0.006 * (1 - k)), colour, rot=(0, math.radians(90), 0),
+                     verts=16)
+        blade.scale = (0.28, 1.0, 1.0)      # the cone's own X is the world's Z once it is laid along X
+    cyl("pivot", 0.030, 0.03, (0.0, 0.0, z + 0.014), "brass", verts=12)
+    # The shanks out to the bows.
+    limb("shank_a", (0.0, 0.02, z), (-0.15, 0.085, z), 0.022, 0.020, "shear_grip", verts=8)
+    limb("shank_b", (0.0, -0.02, z), (-0.14, -0.090, z), 0.022, 0.020, "shear_grip", verts=8)
+    ring("bow_thumb", 0.060, 0.022, (-0.20, 0.10, z), "shear_grip")
+    big = ring("bow_fingers", 0.068, 0.022, (-0.22, -0.11, z), "shear_grip")
+    big.scale = (1.40, 1.0, 1.0)
+    turn_all(-10)
+    return SHEARS_PX / (DESK_PX / DESK_SPAN)
+
+
+def prop_giant_spool():
+    """A spool of the Reverie's black thread as big as a cask, hanging from
+    a rafter on a cord through its spindle-hole: dark wooden flanges, the
+    thread wound thick between them and catching the violet sheen in bands,
+    and a loose end of it hanging down and curling."""
+    zc = 1.0
+    for k, z in enumerate((zc - 0.40, zc + 0.40)):
+        cyl("flange_%d" % k, 0.50, 0.08, (0, 0, z), "spool_wood_dk", verts=32, rough=0.6)
+        ring("flange_rim_%d" % k, 0.49, 0.022, (0, 0, z), "spool_wood", rough=0.6)
+    cyl("thread_body", 0.40, 0.72, (0, 0, zc), "thread", verts=32, rough=0.35)
+    # The windings: bands of the sheen and of the lighter black, round and
+    # round it.
+    for k in range(9):
+        z = zc - 0.32 + k * 0.08
+        ring("wind_%d" % k, 0.402, 0.016, (0, 0, z), ("thread_sheen", "thread_lt", "thread")[k % 3], rough=0.3)
+    cyl("hole", 0.07, 0.012, (0, 0, zc + 0.442), "void", verts=16)
+    # The cord, knotted on top and running up out of sight.
+    sphere("knot", 0.045, (0, 0, zc + 0.47), "rope")
+    limb("cord", (0, 0, zc + 0.46), (0, 0.04, zc + 1.30), 0.026, 0.024, "rope", verts=8)
+    # The loose end, off the front of the body and down, curling.
+    strand("loose_a", (0.30, -0.27, zc - 0.10), (0.42, -0.30, zc - 0.62), 0.024, 0.020, "thread", sag=-0.04, segs=3)
+    strand("loose_b", (0.42, -0.30, zc - 0.62), (0.34, -0.32, zc - 0.80), 0.020, 0.012, "thread_sheen", sag=0.02, segs=2)
+    return centre(2.2)
+
+
+def prop_clothier_sign():
+    """Wynn's sign, for the front of her house: an iron bracket out from the
+    wall with a scroll under its arm, and a board hung from it on two rings,
+    painted cream with a pair of open shears and a spool of crimson thread."""
+    blk("wall_plate", (0.07, 0.04, 0.32), (-0.58, 0.06, 1.08), "iron", bev=0.01)
+    limb("arm", (-0.58, 0.03, 1.20), (0.50, 0.03, 1.20), 0.026, 0.022, "iron")
+    sphere("arm_end", 0.036, (0.51, 0.03, 1.20), "iron")
+    # The scroll under the arm, a quarter turn from the plate up to the arm.
+    pts = [(-0.58 + 0.30 * (1 - math.cos(a)), 0.03, 0.92 + 0.28 * math.sin(a)) for a in
+           (math.radians(d) for d in (0, 22, 45, 68, 90))]
+    for k in range(4):
+        limb("scroll_%d" % k, pts[k], pts[k + 1], 0.018, 0.018, "iron", verts=8)
+    ring("curl", 0.045, 0.014, (-0.53, 0.03, 0.93), "iron", rot=(math.radians(90), 0, 0))
+    # Hung from two rings.
+    for sx in (-1, 1):
+        ring("hanger_%d" % sx, 0.034, 0.010, (sx * 0.30, 0.03, 1.155), "iron", rot=(math.radians(90), 0, 0))
+        limb("hook_%d" % sx, (sx * 0.30, 0.03, 1.12), (sx * 0.30, 0.03, 1.08), 0.010, 0.010, "iron", verts=6)
+    blk("board_frame", (0.90, 0.05, 0.54), (0, 0.03, 0.81), "shop_timber", bev=0.012)
+    blk("board", (0.80, 0.05, 0.44), (0, 0.012, 0.81), "sign_board", rough=0.85, bev=0.006)
+    y = -0.016
+
+    def paint(name, pts, colour):
+        bp._cloth_shape(name, pts, y, 0.008, colour)
+    # The shears, open, on the left half: two blades crossing at the screw,
+    # and their bows below.
+    px, pz = -0.18, 0.80
+    for sx in (-1, 1):
+        paint("shear_blade_%d" % sx, [(px, pz - 0.01), (px + sx * 0.025, pz + 0.005), (px + sx * 0.13, pz + 0.17),
+                                      (px + sx * 0.10, pz + 0.18)], "shear_grip")
+        paint("shear_shank_%d" % sx, [(px, pz + 0.01), (px + sx * 0.02, pz - 0.005), (px - sx * 0.06, pz - 0.09),
+                                      (px - sx * 0.08, pz - 0.08)], "shear_grip")
+        paint("shear_bow_%d" % sx, [(px - sx * 0.04, pz - 0.08), (px - sx * 0.12, pz - 0.08), (px - sx * 0.13, pz - 0.15),
+                                    (px - sx * 0.08, pz - 0.18), (px - sx * 0.04, pz - 0.15)], "shear_grip")
+    # The spool on the right half: crimson thread between gold flanges, its
+    # end trailing.
+    sx0 = 0.17
+    paint("spool_thread", [(sx0 - 0.065, 0.72), (sx0 + 0.065, 0.72), (sx0 + 0.065, 0.90), (sx0 - 0.065, 0.90)], "thr_crimson")
+    for z in (0.69, 0.90):
+        paint("spool_flange_%d" % int(z * 100), [(sx0 - 0.11, z), (sx0 + 0.11, z), (sx0 + 0.11, z + 0.035),
+                                                 (sx0 - 0.11, z + 0.035)], "thr_gold")
+    paint("spool_end", [(sx0 + 0.065, 0.80), (sx0 + 0.07, 0.78), (sx0 + 0.17, 0.66), (sx0 + 0.16, 0.65)], "thr_crimson")
+    return centre(1.30)
+
+
+def prop_door_fallen():
+    """A plain ledged house door lying where it fell, knocked off its
+    hinges, face down: five boards, and on its back the two ledges and the
+    brace between them -- the Z that says door from above, where its face
+    was only boards -- the iron straps of its hinges along the edge that
+    hung, one torn off at the knuckle and bent up, and splinters where they
+    came out of the frame. Laid across the floor a little askew."""
+    L, Wd, T = 1.90, 0.92, 0.06
+    n = 5
+    for k in range(n):
+        y = -Wd / 2 + (k + 0.5) * Wd / n
+        blk("plank_%d" % k, (L, Wd / n - 0.012, T), (0, y, T / 2), ("oak_light", "oak_pale")[k % 2], bev=0.012)
+    xl = 0.64                                   # the ledges, either end
+    for k, x in enumerate((-xl, xl)):
+        blk("ledge_%d" % k, (0.15, Wd - 0.10, 0.05), (x, 0.0, T + 0.025), "oak", bev=0.012)
+    # The brace from the hinge end of one ledge up to the far end of the other.
+    a, b = Vector((-xl + 0.06, -Wd / 2 + 0.12, 0)), Vector((xl - 0.06, Wd / 2 - 0.12, 0))
+    d = b - a
+    blk("brace", (d.length, 0.13, 0.045), (0.0, 0.0, T + 0.022), "oak", rot=(0, 0, math.atan2(d.y, d.x)), bev=0.012)
+    # The hinge straps along the ledges from the hinged edge, nailed through.
+    for k, x in enumerate((-xl, xl)):
+        blk("strap_%d" % k, (0.07, 0.50, 0.014), (x, -Wd / 2 + 0.25, T + 0.056), "iron", bev=0.005)
+        for j in range(3):
+            sphere("nail_%d_%d" % (k, j), 0.016, (x, -Wd / 2 + 0.08 + j * 0.17, T + 0.066), "iron_light")
+        cyl("knuckle_%d" % k, 0.034, 0.12, (x, -Wd / 2 - 0.02, T / 2 + 0.01), "iron", rot=(0, math.radians(90), 0),
+            verts=10)
+    blk("strap_torn", (0.07, 0.15, 0.014), (xl, -Wd / 2 - 0.08, T + 0.05), "iron", rot=(math.radians(-38), 0, 0),
+        bev=0.005)
+    for k, (x, a_) in enumerate(((-0.74, 20), (-0.55, -15), (0.74, 30), (0.52, -25))):
+        blk("splinter_%d" % k, (0.12, 0.025, 0.02), (x, -Wd / 2 - 0.03, T - 0.01), "oak_pale",
+            rot=(0, 0, math.radians(a_)), bev=0)
+    turn_all(9)
+    return 2.2
+
+
+# =================================================================================
+#  Act II -- the net Vexel hangs the old man in, the Infernal Pit's rune and
+#  rubble throne, Hoarfang's head for a wall, the lizardmen's cave and the
+#  cauldron gone cold
+# =================================================================================
+
+# The character sheets' camera: 46 degrees up, a 64 pixel frame 3.5 units
+# across (blender_character.py, CAMERA_ELEVATION and FRAME_SPAN). The net is
+# rendered from it, at its scale, so it fits the figure it is laid over.
+CHAR_ELEVATION, CHAR_SPAN, CHAR_PX = 46.0, 3.5, 64
+
+
+def _seen_rows(span, px, elevation, objects=None):
+    """The highest and lowest rows, in a `px` square picture of `span` units
+    seen from `elevation` degrees (setup_camera's framing), that any vertex
+    of these objects -- everything meshed, by default -- is drawn at."""
+    bpy.context.view_layer.update()
+    e = math.radians(elevation)
+    up = Vector((0.0, math.sin(e), math.cos(e)))
+    target = Vector((0.0, 0.0, span * 0.34))
+    ppu = px / span
+    rows = []
+    for ob in (objects if objects is not None else bpy.context.scene.objects):
+        if ob.type != "MESH":
+            continue
+        m = ob.matrix_world
+        for v in ob.data.vertices:
+            rows.append(px / 2.0 - ((m @ v.co) - target).dot(up) * ppu)
+    return min(rows), max(rows)
+
+
+def _cord(name, pts, r, colour, rough=0.35):
+    """A thread through the points: tapered lengths end to end, with a bead at
+    each bend so the corners close."""
+    pts = [Vector(p) for p in pts]
+    for i in range(len(pts) - 1):
+        ob = limb("%s_%d" % (name, i), pts[i], pts[i + 1], r, r, colour, verts=8)
+        ob.data.materials[0] = material(name, colour, rough)
+    for i in range(1, len(pts) - 1):
+        sphere("%s_j%d" % (name, i), r, tuple(pts[i]), colour, rough=rough)
+
+
+# The net round the old man. Everything is placed against the magister's own
+# picture: his soles are the bottom row of his 64 pixel frame's figure (row
+# 47, six above the sheet's anchor at 54), the collar under his chin is row
+# 36, and his hair is twelve pixels wide about the middle. A ring round a
+# body seen from 46 degrees up is drawn lower at its front than at its sides,
+# so the bag's rims are set by where their fronts land, not by how high they
+# are: the top rim's front under the chin, the bottom rim's front at the
+# soles, which makes it the lowest thing in the picture -- the row the
+# picture is sat down on.
+NET_TOP, NET_BOT = 1.06, 0.22          # the rims' heights
+NET_R_TOP, NET_R_MID, NET_R_BOT = 0.40, 0.44, 0.31
+NET_STRAND = 0.056                     # two pixels across at 18.3 to the unit
+
+
+def _net_r(z):
+    """The bag's radius at height z: full in the middle, drawn in at the
+    rims like a lantern's."""
+    f = (z - NET_BOT) / (NET_TOP - NET_BOT)
+    if f < 0.45:
+        g = f / 0.45
+        return NET_R_BOT + (NET_R_MID - NET_R_BOT) * math.sin(g * math.pi / 2)
+    g = (f - 0.45) / 0.55
+    return NET_R_MID + (NET_R_TOP - NET_R_MID) * (1 - math.cos(g * math.pi / 2))
+
+
+def _net_at(theta_deg, z):
+    t = math.radians(theta_deg)
+    r_ = _net_r(z)
+    return (r_ * math.cos(t), r_ * math.sin(t), z)
+
+
+def prop_thread_net():
+    """A net of the Reverie's black thread that a standing man hangs in, held
+    up like a lantern: a loose diamond mesh round him from the shoulders to
+    below the knees, drawn in at both rims, and three strands running up out
+    of the top of the picture. Drawn IN FRONT of the magister's sprite with
+    its bottom-centre at his soles, so only the half of the bag toward the
+    camera is built -- the half behind him would be drawn over him too --
+    and the gaps between the strands are empty, so he shows through."""
+    colours = ("thread_sheen", "thread", "thread_lt")
+    # The mesh: two families of threads winding round the front half of the
+    # bag (theta 180 to 360, the -Y side), one up to the right and one up to
+    # the left, so they cross in diamonds about seven pixels across. Five
+    # pixels apart, the strands were most of the picture and he was a dark
+    # blob behind them.
+    step, slope = 60.0, 104.0                 # degrees apart; degrees turned per unit risen
+    lo, hi = 176.0, 364.0                     # a little round the sides, where the bag turns away
+    n = 0
+    for fam, sgn in (("ur", 1.0), ("ul", -1.0)):
+        for k in range(-3, 6):
+            base = 180.0 + k * step + (step / 2 if sgn < 0 else 0.0)
+            pts = []
+            for i in range(13):
+                z = NET_BOT + (NET_TOP - NET_BOT) * i / 12
+                th = base + sgn * slope * (z - NET_BOT)
+                if lo <= th <= hi:
+                    pts.append(_net_at(th, z))
+            if len(pts) >= 2:
+                _cord("mesh_%s_%d" % (fam, k), pts, NET_STRAND, colours[n % len(colours)])
+                n += 1
+    # The rims: a drawstring round the top, a hem round the bottom.
+    for tag, z, colour in (("top", NET_TOP, "thread_lt"), ("bot", NET_BOT, "thread_sheen")):
+        pts = [_net_at(180.0 + 10.0 * i, z) for i in range(19)]
+        _cord("rim_" + tag, pts, NET_STRAND, colour)
+    # Up out of the picture: one from each side of the drawstring, past his
+    # ears, and a third from its front, off to the right of his head.
+    zf = 7.0
+    # Not the plain black: on the Reverie's dark floors that was no line at all.
+    for k, (a, top, colour) in enumerate(((180.0, (-0.36, 0.06, zf), "thread_sheen"),
+                                          (360.0, (0.37, 0.04, zf), "thread_lt"),
+                                          (318.0, (1.25, -0.10, zf), "thread_sheen"))):
+        _cord("anchor_%d" % k, [_net_at(a, NET_TOP), top], NET_STRAND, colour)
+    # Sat so the bag's lowest edge is the picture's bottom row, read off the
+    # geometry rather than guessed: make_props.ps1 sits a picture on its
+    # lowest pixel, and anything under it would pull the strands off the top.
+    _, low = _seen_rows(CHAR_SPAN, CHAR_PX, CHAR_ELEVATION)
+    dz = (low - (CHAR_PX - 0.40)) / (CHAR_PX / CHAR_SPAN) / math.cos(math.radians(CHAR_ELEVATION))
+    for ob in bpy.context.scene.objects:
+        if ob.parent is None and ob.type in {"MESH", "EMPTY"}:
+            ob.location.z += dz
+    e = math.radians(CHAR_ELEVATION)
+    feet = CHAR_PX / 2.0 - (dz - CHAR_SPAN * 0.34) * math.cos(e) * (CHAR_PX / CHAR_SPAN)
+    print("  thread_net: bag sat down by %.3f units; his feet's floor point lands at row %.2f" % (dz, feet))
+    return (CHAR_SPAN, CHAR_ELEVATION)
+
+
+# --- the Infernal Pit -----------------------------------------------------------
+bp.PALETTE.update({
+    # Black volcanic stone: nearly black, a little warm, and a grey that
+    # catches the light along its edges so it has a shape at all.
+    "pit_stone":    (0.135, 0.120, 0.135), "pit_stone_dk": (0.075, 0.068, 0.080),
+    "pit_stone_lt": (0.270, 0.245, 0.265),
+    # The rune's light: pale, steady, white-blue -- and a dim blue where it
+    # spills into the groove, so the carving reads lit and not painted on.
+    "rune_white":   (0.760, 0.880, 1.000), "rune_spill":   (0.240, 0.340, 0.500),
+    "cinder":       (0.200, 0.170, 0.160), "cinder_lt":    (0.330, 0.290, 0.270),
+    "ember_dim":    (0.900, 0.360, 0.120),
+})
+
+# The rune, as strokes in a square from -1 to 1 (x across, z up): a stem with
+# two arms raised from it, stood on an open diamond. The stem stops at the
+# diamond: run through it, the diamond closed up into a white blob.
+# tools/make_act2_icons.py draws the rubbing of it from the same strokes.
+PIT_RUNE = ((0.0, 0.05, 0.0, 1.0),
+            (0.0, 0.40, -0.70, 0.98), (0.0, 0.40, 0.70, 0.98),
+            (0.0, 0.05, 0.62, -0.45), (0.62, -0.45, 0.0, -0.95),
+            (0.0, -0.95, -0.62, -0.45), (-0.62, -0.45, 0.0, 0.05))
+
+
+def _rune_strokes(prefix, cx, y, cz, w, h, width, colour, emit):
+    """PIT_RUNE cut into a face at y, centred (cx, cz), w by h across."""
+    for k, (x0, z0, x1, z1) in enumerate(PIT_RUNE):
+        a = Vector((cx + x0 * w / 2, y, cz + z0 * h / 2))
+        b = Vector((cx + x1 * w / 2, y, cz + z1 * h / 2))
+        d = b - a
+        blk("%s_%d" % (prefix, k), (d.length + width, 0.03, width), tuple((a + b) / 2), colour,
+            rot=(0, -math.atan2(d.z, d.x), 0), emit=emit, rough=0.6, bev=0)
+
+
+def prop_pit_rune():
+    """A slab of black volcanic stone stood against a wall of the Infernal
+    Pit, its top broken off ragged, with a rune carved into its face that
+    glows a pale, steady white-blue -- unlike the hellfire round it. Lit low
+    (emission about 1.5) and in strokes two pixels wide, so it is a lit
+    carving and not a white blob; the groove round each stroke glows dimmer."""
+    T = 0.24
+    blk("slab", (0.80, T, 0.98), (0.0, 0.0, 0.49), "pit_stone", bev=0.04)
+    # The broken top: a shoulder left standing on one side, a lower one on
+    # the other, and the break between them.
+    blk("crown_l", (0.46, T - 0.02, 0.26), (-0.17, 0.0, 1.04), "pit_stone", rot=(0, math.radians(6), 0), bev=0.04)
+    blk("crown_r", (0.30, T - 0.03, 0.14), (0.24, 0.005, 0.99), "pit_stone_lt", rot=(0, math.radians(-14), 0),
+        bev=0.03)
+    # Seams and spalls in the face, darker and lighter.
+    blk("seam", (0.04, 0.02, 0.36), (0.33, -T / 2 - 0.002, 0.30), "pit_stone_dk", rot=(0, math.radians(12), 0), bev=0)
+    blk("spall", (0.16, 0.03, 0.10), (-0.30, -T / 2 - 0.004, 0.86), "pit_stone_lt", rot=(0, math.radians(-20), 0),
+        bev=0.01)
+    # The rune: the dim spill first, wider and a hair behind, then the strokes.
+    _rune_strokes("spill", 0.0, -T / 2 - 0.004, 0.53, 0.54, 0.72, 0.095, "rune_spill", 0.5)
+    _rune_strokes("rune", 0.0, -T / 2 - 0.012, 0.53, 0.54, 0.72, 0.055, "rune_white", 1.3)
+    # Its foot in cinders and broken stone.
+    rng = random.Random(77)
+    for k in range(9):
+        x = rng.uniform(-0.55, 0.55)
+        y = rng.uniform(-0.30, -0.10)
+        s = rng.uniform(0.06, 0.12)
+        blk("rubble_%d" % k, (s * 1.4, s, s * 0.8), (x, y, s * 0.35), ("pit_stone", "cinder", "pit_stone_lt")[k % 3],
+            rot=(rng.uniform(-0.4, 0.4), rng.uniform(-0.4, 0.4), rng.uniform(0, 3)), bev=0.015)
+    cyl("ash", 0.50, 0.03, (0.0, -0.08, 0.015), "cinder", verts=20).scale = (1.15, 0.55, 1.0)
+    return centre(1.45)
+
+
+def _heap(prefix, rng, count, box, size, colours=("pit_stone", "pit_stone_dk", "pit_stone_lt", "pit_stone", "cinder")):
+    """Broken stone heaped in a box (x0, x1, y0, y1, z0, z1): blocks of about
+    `size` tumbled every way, the biggest at the bottom."""
+    x0, x1, y0, y1, z0, z1 = box
+    for k in range(count):
+        z = z0 + (z1 - z0) * (k / max(1, count - 1)) ** 0.8
+        s = size * rng.uniform(0.7, 1.25) * (1.15 - 0.3 * (z - z0) / max(0.01, z1 - z0))
+        blk("%s_%d" % (prefix, k), (s * rng.uniform(1.0, 1.6), s * rng.uniform(0.8, 1.3), s * rng.uniform(0.6, 1.0)),
+            (rng.uniform(x0, x1), rng.uniform(y0, y1), z), colours[rng.randrange(len(colours))],
+            rot=(rng.uniform(-0.5, 0.5), rng.uniform(-0.5, 0.5), rng.uniform(0, math.pi)), bev=0.03)
+
+
+def _femur(name, a, b, r=0.035):
+    """A long bone: the shaft and a knuckle at each end."""
+    limb(name, a, b, r, r * 0.85, "bone")
+    for k, p in enumerate((a, b)):
+        sphere("%s_knob_%d" % (name, k), r * 1.7, p, "bone").scale = (1.0, 1.0, 0.8)
+
+
+def prop_rubble_throne():
+    """The Pit Lord's seat: a throne heaped up out of black rubble and
+    cinders -- a step, a seat, arms of piled stone and a high back broken off
+    in shards -- with bones in the heap (a skull on each arm and one at the
+    crest, long bones jutting out), and ember-light glowing faintly in the
+    cracks."""
+    rng = random.Random(1666)
+    # The step and the base, wide and low.
+    _heap("step", rng, 14, (-0.70, 0.70, -1.00, -0.70, 0.04, 0.10), 0.20)
+    _heap("base", rng, 26, (-1.05, 1.05, -0.70, 0.60, 0.06, 0.30), 0.28)
+    # The seat: a low heap under two broad slabs laid across it, the paler
+    # one in front, so there is somewhere plainly to sit. Heaped up to them,
+    # the seat was lost in the rubble.
+    _heap("seat", rng, 10, (-0.48, 0.48, -0.30, 0.30, 0.30, 0.42), 0.22)
+    blk("seat_slab_a", (1.10, 0.48, 0.12), (0.0, -0.22, 0.58), "pit_stone_lt", rot=(0.03, -0.02, 0.03), bev=0.03)
+    blk("seat_slab_b", (1.00, 0.40, 0.12), (0.02, 0.18, 0.60), "pit_stone", rot=(-0.02, 0.03, -0.04), bev=0.03)
+    blk("seat_front", (1.04, 0.10, 0.34), (0.0, -0.46, 0.38), "pit_stone_dk", rot=(0.0, 0.02, 0.02), bev=0.03)
+    # The back: one great slab stood on end behind the seat and leaning back
+    # a little, rubble banked against its foot and sides, and shards stood up
+    # along its top in a ragged crest, the tallest in the middle.
+    blk("back_slab", (1.02, 0.24, 1.18), (0.0, 0.52, 1.18), "pit_stone", rot=(math.radians(-6), 0, 0.03), bev=0.04)
+    blk("back_face", (0.78, 0.04, 0.86), (0.0, 0.39, 1.16), "pit_stone_dk", rot=(math.radians(-6), 0, 0.03), bev=0.02)
+    _heap("back_l", rng, 9, (-0.95, -0.55, 0.30, 0.72, 0.40, 1.30), 0.24)
+    _heap("back_r", rng, 9, (0.55, 0.95, 0.30, 0.72, 0.40, 1.30), 0.24)
+    for k, (x, h, lean) in enumerate(((-0.62, 0.36, -0.30), (-0.34, 0.54, -0.12), (-0.08, 0.70, -0.04),
+                                      (0.18, 0.64, 0.08), (0.44, 0.48, 0.18), (0.66, 0.30, 0.30))):
+        blk("shard_%d" % k, (0.24, 0.20, h), (x, 0.58, 1.72 + h / 2 - 0.12), ("pit_stone", "pit_stone_lt")[k % 2],
+            rot=(0.05, lean, 0.12 * (k % 3 - 1)), bev=0.03)
+    # The arms: piled stone either side, a broad stone laid on top of each.
+    for sx in (-1, 1):
+        _heap("arm_%d" % sx, rng, 10, (sx * 0.62, sx * 0.98, -0.42, 0.36, 0.34, 0.78), 0.22)
+        blk("arm_top_%d" % sx, (0.40, 0.80, 0.12), (sx * 0.80, -0.05, 0.92), "pit_stone_lt",
+            rot=(0.04, sx * 0.06, sx * 0.05), bev=0.03)
+    # Bones in the heap: crossed long bones and a skull over the back, a
+    # skull on each arm, more in the rubble at the foot.
+    _femur("bone_crest_a", (-0.40, 0.36, 1.58), (0.30, 0.34, 2.00))
+    _femur("bone_crest_b", (0.40, 0.36, 1.58), (-0.28, 0.34, 1.98))
+    pp._skull("skull_crest", 0.0, 0.28, 1.80, tilt=(math.radians(-8), 0, 0), r=0.15)
+    for sx in (-1, 1):
+        pp._skull("skull_arm_%d" % sx, sx * 0.80, -0.32, 1.07, tilt=(math.radians(-6), 0, math.radians(-sx * 18)),
+                  r=0.12)
+    _femur("bone_base_a", (-0.95, -0.55, 0.28), (-0.58, -0.90, 0.12))
+    _femur("bone_base_b", (0.62, -0.70, 0.24), (1.02, -0.42, 0.18))
+    for k in range(4):
+        ring("rib_%d" % k, 0.13 - k * 0.012, 0.018, (-0.52 + k * 0.05, -0.80, 0.28 + k * 0.012), "bone",
+             rot=(math.radians(70), 0, math.radians(20)))
+    # Ember-light in the cracks: thin slivers sunk in the seams -- under the
+    # seat's front edge, along the step, down the back slab's sides -- so a
+    # line of it shows and not a lamp. Round and proud, they were polka dots.
+    for k, (p, ln, a) in enumerate((((-0.20, -0.52, 0.53), 0.42, 0.04), ((0.28, -0.52, 0.55), 0.26, -0.06),
+                                    ((-0.48, -0.86, 0.15), 0.22, 0.30), ((0.40, -0.88, 0.14), 0.20, -0.20),
+                                    ((-0.56, 0.36, 0.80), 0.26, 1.35), ((0.56, 0.37, 0.92), 0.22, 1.45),
+                                    ((-0.86, -0.46, 0.62), 0.16, 0.20), ((0.84, -0.47, 0.58), 0.16, -0.25),
+                                    ((0.05, -0.74, 0.30), 0.18, 0.10))):
+        blk("ember_%d" % k, (ln, 0.05, 0.035), p, "ember_dim", rot=(0, a, 0), emit=1.1, bev=0)
+    return centre(3.20)
+
+
+# --- Hoarfang's head ----------------------------------------------------------------
+# The frost dragon's own colours (blender_creatures.py, "drake"), with the
+# horns white rather than its sheet's dark blue: a trophy is the head as it
+# is remembered.
+bp.PALETTE.update({
+    "hf_scale":  (0.630, 0.740, 0.860), "hf_scale_dk": (0.360, 0.490, 0.670),
+    "hf_belly":  (0.780, 0.860, 0.940), "hf_horn":     (0.940, 0.960, 0.985),
+    "hf_tooth":  (0.900, 0.970, 1.000), "hf_mouth":    (0.160, 0.200, 0.320),
+    "hf_eye":    (0.550, 0.950, 1.000), "hf_rime":     (0.800, 0.950, 1.000),
+    "hf_oak":    (0.250, 0.155, 0.095), "hf_oak_lt":   (0.370, 0.240, 0.150),
+})
+TROPHY_ELEVATION = -10.0      # from a little below, as a head mounted high on a wall is seen
+
+
+def _gather(before, pivot, rot):
+    """Everything built since `before`, turned about `pivot` by `rot`."""
+    p = bpy.data.objects.new("head_pivot", None)
+    bpy.context.collection.objects.link(p)
+    p.location = pivot
+    for ob in list(bpy.context.scene.objects):
+        if ob in before or ob is p or ob.parent is not None or ob.type != "MESH":
+            continue
+        ob.parent = p
+        ob.location = ob.location - Vector(pivot)
+    p.rotation_euler = rot
+    return p
+
+
+def prop_hoarfang_trophy():
+    """The head of Hoarfang, the frost dragon, mounted on a dark oak shield
+    to hang on a wall: pale ice-blue scales, white horns swept back, the jaw
+    a little open on icy teeth, the eyes still holding a little cold light.
+    Seen from the front and a little below; the head turned a quarter to one
+    side, so the length of the snout shows -- square on, it was a blob --
+    but only a little: turned a quarter, the far horn was a stick and the
+    mouth was lost."""
+    zc = 0.62
+    W, H = 0.66, 0.86
+    # The plaque, its back to the wall at +Y: a shield, pointed at the foot,
+    # with a paler rim and four iron studs.
+    blk("plaque", (W, 0.07, H * 0.70), (0, 0.04, zc + H * 0.12), "hf_oak", bev=0.02)
+    blk("plaque_point", (W * 0.62, 0.07, W * 0.62), (0, 0.04, zc - H * 0.21), "hf_oak", rot=(0, math.radians(45), 0),
+        bev=0.02)
+    blk("plaque_rim", (W + 0.07, 0.05, H * 0.73), (0, 0.075, zc + H * 0.12), "hf_oak_lt", bev=0.015)
+    blk("plaque_rim_point", (W * 0.68, 0.05, W * 0.68), (0, 0.075, zc - H * 0.21), "hf_oak_lt",
+        rot=(0, math.radians(45), 0), bev=0.015)
+    for sx in (-1, 1):
+        for z in (zc + H * 0.40, zc - H * 0.06):
+            sphere("stud_%d_%d" % (sx, int(z * 100)), 0.028, (sx * (W / 2 - 0.07), -0.002, z), "iron", rough=0.5)
+    before = set(bpy.context.scene.objects)
+    # The head is built about the point where its neck meets the board, the
+    # snout toward -Y, and turned once it is whole.
+    P = Vector((0.0, -0.06, zc))
+
+    def at(x, y, z):
+        return tuple(P + Vector((x, y, z)))
+    # A short neck, cut where it meets the board, rimed along the cut.
+    sphere("neck", 0.15, at(0, -0.06, -0.03), "hf_scale").scale = (1.0, 0.9, 1.1)
+    ring("neck_rime", 0.15, 0.028, at(0, 0.04, -0.03), "hf_rime", rot=(math.pi / 2, 0, 0)).scale = (1.0, 1.15, 1.0)
+    # Skull and a long snout, its ridge darker; a glint of cold in the eyes.
+    sphere("skull", 0.15, at(0, -0.21, 0.04), "hf_scale").scale = (1.0, 1.2, 0.85)
+    sphere("snout", 0.09, at(0, -0.47, 0.00), "hf_scale").scale = (0.95, 2.6, 0.75)
+    sphere("nose", 0.066, at(0, -0.70, 0.0), "hf_scale").scale = (1.0, 1.0, 0.85)
+    limb("snout_ridge", at(0, -0.30, 0.07), at(0, -0.66, 0.05), 0.026, 0.018, "hf_scale_dk")
+    for sx in (-1, 1):
+        sphere("nostril_%d" % sx, 0.016, at(sx * 0.032, -0.75, 0.03), "hf_mouth")
+        sphere("eye_%d" % sx, 0.030, at(sx * 0.095, -0.30, 0.07), "hf_eye", emit=0.8)
+        limb("brow_%d" % sx, at(sx * 0.05, -0.36, 0.11), at(sx * 0.14, -0.22, 0.14), 0.028, 0.020, "hf_scale_dk")
+    # The jaw dropped open at the front: dark inside, icy teeth top and bottom.
+    sphere("mouth", 0.08, at(0, -0.45, -0.09), "hf_mouth").scale = (0.82, 2.6, 0.60)
+    jaw = sphere("jaw", 0.08, at(0, -0.43, -0.17), "hf_belly")
+    jaw.scale = (0.90, 2.25, 0.45)
+    jaw.rotation_euler = (math.radians(-14), 0, 0)
+    for i in range(5):
+        y = -0.36 - 0.075 * i
+        for sx in (-1, 1):
+            cone("tooth_up_%d_%d" % (i, sx), 0.022, 0.085, at(sx * 0.062, y, -0.075), "hf_tooth",
+                 rot=(math.pi, 0, 0), verts=6)
+            cone("tooth_lo_%d_%d" % (i, sx), 0.019, 0.070, at(sx * 0.056, y + 0.02, -0.14 - 0.022 * i), "hf_tooth",
+                 verts=6)
+    # Horns, white, swept back toward the wall and up; a shorter pair from
+    # the jaw's hinge; a frill of dark spines down each side of the neck.
+    for sx in (-1, 1):
+        pts = [at(sx * 0.09, -0.16, 0.12), at(sx * 0.22, -0.03, 0.28), at(sx * 0.33, 0.10, 0.45),
+               at(sx * 0.40, 0.20, 0.62)]
+        radii = (0.060, 0.046, 0.030, 0.008)
+        for k in range(3):
+            limb("horn_%d_%d" % (sx, k), pts[k], pts[k + 1], radii[k], radii[k + 1], "hf_horn")
+        limb("horn2_%d_0" % sx, at(sx * 0.12, -0.15, -0.03), at(sx * 0.25, -0.02, -0.01), 0.034, 0.022, "hf_horn")
+        limb("horn2_%d_1" % sx, at(sx * 0.25, -0.02, -0.01), at(sx * 0.34, 0.08, 0.05), 0.022, 0.006, "hf_horn")
+        for k in range(3):
+            limb("frill_%d_%d" % (sx, k), at(sx * 0.12, -0.04 + k * 0.03, -0.06 - k * 0.05),
+                 at(sx * 0.24, 0.02 + k * 0.03, -0.12 - k * 0.06), 0.022, 0.004, "hf_scale_dk")
+    # Turned toward the viewer's left, so the snout's length and the open
+    # jaw show and both horns stand clear of the skull.
+    _gather(before, tuple(P), (0, 0, math.radians(-38)))
+    return centre(1.40, TROPHY_ELEVATION), TROPHY_ELEVATION
+
+
+# --- the lizardmen's cave -----------------------------------------------------------
+bp.PALETTE.update({
+    "lc_mud":    (0.330, 0.270, 0.200), "lc_mud_dk": (0.230, 0.190, 0.145),
+    "lc_mud_lt": (0.450, 0.410, 0.280), "lc_cord":   (0.560, 0.450, 0.300),
+    "lc_feather_red": (0.700, 0.200, 0.160), "lc_feather_teal": (0.180, 0.520, 0.500),
+    "lc_bead":   (0.880, 0.760, 0.300),
+})
+
+
+def _reed_clump(prefix, rng, cx, cy, radius, count, h=(0.45, 0.90)):
+    """Reeds and bulrushes standing in a ring of mud: thin blades, every
+    third with its brown cigar head."""
+    for k in range(count):
+        a = rng.uniform(0, math.tau)
+        r_ = rng.uniform(0.0, radius)
+        hh = rng.uniform(*h)
+        x, y = cx + math.cos(a) * r_, cy + math.sin(a) * r_ * 0.7
+        lean = rng.uniform(-0.20, 0.20)
+        cyl("%s_blade_%d" % (prefix, k), 0.032, hh, (x + lean * hh * 0.5, y, hh / 2), ("reed", "reed_dk")[k % 2],
+            rot=(0, lean, 0), verts=6)
+        if k % 3 == 0:
+            cyl("%s_head_%d" % (prefix, k), 0.062, 0.20, (x + lean * hh, y, hh + 0.02), "cattail", rot=(0, lean, 0),
+                verts=8)
+
+
+def _lizard_skull(prefix, x, y, z, s=1.0):
+    """A lizard's skull hung flat against a face, snout down: a flat, broad
+    back, two great eye holes, and a long narrowing snout with a row of
+    teeth down each side. No horns: with them it was a cow's."""
+    sphere(prefix + "_back", 0.17 * s, (x, y, z), "bone_white").scale = (1.2, 0.42, 0.95)
+    sphere(prefix + "_snout", 0.085 * s, (x, y - 0.01, z - 0.30 * s), "bone_white").scale = (0.95, 0.42, 2.3)
+    sphere(prefix + "_tip", 0.062 * s, (x, y - 0.015, z - 0.49 * s), "bone_white").scale = (1.0, 0.5, 0.9)
+    limb(prefix + "_ridge", (x, y - 0.045 * s, z - 0.16 * s), (x, y - 0.04 * s, z - 0.46 * s), 0.020 * s, 0.015 * s,
+         "bone")
+    for sx in (-1, 1):
+        sphere("%s_eye_%d" % (prefix, sx), 0.056 * s, (x + sx * 0.080 * s, y - 0.05 * s, z + 0.01 * s), "void")
+        sphere("%s_nare_%d" % (prefix, sx), 0.018 * s, (x + sx * 0.030 * s, y - 0.045 * s, z - 0.51 * s), "void")
+        for i in range(4):
+            cone("%s_tooth_%d_%d" % (prefix, sx, i), 0.020 * s, 0.07 * s,
+                 (x + sx * (0.078 - 0.008 * i) * s, y - 0.03 * s, z - (0.22 + 0.08 * i) * s), "bone",
+                 rot=(0, sx * math.radians(90), 0), verts=5)
+
+
+def prop_lizard_cave():
+    """The lizardmen's cave in the swamp: a low mound of mud banked up and
+    grown over with reeds, a dark doorway in it framed in bones, a lizard's
+    skull hung over it, a charm of bone and feathers hanging by it.
+
+    The doorway is bear_den's to the number -- the mouth, the jambs and the
+    lintel, the bank they are cut in, and the bones lying at the door, which
+    are the lowest thing in both pictures and so set where make_props.ps1
+    sits them -- so the game can give this the den's collision as it is."""
+    rng = random.Random(4419)
+    # bear_den's mound, mouth, lintel and jambs: the same sizes and places.
+    blk("bank", (3.4, 1.8, 1.10), (0, 0.55, 0.55), "lc_mud", bev=0.30)
+    blk("bank_top", (2.9, 1.5, 0.40), (0, 0.60, 1.20), "lc_mud_lt", bev=0.18)
+    blk("mouth", (1.30, 0.30, 0.92), (0, -0.30, 0.46), "void", bev=0.10, rough=1.0)
+    blk("lintel", (2.0, 0.60, 0.34), (0, -0.20, 1.06), "lc_mud_dk", rot=(0, math.radians(4), 0), bev=0.08)
+    blk("jamb_l", (0.44, 0.56, 1.00), (-0.86, -0.22, 0.50), "lc_mud_dk", rot=(0, math.radians(-6), 0), bev=0.08)
+    blk("jamb_r", (0.48, 0.56, 0.96), (0.88, -0.22, 0.48), "lc_mud", rot=(0, math.radians(7), 0), bev=0.08)
+    # Mud slapped over the mound in lumps, and moss in the wet of it.
+    for k in range(10):
+        x = rng.uniform(-1.5, 1.5)
+        sphere("lump_%d" % k, rng.uniform(0.18, 0.30), (x, rng.uniform(0.2, 1.0), rng.uniform(0.9, 1.25)),
+               ("lc_mud", "lc_mud_lt", "swamp_moss")[k % 3]).scale = (1.4, 1.0, 0.55)
+    # The bones of the doorway: long bones stood up the front of each jamb,
+    # clear of the opening, and a spine laid along the lintel's face.
+    for sx, x0 in ((-1, -0.86), (1, 0.88)):
+        for j, dx in enumerate((-0.10, 0.10)):
+            _femur("jamb_bone_%d_%d" % (sx, j), (x0 + dx, -0.52, 0.08), (x0 + dx * 0.6, -0.52, 0.86), r=0.040)
+    limb("spine", (-0.92, -0.53, 1.08), (0.92, -0.53, 1.13), 0.035, 0.030, "bone")
+    for k in range(9):
+        sphere("vertebra_%d" % k, 0.050, (-0.80 + k * 0.20, -0.54, 1.085 + 0.005 * k), "bone_white").scale = (0.8, 0.8, 1.1)
+    # The skull over the door, hung on the mound's face above the lintel.
+    # In front of the lintel, and high enough that its snout stops short of
+    # the opening.
+    _lizard_skull("skull_door", 0.0, -0.56, 1.62, s=1.15)
+    # Reeds: a stand at each side where the den has its trees -- so the mound
+    # spans the picture as the den's does -- and tufts along its top.
+    for sx in (-1, 1):
+        _reed_clump("reeds_%d" % sx, rng, sx * 1.80, 0.0, 0.22, 16)
+    for k, (x, y) in enumerate(((-1.25, 0.55), (-0.55, 0.95), (0.40, 0.90), (1.15, 0.60))):
+        _reed_clump("tuft_%d" % k, rng, x, y, 0.16, 8, h=(0.30, 0.55))
+        for ob in [o for o in bpy.context.scene.objects if o.name.startswith("tuft_%d_" % k)]:
+            ob.location.z += 1.30
+    # The charm: a cord from the lintel's end with a little bone, beads and
+    # a fan of red and teal feathers, hanging in front of the right jamb.
+    cx, cy = 0.98, -0.60
+    limb("charm_cord", (cx, cy, 1.10), (cx, cy, 0.66), 0.012, 0.012, "lc_cord")
+    for k, z in enumerate((0.92, 0.86, 0.80)):
+        sphere("charm_bead_%d" % k, 0.030, (cx, cy, z), ("lc_bead", "lc_feather_teal", "lc_bead")[k])
+    _femur("charm_bone", (cx - 0.07, cy - 0.01, 0.72), (cx + 0.07, cy - 0.01, 0.72), r=0.020)
+    for k, (a, colour) in enumerate(((-28, "lc_feather_red"), (0, "lc_feather_teal"), (28, "lc_feather_red"))):
+        blk("charm_feather_%d" % k, (0.05, 0.015, 0.20), (cx + math.sin(math.radians(a)) * 0.07, cy - 0.02,
+                                                          0.58 - math.cos(math.radians(a)) * 0.04), colour,
+            rot=(0, math.radians(a), 0), bev=0)
+    # bear_den's bones at the door, where its are.
+    for i, (x, y) in enumerate(((-0.5, -0.80), (0.35, -0.95), (0.0, -0.70))):
+        cyl("bone_%d" % i, 0.035, 0.36, (x, y, 0.05), "bone", rot=(math.radians(90), 0, math.radians(30 + i * 50)),
+            verts=8)
+    sphere("skull", 0.11, (0.62, -0.78, 0.10), "bone")
+    return 4.0
+
+
+# --- the cauldron gone cold ---------------------------------------------------------
+bp.PALETTE.update({
+    "pot_inside": (0.070, 0.066, 0.072), "ash_grey": (0.560, 0.545, 0.520), "ash_grey_dk": (0.400, 0.390, 0.375),
+})
+
+
+def prop_cauldron_cold():
+    """The brewing cauldron (blender_props.prop_cauldron, the very same pot,
+    legs and handles) gone cold and empty: no fire under it and no brew in
+    it, the inside dark, standing in a ring of grey ash with the sticks of
+    the old fire burnt to charcoal. The front stick lies where the hot one's
+    front log does, so the two pictures sit on the floor by the same row."""
+    span = bp.prop_cauldron()
+    for ob in list(bpy.context.scene.objects):
+        if ob.name.startswith(("brew", "bubble", "flame")):
+            bpy.data.objects.remove(ob, do_unlink=True)
+    # Empty: the dark inside of the pot where the brew stood, a crust of
+    # old brew dried round it.
+    cyl("inside", 0.268, 0.012, (0, 0, 0.962), "pot_inside", verts=28, rough=0.9)
+    ring("crust", 0.245, 0.012, (0, 0, 0.966), "ash_grey_dk", rough=0.9)
+    # The fire's sticks burnt to charcoal: the same four, reaching out past
+    # the ash as the logs did past the fire, one burnt short, with grey ends.
+    for k in range(4):
+        ob = bpy.data.objects.get("log_%d" % k)
+        if ob is None:
+            continue
+        ob.data.materials[0] = material("log_cold_%d" % k, "char_lt", 0.95)
+        if k == 2:
+            ob.scale = (ob.scale[0] * 0.70, ob.scale[1], ob.scale[2])
+        a = k / 4 * math.tau
+        end = 0.20 + (0.14 if k == 2 else 0.15)            # short of the front stick's end
+        sphere("stick_ash_%d" % k, 0.045, (math.cos(a) * end, math.sin(a) * end, 0.05), "ash_grey").scale = (1.0, 1.0, 0.7)
+    # The ash: a flat ring of it under the pot, inside the old fire's reach.
+    cyl("ash", 0.31, 0.016, (0, 0, 0.008), "ash_grey", verts=24, rough=1.0)
+    cyl("ash_inner", 0.20, 0.018, (0.02, 0.01, 0.010), "ash_grey_dk", verts=20, rough=1.0)
+    rng = random.Random(23)
+    for k in range(7):
+        a = rng.uniform(0, math.tau)
+        r_ = rng.uniform(0.10, 0.27)
+        sphere("ash_lump_%d" % k, rng.uniform(0.03, 0.05), (math.cos(a) * r_, math.sin(a) * r_ * 0.9 + 0.02, 0.015),
+               ("ash_grey", "ash_grey_dk", "char")[k % 3]).scale = (1.3, 1.0, 0.5)
+    return span
+
+
 PROPS = {
+    # Act II.
+    "thread_net":            (prop_thread_net, CHAR_PX),
+    "pit_rune":              (prop_pit_rune, 48),
+    "rubble_throne":         (prop_rubble_throne, 96),
+    "hoarfang_trophy":       (prop_hoarfang_trophy, 64),
+    "lizard_cave":           (prop_lizard_cave, 144),
+    "cauldron_cold":         (prop_cauldron_cold, 48),
+    "thread_rack":           (prop_thread_rack, RACK_PX),
+    "thread_strand_crimson": (prop_thread_strand_crimson, RACK_PX),
+    "thread_strand_ivory":   (prop_thread_strand_ivory, RACK_PX),
+    "thread_strand_gold":    (prop_thread_strand_gold, RACK_PX),
+    "thread_strand_cobalt":  (prop_thread_strand_cobalt, RACK_PX),
+    "thread_strand_moss":    (prop_thread_strand_moss, RACK_PX),
+    "thread_strand_violet":  (prop_thread_strand_violet, RACK_PX),
+    "thread_snarl":          (prop_thread_snarl, RACK_PX),
+    "dress_form_bare":       (prop_dress_form_bare, 64),
+    "dress_form_bodice":     (prop_dress_form_bodice, 64),
+    "dress_form_skirt":      (prop_dress_form_skirt, 64),
+    "dress_form_full":       (prop_dress_form_full, 64),
+    "portrait_gown":         (prop_portrait_gown, 60),
+    "nail_patch":            (prop_nail_patch, 60),
+    "sewing_desk":           (prop_sewing_desk, DESK_PX),
+    "shears_lying":          (prop_shears_lying, SHEARS_PX),
+    "giant_spool":           (prop_giant_spool, 64),
+    "clothier_sign":         (prop_clothier_sign, 40),
+    "door_fallen":           (prop_door_fallen, 48),
     "forge_chimney":    (prop_forge_chimney, 32),
     "nightmare_hold":   (prop_nightmare_hold, 64),
     "mini_anchor":      (prop_mini_anchor, 56),

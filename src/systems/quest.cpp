@@ -108,6 +108,7 @@ bool QuestLog::LoadDefinitions(const string& path) {
                     QuestRewardChoice ch;
                     ch.label = c.value("label", string(""));
                     ch.style = c.value("style", string(""));
+                    ch.calling = c.value("calling", string(""));
                     if (!ch.style.empty() && ch.style != "melee" && ch.style != "ranged" && ch.style != "magic") {
                         SDL_Log("QuestLog: %s offers a choice for \"%s\", which is no way of fighting "
                                 "(melee, ranged or magic)", d.id.c_str(), ch.style.c_str());

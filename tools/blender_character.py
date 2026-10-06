@@ -125,6 +125,13 @@ PALETTE = {
     "tool_float":   (0.90, 0.22, 0.20),
     "tool_thread":  (0.12, 0.10, 0.16),
     "tool_thread_lt": (0.28, 0.22, 0.38),
+    # The Lit Lantern, held in the off hand: see build_lantern. Its iron and
+    # brass keep their own colours -- the item is drawn untinted -- and its
+    # glass and flame are emitted flat, so they read as alight on any ground.
+    "lantern_iron":  (0.22, 0.21, 0.24),
+    "lantern_brass": (0.74, 0.55, 0.26),
+    "lantern_glass": (1.00, 0.70, 0.30),
+    "lantern_flame": (1.00, 0.94, 0.66),
 }
 
 # The three characters offered at the start, as differences from the palette
@@ -325,6 +332,22 @@ LOOKS = {
         "apron": True,
         "clips": {"idle": "pose_sweeping", "walk": "pose_broom_walk"},
     },
+    # The Lantern Warden: a warden of the dark roads, in slate and iron with
+    # brass at the hems and an amber mantle the colour of the light carried.
+    # Light underneath like the others, so worn plate can still tint it; the
+    # dark is in the trousers, the boots and the hair.
+    "player_lantern": {
+        "palette": {"hair":    (0.25, 0.19, 0.16),
+                    "tunic":   (0.74, 0.74, 0.76),
+                    "trim":    (0.84, 0.64, 0.32),
+                    "belt":    (0.30, 0.23, 0.18),
+                    "trouser": (0.36, 0.37, 0.42),
+                    "boot":    (0.26, 0.25, 0.28),
+                    "scarf":   (0.90, 0.58, 0.20),
+                    "skin":    (0.82, 0.63, 0.49)},
+        "hair": 0.8,
+        "scarf": True,
+    },
     "player_wayfarer": {
         "palette": {"hair":    (0.86, 0.82, 0.70),
                     "tunic":   (0.62, 0.68, 0.80),
@@ -479,7 +502,7 @@ def material(colour):
     links.new(emit.outputs["Emission"], out.inputs["Surface"])
 
     base = PALETTE[colour]
-    if colour in ("eye", "shadow"):
+    if colour in ("eye", "shadow", "lantern_glass", "lantern_flame"):
         rgb = to_linear(base)
         emit.inputs["Color"].default_value = (rgb[0], rgb[1], rgb[2], 1.0)
     else:
@@ -683,7 +706,12 @@ ARMOUR_GROUPS = (ARM_LEGS, ARM_BODY, ARM_HANDS, ARM_HEAD, ARM_SHIELD)
 #   robe    the mage's -- a pointed hat with a brim, a mantled robe with bell
 #           sleeves, a skirt to the ankle, and cloth gloves with a band wound
 #           round the knuckles
-ARMOUR_STYLES = ("light", "plate", "ornate", "hide", "robe")
+#
+# And one that is not armour at all: the Lit Lantern, which is worn in the
+# shield hand and drawn on the shield's sheet in its own cut.
+#
+#   lantern the off hand's lantern -- see build_lantern
+ARMOUR_STYLES = ("light", "plate", "ornate", "hide", "robe", "lantern")
 SOFT_STYLES = ("hide", "robe")
 ARMOUR_STYLE = "plate"
 
@@ -911,7 +939,9 @@ def build_character():
     # pose without a second rig. Each piece is a little larger than the part it
     # covers: at this size armour has to sit *outside* the silhouette or it
     # simply disappears into it.
-    if ARMOUR_ON and ARMOUR_STYLE in SOFT_STYLES:
+    if ARMOUR_ON and ARMOUR_STYLE == "lantern":
+        build_lantern(g, joints)
+    elif ARMOUR_ON and ARMOUR_STYLE in SOFT_STYLES:
         build_soft_armour(g, joints, chest, skirt, head_tilt, head_c)
     elif ARMOUR_ON:
         light = ARMOUR_STYLE == "light"
@@ -1080,6 +1110,35 @@ def build_character():
         "grip": grip, "grip_l": grip_l,
     })
     return joints, g, {"eyes": eyes}
+
+
+def build_lantern(g, joints):
+    """The Lit Lantern in the off hand, where a shield would be: the Lantern
+    Warden's, and anyone's who carries one. An iron frame on a bail held in
+    the fist, lit horn panes, a flame showing front and back, a brass cap and
+    an iron foot. It hangs from the fist along the hand's -Z, the way a tool's
+    haft runs, so it swings with the arm. Drawn in its own colours (the item
+    is untinted) and chunkier than life: at forty pixels a fine frame is all
+    outline and the light a single pixel."""
+    hand = joints["hand_l"]
+    k = 1.25        # a quarter bigger than life: at six pixels it was a spark
+    top = -0.075 * k
+    g[ARM_SHIELD] += [
+        part("lan_bail", mesh_torus(0.038 * k, 0.012 * k), "lantern_iron", hand, loc=(0, 0, -0.015 * k),
+             rot=(0, rad(90), 0)),
+        part("lan_cap", mesh_frustum(0.040 * k, 0.088 * k, 0.050 * k), "lantern_brass", hand, loc=(0, 0, top)),
+        part("lan_glass", mesh_box(0.135 * k, 0.135 * k, 0.165 * k), "lantern_glass", hand,
+             loc=(0, 0, top - 0.128 * k)),
+        part("lan_foot", mesh_box(0.165 * k, 0.165 * k, 0.036 * k), "lantern_iron", hand,
+             loc=(0, 0, top - 0.226 * k)),
+    ]
+    for sy in (-1, 1):
+        g[ARM_SHIELD].append(part("lan_flame", mesh_ellipsoid(0.032 * k, 0.020 * k, 0.056 * k), "lantern_flame",
+                                  hand, loc=(0, sy * 0.068 * k, top - 0.132 * k)))
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            g[ARM_SHIELD].append(part("lan_post", mesh_box(0.024 * k, 0.024 * k, 0.200 * k), "lantern_iron", hand,
+                                      loc=(sx * 0.068 * k, sy * 0.068 * k, top - 0.128 * k)))
 
 
 def build_soft_armour(g, joints, chest, skirt, head_tilt, head_c):
@@ -2893,6 +2952,9 @@ def build_sheet(clip_name, out_dir):
     # a shield is a tier piece and wears its own tier's cut.
     if ARMOUR_STYLE in SOFT_STYLES:
         order = [(l, i) for l, i in order if l != ARM_SHIELD]
+    # The lantern is a shield-hand piece and nothing else.
+    if ARMOUR_STYLE == "lantern":
+        order = [(l, i) for l, i in order if l == ARM_SHIELD]
 
     written = []
     for layer, index in order:

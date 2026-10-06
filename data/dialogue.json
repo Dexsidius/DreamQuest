@@ -543,11 +543,36 @@
     }
    },
    {
+    "text": "Are there any other places to live round here?",
+    "next": "bess_house_mayor",
+    "if": {
+     "flag": "ACT2_MOSSVALE_WOKEN",
+     "no_flag": "ACT2_HOUSE_ASKED_BESS"
+    },
+    "action": {
+     "set_flag": "ACT2_HOUSE_ASKED_BESS"
+    }
+   },
+   {
     "text": "What happened to the well in the square?",
     "next": "bess_well_offer",
     "if": {
      "quest": "q_dry_well",
-     "state": "available"
+     "state": "available",
+     "no_flag": "PROLOGUE"
+    }
+   },
+   {
+    "text": "The well is running again.",
+    "next": "act2_bess_well_done",
+    "if": {
+     "quest": "q_dry_well",
+     "state": "active",
+     "stage": 4,
+     "flag": "ACT2_00_STARTED"
+    },
+    "action": {
+     "advance": "npc_cook"
     }
    },
    {
@@ -556,7 +581,8 @@
     "if": {
      "quest": "q_dry_well",
      "state": "active",
-     "stage": 4
+     "stage": 4,
+     "no_flag": "ACT2_00_STARTED"
     },
     "action": {
      "advance": "npc_cook"
@@ -641,7 +667,8 @@
     "next": "bess_house_offer",
     "if": {
      "quest": "q_a_place_of_your_own",
-     "state": "available"
+     "state": "available",
+     "no_flag": "PROLOGUE"
     }
    },
    {
@@ -6331,6 +6358,137 @@
   "options": [
    {
     "text": "Understood.",
+    "next": "end"
+   }
+  ]
+ },
+ "wynn_haven_root": {
+  "speaker": "Wynn the Clothier",
+  "text": "The loom is yours whenever you want it. I would rather it worked than sat. And if you need anything cut or hemmed, I am here.",
+  "options": [
+   {
+    "text": "How is a robe made?",
+    "next": "wynn_teach"
+   },
+   {
+    "text": "Let me see what is for sale.",
+    "next": "end",
+    "action": {
+     "shop": "mossvale_clothier"
+    }
+   },
+   {
+    "text": "About your dream...",
+    "next": "wynn_haven_dream"
+   },
+   {
+    "text": "Another time.",
+    "next": "end"
+   }
+  ]
+ },
+ "wynn_haven_dream": {
+  "speaker": "Wynn the Clothier",
+  "text": "You came into my dream and cut me out of it. I felt the thread go.",
+  "options": [
+   {
+    "text": "Good day.",
+    "next": "end"
+   }
+  ]
+ },
+ "mv_villager_root": {
+  "speaker": "Villager",
+  "text": "I slept, and slept, and dreamed of nothing. They say it was a hex out of the bayou. I don't want to know who sent it.",
+  "options": [
+   {
+    "text": "Rest easy.",
+    "next": "end"
+   }
+  ]
+ },
+ "bess_house_mayor": {
+  "speaker": "Innkeeper Bess",
+  "text": "Another roof? Havenbrook's full up, and I'd be the last to know of anything free. Talk to the Mayor. If there's a deed in this town, he has it on file.",
+  "options": [
+   {
+    "text": "I will.",
+    "next": "end"
+   }
+  ]
+ },
+ "act2_vask_angry": {
+  "speaker": "Elder Vask",
+  "text": "(through his teeth, steam hissing) Not now, lad.",
+  "options": [
+   {
+    "text": "Leave him be.",
+    "next": "end"
+   }
+  ]
+ },
+ "act2_vask_waiting": {
+  "speaker": "Elder Vask",
+  "text": "Slay the beast for me, adventurer, and bring me back its head.",
+  "options": [
+   {
+    "text": "I will.",
+    "next": "end"
+   }
+  ]
+ },
+ "act2_bess_well_done": {
+  "speaker": "Innkeeper Bess",
+  "text": "(two covered plates on the bar, steam curling from under the lids, and a pitcher of water fresh from the well beside them) It's running clear again. Here: two hot meals, on the house, the good kind. And the well is yours to explore any time you like. Mind the damp.",
+  "options": [
+   {
+    "text": "Thank you, Bess.",
+    "next": "end"
+   }
+  ]
+ },
+ "act2_magister_waiting": {
+  "speaker": "Magister Orrin",
+  "text": "A first lesson, no more. Any staff you carry will hold the old magic now. The rest I will teach when my council and my staff are awake.",
+  "options": [
+   {
+    "text": "I will wake them.",
+    "next": "end"
+   }
+  ]
+ },
+ "act2_vask_porch_root": {
+  "speaker": "Elder Vask",
+  "text": "(Elder Vask rocks easily in his chair. He tips his head at you, and says nothing.)",
+  "options": [
+   {
+    "text": "The Rime Key. What kept it is dead.",
+    "next": "elder_key_done",
+    "if": {
+     "quest": "q_rime_key",
+     "state": "active",
+     "stage": 1,
+     "has_item": "rime_key",
+     "qty": 1
+    },
+    "action": {
+     "take": "rime_key",
+     "take_qty": 1,
+     "set_flag": "ACT2_RIME_KEY_GIVEN"
+    }
+   },
+   {
+    "text": "I found a key with SPIREWATCH scratched on it.",
+    "next": "elder_key_hint",
+    "if": {
+     "quest": "q_rime_key",
+     "state": "active",
+     "stage": 0,
+     "has_item": "rime_key"
+    }
+   },
+   {
+    "text": "Leave him to it.",
     "next": "end"
    }
   ]

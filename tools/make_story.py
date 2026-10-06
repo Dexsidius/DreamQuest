@@ -622,6 +622,18 @@ ACTORS.update({
     'ore': {'image': 'assets/icons/copper_ore.png', 'name': ''},
     'bobber': {'image': 'assets/props/bobber.png', 'name': ''},
     'dreamcatcher_held': {'image': 'assets/icons/vigil_dreamcatcher.png', 'name': ''},
+    # Scene 59, the echo of the struggle in Mara's house -- and the one figure
+    # in it that is not an echo (the rival, nameless and hooded until Act II).
+    'mara_echo': {'sprite': 'citizen1', 'name': 'Mara'},
+    'echo_hushed1': {'sprite': 'hushed', 'name': 'Hushed'},
+    'echo_hushed2': {'sprite': 'hushed', 'name': 'Hushed'},
+    'echo_hushed3': {'sprite': 'hushed', 'name': 'Hushed'},
+    'echo_hushed4': {'sprite': 'hushed', 'name': 'Hushed'},
+    'echo_knight1': {'sprite': 'animated_armor', 'name': 'Black Knight'},
+    'echo_knight2': {'sprite': 'animated_armor', 'name': 'Black Knight'},
+    'rival': {'sprite': 'player_warden', 'name': '???'},
+    # Scene 62: Wynn in her doorway as the shadow passes.
+    'wynn_door': {'sprite': 'citizen1', 'name': 'Wynn'},
 })
 
 TIPS.update({
@@ -1665,14 +1677,234 @@ S.append({'id': 'act1_tannery_anchor', 'on': {'use': 'tannery_anchor', 'map': 'd
 ]})
 
 # ---------------------------------------------------------------------------------------------
+#  Scenes 43A-43F -- the Clothier
+# ---------------------------------------------------------------------------------------------
+THREADS = [('crimson', 'BODICE', 'bodice'), ('ivory', 'SKIRT', 'skirt'), ('gold', 'SASH', 'sash')]
+SPARES = ['cobalt', 'moss', 'violet']
+# The hook: snipping from the shuttered shop, though the town is asleep.
+S.append({'id': 'act1_clothier_hook', 'on': {'near': 'clothier_door', 'map': 'town_havenbrook', 'radius': 96},
+          'when': when(['ACT1_06_VASK_AWAKE'], ['ACT1_CLOTHIER_QUEST_START']), 'steps': [
+    bars(True),
+    sfx('snip', 0.35, 1.0),
+    wait(0.45),
+    sfx('snip', 0.35, 1.05),
+    wait(0.45),
+    narrate("From the clothier's shuttered shop comes a faint, steady snipping, though the whole town is asleep."),
+    sfx('snip', 0.35, 0.95),
+    narrate('You try the door. It is unlocked.'),
+    flag('ACT1_CLOTHIER_QUEST_START'),
+    quest('q_act1_clothier'),
+    *end_control(),
+]})
+S.append({'id': 'act1_clothier_shop', 'on': {'enter': 'clothier_havenbrook'},
+          'when': when(['ACT1_CLOTHIER_QUEST_START'], ['ACT1_CLOTHIER_SEEN']), 'steps': [
+    bars(True, 0.0),
+    cam('clothier_cam', zoom=1.0),
+    wait(0.5),
+    narrate('Spools of thread in every colour line the wall in long, taut strands. A bare dress form stands in the '
+            'middle of the room. On the wall there is a pale patch of clean wallpaper and an empty nail where a '
+            'picture once hung.'),
+    cam('npc_wynn_haven', 0.6),
+    narrate('The clothier, Wynn, sleeps in her chair beside the loom, her head on her arm. The snipping has stopped.'),
+    flag('ACT1_CLOTHIER_SEEN'),
+    *end_control(),
+]})
+wake_tries('ACT1_CLOTHIER', 'npc_wynn_haven', 'clothier_havenbrook',
+           ['You shake her shoulder. Nothing.',
+            'You say her name, close to her ear. Her fingers twitch, as if pinching a needle.',
+            'You shake her again, harder. Nothing. Somewhere far off, too faint to be in this room, a pair of '
+            'shears snips once.'],
+           'ACT1_CLOTHIER_STILL_DREAMING', ['ACT1_CLOTHIER_SEEN'],
+           [sfx('chime', 0.3, 0.7), narrate('The Dreamcatcher hums, and the threads on the wall quiver.')])
+S.append({'id': 'act1_clothier_catch', 'on': {'talk': 'npc_wynn_haven', 'map': 'clothier_havenbrook'},
+          'needs': 'vigil_dreamcatcher', 'when': when(['ACT1_CLOTHIER_STILL_DREAMING'], ['ECHO_CLOTHIER_SNIP']),
+          'steps': [
+    *threads("Threads of pale light drift from the clothier's chest into the hoop. The web spins and pulls you in."),
+    flag('ACT1_CLOTHIER_DREAM_ENTERED'),
+    fx('dream', map='dream_clothier', spawn='arrival', story=True),
+    wait(1.4),
+    bars(False),
+]})
+# 43B: the dream shop.
+S.append({'id': 'act1_clothier_dream', 'on': {'enter': 'dream_clothier'},
+          'when': when(['ACT1_CLOTHIER_DREAM_ENTERED'], ['ACT1_CLOTHIER_DREAM_INTRO']), 'steps': [
+    bars(True, 0.0),
+    music('dream', 2.0),
+    cam('dc_cam', zoom=0.95),
+    wait(0.8),
+    narrate('You open your eyes in the dream shop. It is the same shop, warped: the ceiling too high, the shelves '
+            'leaning, the light a moonless violet. The wall of thread is a black snarl, knotted beyond cutting.'),
+    cam('dc_spool', 0.6),
+    narrate('A giant spool of black thread hangs from the rafters, its thread running down to the clothier, bound in '
+            'her chair.'),
+    cam('dc_form', 0.6),
+    narrate('The dress form still stands in the middle of the room, bare. The desk drawer is empty. There are no '
+            'scissors here.'),
+    cam('dc_portrait', 0.6),
+    narrate('On the wall where the real shop shows only a nail, a portrait hangs: a woman in a gown, painted '
+            'life-size, in three clear colours.'),
+    flag('ACT1_CLOTHIER_DREAM_INTRO'),
+    *end_control(),
+]})
+S.append({'id': 'act1_clothier_dream_again', 'on': {'enter': 'dream_clothier'},
+          'when': when(['ACT1_CLOTHIER_DREAM_INTRO'], ['ACT1_CLOTHIER_DRESS_DONE']), 'steps': [music('dream', 2.0)]})
+S.append({'id': 'act1_clothier_fight_again', 'on': {'enter': 'dream_clothier'},
+          'when': when(['ACT1_CLOTHIER_FIGHT'], ['ACT1_CLOTHIER_BOSS_DOWN']), 'steps': [music('boss', 0.8)]})
+S.append({'id': 'act1_clothier_portrait', 'on': {'use': 'clothier_portrait', 'map': 'dream_clothier'},
+          'when': when(['ACT1_CLOTHIER_DREAM_INTRO'], ['ACT1_CLOTHIER_PORTRAIT_SEEN']), 'steps': [
+    bars(True),
+    cam('dc_portrait', 0.5),
+    narrate('A woman in a gown, painted life-size: a crimson bodice, an ivory skirt, a gold sash.'),
+    narrate('You sketch the dress into your journal.'),
+    flag('ACT1_CLOTHIER_PORTRAIT_SEEN'),
+    *end_control(),
+]})
+S.append({'id': 'act1_clothier_portrait_again', 'on': {'use': 'clothier_portrait', 'map': 'dream_clothier'},
+          'when': when(['ACT1_CLOTHIER_PORTRAIT_SEEN'], ['ACT1_CLOTHIER_DRESS_DONE']),
+          'steps': [narrate('The portrait: a crimson bodice, an ivory skirt, a gold sash.')]})
+S.append({'id': 'act1_clothier_snarl', 'on': {'use': 'thread_snarl', 'map': 'dream_clothier'},
+          'when': when([], ['ECHO_CLOTHIER_SNIP']),
+          'steps': [narrate('The thread is knotted beyond cutting, and there is nothing here to cut it with.')]})
+
+# 43C: the shears, and the thread wall, in Solace.
+S.append({'id': 'act1_clothier_shears', 'on': {'use': 'clothier_shears_desk', 'map': 'clothier_havenbrook'},
+          'when': when(['ACT1_CLOTHIER_SEEN'], ['ACT1_CLOTHIER_SHEARS']), 'steps': [
+    narrate("Behind the desk lies a pair of long dressmaker's shears."),
+    {'do': 'give', 'item': 'clothier_shears'},
+    flag('ACT1_CLOTHIER_SHEARS'),
+]})
+for colour in [t[0] for t in THREADS] + SPARES:
+    up = colour.upper()
+    S.append({'id': 'act1_cut_' + colour, 'on': {'use': 'thread_' + colour, 'map': 'clothier_havenbrook'},
+              'needs': 'clothier_shears', 'when': when([], ['ACT1_THREAD_CUT_' + up, 'ECHO_CLOTHIER_SNIP']), 'steps': [
+        sfx('snip', 0.9, 1.0),
+        narrate('You snip the %s thread from its hooks. The snip rings in the silent shop.' % colour),
+        {'do': 'give', 'item': 'thread_' + colour},
+        flag('ACT1_THREAD_CUT_' + up),
+    ]})
+    S.append({'id': 'act1_cut_%s_bare' % colour, 'on': {'use': 'thread_' + colour, 'map': 'clothier_havenbrook'},
+              'when': when([], ['ACT1_THREAD_CUT_' + up, 'ECHO_CLOTHIER_SNIP']),
+              'steps': [narrate('The threads are strung tight from hook to hook. You would need something sharp.')]})
+# The three the portrait wears, in the bag: the threads are cut.
+for colour, _, _ in THREADS:
+    S.append({'id': 'act1_threads_cut_' + colour, 'on': {'flag': 'ACT1_THREAD_CUT_' + colour.upper()},
+              'when': when(['ACT1_THREAD_CUT_' + c.upper() for c, _, _ in THREADS], ['ACT1_CLOTHIER_THREADS_CUT']),
+              'steps': [flag('ACT1_CLOTHIER_THREADS_CUT')]})
+
+# 43D: the dress, a piece at a time -- a right thread blooms, a wrong one is refused.
+order = []
+for k, (colour, piece_flag, piece) in enumerate(THREADS):
+    before = ['ACT1_DRESS_' + THREADS[j][1] for j in range(k)]
+    order.append({'id': 'act1_dress_' + piece, 'on': {'use': 'dress_form_dream', 'map': 'dream_clothier'},
+                  'needs': 'thread_' + colour,
+                  'when': when(['ACT1_CLOTHIER_DREAM_INTRO'] + before, ['ACT1_DRESS_' + piece_flag]), 'steps': [
+        {'do': 'take', 'item': 'thread_' + colour},
+        fx('flash', colour=[255, 236, 220], amount=0.35),
+        narrate({'bodice': 'You lay the crimson thread against the dress form. Cloth blooms from it and stitches '
+                           'itself into a bodice.',
+                 'skirt': 'The ivory thread spills down from the waist and widens into a full skirt.',
+                 'sash': 'The gold thread wraps the waist and ties itself into a sash. The dress is exactly the '
+                         'dress in the portrait.'}[piece]),
+        flag('ACT1_DRESS_' + piece_flag),
+    ]})
+S.extend(order)
+# A thread of the dress, but out of its turn.
+for colour, piece_flag, piece in THREADS:
+    S.append({'id': 'act1_dress_%s_early' % piece, 'on': {'use': 'dress_form_dream', 'map': 'dream_clothier'},
+              'needs': 'thread_' + colour, 'when': when(['ACT1_CLOTHIER_DREAM_INTRO'], ['ACT1_DRESS_' + piece_flag]),
+              'steps': [narrate('The %s thread slides off the bare form. Not yet: the dress is made from the bodice '
+                                'down.' % colour)]})
+for colour in SPARES:
+    S.append({'id': 'act1_dress_refuse_' + colour, 'on': {'use': 'dress_form_dream', 'map': 'dream_clothier'},
+              'needs': 'thread_' + colour, 'when': when(['ACT1_CLOTHIER_DREAM_INTRO'], ['ACT1_CLOTHIER_DRESS_DONE']),
+              'steps': [narrate('The %s thread will not take. The form shrugs it off, and it is back in your hand. '
+                                'Nothing in the portrait is that colour.' % colour)]})
+S.append({'id': 'act1_dress_nothing', 'on': {'use': 'dress_form_dream', 'map': 'dream_clothier'},
+          'when': when(['ACT1_CLOTHIER_DREAM_INTRO'], ['ACT1_CLOTHIER_DRESS_DONE']),
+          'steps': [narrate('Nothing to dress it with.')]})
+# The last piece on: the room quakes, and the form comes alive.
+S.append({'id': 'act1_dress_done', 'on': {'flag': 'ACT1_DRESS_SASH'},
+          'when': when([], ['ACT1_CLOTHIER_DRESS_DONE']), 'steps': [
+    bars(True),
+    cam('dc_form', 0.5),
+    music('', 0.8),
+    narrate('The shop goes silent. Then the floor shudders.'),
+    sfx('impact', 0.8, 0.6),
+    fx('shatter', at='dc_portrait', radius=40, amount=0.35),
+    sfx('shatter', 0.8, 1.0),
+    narrate('Shelves rattle, spools tumble from the rafters, and the portrait slides from its nail and shatters.'),
+    flag('ACT1_CLOTHIER_DRESS_DONE'),
+    wait(0.6),
+    sfx('grind', 0.8, 1.3),
+    narrate("The dress form's head jerks upright. Its wooden hands split lengthwise and stretch into long, gleaming "
+            'blades, a scissor blade where each finger should be. The finished dress hangs from it, snagged with '
+            'pins.'),
+    narrate('Bound in her chair, the clothier stirs and goes still. The mannequin steps off its stand with a screech '
+            'of metal.'),
+    flag('ACT1_CLOTHIER_FIGHT'),
+    music('boss', 0.4),
+    *end_control(),
+]})
+# 43E: the Mannequin falls; the thread can be cut.
+S.append({'id': 'act1_mannequin_down', 'on': {'flag': 'ACT1_CLOTHIER_BOSS_DOWN'},
+          'when': when([], ['ACT1_MANNEQUIN_SAID']), 'steps': [
+    flag('ACT1_MANNEQUIN_SAID'),
+    music('dream', 2.0),
+    narrate('She falls. The blades fold back into wooden fingers, and the finished dress slumps empty on the floor. '
+            'Above, the giant spool of black thread trembles.'),
+]})
+S.append({'id': 'act1_clothier_anchor_held', 'on': {'use': 'clothier_anchor', 'map': 'dream_clothier'},
+          'when': when([], ['ACT1_CLOTHIER_BOSS_DOWN']),
+          'steps': [narrate('The black thread is drawn tight as wire. Nothing will part it while the dress form stands.')]})
+S.append({'id': 'act1_clothier_anchor_bare', 'on': {'use': 'clothier_anchor', 'map': 'dream_clothier'},
+          'when': when(['ACT1_CLOTHIER_BOSS_DOWN'], ['ECHO_CLOTHIER_SNIP']),
+          'steps': [narrate('The thread is too thick to break by hand. There are shears in the waking shop.')]})
+S.insert(len(S) - 1, {'id': 'act1_clothier_anchor', 'on': {'use': 'clothier_anchor', 'map': 'dream_clothier'},
+          'needs': 'clothier_shears', 'when': when(['ACT1_CLOTHIER_BOSS_DOWN'], ['ECHO_CLOTHIER_SNIP']), 'steps': [
+    bars(True),
+    cam('dc_spool', 0.5),
+    narrate("You open the waking shop's shears around the black thread, and close them."),
+    sfx('snip', 1.0, 0.85),
+    flag('ECHO_CLOTHIER_SNIP'),
+    narrate('The snip echoes through the dream. The thread parts and the Reverie dissolves.'),
+    white_out(0.5),
+    music('', 0.6),
+    # 43F: the shop in Solace.
+    wake('clothier_havenbrook', 'wynn_wake'),
+    face('player', 'npc_wynn_haven'),
+    cam('npc_wynn_haven'),
+    wait(0.5),
+    fade('clear', 1.4),
+    narrate('Afternoon light fills the shop, and a single loud snip rings through the room.'),
+    sfx('snip', 1.0, 0.9),
+    pose('npc_wynn_haven', ''),
+    say('npc_wynn_haven', '(gasping, then slowly focusing) The dress... it wouldn\'t finish. And then the shears.'),
+    face('npc_wynn_haven', 'player'),
+    {'do': 'take', 'item': 'clothier_shears'},
+    *[{'do': 'take', 'item': 'thread_' + c} for c in SPARES],
+    narrate('She looks at you. The shears lie on the desk again, as if they had never left.'),
+    say('npc_wynn_haven', 'You came into my dream and cut me out of it. I felt the thread go.'),
+    narrate('She steadies herself against the loom.'),
+    say('npc_wynn_haven', 'Take the loom. It has sat idle too long. Make yourself something worth wearing.'),
+    flag('ACT1_HAVENBROOK_LOOM_OPEN'),
+    flag('ACT1_CLOTHIER_AWAKE'),
+    *end_control(),
+]})
+
+# ---------------------------------------------------------------------------------------------
 #  Scenes 44-50 -- the Mayor's Dream
 # ---------------------------------------------------------------------------------------------
-# All three saved: the finale opens (its door asks first: genmaps, Portal "ask").
-S.append({'id': 'act1_finale_open', 'on': {'flag': 'ACT1_HALDA_AWAKE'},
-          'when': when(['ACT1_BESS_AWAKE', 'ACT1_TANNER_AWAKE'], ['ACT1_FINALE_QUEST_START']), 'steps': [
-    flag('ACT1_FINALE_QUEST_START'),
-    quest('q_act1_finale'),
-]})
+# All four saved -- Halda, Bess, the Tanner and the clothier, in any order --
+# and the finale opens (its door asks first: genmaps, Portal "ask"). On
+# whichever wakes last; and on going into the town, for a game saved with the
+# three of before and the clothier saved since.
+FOUR = ['ACT1_HALDA_AWAKE', 'ACT1_BESS_AWAKE', 'ACT1_TANNER_AWAKE', 'ACT1_CLOTHIER_AWAKE']
+for last in FOUR:
+    S.append({'id': 'act1_finale_open_' + last.split('_')[1].lower(), 'on': {'flag': last},
+              'when': when(FOUR, ['ACT1_FINALE_QUEST_START']), 'steps': [
+        flag('ACT1_FINALE_QUEST_START'),
+        quest('q_act1_finale'),
+    ]})
 S.append({'id': 'act1_finale_enter', 'on': {'enter': 'mayor_hall'},
           'when': when(['ACT1_FINALE_READY'], ['ACT1_FINALE_TRAPPED']), 'steps': [
     bars(True, 0.0),
@@ -1838,9 +2070,363 @@ S.append({'id': 'act1_final_bell', 'on': {'use': 'guild_dawn_bell', 'map': 'drea
     flag('ACT1_FINALE_THANKED'),
     *end_control(),
 ]})
-S.append({'id': 'act1_dragon', 'on': {'enter': 'town_havenbrook', 'spawn': 'from_guild_hall'},
-          'when': when(['ACT1_FINALE_GIFT_CHOSEN'], ['ACT1_DRAGON_SHADOW_SEEN']), 'steps': [
+# ---------------------------------------------------------------------------------------------
+#  Scenes 50-62 -- Word to the Neighbors
+# ---------------------------------------------------------------------------------------------
+# Scene 50: the gift chosen, the Mayor looks out at the waking town. A game
+# saved between the gift and this scene hears it on coming back into the hall.
+NEIGHBORS_50 = [
+    bars(True),
+    cam('gh_cam', zoom=1.05),
+    narrate('Mayor Hale steadies himself against the desk and looks out the tall windows at the waking town. The '
+            'warmth drains from his face.'),
+    say('npc_mayor_guild', "(quietly) We woke because you stood between us and the dark. But we aren't the only "
+                           "village on this road. It runs down through Whisperwood and splits: one branch to "
+                           "Mossvale, the other to Fernhollow. If that man could reach into our beds, he can reach "
+                           "into theirs."),
+    say('npc_guildmaster', "(gruff) Warn them. Tell them about the sleeping, the knights, the black thread. And keep "
+                           "your eyes open in the trees. Whisperwood was never a friendly road, and I doubt it's "
+                           "friendlier now."),
+    say('npc_mayor_guild', 'Go, and come back to us. Whatever you find, we need to hear it.'),
+    flag('ACT1_NEIGHBORS_QUEST_START'),
+    quest('q_act1_neighbors'),
+    *end_control(),
+]
+S.append({'id': 'act1_neighbors', 'on': {'flag': 'ACT1_FINALE_GIFT_CHOSEN', 'map': 'guild_hall'},
+          'when': when(['PROLOGUE'], ['ACT1_NEIGHBORS_QUEST_START', 'ACT1_DRAGON_SHADOW_SEEN']),
+          'steps': NEIGHBORS_50})
+S.append({'id': 'act1_neighbors_owed', 'on': {'enter': 'guild_hall'},
+          'when': when(['PROLOGUE', 'ACT1_FINALE_GIFT_CHOSEN'],
+                       ['ACT1_NEIGHBORS_QUEST_START', 'ACT1_DRAGON_SHADOW_SEEN']),
+          'steps': [bars(True, 0.0), wait(0.4), *NEIGHBORS_50]})
+
+# Scene 51: the Whisperwood, and Vexel three times in the trees. Each glimpse
+# comes as the road reaches its zone and goes when he is looked at straight --
+# or stepped toward, or passed -- leaving a curl of smoke.
+S.append({'id': 'act1_ww_enter', 'on': {'enter': 'whisperwood_trail'},
+          'when': when(['ACT1_NEIGHBORS_QUEST_START'], ['ACT1_WW_ENTERED', 'ACT1_FORK_REACHED']), 'steps': [
+    flag('ACT1_WW_ENTERED'),
+    narrate('The road narrows into Whisperwood: old trunks furred with moss, lichen hanging in curtains, light falling '
+            'in soft, dusty shafts. The birdsong thins, then stops.'),
+]})
+GLIMPSE_FACE = {1: 'left', 2: 'up', 3: 'left'}
+for k in (1, 2, 3):
+    before = ['ACT1_WW_GONE_%d' % j for j in range(1, k)]
+    shown, gone = 'ACT1_WW_GLIMPSE_%d' % k, 'ACT1_WW_GONE_%d' % k
+    S.append({'id': 'act1_ww_glimpse_%d' % k, 'on': {'near': 'ww_zone_%d' % k, 'map': 'whisperwood_trail', 'radius': 150},
+              'when': when(['ACT1_NEIGHBORS_QUEST_START'] + before, [shown, 'ACT1_FORK_REACHED']), 'steps': [
+        {'do': 'spawn', 'actor': 'vexel', 'at': 'ww_vexel_%d' % k, 'face': GLIMPSE_FACE[k], 'keep': True},
+        flag(shown),
+    ]})
+    # He is the glimpse's, kept; a game loaded since has none. So each way he goes first stands
+    # him back where he was -- in the same frame, so nothing shows -- and then he goes.
+    back = [{'do': 'remove', 'actor': 'vexel'},
+            {'do': 'spawn', 'actor': 'vexel', 'at': 'ww_vexel_%d' % k, 'face': GLIMPSE_FACE[k]}]
+    vanish = [fx('vanish', who='vexel', sink=False), {'do': 'remove', 'actor': 'vexel'}, flag(gone),
+              count('ACT1_WHISPERWOOD_GLIMPSES')]
+    gone_steps = back + vanish
+    if k == 3:
+        # "As you take a step, he lifts one hand in a slow, theatrical wave, and is gone."
+        S.append({'id': 'act1_ww_wave', 'on': {'near': 'ww_vexel_3', 'map': 'whisperwood_trail', 'radius': 210},
+                  'when': when([shown], [gone]), 'steps': [
+            *back,
+            face('vexel', 'player'),
+            pose('vexel', 'attack'),
+            wait(0.9),
+            *vanish,
+        ]})
+    else:
+        S.append({'id': 'act1_ww_look_%d' % k, 'on': {'look': 'ww_vexel_%d' % k, 'map': 'whisperwood_trail',
+                                                         'radius': 260},
+                  'when': when([shown], [gone]), 'steps': gone_steps})
+        S.append({'id': 'act1_ww_step_%d' % k, 'on': {'near': 'ww_vexel_%d' % k, 'map': 'whisperwood_trail',
+                                                         'radius': 170},
+                  'when': when([shown], [gone]), 'steps': gone_steps})
+    S.append({'id': 'act1_ww_pass_%d' % k, 'on': {'near': 'ww_past_%d' % k, 'map': 'whisperwood_trail', 'radius': 150},
+              'when': when([shown], [gone]), 'steps': gone_steps})
+S.append({'id': 'act1_fork', 'on': {'near': 'ww_fork', 'map': 'whisperwood_trail', 'radius': 130},
+          'when': when(['ACT1_NEIGHBORS_QUEST_START'], ['ACT1_FORK_REACHED']), 'steps': [
+    {'do': 'remove', 'actor': 'vexel'},
+    bars(True),
+    cam('ww_fork', 0.8),
+    narrate('The trees open. At a weathered signpost the road forks. One arm points to Mossvale, the other to '
+            'Fernhollow.'),
+    flag('ACT1_FORK_REACHED'),
+    *end_control(),
+]})
+
+# Scenes 52-55: Mossvale. Into it from the road, once, with the word to give:
+# everyone asleep; Wynn's house empty; Oona by her pot and Apocolo's torn book;
+# the inn, and Vexel's red eye.
+S.append({'id': 'act1_mossvale', 'on': {'enter': 'mossvale'},
+          'when': when(['ACT1_NEIGHBORS_QUEST_START'], ['ACT1_MOSSVALE_VISITED']), 'steps': [
     bars(True, 0.0),
+    cam('player'),
+    wait(0.5),
+    narrate('You walk in under a low arch of living branches. Mossvale is a village of moss-roofed cottages and '
+            'winding footpaths, and it is silent. A cart driver slumps on his seat, the horse standing patient and '
+            'still. A woman sits against a fence, a basket of apples spilled around her. Wind chimes hang motionless '
+            'in the doorways.'),
+    narrate('You search the lanes. Everyone you pass is fast asleep.'),
+    fade('black', 1.0),
+    {'do': 'map', 'map': 'mossvale_weavers', 'spawn': 'entrance'},
+    cam('player'),
+    fade('clear', 1.0),
+    narrate('Bolts of dyed cloth line the walls, and spools of thread glitter in the window light. The loom stands '
+            'untouched, a half-woven bolt hanging from the frame, the pattern stopped mid-row. The shop is empty, and '
+            'the door is unlocked.'),
+    narrate('You search the shop and the rooms behind it. Nobody is home.'),
+    fade('black', 1.0),
+    {'do': 'map', 'map': 'mossvale_herbalist', 'spawn': 'entrance'},
+    cam('npc_oona'),
+    fade('clear', 1.0),
+    narrate('Shelves of corked bottles, bundles of herbs drying from the rafters. A big iron pot bubbles over the '
+            'fire, a glowing concoction rolling in slow, thick swells. Oona the brewer sleeps on a stool beside it, a '
+            'long ladle still gripped in her hand, her chin on her chest.'),
+    narrate('You look from Oona to the pot. It keeps boiling, and nobody is there to stir it.'),
+    cam('apocolo_book_at', 0.6),
+    narrate('On the workbench beside the pot lies a thick, leather-bound recipe book, splayed open. You turn the '
+            'pages. The flyleaf reads APOCOLO, APOTHECARY OF HAVENBROOK, and beneath it, in a younger hand: "Taken '
+            'by Vexel. This is all I have left of him."'),
+    narrate('The one recipe still whole is written in his script, a cure for the sleepers, and a margin note warns '
+            'that they carry a second sickness, a bayou hex laid by the voodoo priests. The steps that matter are '
+            'gone. Four pages have been ripped out, and their torn stubs stand along the spine like broken teeth.'),
+    narrate('Each stub carries a trace of where its page went: a greasy grey handprint, a green scale caught in the '
+            'binding, a smear of grave dirt, and a tuft of coarse brown fur.'),
+    narrate('You look down at Oona, sleeping beside the one thing that might wake her.'),
+    flag('ACT1_OONA_BOOK_FOUND'),
+    fade('black', 1.0),
+    {'do': 'map', 'map': 'mossvale_lodge_hall', 'spawn': 'entrance'},
+    cam('ml_vexel'),
+    fade('clear', 1.0),
+    narrate("The inn's common room. Patrons lie slumped over tables, mugs tipped, the innkeeper folded over the "
+            'bar. The fire has burned down to embers.'),
+    {'do': 'spawn', 'actor': 'vexel', 'at': 'ml_vexel', 'face': 'down'},
+    wait(0.6),
+    narrate('One figure stands in the middle of the room, utterly still among the sleepers: Vexel Von Finch. He '
+            'turns his skull-like face toward you and grimaces, as if the sight of you were a bad taste.'),
+    face('vexel', 'player'),
+    narrate('One eye kindles red under the hood.'),
+    fx('beam', **{'from': 'vexel', 'lift': 46, 'spread': 34, 'time': 1.8}),
+    sfx('chime', 0.3, 0.4),
+    wait(1.9),
+    fx('flash', colour=[196, 150, 255], amount=0.55),
+    fx('vanish', who='vexel'),
+    wait(0.8),
+    {'do': 'remove', 'actor': 'vexel'},
+    narrate('Then a violet flash, and he is gone.'),
+    flag('ACT1_MOSSVALE_VISITED'),
+    quest('q_act2_torn_pages'),
+    *end_control(),
+]})
+
+# Scenes 56-58: Fernhollow. In through the gate, once: not a soul awake;
+# Wendel asleep by his window; the lone house by the south-east wall, and the
+# door that falls in.
+S.append({'id': 'act1_fernhollow', 'on': {'enter': 'fernhollow'},
+          'when': when(['ACT1_NEIGHBORS_QUEST_START'], ['ACT1_FERNHOLLOW_DOOR_BROKEN']), 'steps': [
+    bars(True, 0.0),
+    cam('player'),
+    wait(0.5),
+    narrate('You step through the gate of walled Fernhollow. Lanterns still burn in broad daylight. Laundry hangs '
+            'motionless on its lines, and a pond glints at the village\'s edge.'),
+    narrate('You turn slowly, scanning doorways, windows and rooftops for anyone awake. Not one soul moves.'),
+    fade('black', 1.0),
+    {'do': 'map', 'map': 'fernhollow_cottage', 'spawn': 'entrance'},
+    cam('npc_wendel_home'),
+    fade('clear', 1.0),
+    narrate("A small house sits beside the pond, nets drying on the porch rail. Inside, an old man, Wendel, "
+            "Fernhollow's angler, is asleep in a chair by the window, a fishing line still wound around his fingers."),
+    narrate('You shake his shoulder, and again. The old man does not stir.'),
+    fade('black', 1.0),
+    {'do': 'map', 'map': 'fernhollow', 'spawn': 'mara_lane'},
+    cam('mara_door'),
+    fade('clear', 1.0),
+    narrate("A narrow lane runs along the town wall in Fernhollow's south-east corner. A lone house leans against "
+            'the stone, shutters closed, a bucket knocked on its side by the step.'),
+    walk('player', 'mara_step', 50),
+    face('player', d='up'),
+    sfx('door', 0.5, 1.4),
+    wait(0.4),
+    sfx('door', 0.5, 1.4),
+    wait(0.4),
+    sfx('door', 0.5, 1.4),
+    wait(0.7),
+    sfx('impact', 1.0, 0.7),
+    flag('ACT1_FERNHOLLOW_DOOR_BROKEN'),
+    narrate('Knock. Knock. Knock. The door falls inward off its hinges and crashes flat on the floor.'),
+    fade('black', 0.8),
+    {'do': 'map', 'map': 'fernhollow_mara', 'spawn': 'entrance'},
+    cam('player'),
+    fade('clear', 1.0),
+    narrate("A woman's coat still hangs by the door, and a half-eaten supper sits cold on the table. Furniture is "
+            'overturned, a chair lies in splinters, crockery is smashed across the floor, and long, ragged scratches '
+            'score the walls. A struggle happened here.'),
+    narrate('You search every room. Nobody is home.'),
+    *end_control(),
+]})
+# What the house shows, looked at.
+for obj, line in [('mara_scratches', 'Long, ragged scratches score the plaster, four at a time, too far apart for a '
+                                     'hand.'),
+                  ('mara_chair', 'A chair, in splinters. Somebody swung it, or was thrown into it.'),
+                  ('mara_lantern', 'A lantern on its side, the glass cracked, the wick burned out.'),
+                  ('mara_supper', 'A half-eaten supper, gone cold. Whoever sat down to it did not finish it.')]:
+    S.append({'id': 'act1_' + obj, 'on': {'use': obj, 'map': 'fernhollow_mara'}, 'steps': [narrate(line)]})
+# Her bed: "Sleep", like the cell mattress.
+S.append({'id': 'act1_mara_sleep', 'on': {'use': 'mara_bed', 'map': 'fernhollow_mara'},
+          'when': when(['ACT1_FERNHOLLOW_DOOR_BROKEN'], ['ACT1_FERNHOLLOW_VISITED']), 'steps': [
+    bars(True),
+    narrate('You lie down on the villager\'s bed. It is cold, as if nobody has slept in it for days.'),
+    fx('dream', map='dream_mara', spawn='arrival', story=True),
+    wait(1.4),
+    bars(False),
+]})
+S.append({'id': 'act1_mara_slept', 'on': {'use': 'mara_bed', 'map': 'fernhollow_mara'},
+          'when': when(['ACT1_FERNHOLLOW_VISITED'], []), 'steps': [
+    narrate('Her bed. You have seen what happened here.')]})
+
+# Scene 59: the dream-lit house, and the echo of the struggle a room at a time.
+S.append({'id': 'act1_mara_dream', 'on': {'enter': 'dream_mara'},
+          'when': when(['ACT1_FERNHOLLOW_DOOR_BROKEN'], ['ACT1_MARA_DREAM_IN']), 'steps': [
+    bars(True, 0.0),
+    music('dream', 2.0),
+    cam('player'),
+    wait(0.6),
+    narrate('You rise in the dream-lit house. Somewhere ahead, a crash. Shouting. A low, layered hum.'),
+    flag('ACT1_MARA_DREAM_IN'),
+    *end_control(),
+]})
+ECHO = {'alpha': 0.42, 'flicker': True, 'keep': True}
+S.append({'id': 'act1_mara_echo_1', 'on': {'near': 'dm_room_1', 'map': 'dream_mara', 'radius': 80},
+          'when': when(['ACT1_MARA_DREAM_IN'], ['ACT1_MARA_ECHO_1']), 'steps': [
+    bars(True),
+    cam('dm_room_1', 0.5),
+    sfx('impact', 0.5, 1.2),
+    dict({'do': 'spawn', 'actor': 'mara_echo', 'at': 'dm_room_1', 'dx': 18, 'face': 'left'}, **ECHO),
+    *[dict({'do': 'spawn', 'actor': 'echo_hushed%d' % (j + 1), 'at': 'dm_room_1', 'dx': dx, 'dy': dy, 'face': f},
+           **ECHO) for j, (dx, dy, f) in enumerate([(-50, -10, 'right'), (-30, 34, 'right'), (40, -34, 'left')])],
+    narrate('Stepping through the doorway, the room flickers into a faded, translucent echo: a woman with a fire '
+            'poker in her fist backs across the floor as a ring of Hushed closes in.'),
+    pose('mara_echo', 'shake'),
+    sfx('swing', 0.7, 0.9),
+    narrate('A chair flies. She fights with everything she has, driving them back, barely staying on her feet.'),
+    flag('ACT1_MARA_ECHO_1'),
+    *[{'do': 'remove', 'actor': a} for a in ('mara_echo', 'echo_hushed1', 'echo_hushed2', 'echo_hushed3')],
+    *end_control(),
+]})
+S.append({'id': 'act1_mara_echo_2', 'on': {'near': 'dm_room_2', 'map': 'dream_mara', 'radius': 80},
+          'when': when(['ACT1_MARA_ECHO_1'], ['ACT1_MARA_ECHO_2']), 'steps': [
+    bars(True),
+    cam('dm_room_2', 0.5),
+    dict({'do': 'spawn', 'actor': 'mara_echo', 'at': 'dm_room_2', 'face': 'down'}, **ECHO),
+    *[dict({'do': 'spawn', 'actor': 'echo_hushed%d' % (j + 1), 'at': 'dm_room_2', 'dx': dx, 'dy': dy, 'face': f},
+           **ECHO) for j, (dx, dy, f) in enumerate([(-44, 0, 'right'), (44, 0, 'left'), (0, -40, 'down'),
+                                                    (0, 40, 'up')])],
+    narrate('In the next room the hum swells. The Hushed press in from every side, and she is losing ground.'),
+    pose('mara_echo', 'shake'),
+    flag('ACT1_MARA_ECHO_2'),
+    *[{'do': 'remove', 'actor': a} for a in ('mara_echo', 'echo_hushed1', 'echo_hushed2', 'echo_hushed3',
+                                             'echo_hushed4')],
+    *end_control(),
+]})
+S.append({'id': 'act1_mara_echo_3', 'on': {'near': 'dm_room_3', 'map': 'dream_mara', 'radius': 80},
+          'when': when(['ACT1_MARA_ECHO_2'], ['ACT1_FERNHOLLOW_VISITED']), 'steps': [
+    bars(True),
+    cam('dm_room_3', 0.5),
+    dict({'do': 'spawn', 'actor': 'mara_echo', 'at': 'dm_room_3', 'dx': -10, 'face': 'up'}, **ECHO),
+    {'do': 'spawn', 'actor': 'rival', 'at': 'dm_window', 'face': 'down', 'keep': True},
+    {'do': 'tint', 'who': 'rival', 'colour': [86, 74, 104]},
+    face('rival', d='right'),
+    dict({'do': 'spawn', 'actor': 'echo_knight1', 'at': 'dm_window', 'dx': -34, 'dy': 22, 'face': 'down'}, **ECHO),
+    dict({'do': 'spawn', 'actor': 'echo_knight2', 'at': 'dm_window', 'dx': 34, 'dy': 22, 'face': 'down'}, **ECHO),
+    {'do': 'tint', 'who': 'echo_knight1', 'colour': [74, 68, 96]},
+    {'do': 'tint', 'who': 'echo_knight2', 'colour': [74, 68, 96]},
+    sfx('impact', 0.7, 0.9),
+    narrate('In the last room, Black Knights vault in through the shutters. They seize her arms and wrench the poker '
+            'away.'),
+    walk('mara_echo', 'dm_throw', 120, wait=True),
+    sfx('impact', 0.9, 0.7),
+    flag('ACT1_MARA_SCUFFS'),
+    narrate('One heaves her across the room, and she hits the far wall and slides down it.'),
+    narrate('Behind the knights, in the cracked shutters of the window, stands one figure that does not flicker. It '
+            'is solid and in full colour while everything else is a faded echo: a hooded silhouette, face hidden, '
+            'hands loose at its sides. It does not move to help the knights, and it does not stop them.'),
+    face('rival', 'player'),
+    flag('ACT1_RIVAL_SIGN_SEEN'),
+    wait(0.9),
+    narrate('It turns its head toward you, as if it knew it was being watched.'),
+    narrate('As each blow lands, fresh scuffs and long scratch marks appear across the floor and walls, matching the '
+            'damage in the waking house. The echo shudders, thins, and goes out.'),
+    fx('vanish', who='echo_knight1', sink=False),
+    fx('vanish', who='echo_knight2', sink=False),
+    fx('vanish', who='mara_echo', sink=False),
+    fx('vanish', who='rival', sink=False),
+    wait(1.0),
+    *[{'do': 'remove', 'actor': a} for a in ('mara_echo', 'echo_knight1', 'echo_knight2', 'rival')],
+    narrate("The house is quiet. She isn't there."),
+    flag('ACT1_FERNHOLLOW_VISITED'),
+    *end_control(),
+]})
+# Out of it, by her bed: "Wake".
+S.append({'id': 'act1_mara_wake', 'on': {'use': 'dm_bed', 'map': 'dream_mara'},
+          'when': when(['ACT1_FERNHOLLOW_VISITED'], []), 'steps': [
+    bars(True),
+    white_out(0.5),
+    music('', 0.6),
+    wake('fernhollow_mara', 'mara_bedside'),
+    cam('player'),
+    wait(0.4),
+    fade('clear', 1.2),
+    *end_control(),
+]})
+S.append({'id': 'act1_mara_wake_early', 'on': {'use': 'dm_bed', 'map': 'dream_mara'},
+          'when': when([], ['ACT1_FERNHOLLOW_VISITED']),
+          'steps': [narrate('Not yet. Something is still happening in this house.')]})
+
+# Where every sleeper of the neighbors and the college sleeps. A talk scene names
+# the map it plays on, as every scene does (the self-test reads its steps there).
+SLEEPS_ON = {
+    'mossvale': ['npc_sela', 'npc_pell', 'npc_tamsin', 'npc_mv_carter', 'npc_mv_apple'],
+    'mossvale_herbalist': ['npc_oona'],
+    'mossvale_lodge_hall': ['npc_hadley', 'npc_mv_patron_1', 'npc_mv_patron_2'],
+    'fernhollow': ['npc_maud', 'npc_pim', 'npc_college_porter', 'npc_mira', 'npc_nell', 'npc_ilse'],
+    'fernhollow_cottage': ['npc_wendel_home', 'npc_hesper'],
+    'fernhollow_college': ['npc_councillor_ferris', 'npc_councillor_wren'],
+    'college_grounds': ['npc_college_walker_a', 'npc_college_walker_b', 'npc_college_reader', 'npc_college_gardener',
+                        'npc_college_usher'],
+    'college_training': ['npc_college_instructor'] + ['npc_college_lane_%d' % k for k in range(4)],
+    'college_classroom': ['npc_college_lector'] + ['npc_college_pupil_%d' % k for k in range(5)],
+}
+HOME = {n: m for m, ns in SLEEPS_ON.items() for n in ns}
+
+# Scene 64, as Act I first meets it: the Dreamcatcher on a sleeper in either
+# town. Something is blocking the way in.
+TOWN_SLEEPERS = ['npc_sela', 'npc_pell', 'npc_tamsin', 'npc_oona', 'npc_hadley', 'npc_mv_patron_1',
+                 'npc_mv_patron_2', 'npc_mv_carter', 'npc_mv_apple',
+                 'npc_maud', 'npc_pim', 'npc_college_porter', 'npc_mira', 'npc_wendel_home', 'npc_hesper', 'npc_nell',
+                 'npc_ilse']
+for npc in TOWN_SLEEPERS:
+    S.append({'id': 'act1_blocked_' + npc[4:], 'on': {'talk': npc, 'map': HOME[npc]}, 'needs': 'vigil_dreamcatcher',
+              'when': when(['PROLOGUE', 'ACT1_NEIGHBORS_QUEST_START'], ['CURED_' + npc, 'NEIGHBORS_SKIPPED']),
+              'steps': [
+        bars(True),
+        {'do': 'spawn', 'actor': 'dreamcatcher_held', 'at': 'player', 'dy': -30, 'lift': 6},
+        sfx('chime', 0.4, 0.75),
+        narrate('You raise the Dreamcatcher over the sleeper. Its threads flare and pull toward them, and the world '
+                'begins to tilt toward their dream.'),
+        fx('flash', colour=[60, 40, 80], amount=0.5),
+        sfx('bump', 0.9, 0.6),
+        {'do': 'remove', 'actor': 'dreamcatcher_held'},
+        narrate('Then something slams shut: a hard, silent shove, like a hand against the chest. The threads go slack, '
+                'the glow gutters, and you stumble back, awake in the same spot.'),
+        narrate('Something is blocking the way in.'),
+        flag('ACT1_DREAMCATCHER_BLOCKED'),
+        *end_control(),
+    ]})
+
+# Scene 60: the report, at the Guild Hall -- and (62) the dragon's shadow as
+# the player steps out after it, and the Act II card.
+DRAGON_62 = [
     cam('porch_cam', zoom=0.9),
     wait(0.6),
     narrate('Havenbrook is awake: townsfolk spill into the streets, smoke rises from the chimneys, and a hammer rings '
@@ -1848,17 +2434,18 @@ S.append({'id': 'act1_dragon', 'on': {'enter': 'town_havenbrook', 'spawn': 'from
     sfx('anvil', 0.25, 1.1),
     wait(0.8),
     sfx('anvil', 0.25, 1.1),
+    {'do': 'spawn', 'actor': 'wynn_door', 'at': 'clothier_door', 'dy': -20, 'face': 'up', 'keep': True},
     {'do': 'fade', 'to': 'black', 'time': 1.4, 'wait': False, 'amount': 0.32},
     wait(1.0),
-    # "The townsfolk freeze and look up": everyone in the street, stopped and
-    # turned to the sky as the shadow goes over -- all but Vask, who is the
-    # scene's own -- and let go again as the light comes back.
     {'do': 'crowd', 'dir': 'up', 'except': ['npc_vask_porch']},
     fx('shadow', **{'from': 'shadow_from', 'to': 'shadow_to'}, time=3.6, alpha=0.6),
     sfx('gust', 1.0),
+    face('wynn_door', d='up'),
+    pose('wynn_door', 'shake'),
     wait(3.8),
     fade('clear', 1.2),
     {'do': 'crowd', 'release': True},
+    {'do': 'remove', 'actor': 'wynn_door'},
     cam('npc_vask_porch', 1.2),
     pose('npc_vask_porch', 'fury'),
     {'do': 'tint', 'who': 'npc_vask_porch', 'colour': [255, 196, 182]},
@@ -1872,12 +2459,283 @@ S.append({'id': 'act1_dragon', 'on': {'enter': 'town_havenbrook', 'spawn': 'from
     wait(1.6),
     fade('black', 2.4),
     flag('ACT1_DRAGON_SHADOW_SEEN'),
-    {'do': 'tint', 'who': 'npc_vask_porch', 'colour': [255, 255, 255]},
-    pose('npc_vask_porch', ''),
     wait(1.0),
+    # The Act II card, right after the fade out, with no time skip.
+    {'do': 'title', 'text': 'ACT II', 'sub': 'WWDD', 'time': 4.5},
+    flag('ACT2_00_STARTED'),
     fade('clear', 1.6),
     *end_control(),
+]
+S.append({'id': 'act1_report', 'on': {'talk': 'npc_mayor_guild', 'map': 'guild_hall'},
+          'when': when(['ACT1_MOSSVALE_VISITED', 'ACT1_FERNHOLLOW_VISITED'], ['ACT1_NEIGHBORS_REPORTED']), 'steps': [
+    bars(True),
+    cam('gh_cam', zoom=1.05),
+    narrate('Mayor Hale and Guild Master Orlend stand at the long desk, a map of the region spread between them. They '
+            'look up as you come in.'),
+    say('npc_mayor_guild', 'Tell us everything.'),
+    narrate("You tell them: Mossvale's sleeping lanes; the inn, and the red eye in the gloom; Apocolo's torn recipe "
+            "book; the Dreamcatcher flaring and snapping back; Fernhollow's empty streets; the door lying flat; the "
+            'ghostly struggle in the dream house.'),
+    narrate("Mayor Hale's jaw tightens. The Guild Master studies the map in silence, then taps it twice."),
+    say('npc_guildmaster', "(low) Two more towns, and a woman gone. That's no curse drifting down the road. That is a "
+                           'hand reaching for each of them in turn.'),
+    say('npc_mayor_guild', "(rubbing his eyes) And he watched you the whole way down, like a crow on a fence. "
+                           "Havenbrook woke because you stood in the dark for us. Mossvale and Fernhollow have nobody "
+                           "standing there for them. Not yet."),
+    say('npc_guildmaster', "(to you) Not yet. Those torn pages belong to Apocolo, the apothecary Vexel took from us, "
+                           "and his recipe may do what the Dreamcatcher can't. Find them. Whatever he wants, he isn't "
+                           "finished. You've earned a moment to breathe."),
+    fade('black', 1.6),
+    flag('ACT1_NEIGHBORS_REPORTED'),
+    music('', 0.6),
+    {'do': 'map', 'map': 'town_havenbrook', 'spawn': 'from_guild_hall'},
+    fade('clear', 1.2),
+    *DRAGON_62,
 ]})
+S.append({'id': 'act1_dragon', 'on': {'enter': 'town_havenbrook', 'spawn': 'from_guild_hall'},
+          'when': when(['ACT1_NEIGHBORS_REPORTED'], ['ACT1_DRAGON_SHADOW_SEEN']),
+          'steps': [bars(True, 0.0), *DRAGON_62]})
+
+
+# ---------------------------------------------------------------------------------------------
+#  ACT II -- WWDD (Screenplay.md, scenes 63-85)
+# ---------------------------------------------------------------------------------------------
+# --- 65: Torn Pages. Each page where its trace said; every second one, the rival.
+PAGE_SITES = [
+    ('graveyard', 'overworld', 'Wedged under a leaning headstone, weighted with a clod of grave dirt: a torn page in '
+                               'a small, careful hand.'),
+    ('lizard', 'dungeon_lizard_cave', 'Pinned under a shaman\'s bundle of bones and feathers: a torn page, a green '
+                                      'scale caught in its fold.'),
+    ('bear', 'dungeon_bear_den', 'Trodden into the bedding at the back of the den, among the bones: a torn page, '
+                                 'furred with coarse brown hair.'),
+    ('orc', 'dungeon_emberfell_2', 'In the warlord\'s chest, under a greasy rag: a torn page with a grey handprint '
+                                   'across it.'),
+]
+for key, map_id, line in PAGE_SITES:
+    up = key.upper()
+    S.append({'id': 'act2_page_' + key, 'on': {'use': 'page_' + key, 'map': map_id},
+              'when': when(['ACT1_OONA_BOOK_FOUND'], ['ACT1_PAGE_%s_FOUND' % up]), 'steps': [
+        narrate(line),
+        {'do': 'give', 'item': 'torn_page_' + key},
+        flag('ACT1_PAGE_%s_FOUND' % up),
+        count('ACT1_PAGES', 4),
+    ]})
+S.append({'id': 'act2_pages_all', 'on': {'flag': 'ACT1_PAGES_4'}, 'when': when([], ['ACT1_PAGES_ALL_FOUND']),
+          'steps': [flag('ACT1_PAGES_ALL_FOUND')]})
+
+
+# 65A: every second page, the rival: the colours flatten, a hooded figure steps
+# out of nothing, and the player cannot lift a hand. The second visit has a
+# voice, and a glimpse of a face.
+def rival_visit(second):
+    steps = [
+        bars(True),
+        fx('flash', colour=[188, 180, 214], amount=0.45),
+        sfx('tear', 0.6, 1.2),
+        narrate('You lift the torn page. The air goes cold and the colours flatten, as if the world had been dipped '
+                'in dream.'),
+        {'do': 'spawn', 'actor': 'rival', 'at': 'player', 'dx': 72, 'face': 'left', 'keep': True},
+        {'do': 'tint', 'who': 'rival', 'colour': [86, 74, 104]},
+        fx('appear', who='rival'),
+        narrate('A hooded figure steps out of nothing: the same figure that stood in the Fernhollow window, solid, '
+                'in full colour, face hidden. You reach for a weapon and cannot. Your arms will not obey.'),
+        {'do': 'walk', 'who': 'rival', 'toward': 'player', 'dist': 44, 'speed': 320},
+        sfx('impact', 1.0, 0.9),
+        fx('flash', colour=[255, 255, 255], amount=0.5),
+        {'do': 'player', 'pose': 'lie'},
+        wait(0.5),
+        sfx('impact', 0.8, 1.1),
+        narrate('The figure crosses the distance in one stride and strikes. You are thrown down, struck again, and '
+                'held to the ground.'),
+    ]
+    if second:
+        steps += [
+            {'do': 'tint', 'who': 'rival', 'colour': [255, 255, 255]},
+            narrate('For a moment the hood falls back, and there is a face under it -- and the figure speaks, too '
+                    'low to make out a word. Then the hood is up again.'),
+        ]
+    steps += [
+        narrate('The figure looks at the page in your fist, and leaves it there.'),
+        fx('vanish', who='rival'),
+        wait(0.9),
+        {'do': 'remove', 'actor': 'rival'},
+        fx('flash', colour=[255, 255, 255], amount=0.3),
+        narrate('The figure steps back into a ripple in the air, and the Reverie closes over it. The colours snap '
+                'back. The page is still in your hand.'),
+        {'do': 'player', 'pose': ''},
+        {'do': 'rest'},
+        count('ACT2_RIVAL_VISITS', 2),
+        *end_control(),
+    ]
+    return steps
+
+
+S.append({'id': 'act2_rival_visit_1', 'on': {'flag': 'ACT1_PAGES_2'}, 'when': when([], ['ACT2_RIVAL_VISITS_1']),
+          'steps': rival_visit(False)})
+S.append({'id': 'act2_rival_visit_2', 'on': {'flag': 'ACT1_PAGES_4'}, 'when': when([], ['ACT2_RIVAL_VISITS_2']),
+          'steps': rival_visit(True)})
+
+# --- the book, on Oona's bench: how many pages, and mended once they are all found.
+for k in range(4):
+    have = ['ACT1_PAGES_%d' % k] if k > 0 else []
+    S.append({'id': 'act2_book_%d' % k, 'on': {'use': 'apocolo_book', 'map': 'mossvale_herbalist'},
+              'when': when(['ACT1_OONA_BOOK_FOUND'] + have, ['ACT1_PAGES_%d' % (k + 1)]),
+              'steps': [narrate("Apocolo's recipe book. %s The cure is on the pages that are gone."
+                                % ['Four pages torn out, their stubs like broken teeth.',
+                                   'One torn page found; three stubs still empty.',
+                                   'Two torn pages found; two stubs still empty.',
+                                   'Three torn pages found; one stub still empty.'][k])]})
+S.append({'id': 'act2_book_mend', 'on': {'use': 'apocolo_book', 'map': 'mossvale_herbalist'},
+          'when': when(['ACT1_PAGES_ALL_FOUND'], ['ACT2_BOOK_MENDED']), 'steps': [
+    bars(True),
+    cam('apocolo_book_at', 0.6),
+    narrate('You set the four torn pages against the stubs in Apocolo\'s book. They knit into the spine as if they '
+            'had never been torn.'),
+    *[{'do': 'take', 'item': 'torn_page_' + k} for k in ('graveyard', 'lizard', 'bear', 'orc')],
+    {'do': 'give', 'item': 'apocolo_recipe'},
+    narrate('The cure is whole: a recipe in Apocolo\'s hand, to be brewed at the cauldron he kept in Havenbrook.'),
+    flag('ACT2_BOOK_MENDED'),
+    *end_control(),
+]})
+S.append({'id': 'act2_book_whole', 'on': {'use': 'apocolo_book', 'map': 'mossvale_herbalist'},
+          'when': when(['ACT2_BOOK_MENDED'], []),
+          'steps': [narrate("Apocolo's book, whole again.")]})
+
+# --- 67: Apocolo's cauldron.
+CURE_DOSES = 12
+S.append({'id': 'act2_cauldron_cold', 'on': {'use': 'apocolo_cauldron', 'map': 'town_havenbrook'},
+          'when': when([], ['ACT2_BOOK_MENDED']),
+          'steps': [narrate("Apocolo's cauldron, stone cold since Vexel took him. A ring of old ash beneath it.")]})
+S.append({'id': 'act2_cure', 'on': {'use': 'apocolo_cauldron', 'map': 'town_havenbrook'},
+          'needs': 'apocolo_recipe', 'when': when(['ACT2_BOOK_MENDED'], ['ACT2_CURE_BREWED']), 'steps': [
+    bars(True),
+    cam('apocolo_cauldron_at', 0.6),
+    narrate('The cauldron stands cold, a ring of ash beneath it. You light the fire and follow the recipe in '
+            "Apocolo's hand, ingredient by ingredient."),
+    sfx('burn', 0.6, 0.8),
+    wait(0.8),
+    fx('flash', colour=[255, 226, 140], amount=0.4),
+    narrate('The murky brew clears to a pale gold, and a row of vials fills one by one.'),
+    {'do': 'give', 'item': 'sleepers_cure', 'qty': CURE_DOSES},
+    flag('ACT2_CURE_BREWED'),
+    *end_control(),
+]})
+S.append({'id': 'act2_cure_more', 'on': {'use': 'apocolo_cauldron', 'map': 'town_havenbrook'},
+          'needs': 'apocolo_recipe', 'when': when(['ACT2_CURE_BREWED'], ['ACT2_COLLEGE_WOKEN']), 'steps': [
+    narrate("You brew another batch from Apocolo's recipe. The vials fill one by one."),
+    {'do': 'give', 'item': 'sleepers_cure', 'qty': CURE_DOSES},
+]})
+
+
+# --- 68, 69: a dose a sleeper. Oona and Wendel have their own words.
+def woken(npc, lines):
+    return {'id': 'act2_cure_' + npc[4:], 'on': {'talk': npc, 'map': HOME[npc]}, 'needs': 'sleepers_cure',
+            'when': when(['PROLOGUE', 'ACT2_CURE_BREWED'], ['CURED_' + npc, 'NEIGHBORS_SKIPPED']),
+            'steps': [bars(True), {'do': 'take', 'item': 'sleepers_cure'}, *lines, flag('CURED_' + npc),
+                      *end_control()]}
+
+
+GENERIC = [narrate('You tip a few golden drops between their lips. A breath, a cough, and they sit up, blinking.')]
+OONA = [
+    narrate('You give a dose to Oona, and she wakes on her stool with the ladle still in her hand. Her pot has '
+            'boiled down to a glowing syrup. She sees you, and then she sees the book on the bench, whole again.'),
+    say('npc_oona', "(hoarse) That's Apocolo's hand. Those pages... you found all of them?"),
+    narrate('You nod. Oona runs a thumb along the mended spine.'),
+    say('npc_oona', "He taught me everything I know, and Vexel took him. If this book is whole, then so is a piece "
+                    "of him. Come back to me, and I'll teach you what he taught me."),
+]
+WENDEL = [
+    narrate('You crouch beside old Wendel in his chair by the window and tip the potion between his lips. He jerks '
+            'awake, fishing line still wound around his fingers.'),
+    say('npc_wendel_home', '(blinking) Did I... did something bite?'),
+]
+MOSSVALE_SLEEPERS = ['npc_sela', 'npc_pell', 'npc_tamsin', 'npc_oona', 'npc_hadley', 'npc_mv_patron_1',
+                     'npc_mv_patron_2', 'npc_mv_carter', 'npc_mv_apple']
+FERNHOLLOW_SLEEPERS = ['npc_maud', 'npc_pim', 'npc_college_porter', 'npc_mira', 'npc_wendel_home', 'npc_hesper',
+                       'npc_nell', 'npc_ilse']
+CURE_SCENES = [woken(n, OONA if n == 'npc_oona' else WENDEL if n == 'npc_wendel_home' else GENERIC)
+               for n in MOSSVALE_SLEEPERS + FERNHOLLOW_SLEEPERS]
+# Before the Dreamcatcher's block, which answers the same talk: a sleeper with a
+# dose to hand is woken, not pushed back at.
+first_block = next(i for i, sc in enumerate(S) if sc['id'].startswith('act1_blocked_'))
+S[first_block:first_block] = CURE_SCENES
+for town, sleepers, done in (('mossvale', MOSSVALE_SLEEPERS, 'ACT2_MOSSVALE_WOKEN'),
+                             ('fernhollow', FERNHOLLOW_SLEEPERS, 'ACT2_FERNHOLLOW_WOKEN')):
+    for n in sleepers:
+        S.append({'id': 'act2_%s_woken_%s' % (town, n[4:]), 'on': {'flag': 'CURED_' + n},
+                  'when': when(['CURED_' + m for m in sleepers], [done]), 'steps': [
+            flag(done),
+            narrate({'mossvale': 'Down the lanes, villagers wake by the well and in the doorways, rubbing their eyes. '
+                                 'The wind chimes begin to ring.',
+                     'fernhollow': 'Across the hamlet, dose by dose, people wake, and the lanterns that burned '
+                                   'through the night gutter out. At the south-east wall, a neighbour stands in front '
+                                   'of a broken door and looks inside. Nobody comes out.'}[town]),
+        ]})
+for n in ('ACT2_MOSSVALE_WOKEN', 'ACT2_FERNHOLLOW_WOKEN'):
+    S.append({'id': 'act2_neighbors_woken_' + n.split('_')[1].lower(), 'on': {'flag': n},
+              'when': when(['ACT2_MOSSVALE_WOKEN', 'ACT2_FERNHOLLOW_WOKEN'], ['ACT2_NEIGHBORS_WOKEN']),
+              'steps': [flag('ACT2_NEIGHBORS_WOKEN')]})
+# Oona's lesson: brewing, as Apocolo taught her.
+S.append({'id': 'act2_oona_lesson', 'on': {'talk': 'npc_oona', 'map': 'mossvale_herbalist'},
+          'when': when(['CURED_npc_oona'], ['ACT2_OONA_TEACHES']), 'steps': [
+    bars(True),
+    narrate('Oona teaches you to brew, the way Apocolo taught her.'),
+    flag('ACT2_OONA_TEACHES'),
+    *end_control(),
+]})
+
+# --- 66: Wynn, behind her Mossvale counter.
+S.append({'id': 'act2_wynn_found', 'on': {'enter': 'mossvale_weavers'},
+          'when': when(['PROLOGUE', 'ACT1_DRAGON_SHADOW_SEEN'], ['ACT2_CLOTHIER_FOUND']), 'steps': [
+    bars(True, 0.0),
+    cam('npc_wynn'),
+    wait(0.5),
+    narrate('You lean over the counter. Wynn is awake, crouched on the floor with her arms wrapped around her knees, '
+            'shaking. She flinches from you, then looks up and sees who it is.'),
+    narrate('You kneel and wait, saying nothing, until her breathing slows.'),
+    say('npc_wynn', "(unsteady) You're the one from Havenbrook. You came into my dream and cut me loose."),
+    say('npc_wynn', "(a shaky breath) I thought I was past it. After that shadow crossed the sky I ran all the way "
+                    "here, thinking Mossvale would be safer. But every time I close my eyes, it's that place again. "
+                    "The thread. The humming."),
+    say('npc_wynn', "When I reached Mossvale it was too quiet. Everyone was already down, in the lane, in doorways, at "
+                    "the well. I ran home and hid."),
+    say('npc_wynn', "(she glances at the window) Far off, past the trees, I heard drums, and a chant I didn't know. It "
+                    "went on for hours. Then it stopped, and the quiet was worse. I did not dare leave my hiding place "
+                    "until you came."),
+    pose('npc_wynn', ''),
+    say('npc_wynn', "(steadier, rising) I've been behind this counter ever since. Thank you for coming. My loom in "
+                    "Havenbrook is yours for as long as you need it. Weave whatever you need."),
+    flag('ACT2_CLOTHIER_FOUND'),
+    *end_control(),
+]})
+
+# --- 68A/68B: the house in Mossvale, at the Mayor's.
+S.append({'id': 'act2_house_offer', 'on': {'talk': 'npc_mayor', 'map': 'mayor_hall'},
+          'when': when(['ACT2_HOUSE_ASKED_BESS'], ['ACT2_HOUSE_OFFERED']), 'steps': [
+    bars(True),
+    face('npc_mayor', 'player'),
+    narrate('Mayor Hale looks up from his desk as you explain.'),
+    say('npc_mayor', "A place to live? There's a house in Mossvale that would suit you well. Let me check the "
+                     "documents."),
+    narrate('Mayor Hale pulls a ledger from the shelf and runs a finger down the page, then looks up.'),
+    say('npc_mayor', "Nobody is living there, and it's worth fifty thousand. But for the hero of this town, I'll take "
+                     "twenty off. Thirty thousand, and the house is yours."),
+    flag('ACT2_HOUSE_OFFERED'),
+    quest('q_act2_mossvale_house'),
+    *end_control(),
+]})
+S.append({'id': 'act2_house_buy', 'on': {'talk': 'npc_mayor', 'map': 'mayor_hall'},
+          'needs': 'coins', 'needs_qty': 30000, 'when': when(['ACT2_HOUSE_OFFERED'], ['ACT2_HOUSE_BOUGHT']), 'steps': [
+    {'do': 'confirm', 'text': 'Pay Mayor Hale thirty thousand coins for the house in Mossvale?', 'yes': 'Pay',
+     'no': 'Not yet'},
+    {'do': 'take', 'item': 'coins', 'qty': 30000},
+    {'do': 'give', 'item': 'mossvale_house_key'},
+    narrate('Mayor Hale counts the coins into his strongbox and hands you the key to the house in Mossvale.'),
+    flag('ACT2_HOUSE_BOUGHT'),
+]})
+S.append({'id': 'act2_house_short', 'on': {'talk': 'npc_mayor', 'map': 'mayor_hall'},
+          'when': when(['ACT2_HOUSE_OFFERED'], ['ACT2_HOUSE_BOUGHT']),
+          'steps': [say('npc_mayor', 'Thirty thousand, and the house in Mossvale is yours. Come back when you have it.')]})
 
 
 # ---------------------------------------------------------------------------------------------
@@ -1898,6 +2756,515 @@ S.append({'id': 'act2_bounties_tip', 'on': {'flag': 'ACT2_GUILD_BOUNTIES_OPEN'},
           'steps': [flag('ACT2_TIP_BOUNTIES'), {'do': 'tip', 'id': 'guild_bounties'}]})
 
 
+# ===== ACT II, part 2 (scenes 63, 70-85) =====
+ACTORS.update({
+    'orrin': {'sprite': 'magister', 'name': 'Magister Orrin'},
+    'guard1': {'sprite': 'fighter2', 'name': 'Guard'},
+    'guard2': {'sprite': 'fighter2', 'name': 'Guard'},
+})
+TIPS.update({
+    'talisman': {'title': 'The Death Talisman',
+                 'text': 'Wear the talisman in its own place: open your bag and put it on. Then {Talisman} steps '
+                         'into the Reverie where you stand -- in Havenbrook, at the college, on the Ashen Path, at the '
+                         "Plateau's stronghold or in the Bayou -- and {Talisman} again steps back out. It wants five "
+                         'seconds between. It does nothing in the dreamworld a bed sends you to.'},
+})
+RIVAL_TINT = [150, 138, 176]
+VASK = 'npc_vask_porch'
+
+# --- 63: Vask, angry, until the player is strong enough. Each talk: one line,
+# never the same twice running.
+S.append({'id': 'act2_vask_not_now', 'on': {'talk': VASK, 'map': 'town_havenbrook'},
+          'when': when(['ACT1_DRAGON_SHADOW_SEEN'], ['ACT2_ICESPIRE_READY', 'ACT2_VASK_NOT_NOW']), 'steps': [
+    fx('steam', who=VASK),
+    say(VASK, '(through his teeth, steam hissing) Not now, lad.'),
+    flag('ACT2_VASK_NOT_NOW'),
+]})
+VASK_ROTATION = [
+    ("(without looking at you) Don't ask me yet. You aren't ready to hear it.", [], ['ACT2_VASK_GRUMBLE_A', 'ACT2_VASK_GRUMBLE_B'],
+     [flag('ACT2_VASK_GRUMBLE_A')]),
+    ('(a hard puff of steam) Go on. Grow stronger. Ask me again when you can.', ['ACT2_VASK_GRUMBLE_A'], [],
+     [{'do': 'flag', 'clear': 'ACT2_VASK_GRUMBLE_A'}, flag('ACT2_VASK_GRUMBLE_B')]),
+    ("(a low growl) Hrrmph. That sky isn't empty anymore.", ['ACT2_VASK_GRUMBLE_B'], [],
+     [{'do': 'flag', 'clear': 'ACT2_VASK_GRUMBLE_B'}]),
+]
+for k, (line, have, lack, after) in enumerate(VASK_ROTATION):
+    S.append({'id': 'act2_vask_grumble_%d' % (k + 1), 'on': {'talk': VASK, 'map': 'town_havenbrook'},
+              'when': when(['ACT1_DRAGON_SHADOW_SEEN', 'ACT2_VASK_NOT_NOW'] + have, ['ACT2_ICESPIRE_READY'] + lack),
+              'steps': [fx('steam', who=VASK), say(VASK, line), *after]})
+# Level 35: the red fades, the steam stops, and a marker hangs over him.
+S.append({'id': 'act2_icespire_ready', 'on': {'level': 35},
+          'when': when(['ACT1_DRAGON_SHADOW_SEEN'], ['ACT2_ICESPIRE_READY']), 'steps': [flag('ACT2_ICESPIRE_READY')]})
+
+# --- 77: the dragon slayer.
+S.append({'id': 'act2_vask_reveal', 'on': {'talk': VASK, 'map': 'town_havenbrook'},
+          'when': when(['ACT2_ICESPIRE_READY'], ['ACT2_ICESPIRE_STARTED']), 'steps': [
+    bars(True),
+    cam('vask_porch_cam', 0.8),
+    narrate('You climb the porch steps. Elder Vask sits in his rocker, and for the first time since the shadow crossed '
+            'the sky the red has faded from his face and the steam has stopped. His hands rest white-knuckled on the '
+            'arms of the chair, but his eyes are clear.'),
+    say(VASK, "You're ready. I can see it in how you stand. Sit a moment, lad. There's a thing I've kept to myself "
+              'too long.'),
+    say(VASK, "(a long breath) I wasn't always a man in a rocking chair. In my warrior days I was a dragon slayer, and "
+              'I took down every dragon that crossed my path. That shadow over the town was Hoarfang. I must take down '
+              'this one just as I did the rest.'),
+    {'do': 'confirm', 'text': '', 'yes': "Let me handle it. You've earned your rest.", 'no': 'Not yet'},
+    say(VASK, "Strain myself? I was felling dragons before you could walk. Make no mistake, I'll be there."),
+    pose(VASK, 'fist'),
+    narrate('He grips the arms of the chair and pushes himself up. His knees tremble. He lowers himself back down, '
+            'and the fight drains out of him.'),
+    pose(VASK, ''),
+    say(VASK, "...No. I'm not as nimble as I was. Slay the beast for me, adventurer, and bring me back its head."),
+    {'do': 'flag', 'clear': 'ACT2_HOARFANG_SLAIN'},
+    flag('ACT2_ICESPIRE_STARTED'),
+    quest('q_act2_hoarfang'),
+    *end_control(),
+]})
+# 78: the head, taken from the fallen dragon.
+S.append({'id': 'act2_hoarfang_head', 'on': {'flag': 'ACT2_HOARFANG_SLAIN', 'map': 'ice_spire_peak'},
+          'when': when(['ACT2_ICESPIRE_STARTED'], ['ACT2_HOARFANG_HEAD', 'ACT2_HOARFANG_RESOLVED']), 'steps': [
+    narrate("You take Hoarfang's head from the fallen dragon."),
+    {'do': 'give', 'item': 'hoarfang_head'},
+    flag('ACT2_HOARFANG_HEAD'),
+]})
+# --- 78A: the head on the porch steps.
+S.append({'id': 'act2_vask_head', 'on': {'talk': VASK, 'map': 'town_havenbrook'}, 'needs': 'hoarfang_head',
+          'when': when(['ACT2_ICESPIRE_STARTED'], ['ACT2_HOARFANG_RESOLVED']), 'steps': [
+    bars(True),
+    cam('vask_porch_cam', 0.8),
+    narrate('You set the great head down at the foot of the porch steps. Elder Vask stares at it. His eyes go wide.'),
+    say(VASK, '(hoarsely) You... did it!'),
+    narrate("He rises, unsteady, and rests a trembling hand on the dragon's brow."),
+    say(VASK, "I haven't slain a dragon in twenty years of living in the Overworld, and you've made me feel like myself "
+              'in my slayer days. I fought my struggles in the Reverie too, back in those days, and I thought those '
+              'battles were behind me.'),
+    say(VASK, '(he looks up) Thank you, adventurer. And thank you for carrying the fight into the Dreamworld as well.'),
+    narrate('Vask lays five weapons on the porch rail, each crafted from Hoarfang: a pair of twin fang daggers, a scale '
+            'bow, a staff, a greatsword, and a mace. He pushes the great head across to you, ready to mount on a '
+            'mantle.'),
+    say(VASK, 'The head is yours, for your mantle. And take your pick of these. Choose well.'),
+    {'do': 'take', 'item': 'hoarfang_head'},
+    flag('ACT2_HOARFANG_RESOLVED'),
+    *end_control(),
+]})
+S.append({'id': 'act2_vask_waiting', 'on': {'talk': VASK, 'map': 'town_havenbrook'},
+          'when': when(['ACT2_ICESPIRE_STARTED'], ['ACT2_HOARFANG_RESOLVED']),
+          'steps': [say(VASK, 'Slay the beast for me, adventurer, and bring me back its head.')]})
+
+# --- 74: Bess and the deep well.
+S.append({'id': 'act2_bess_well', 'on': {'talk': 'npc_cook', 'map': 'house_inn'},
+          'when': when(['ACT2_00_STARTED'], ['ACT2_BESS_WELL_START']), 'steps': [
+    bars(True),
+    cam('npc_cook', 0.6),
+    narrate("Bess wipes down the bar and doesn't quite look at you."),
+    say('npc_cook', "I wouldn't ask, but there's nobody else. The old deep well in the middle of town has clogged. The "
+                    "water's stopped running, and at night something knocks from below. Clear it out for me, will you?"),
+    flag('ACT2_BESS_WELL_START'),
+    flag('recipe:lantern_unlit'),
+    quest('q_dry_well'),
+    *end_control(),
+]})
+# --- 75: the bottom of the well, and what guards its water.
+S.append({'id': 'act2_well_bottom', 'on': {'near': 'well_spring_at', 'map': 'well_deep', 'radius': 280},
+          'when': when(['ACT2_BESS_WELL_START'], ['ACT2_WELL_SEEN', 'ACT2_WELL_CLEARED']), 'steps': [
+    bars(True),
+    cam('well_spring_at', 0.8),
+    narrate('A dry chamber opens around a sealed spring, its mouth choked with grey slime and dead roots. Crouched over '
+            'it, one pale hand pressed to the stone where the water should run, is a gaunt, hollow-eyed figure in '
+            'rotted burial cloth: the Thing in the Spring.'),
+    narrate('It lifts its head. The hollow eyes find you.'),
+    flag('ACT2_WELL_SEEN'),
+    *end_control(),
+]})
+S.append({'id': 'act2_well_cleared', 'on': {'flag': 'ACT2_WELL_WARDEN_DOWN', 'map': 'well_deep'},
+          'when': when(['ACT2_BESS_WELL_START'], ['ACT2_WELL_CLEARED']), 'steps': [
+    narrate('The Thing in the Spring collapses into dust.'),
+    flag('ACT2_WELL_CLEARED'),
+]})
+
+# --- 70: the college courtyard. The rival, Vexel on the steps, and Orrin in his thread.
+S.append({'id': 'act2_college_quest', 'on': {'flag': 'ACT2_NEIGHBORS_WOKEN'},
+          'when': when(['PROLOGUE'], ['ACT2_COLLEGE_QUEST']),
+          'steps': [flag('ACT2_COLLEGE_QUEST'), quest('q_act2_college')]})
+S.append({'id': 'act2_college_fight', 'on': {'enter': 'college_grounds'},
+          'when': when(['ACT2_NEIGHBORS_WOKEN'], ['ACT2_RIVAL_FIGHT']), 'steps': [
+    bars(True, 0.0),
+    cam('cg_court'),
+    narrate('You step through the college gate into the courtyard. A dry fountain stands at its heart, and ivy chokes '
+            'the cloisters. Masters and students lie asleep along the walks, as if felled mid-step. The potion has not '
+            'reached them.'),
+    cam('cg_steps', 1.8),
+    narrate("At the top of the far steps Vexel Von Finch waits with his long fingers folded. Beside him an old mage in "
+            "a grey robe, the head of the college, Magister Orrin, hangs asleep in a net of black thread: Vexel's "
+            'hostage. On his other side stands the rival Dreamwalker, hood thrown back. It is the figure from the '
+            'Fernhollow window, and from the visits.'),
+    narrate('The rival walks down the steps alone. Vexel does not move. You, free to act at last, draw.'),
+    music('boss', 1.0),
+    flag('ACT2_RIVAL_FIGHT'),
+    *end_control(),
+]})
+S.append({'id': 'act2_rival_down', 'on': {'flag': 'ACT2_RIVAL_DEFEATED', 'map': 'college_grounds'},
+          'when': when(['ACT2_RIVAL_FIGHT'], ['ACT2_RIVAL_SPARED', 'ACT2_RIVAL_CAPTURED']), 'steps': [
+    bars(True),
+    music('', 1.2),
+    narrate('At last the rival drops to a knee, then falls. The courtyard goes quiet.'),
+    fade('black', 0.5),
+    {'do': 'banish', 'type': 'rival_dreamwalker'},
+    {'do': 'spawn', 'actor': 'rival', 'at': 'player', 'dx': 52, 'face': 'left', 'keep': True},
+    {'do': 'tint', 'who': 'rival', 'colour': RIVAL_TINT},
+    pose('rival', 'lie'),
+    fade('clear', 0.6),
+    cam('cg_steps', 1.0),
+    narrate('Vexel looks down at the fallen rival and grimaces, as he did at you in Mossvale. He does not step '
+            'forward. He does not reach out.'),
+    fx('flash', colour=[180, 120, 255], amount=0.6),
+    sfx('vanish', 0.8),
+    {'do': 'banish', 'type': 'vexel_beams'},
+    narrate('A violet flash, and he is gone, leaving the hostage hanging in his thread.'),
+    cam('rival', 0.8),
+    narrate('The rival raises a hand toward the empty steps.'),
+    say('rival', "(hoarse) Wait. You said you'd come back for me."),
+    narrate('The hand drops. The rival does not rise.'),
+    narrate('You walk to the fallen rival and stand over them.'),
+    {'do': 'confirm', 'text': '', 'yes': 'Spare and recruit', 'no': 'Capture', 'choice': True,
+     'flag': 'ACT2_RIVAL_SPARED', 'no_flag': 'ACT2_RIVAL_CAPTURED'},
+    narrate('You lower your weapon and offer a hand. The rival stares at the empty steps where Vexel stood. Then, '
+            'slowly, the rival takes the hand.'),
+    pose('rival', 'sit_up'),
+    wait(0.9),
+    pose('rival', ''),
+    say('rival', "He wasn't coming back, was he. ...Then I'll fight beside you, for now."),
+    fx('vanish', who='rival'),
+    wait(0.9),
+    {'do': 'remove', 'actor': 'rival'},
+    flag('ACT2_RIVAL_FATE'),
+    *end_control(),
+]})
+S.append({'id': 'act2_rival_captured', 'on': {'flag': 'ACT2_RIVAL_CAPTURED', 'map': 'college_grounds'},
+          'when': when([], ['ACT2_RIVAL_FATE']), 'steps': [
+    bars(True, 0.0),
+    {'do': 'remove', 'actor': 'rival'},
+    {'do': 'spawn', 'actor': 'rival', 'at': 'player', 'dx': 52, 'face': 'left', 'keep': True},
+    {'do': 'tint', 'who': 'rival', 'colour': RIVAL_TINT},
+    pose('rival', 'lie'),
+    narrate("You bind the rival's wrists. The rival does not resist, eyes still on the steps where Vexel stood."),
+    fade('black', 1.2),
+    {'do': 'remove', 'actor': 'rival'},
+    {'do': 'map', 'map': 'havenbrook_cells', 'at': 'cells_cam'},
+    {'do': 'player', 'hidden': True},
+    cam('cells_cam'),
+    {'do': 'spawn', 'actor': 'guard1', 'at': 'cells_stair', 'face': 'right', 'keep': True},
+    {'do': 'spawn', 'actor': 'rival', 'at': 'cells_stair', 'dx': -34, 'face': 'right', 'keep': True},
+    {'do': 'tint', 'who': 'rival', 'colour': RIVAL_TINT},
+    {'do': 'spawn', 'actor': 'guard2', 'at': 'cells_stair', 'dx': -68, 'face': 'right', 'keep': True},
+    fade('clear', 1.0),
+    narrate('Later. In Havenbrook, guards lead the rival down into the dungeon, and a heavy door closes.'),
+    walk('guard1', 'cells_cell', 44, False, dx=36),
+    walk('rival', 'cells_cell', 44, False),
+    walk('guard2', 'cells_cell', 44, True, dx=-36),
+    {'do': 'remove', 'actor': 'rival'},
+    sfx('door', 1.0, 0.6),
+    wait(1.0),
+    fade('black', 1.0),
+    *[{'do': 'remove', 'actor': a} for a in ('guard1', 'guard2')],
+    {'do': 'player', 'hidden': False},
+    flag('ACT2_RIVAL_FATE'),
+    {'do': 'map', 'map': 'college_grounds', 'at': 'cg_after'},
+    cam('player'),
+    fade('clear', 1.0),
+    *end_control(),
+]})
+
+
+# --- 71: Orrin wakes, and the first lesson.
+def lesson(who):
+    return [
+        narrate('You nod. The old mage traces a single glowing rune in the air above your open hands. It settles into '
+                'them, warm and steady.'),
+        fx('flash', colour=[200, 170, 255], amount=0.4),
+        sfx('chime', 0.8, 0.9),
+        say(who, 'A first lesson, no more. Any staff you carry will hold the old magic now. The rest I will teach '
+                 'when my council and my staff are awake.'),
+        flag('recipe:spell:eldritch_blast'),
+        flag('ACT2_ANCIENT_SLOT_UNLOCKED'),
+        quest('q_act2_wake_college'),
+    ]
+
+
+S.append({'id': 'act2_orrin_wakes', 'on': {'flag': 'ACT2_RIVAL_FATE', 'map': 'college_grounds'},
+          'when': when([], ['ACT2_COLLEGE_HEAD_AWAKE']), 'steps': [
+    bars(True),
+    pose('npc_orrin_court', ''),
+    cam('npc_orrin_court', 1.0),
+    narrate('The net of black thread around the old mage unravels strand by strand, and he drops lightly to the '
+            'flagstones. Magister Orrin draws a long, shuddering breath and opens his eyes.'),
+    flag('ACT2_ORRIN_FREED'),
+    say('npc_orrin_court', 'He held me up like a lantern and made me watch. ...You stood in this courtyard against both '
+                           'of them. The college owes you more than it can pay.'),
+    say('npc_orrin_court', '(he looks along the cloisters at the sleeping masters and students) Most of mine still '
+                           'sleep: the mage council in the great hall, the staff in the other chambers, and the rest '
+                           'of my students. Help me wake them, and I will teach you the arts of the ancient magics.'),
+    flag('ACT2_COLLEGE_HEAD_AWAKE'),
+    {'do': 'confirm', 'text': '', 'yes': 'Agree', 'no': 'Not yet'},
+    *lesson('npc_orrin_court'),
+    *end_control(),
+]})
+S.append({'id': 'act2_orrin_offer', 'on': {'talk': 'npc_magister', 'map': 'fernhollow_college'},
+          'when': when(['ACT2_COLLEGE_HEAD_AWAKE'], ['ACT2_ANCIENT_SLOT_UNLOCKED']), 'steps': [
+    bars(True),
+    say('npc_magister', 'Help me wake them, and I will teach you the arts of the ancient magics.'),
+    {'do': 'confirm', 'text': '', 'yes': 'Agree', 'no': 'Not yet'},
+    *lesson('npc_magister'),
+    *end_control(),
+]})
+
+# Wake the College: a dose a sleeper -- the council, the staff, the students.
+COUNCIL = ['npc_councillor_ferris', 'npc_councillor_wren']
+STAFF = ['npc_college_instructor', 'npc_college_lector']
+STUDENTS = ['npc_college_walker_a', 'npc_college_walker_b', 'npc_college_reader', 'npc_college_gardener',
+            'npc_college_usher'] + ['npc_college_lane_%d' % k for k in range(4)] + \
+           ['npc_college_pupil_%d' % k for k in range(5)]
+COLLEGE_CURES = [{'id': 'act2_cure_' + n[4:], 'on': {'talk': n, 'map': HOME[n]}, 'needs': 'sleepers_cure',
+                  'when': when(['PROLOGUE', 'ACT2_COLLEGE_HEAD_AWAKE'], ['CURED_' + n]),
+                  'steps': [bars(True), {'do': 'take', 'item': 'sleepers_cure'}, *GENERIC, flag('CURED_' + n),
+                            *end_control()]}
+                 for n in COUNCIL + STAFF + STUDENTS]
+first_talk = next(i for i, sc in enumerate(S) if sc['id'] == 'act2_orrin_offer')
+S[first_talk:first_talk] = COLLEGE_CURES
+for group, done in ((COUNCIL, 'ACT2_COLLEGE_COUNCIL_WOKEN'), (STAFF, 'ACT2_COLLEGE_STAFF_WOKEN'),
+                    (STUDENTS, 'ACT2_COLLEGE_STUDENTS_WOKEN')):
+    for n in group:
+        S.append({'id': 'act2_%s_%s' % (done.split('_')[2].lower(), n[4:]), 'on': {'flag': 'CURED_' + n},
+                  'when': when(['CURED_' + m for m in group], [done]), 'steps': [flag(done)]})
+for f, other in (('ACT2_COLLEGE_COUNCIL_WOKEN', 'ACT2_COLLEGE_STAFF_WOKEN'),
+                 ('ACT2_COLLEGE_STAFF_WOKEN', 'ACT2_COLLEGE_COUNCIL_WOKEN')):
+    S.append({'id': 'act2_magics_open_' + f.split('_')[2].lower(), 'on': {'flag': f},
+              'when': when([other], ['ACT2_ANCIENT_MAGICS_OPEN']), 'steps': [flag('ACT2_ANCIENT_MAGICS_OPEN')]})
+GROUPS = ['ACT2_COLLEGE_COUNCIL_WOKEN', 'ACT2_COLLEGE_STAFF_WOKEN', 'ACT2_COLLEGE_STUDENTS_WOKEN']
+for f in GROUPS:
+    S.append({'id': 'act2_college_woken_' + f.split('_')[2].lower(), 'on': {'flag': f},
+              'when': when(GROUPS, ['ACT2_COLLEGE_WOKEN']), 'steps': [flag('ACT2_COLLEGE_WOKEN')]})
+
+# --- 71A: the council rises, and points at the Ashen Path.
+S.append({'id': 'act2_council_wakes', 'on': {'flag': 'ACT2_COLLEGE_COUNCIL_WOKEN', 'map': 'fernhollow_college'},
+          'when': when([], ['ACT2_ASHEN_PATH_SUGGESTED']), 'steps': [
+    bars(True),
+    cam('fc_cam', 0.8),
+    narrate('The mage council, a ring of robed elders including Councillor Ferris and Councillor Wren, rises slowly '
+            'from their seats, blinking in the daylight. Magister Orrin stands among them and takes in you and the '
+            'open doors of the hall.'),
+    say('npc_magister', 'We owe you our waking. Whatever Vexel Von Finch is doing, the traces of his magic lead toward '
+                        'the Ashen Path. If you would repay us, go and investigate it for any sign of him.'),
+    flag('ACT2_ASHEN_PATH_SUGGESTED'),
+    flag('ACT2_ASHEN_PATH_OPEN'),
+    quest('q_act2_ashen_path'),
+    *end_control(),
+]})
+
+# --- 85, and its way in: the council's meeting about the rune. Before the archive
+# (72): with the rune brought back, that is the conversation the Magister has.
+def meeting(fade_in):
+    steps = [bars(True)]
+    if fade_in:
+        steps += [fade('black', 1.2), {'do': 'map', 'map': 'fernhollow_college', 'at': 'fc_meeting'}]
+    else:
+        steps += [fade('black', 1.0), {'do': 'player', 'at': 'fc_meeting', 'face': 'up'}]
+    steps += [
+        cam('fc_cam'),
+        fade('clear', 1.2),
+        narrate('You sit in a discussion with the mage council and the head of the college in the big meeting hall. '
+                'The council has heard everything.'),
+        say('npc_magister', 'The college has studied your rune. It opens a portal into the Reverie. And someone has '
+                            'been toying with the species of the overworld, setting them to attack in the Reverie. The '
+                            'Nightmares you fought in the pit were only the beginning.'),
+        say('npc_councillor_ferris', 'Destroy it. A door into the Reverie in the heart of the Ashen Land is a door for '
+                                     'whatever is toying with these creatures to walk through.'),
+        say('npc_councillor_wren', 'Or we experiment with it. A door that opens one way opens the other, and we would '
+                                   'see our enemy before he sees us.'),
+        say('npc_magister', 'Enough. You carried the rune back to us, and the choice is yours. Decide, and the college '
+                            'will abide by it.'),
+        {'do': 'confirm', 'text': '', 'yes': 'Destroy the rune', 'no': 'Experiment with the rune', 'choice': True,
+         'flag': 'ACT2_RUNE_DESTROYED', 'no_flag': 'ACT2_RUNE_EXPERIMENT'},
+    ]
+    return steps
+
+
+S.append({'id': 'act2_meeting_asked', 'on': {'talk': 'npc_magister', 'map': 'fernhollow_college'},
+          'when': when(['ACT2_PALM_HEALED', 'ACT2_ANCIENT_MAGICS_OPEN'],
+                       ['ACT2_RUNE_DESTROYED', 'ACT2_RUNE_EXPERIMENT']),
+          'steps': meeting(False)})
+for f in ('ACT2_RUNE_DESTROYED', 'ACT2_RUNE_EXPERIMENT'):
+    S.append({'id': 'act2_meeting_end_' + f.split('_')[2].lower(), 'on': {'flag': f},
+              'when': when([], ['ACT2_HEADMASTER_TOLD']), 'steps': [
+        bars(True, 0.0),
+        flag('ACT2_RUNE_FATE'),
+        {'do': 'take', 'item': 'rune_rubbing'},
+        narrate('The council murmurs. The meeting draws to its end.'),
+        flag('ACT2_HEADMASTER_TOLD'),
+        fade('black', 2.0),
+        {'do': 'title', 'text': 'ACT III', 'sub': 'Attack on the Reverie', 'time': 4.5},
+        flag('ACT3_00_STARTED'),
+        fade('clear', 1.6),
+        *end_control(),
+    ]})
+
+# --- 72: the archive, and the death talisman.
+S.append({'id': 'act2_archive', 'on': {'talk': 'npc_magister', 'map': 'fernhollow_college'},
+          'when': when(['ACT2_ANCIENT_MAGICS_OPEN'], ['ACT2_TALISMAN_SEARCH_START']), 'steps': [
+    bars(True),
+    cam('npc_magister', 0.6),
+    narrate('The old mage climbs down from a ladder among the archive shelves, dust on his robe and a heavy book '
+            'under one arm.'),
+    say('npc_magister', 'Look at what the Reverie costs you: a bed, a sleeper, a Dreamcatcher, and always a door that '
+                        'someone else holds open. The old Dreamwalkers carried a talisman that opened the veil for '
+                        'them, in and out, as they pleased.'),
+    say('npc_magister', 'This college teaches that the closest thing to dreaming is death, and death has a guardian. '
+                        'My search points to the crypt beneath the cemetery. Deep down, the Ashlord, a vampire lord, '
+                        'stands guard over a chest, and I believe the death talisman is inside. Go when you are strong '
+                        'enough, and not before: the lower crypt is no place for the weak.'),
+    flag('ACT2_TALISMAN_SEARCH_START'),
+    quest('q_act2_death_talisman'),
+    *end_control(),
+]})
+
+# --- 73: the bottom of the crypt.
+S.append({'id': 'act2_ashlord_seen', 'on': {'near': 'cr3_vault', 'map': 'crypt_3', 'radius': 240},
+          'when': when(['ACT2_TALISMAN_SEARCH_START'], ['ACT2_ASHLORD_SEEN', 'ACT2_ASHLORD_DEFEATED']), 'steps': [
+    bars(True),
+    cam('cr3_vault', 0.8),
+    narrate('At the very bottom, in a round chamber of black stone, a tall, pale figure in a long, tattered coat stands '
+            'motionless before a stone chest, the points of its fangs just showing. Ash drifts from its shoulders, and '
+            'its eyes are two dull embers: the Ashlord, a vampire lord.'),
+    narrate('As you step in, the embers flare. The Ashlord lifts its weapon.'),
+    flag('ACT2_ASHLORD_SEEN'),
+    *end_control(),
+]})
+S.append({'id': 'act2_ashlord_ash', 'on': {'flag': 'ACT2_ASHLORD_DEFEATED', 'map': 'crypt_3'},
+          'when': when(['ACT2_TALISMAN_SEARCH_START'], ['ACT2_TALISMAN_FOUND', 'ACT2_ASHLORD_ASH']), 'steps': [
+    narrate('The Ashlord crumbles into a heap of ash. The chest lid creaks open.'),
+    flag('ACT2_ASHLORD_ASH'),
+]})
+S.append({'id': 'act2_talisman', 'on': {'use': 'talisman_chest', 'map': 'crypt_3'},
+          'when': when(['ACT2_TALISMAN_SEARCH_START'], ['ACT2_TALISMAN_FOUND']), 'steps': [
+    bars(True),
+    narrate('Inside, wrapped in cloth, lies the death talisman. You lift it. It is warm to the touch, and it hums.'),
+    {'do': 'give', 'item': 'death_talisman'},
+    flag('ACT2_TALISMAN_FOUND'),
+    {'do': 'tip', 'id': 'talisman'},
+    *end_control(),
+]})
+
+# --- 80-81: the Pit Lord down; the Cinder King's warning; the rune.
+CINDER = "TAKE THIS AS A WARNING, DREAMWALKER. YOU WILL BE SQUASHED THE MOMENT YOU WALK THROUGH MY DOORS. RETURN FROM WHENCE YOU CAME."
+S.append({'id': 'act2_cinder_warning', 'on': {'flag': 'ACT2_PIT_LORD_DEFEATED', 'map': 'dungeon_infernal'},
+          'when': when(['ACT2_ASHEN_PATH_SUGGESTED'], ['ACT2_CINDER_WARNING']), 'steps': [
+    bars(True),
+    music('', 1.0),
+    narrate('You stand over the fallen Pit Lord in the burning depths. The pit goes quiet.'),
+    fx('quake', amount=0.7, shake=0.5),
+    narrate('Then the ground trembles. A voice rolls up from everywhere at once, from the rock, the ash, and the sky, '
+            'as if the whole Ashen Land were speaking.'),
+    fx('quake', amount=1.0, shake=0.9, volume=0.7),
+    # A voice with no body: named, and nobody stands there to say it.
+    {'do': 'say', 'name': 'Cinder King', 'text': '(from beyond; booming) ' + CINDER},
+    fx('quake', amount=0.5, shake=0.4, volume=0.4),
+    narrate('The rumbling fades. The shaking ends.'),
+    flag('ACT2_CINDER_WARNING'),
+    *end_control(),
+]})
+S.append({'id': 'act2_pit_rune', 'on': {'use': 'pit_rune', 'map': 'dungeon_infernal'},
+          'when': when(['ACT2_CINDER_WARNING'], ['ACT2_RUNE_FOUND']), 'steps': [
+    bars(True),
+    cam('pit_rune_at', 0.6),
+    narrate("You search the Pit Lord's dwelling, a black-stone hall of bones and cinders at the pit's heart. Behind a "
+            'throne of rubble, a rune is carved into the wall. It glows with a pale, steady light unlike the hellfire '
+            'around it.'),
+    narrate('You touch it. The air in front of it folds open into a shimmering doorway, and through it lies the violet '
+            'hush of the Reverie. You let it close.'),
+    fx('dream'),
+    wait(0.6),
+    narrate('Someone at the Magic college has to hear of this.'),
+    {'do': 'give', 'item': 'rune_rubbing'},
+    flag('ACT2_RUNE_FOUND'),
+    *end_control(),
+]})
+
+# --- 82-83: out of the Ashen Path, and the road to Fernhollow.
+S.append({'id': 'act2_escape', 'on': {'enter': 'ashen_path', 'spawn': 'from_pit'},
+          'when': when(['ACT2_RUNE_FOUND'], ['ACT2_ESCAPE_ACTIVE', 'ACT2_ASHEN_ESCAPE_DONE']), 'steps': [
+    bars(True, 0.0),
+    narrate('Demons close in from every ridge and ash-drift. You fight through them, step by step, along the road that '
+            'led you in.'),
+    flag('ACT2_ESCAPE_ACTIVE'),
+    music('boss', 1.0),
+    *end_control(),
+]})
+S.append({'id': 'act2_way_out', 'on': {'near': 'ap_escape_exit', 'map': 'ashen_path', 'radius': 200},
+          'when': when(['ACT2_ESCAPE_ACTIVE'], ['ACT2_ASHEN_ESCAPE_DONE']), 'then': 'act2_palm', 'steps': [
+    bars(True),
+    music('', 1.5),
+    flag('ACT2_ASHEN_ESCAPE_DONE'),
+    {'do': 'flag', 'clear': 'ACT2_ESCAPE_ACTIVE'},
+    narrate('The road finally gives way to ordinary earth. You stumble out of the ashen haze, armour scorched, steps '
+            'dragging.'),
+    fade('black', 1.2),
+    {'do': 'map', 'map': 'fernhollow', 'at': 'fh_post'},
+    {'do': 'player', 'pose': 'hurt', 'face': 'left'},
+    cam('player'),
+    fade('clear', 0.8),
+    narrate('The long road to Fernhollow passes in pieces: you sagging against a post, then a wall, then pulling '
+            'yourself up the last steps to the college gate.'),
+    fade('black', 1.0),
+    {'do': 'map', 'map': 'college_grounds', 'at': 'cg_gate_in'},
+    {'do': 'player', 'pose': 'lie', 'face': 'up'},
+    cam('player'),
+    fade('clear', 0.8),
+    narrate('At the door, your legs give out, and you collapse.'),
+]})
+# Into the college with the rune by any other road: battered all the same.
+S.append({'id': 'act2_way_in', 'on': {'enter': 'college_grounds'},
+          'when': when(['ACT2_RUNE_FOUND'], ['ACT2_PALM_HEALED', 'ACT2_ASHEN_ESCAPE_DONE']), 'then': 'act2_palm',
+          'steps': [
+    bars(True, 0.0),
+    flag('ACT2_ASHEN_ESCAPE_DONE'),
+    {'do': 'flag', 'clear': 'ACT2_ESCAPE_ACTIVE'},
+    {'do': 'player', 'pose': 'lie', 'face': 'up'},
+    narrate('At the door, your legs give out, and you collapse.'),
+]})
+# --- 84: the Healing Palm.
+S.append({'id': 'act2_palm', 'on': {'flag': 'ACT2_PALM_NEVER'}, 'when': when([], ['ACT2_PALM_HEALED']), 'steps': [
+    {'do': 'player', 'pose': 'lie'},
+    {'do': 'spawn', 'actor': 'orrin', 'at': 'cg_steps', 'face': 'down', 'keep': True},
+    walk('orrin', 'player', 70, True, dx=30),
+    narrate('The head of the college crosses the courtyard, sees the fallen figure, and hurries over. He kneels and '
+            'presses a glowing palm to your chest. Warm light spreads through you, and the colour returns to your '
+            'face.'),
+    fx('flash', colour=[255, 236, 190], amount=0.5),
+    sfx('chime', 0.8, 1.1),
+    {'do': 'rest'},
+    {'do': 'player', 'pose': ''},
+    face('orrin', 'player'),
+    say('orrin', 'My dear boy! What has happened to you? Tell me everything, and leave nothing out.'),
+    flag('ACT2_PALM_HEALED'),
+]})
+S.append({'id': 'act2_palm_meeting', 'on': {'flag': 'ACT2_PALM_HEALED', 'map': 'college_grounds'},
+          'when': when(['ACT2_ANCIENT_MAGICS_OPEN'], ['ACT2_RUNE_DESTROYED', 'ACT2_RUNE_EXPERIMENT', 'ACT2_PALM_SOFTLOCK']),
+          'steps': meeting(True)})
+S.append({'id': 'act2_palm_softlock', 'on': {'flag': 'ACT2_PALM_HEALED', 'map': 'college_grounds'},
+          'when': when([], ['ACT2_ANCIENT_MAGICS_OPEN', 'ACT2_PALM_SOFTLOCK']), 'steps': [
+    {'do': 'remove', 'actor': 'orrin'},
+    {'do': 'spawn', 'actor': 'orrin', 'at': 'player', 'dx': 30, 'face': 'left', 'keep': True},
+    say('orrin', 'The council cannot hear you while they sleep. Wake them, and the staff with them, and I will gather '
+                 'everyone in the great hall.'),
+    flag('ACT2_PALM_SOFTLOCK'),
+    walk('orrin', 'cg_steps', 70, True),
+    {'do': 'remove', 'actor': 'orrin'},
+    *end_control(),
+]})
+# ===== end of ACT II, part 2 =====
+
+
 story = {
     '_about': "The prologue and Act I, scene by scene, from 'Screenplay.md'. Each scene says what "
               "starts it ('on'), when it may ('when': flags), and what happens ('steps'); see StoryDirector in "
@@ -1908,7 +3275,13 @@ story = {
     # the people who work them (scenes 23-26), and not before Elder Vask wakes.
     'locks': [{'skill': skill, 'when': when(['PROLOGUE'], ['ACT1_06_VASK_AWAKE']),
                'text': "You don't know how yet -- and everyone in Havenbrook who could teach you is asleep."}
-              for skill in ('Woodcutting', 'Fishing', 'Mining')],
+              for skill in ('Woodcutting', 'Fishing', 'Mining')] + [
+        # Weaving opens with Wynn's loom, when she wakes (43F); brewing when
+        # Oona teaches it, once Mossvale is cured (Act II).
+        {'skill': 'Clothier', 'when': when(['PROLOGUE'], ['ACT1_HAVENBROOK_LOOM_OPEN']),
+         'text': "You don't know how to work a loom yet -- and Havenbrook's clothier is asleep."},
+        {'skill': 'Brewing', 'when': when(['PROLOGUE'], ['ACT2_OONA_TEACHES']),
+         'text': "You don't know how to brew yet."}],
     'scenes': S,
 }
 open(OUT, 'w', encoding='utf-8', newline='').write(json.dumps(story, indent=1, ensure_ascii=False) + '\n')

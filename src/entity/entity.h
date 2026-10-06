@@ -79,6 +79,9 @@ public:
 
     void  Damage(int amount);
     void  Heal(int amount);
+    // Nothing takes it below one health while this is set: the fight out of
+    // the Ashen Path (82) is one the player always comes out of, battered.
+    bool  unfelled = false;
 
     float x = 0, y = 0;                 // feet position
     float vx = 0, vy = 0;

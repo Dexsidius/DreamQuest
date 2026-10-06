@@ -27,6 +27,10 @@ enum class Action {
     SpellPrev, SpellNext,
     // Drops what the bag's cursor is on. Read only by the inventory panel.
     Drop,
+    // The death talisman, worn: into the Reverie and back (World::TalismanShift).
+    // A key of its own; a pad has no button left, and it is the abilities'
+    // shift and the bag's button together (Game::UpdatePlay).
+    Talisman,
     MenuUp, MenuDown, MenuLeft, MenuRight, Confirm, Back,
     COUNT
 };

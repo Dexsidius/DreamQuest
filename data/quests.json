@@ -1909,8 +1909,8 @@
    "coins": 1100,
    "items": [
     {
-     "id": "cooked_boar",
-     "qty": 4
+     "id": "roast_supper",
+     "qty": 2
     }
    ]
   },
@@ -3351,7 +3351,8 @@
     "type": "deliver",
     "target": "rime_key",
     "to": "npc_elder",
-    "count": 1
+    "count": 1,
+    "or_flag": "ACT2_RIME_KEY_GIVEN"
    }
   ],
   "rewards": {
@@ -8038,10 +8039,15 @@
    "choices": [
     {
      "style": "melee",
-     "label": "Sword and shield",
+     "calling": "knight",
+     "label": "Greatsword and barkwood",
      "items": [
       {
-       "id": "wood_sword",
+       "id": "wood_greatsword",
+       "qty": 1
+      },
+      {
+       "id": "wood_helm",
        "qty": 1
       },
       {
@@ -8049,17 +8055,22 @@
        "qty": 1
       },
       {
-       "id": "wooden_shield",
+       "id": "wood_legs",
        "qty": 1
       }
      ]
     },
     {
      "style": "ranged",
-     "label": "Bow and rawhide",
+     "calling": "ranger",
+     "label": "Bow, dagger and rawhide",
      "items": [
       {
        "id": "oak_shortbow",
+       "qty": 1
+      },
+      {
+       "id": "wood_dagger",
        "qty": 1
       },
       {
@@ -8082,6 +8093,7 @@
     },
     {
      "style": "magic",
+     "calling": "weaver",
      "label": "Staff and homespun",
      "items": [
       {
@@ -8102,6 +8114,33 @@
       },
       {
        "id": "wooden_shield",
+       "qty": 1
+      }
+     ]
+    },
+    {
+     "style": "melee",
+     "calling": "warden",
+     "label": "Lantern and mace",
+     "items": [
+      {
+       "id": "wood_mace",
+       "qty": 1
+      },
+      {
+       "id": "lantern",
+       "qty": 1
+      },
+      {
+       "id": "wood_helm",
+       "qty": 1
+      },
+      {
+       "id": "wood_body",
+       "qty": 1
+      },
+      {
+       "id": "wood_legs",
        "qty": 1
       }
      ]
@@ -8642,7 +8681,7 @@
   "giver": "",
   "level": 1,
   "major": true,
-  "summary": "Halda, Bess and the Tanner are awake. Mayor Hale is still asleep at his desk -- or he was.",
+  "summary": "Halda, Bess, the Tanner and the clothier are awake. Mayor Hale is still asleep at his desk -- or he was.",
   "stages": [
    {
     "desc": "Go to the Mayor's Hall",
@@ -10011,5 +10050,511 @@
    ]
   },
   "completion": "The last page in the ledger, struck through. Orlend closes the book and does not open it again that day."
+ },
+ "q_act1_clothier": {
+  "name": "The Unfinished Dress",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": true,
+  "summary": "Faint, steady snipping from the clothier's shuttered shop, though the whole town is asleep.",
+  "stages": [
+   {
+    "desc": "Look inside the clothier's shop",
+    "type": "flag",
+    "target": "ACT1_CLOTHIER_SEEN",
+    "count": 1,
+    "where": "clothier_havenbrook"
+   },
+   {
+    "desc": "Try to wake the clothier",
+    "type": "flag",
+    "target": "ACT1_CLOTHIER_STILL_DREAMING",
+    "count": 1,
+    "where": "npc_wynn_haven"
+   }
+  ],
+  "rewards": {},
+  "then": "q_act1_save_clothier",
+  "completion": "Wynn does not wake. Whatever she is sewing, she is sewing it in the Reverie."
+ },
+ "q_act1_save_clothier": {
+  "name": "Save the Clothier",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": true,
+  "summary": "Wynn sleeps in her chair beside the loom, her head on her arm. In her dream a dress will not finish.",
+  "stages": [
+   {
+    "desc": "Use the Dreamcatcher on the clothier",
+    "type": "flag",
+    "target": "ACT1_CLOTHIER_DREAM_ENTERED",
+    "count": 1,
+    "where": "npc_wynn_haven"
+   },
+   {
+    "desc": "Study the portrait in her dream",
+    "type": "flag",
+    "target": "ACT1_CLOTHIER_PORTRAIT_SEEN",
+    "count": 1,
+    "where": "clothier_portrait"
+   },
+   {
+    "desc": "In the waking shop, cut the portrait's colours from the thread wall: crimson for the bodice, ivory for the skirt, gold for the sash",
+    "type": "flag",
+    "target": "ACT1_CLOTHIER_THREADS_CUT",
+    "count": 1,
+    "where": "thread_crimson"
+   },
+   {
+    "desc": "Dress the form in her dream",
+    "type": "flag",
+    "target": "ACT1_CLOTHIER_DRESS_DONE",
+    "count": 1,
+    "where": "dress_form_dream"
+   },
+   {
+    "desc": "Defeat the Shear Mannequin",
+    "type": "kill",
+    "target": "shear_mannequin",
+    "map": "dream_clothier",
+    "count": 1,
+    "or_flag": "ACT1_CLOTHIER_BOSS_DOWN"
+   },
+   {
+    "desc": "Cut the black thread",
+    "type": "flag",
+    "target": "ECHO_CLOTHIER_SNIP",
+    "count": 1,
+    "where": "clothier_anchor"
+   },
+   {
+    "desc": "See how the clothier is",
+    "type": "flag",
+    "target": "ACT1_CLOTHIER_AWAKE",
+    "count": 1,
+    "where": "npc_wynn_haven"
+   }
+  ],
+  "rewards": {
+   "coins": 100,
+   "items": [
+    {
+     "id": "bolt_cloth",
+     "qty": 3
+    },
+    {
+     "id": "wool",
+     "qty": 6
+    }
+   ]
+  },
+  "completion": "\"Take the loom. It has sat idle too long. Make yourself something worth wearing.\" Wynn's loom is yours to use."
+ },
+ "q_act1_neighbors": {
+  "name": "Word to the Neighbors",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": true,
+  "summary": "Mayor Hale: \"If that man could reach into our beds, he can reach into theirs.\" The road runs down through Whisperwood and splits, one branch to Mossvale and one to Fernhollow.",
+  "stages": [
+   {
+    "desc": "Take the road through Whisperwood to the fork",
+    "type": "flag",
+    "target": "ACT1_FORK_REACHED",
+    "count": 1,
+    "where": "whisperwood_trail"
+   },
+   {
+    "desc": "Warn Mossvale",
+    "type": "flag",
+    "target": "ACT1_MOSSVALE_VISITED",
+    "count": 1,
+    "where": "mossvale"
+   },
+   {
+    "desc": "Warn Fernhollow",
+    "type": "flag",
+    "target": "ACT1_FERNHOLLOW_VISITED",
+    "count": 1,
+    "where": "fernhollow"
+   },
+   {
+    "desc": "Return to the Mayor",
+    "type": "flag",
+    "target": "ACT1_NEIGHBORS_REPORTED",
+    "count": 1,
+    "where": "npc_mayor_guild"
+   }
+  ],
+  "rewards": {
+   "coins": 120
+  },
+  "completion": "\"Whatever he wants, he isn't finished. You've earned a moment to breathe.\""
+ },
+ "q_act2_torn_pages": {
+  "name": "Torn Pages",
+  "source": "npc",
+  "giver": "",
+  "level": 14,
+  "major": true,
+  "summary": "Four pages have been ripped out of Apocolo's recipe book, and the cure for the sleepers is on them. Each torn stub carries a trace of where its page went: grave dirt, a green scale, a tuft of coarse brown fur, and a greasy grey handprint.",
+  "stages": [
+   {
+    "desc": "Find the page with grave dirt on it: the graveyard north-west of Havenbrook",
+    "type": "flag",
+    "target": "ACT1_PAGE_GRAVEYARD_FOUND",
+    "count": 1,
+    "where": "page_graveyard"
+   },
+   {
+    "desc": "Find the page with a green scale on it: the lizardmen's cave by their camp in the mire",
+    "type": "flag",
+    "target": "ACT1_PAGE_LIZARD_FOUND",
+    "count": 1,
+    "where": "page_lizard"
+   },
+   {
+    "desc": "Find the page with brown fur on it: the bear's den in the Westwold",
+    "type": "flag",
+    "target": "ACT1_PAGE_BEAR_FOUND",
+    "count": 1,
+    "where": "page_bear"
+   },
+   {
+    "desc": "Find the greasy page: the orc warlord's chest in Emberfell's lower workings",
+    "type": "flag",
+    "target": "ACT1_PAGE_ORC_FOUND",
+    "count": 1,
+    "where": "page_orc"
+   },
+   {
+    "desc": "Mend Apocolo's book on Oona's bench",
+    "type": "flag",
+    "target": "ACT2_BOOK_MENDED",
+    "count": 1,
+    "where": "apocolo_book"
+   },
+   {
+    "desc": "Brew the cure at Apocolo's cauldron in Havenbrook",
+    "type": "flag",
+    "target": "ACT2_CURE_BREWED",
+    "count": 1,
+    "where": "apocolo_cauldron"
+   }
+  ],
+  "rewards": {
+   "coins": 400,
+   "xp": {
+    "Brewing": 600
+   }
+  },
+  "then": "q_act2_wake_neighbors",
+  "completion": "The brew clears to a pale gold, and a row of vials fills one by one."
+ },
+ "q_act2_wake_neighbors": {
+  "name": "Wake the Neighbors",
+  "source": "npc",
+  "giver": "",
+  "level": 14,
+  "major": true,
+  "summary": "Apocolo's cure, one dose a sleeper. The Dreamcatcher still cannot reach them; the potion goes round whatever is in the way.",
+  "stages": [
+   {
+    "desc": "Wake Mossvale",
+    "type": "flag",
+    "target": "ACT2_MOSSVALE_WOKEN",
+    "count": 1,
+    "where": "mossvale"
+   },
+   {
+    "desc": "Wake Fernhollow",
+    "type": "flag",
+    "target": "ACT2_FERNHOLLOW_WOKEN",
+    "count": 1,
+    "where": "fernhollow"
+   }
+  ],
+  "rewards": {
+   "coins": 600
+  },
+  "completion": "Both villages awake -- all but the college, where the potion has not reached."
+ },
+ "q_act2_mossvale_house": {
+  "name": "A House in Mossvale",
+  "source": "npc",
+  "giver": "",
+  "level": 1,
+  "major": false,
+  "summary": "Mayor Hale has a deed on file: a house in Mossvale nobody lives in. Fifty thousand -- thirty, for the hero of the town.",
+  "stages": [
+   {
+    "desc": "Pay Mayor Hale thirty thousand coins at the Mayor's Hall",
+    "type": "flag",
+    "target": "ACT2_HOUSE_BOUGHT",
+    "count": 1,
+    "where": "npc_mayor"
+   }
+  ],
+  "rewards": {},
+  "completion": "The key to the house in Mossvale is yours."
+ },
+ "q_act2_hoarfang": {
+  "name": "Icespire's Peak",
+  "source": "npc",
+  "giver": "",
+  "level": 40,
+  "major": true,
+  "summary": "The shadow over Havenbrook was Hoarfang. Elder Vask was a dragon slayer in his warrior days, and took down every dragon that crossed his path. He is not as nimble as he was: he asked you to slay the beast for him at Icespire's Peak, and bring him back its head.",
+  "stages": [
+   {
+    "desc": "Climb Icespire's Peak",
+    "type": "reach",
+    "target": "ice_spire_peak"
+   },
+   {
+    "desc": "Slay Hoarfang",
+    "type": "kill",
+    "target": "frost_dragon",
+    "map": "ice_spire_peak",
+    "count": 1
+   },
+   {
+    "desc": "Bring Hoarfang's head to Elder Vask on the guild hall porch",
+    "type": "flag",
+    "target": "ACT2_HOARFANG_RESOLVED",
+    "count": 1,
+    "where": "npc_vask_porch"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 9000
+   },
+   "coins": 3200,
+   "choices": [
+    {
+     "label": "Hoarfang's Fangs",
+     "style": "melee",
+     "calling": "ranger",
+     "items": [
+      {
+       "id": "hoarfang_fang",
+       "qty": 2
+      }
+     ]
+    },
+    {
+     "label": "Hoarfang Scale Bow",
+     "style": "ranged",
+     "calling": "ranger",
+     "items": [
+      {
+       "id": "hoarfang_bow",
+       "qty": 1
+      }
+     ]
+    },
+    {
+     "label": "Staff of Hoarfang",
+     "style": "magic",
+     "calling": "weaver",
+     "items": [
+      {
+       "id": "hoarfang_staff",
+       "qty": 1
+      }
+     ]
+    },
+    {
+     "label": "Hoarfang's Talon",
+     "style": "melee",
+     "calling": "knight",
+     "items": [
+      {
+       "id": "hoarfang_talon",
+       "qty": 1
+      }
+     ]
+    },
+    {
+     "label": "Hoarfang Maul",
+     "style": "melee",
+     "calling": "warden",
+     "items": [
+      {
+       "id": "hoarfang_maul",
+       "qty": 1
+      }
+     ]
+    }
+   ]
+  },
+  "choice_flag": "ACT2_HOARFANG_WEAPON_CHOSEN",
+  "completion": "Vask lays five weapons on the porch rail, each crafted from Hoarfang, and pushes the great head across to you, ready to mount on a mantle."
+ },
+ "q_act2_college": {
+  "name": "Into the College",
+  "source": "npc",
+  "giver": "",
+  "level": 30,
+  "major": true,
+  "summary": "Everyone outside the Magic college at Fernhollow is awake. The college is the one place the cure has not reached.",
+  "stages": [
+   {
+    "desc": "Go into the college at Fernhollow",
+    "type": "flag",
+    "target": "ACT2_RIVAL_DEFEATED",
+    "count": 1,
+    "where": "college_grounds"
+   }
+  ],
+  "rewards": {
+   "coins": 500
+  },
+  "completion": "Vexel is gone, and the rival with him or at your feet."
+ },
+ "q_act2_wake_college": {
+  "name": "Wake the College",
+  "source": "npc",
+  "giver": "",
+  "level": 30,
+  "major": true,
+  "summary": "Magister Orrin is awake, but most of his college still sleeps: the mage council in the great hall, the staff in the other chambers, and the rest of his students. Wake them, a dose each, and he will teach you the arts of the ancient magics.",
+  "stages": [
+   {
+    "desc": "Wake the mage council in the great hall",
+    "type": "flag",
+    "target": "ACT2_COLLEGE_COUNCIL_WOKEN",
+    "count": 1,
+    "where": "npc_councillor_ferris"
+   },
+   {
+    "desc": "Wake the staff: the practice hall and the lecture room",
+    "type": "flag",
+    "target": "ACT2_COLLEGE_STAFF_WOKEN",
+    "count": 1,
+    "where": "npc_college_instructor"
+   },
+   {
+    "desc": "Wake the rest of the students",
+    "type": "flag",
+    "target": "ACT2_COLLEGE_STUDENTS_WOKEN",
+    "count": 1,
+    "where": "college_grounds"
+   }
+  ],
+  "rewards": {
+   "coins": 800,
+   "xp": {
+    "Magic": 2500
+   }
+  },
+  "completion": "The college is awake."
+ },
+ "q_act2_ashen_path": {
+  "name": "The Ashen Path",
+  "source": "npc",
+  "giver": "",
+  "level": 40,
+  "major": true,
+  "summary": "The mage council owes you its waking. The traces of Vexel Von Finch's magic lead toward the Ashen Path, and they asked you to investigate it for any sign of him.",
+  "stages": [
+   {
+    "desc": "Go onto the Ashen Path",
+    "type": "reach",
+    "target": "ashen_path"
+   },
+   {
+    "desc": "Go down into the Infernal Pit",
+    "type": "reach",
+    "target": "dungeon_infernal"
+   },
+   {
+    "desc": "Defeat the Pit Lord",
+    "type": "flag",
+    "target": "ACT2_PIT_LORD_DEFEATED",
+    "count": 1,
+    "where": "dungeon_infernal"
+   },
+   {
+    "desc": "Search the Pit Lord's dwelling",
+    "type": "flag",
+    "target": "ACT2_RUNE_FOUND",
+    "count": 1,
+    "where": "pit_rune"
+   }
+  ],
+  "rewards": {
+   "coins": 1500
+  },
+  "then": "q_act2_tell_headmaster",
+  "completion": "A rune behind the Pit Lord's throne opens a doorway into the Reverie."
+ },
+ "q_act2_tell_headmaster": {
+  "name": "Tell the Headmaster",
+  "source": "npc",
+  "giver": "",
+  "level": 40,
+  "major": true,
+  "summary": "The rune in the Pit Lord's dwelling opens a doorway into the Reverie. Someone at the Magic college has to hear of this.",
+  "stages": [
+   {
+    "desc": "Fight your way out of the Ashen Path",
+    "type": "flag",
+    "target": "ACT2_ASHEN_ESCAPE_DONE",
+    "count": 1,
+    "where": "ashen_path"
+   },
+   {
+    "desc": "Take the rune to the Magic college at Fernhollow",
+    "type": "flag",
+    "target": "ACT2_HEADMASTER_TOLD",
+    "count": 1,
+    "where": "npc_magister"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 4000
+   },
+   "coins": 2000
+  },
+  "completion": "The council has heard everything, and the choice was yours."
+ },
+ "q_act2_death_talisman": {
+  "name": "The Death Talisman",
+  "source": "npc",
+  "giver": "",
+  "level": 70,
+  "major": true,
+  "summary": "The old Dreamwalkers carried a talisman that opened the veil for them, in and out, as they pleased. The college teaches that the closest thing to dreaming is death, and death has a guardian: deep in the crypt beneath the cemetery, the Ashlord, a vampire lord, stands guard over a chest. Go when you are strong enough, and not before.",
+  "stages": [
+   {
+    "desc": "Go down to the bottom of Hollowrest Crypt",
+    "type": "reach",
+    "target": "crypt_3"
+   },
+   {
+    "desc": "Defeat the Ashlord",
+    "type": "flag",
+    "target": "ACT2_ASHLORD_DEFEATED",
+    "count": 1,
+    "where": "crypt_3"
+   },
+   {
+    "desc": "Take the talisman from the chest",
+    "type": "flag",
+    "target": "ACT2_TALISMAN_FOUND",
+    "count": 1,
+    "where": "talisman_chest"
+   }
+  ],
+  "rewards": {
+   "coins": 4000
+  },
+  "completion": "The talisman is warm to the touch, and it hums."
  }
 }

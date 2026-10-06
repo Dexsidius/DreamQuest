@@ -4,6 +4,9 @@
 
 namespace {
 const char* kStyleKeys[3] = {"melee", "ranged", "magic"};
+// The trees' keys in the file, in SkillTrees's order: the first three are the
+// styles' own, as they always were.
+const char* kTreeKeys[SkillTrees::TREES] = {"melee", "ranged", "magic", "warden"};
 }
 
 const TalentNode* TalentTree::At(int branch, int row) const {
@@ -32,14 +35,19 @@ bool SkillTrees::Load(const string& path) {
         return false;
     }
 
-    for (int s = 0; s < 3; ++s) {
+    for (int s = 0; s < TREES; ++s) {
         TalentTree& t = trees[s];
         t = TalentTree();
-        t.id = kStyleKeys[s];
+        t.id = kTreeKeys[s];
+        t.style = s < 3 ? static_cast<AttackStyle>(s) : AttackStyle::Melee;
         if (!root.contains(t.id)) continue;
         const json& tj = root[t.id];
         t.name = tj.value("name", t.id);
         t.skill = std::max(0, SkillFromName(tj.value("skill", string("Attack"))));
+        // A tree whose numbers go to another style's attacks than its key's.
+        const string style = tj.value("style", string(""));
+        for (int k = 0; k < 3; ++k)
+            if (style == kStyleKeys[k]) t.style = static_cast<AttackStyle>(k);
         if (tj.contains("branches"))
             for (const auto& b : tj["branches"]) t.branches.push_back(b.get<string>());
         if (tj.contains("nodes"))
@@ -104,9 +112,9 @@ bool SkillTrees::Load(const string& path) {
             }
             if (!t.item.empty() && !t.boss.empty() && !t.effects.empty()) totems.push_back(t);
         }
-    SDL_Log("SkillTrees: %d / %d / %d nodes, %d boons, %d totems", static_cast<int>(trees[0].nodes.size()),
+    SDL_Log("SkillTrees: %d / %d / %d / %d nodes, %d boons, %d totems", static_cast<int>(trees[0].nodes.size()),
             static_cast<int>(trees[1].nodes.size()), static_cast<int>(trees[2].nodes.size()),
-            static_cast<int>(boons.size()), static_cast<int>(totems.size()));
+            static_cast<int>(trees[3].nodes.size()), static_cast<int>(boons.size()), static_cast<int>(totems.size()));
     return true;
 }
 
@@ -125,11 +133,11 @@ const BoonDef* SkillTrees::Boon(const string& id) const {
     return nullptr;
 }
 
-const TalentNode* SkillTrees::Find(const string& id, AttackStyle* style) const {
-    for (int s = 0; s < 3; ++s)
+const TalentNode* SkillTrees::Find(const string& id, int* tree) const {
+    for (int s = 0; s < TREES; ++s)
         for (const TalentNode& n : trees[s].nodes)
             if (n.id == id) {
-                if (style) *style = static_cast<AttackStyle>(s);
+                if (tree) *tree = s;
                 return &n;
             }
     return nullptr;
@@ -139,15 +147,27 @@ bool TalentEffectIsGlobal(const string& effect) {
     return effect == "defence" || effect == "defence_share" || effect == "stamina" || effect == "stamina_regen" ||
            effect == "move_speed" || effect == "mana_regen" || effect == "charge" ||
            effect == "max_mana" || effect == "evade" || effect == "hurt_mana" || effect == "block_cost" ||
-           effect == "max_health";
+           effect == "max_health" ||
+           // The Lantern Warden's: the character's own, whatever is in hand --
+           // heals taken, friends kept, blows turned back, the abilities' growth,
+           // and every burn they leave.
+           effect == "healing" || effect == "kindred" || effect == "steadfast" || effect == "thorns" ||
+           effect == "oath" || effect == "undying" || effect == "wick" || effect == "afterglow" ||
+           effect == "sanctuary_time" || effect == "sanctuary_mend" || effect == "bastion_time" ||
+           effect == "last_light" || effect == "challenge_slow" || effect == "dawnbearer" ||
+           effect == "burn_time" || effect == "burn_damage" || effect == "wildfire";
 }
 
-int Talents::PointsEarned(AttackStyle style, const Skills& skills) const {
+int Talents::PointsEarned(int tree, const Skills& skills) const {
     if (!db) return 0;
     // A boss's point is for the character's own tree, which is the only one
     // they have; with no path set -- the self-test's plain Talents -- any.
-    return skills.Level(db->Tree(style).skill) / SkillTrees::LEVELS_PER_POINT +
-           (Open(style) ? BonusPoints() : 0);
+    return skills.Level(db->Tree(tree).skill) / SkillTrees::LEVELS_PER_POINT +
+           (Open(tree) ? BonusPoints() : 0);
+}
+
+AttackStyle Talents::PathStyle() const {
+    return (db && has_path) ? db->Tree(path).style : AttackStyle::Melee;
 }
 
 Talents::Trophy Talents::SlayBoss(const string& boss_id, std::mt19937& rng) {
@@ -166,7 +186,7 @@ Talents::Trophy Talents::SlayBoss(const string& boss_id, std::mt19937& rng) {
     // one they can use -- a second helping rather than nothing.
     vector<const BoonDef*> fresh, any;
     for (const BoonDef& b : db->Boons()) {
-        if (has_path && !b.For(path)) continue;
+        if (has_path && !b.For(PathStyle())) continue;
         any.push_back(&b);
         if (!HasBoon(b.id)) fresh.push_back(&b);
     }
@@ -242,30 +262,37 @@ float Talents::BoonEffect(const string& effect) const {
     return total;
 }
 
-int Talents::PointsSpent(AttackStyle style) const {
+int Talents::PointsSpent(int tree) const {
     if (!db) return 0;
     int n = 0;
-    for (const TalentNode& node : db->Tree(style).nodes) n += Rank(node.id);
+    for (const TalentNode& node : db->Tree(tree).nodes) n += Rank(node.id);
     return n;
 }
 
-void Talents::SetPath(AttackStyle style) {
+void Talents::SetPath(int tree) {
     has_path = true;
-    path = style;
+    path = std::clamp(tree, 0, SkillTrees::TREES - 1);
     DropOtherPaths();
 }
 
 void Talents::DropOtherPaths() {
     if (!db || !has_path) return;
+    for (int s = 0; s < SkillTrees::TREES; ++s) {
+        if (s == path) continue;
+        for (const TalentNode& n : db->Tree(s).nodes) ranks.erase(n.id);
+    }
+    // A charged attack only from a technique of the path's own, learned.
     for (int s = 0; s < 3; ++s) {
-        if (static_cast<AttackStyle>(s) == path) continue;
-        for (const TalentNode& n : db->Tree(static_cast<AttackStyle>(s)).nodes) ranks.erase(n.id);
-        technique[s].clear();
+        bool kept = false;
+        if (!technique[s].empty() && static_cast<AttackStyle>(s) == db->Tree(path).style)
+            for (const TalentNode& n : db->Tree(path).nodes)
+                kept |= n.technique == technique[s] && Has(n.id);
+        if (!kept) technique[s].clear();
     }
     for (string& slot : ability) {
-        AttackStyle style = AttackStyle::Melee;
-        const TalentNode* n = slot.empty() ? nullptr : db->Find(slot, &style);
-        if (!n || n->ability.empty() || style != path || !Has(slot)) slot.clear();
+        int tree = 0;
+        const TalentNode* n = slot.empty() ? nullptr : db->Find(slot, &tree);
+        if (!n || n->ability.empty() || tree != path || !Has(slot)) slot.clear();
     }
 }
 
@@ -316,25 +343,25 @@ bool Talents::SetAbility(int slot, const string& node_id) {
 bool Talents::SetTechnique(AttackStyle style, const string& node_id) {
     string& slot = technique[static_cast<int>(style)];
     if (node_id.empty()) { slot.clear(); return true; }
-    AttackStyle owner = AttackStyle::Melee;
+    int owner = 0;
     const TalentNode* node = db ? db->Find(node_id, &owner) : nullptr;
-    if (!node || node->technique.empty() || owner != style || !Has(node_id)) return false;
+    if (!node || node->technique.empty() || db->Tree(owner).style != style || !Has(node_id)) return false;
     slot = node->technique;
     return true;
 }
 
 Talents::Why Talents::CanLearn(const string& id, const Skills& skills) const {
-    AttackStyle style = AttackStyle::Melee;
-    const TalentNode* node = db ? db->Find(id, &style) : nullptr;
+    int tree = 0;
+    const TalentNode* node = db ? db->Find(id, &tree) : nullptr;
     if (!node) return Why::Unknown;
-    if (!Open(style)) return Why::OtherPath;
+    if (!Open(tree)) return Why::OtherPath;
     if (Rank(id) >= node->ranks) return Why::Learned;
-    if (skills.Level(db->Tree(style).skill) < node->level) return Why::Level;
+    if (skills.Level(db->Tree(tree).skill) < node->level) return Why::Level;
     if (node->row > 0) {
-        const TalentNode* above = db->Tree(style).At(node->branch, node->row - 1);
+        const TalentNode* above = db->Tree(tree).At(node->branch, node->row - 1);
         if (above && !Has(above->id)) return Why::Prerequisite;
     }
-    if (PointsFree(style, skills) <= 0) return Why::NoPoints;
+    if (PointsFree(tree, skills) <= 0) return Why::NoPoints;
     return Why::Ok;
 }
 
@@ -344,20 +371,20 @@ bool Talents::Learn(const string& id, const Skills& skills) {
     return true;
 }
 
-void Talents::Reset(AttackStyle style) {
+void Talents::Reset(int tree) {
     if (!db) return;
-    for (const TalentNode& n : db->Tree(style).nodes) {
+    for (const TalentNode& n : db->Tree(tree).nodes) {
         ranks.erase(n.id);
         for (string& slot : ability) if (slot == n.id) slot.clear();
     }
-    technique[static_cast<int>(style)].clear();
+    technique[static_cast<int>(db->Tree(tree).style)].clear();
 }
 
 bool Talents::ToggleTechnique(const string& node_id) {
-    AttackStyle style = AttackStyle::Melee;
-    const TalentNode* node = db ? db->Find(node_id, &style) : nullptr;
+    int tree = 0;
+    const TalentNode* node = db ? db->Find(node_id, &tree) : nullptr;
     if (!node || node->technique.empty() || !Has(node_id)) return false;
-    string& slot = technique[static_cast<int>(style)];
+    string& slot = technique[static_cast<int>(db->Tree(tree).style)];
     slot = (slot == node->technique) ? string() : node->technique;
     return true;
 }
@@ -366,11 +393,14 @@ float Talents::Effect(const string& effect, AttackStyle style) const {
     if (!db) return 0.0f;
     if (TalentEffectIsGlobal(effect)) return Global(effect);
     float total = BoonEffect(effect);          // a boon is no style's: it is the character's
-    for (const TalentNode& n : db->Tree(style).nodes) {
-        const int rank = Rank(n.id);
-        if (rank <= 0) continue;
-        auto it = n.effects.find(effect);
-        if (it != n.effects.end()) total += it->second * static_cast<float>(rank);
+    for (int s = 0; s < SkillTrees::TREES; ++s) {
+        if (db->Tree(s).style != style) continue;
+        for (const TalentNode& n : db->Tree(s).nodes) {
+            const int rank = Rank(n.id);
+            if (rank <= 0) continue;
+            auto it = n.effects.find(effect);
+            if (it != n.effects.end()) total += it->second * static_cast<float>(rank);
+        }
     }
     return total;
 }
@@ -378,8 +408,8 @@ float Talents::Effect(const string& effect, AttackStyle style) const {
 float Talents::Global(const string& effect) const {
     if (!db) return 0.0f;
     float total = BoonEffect(effect);
-    for (int s = 0; s < 3; ++s)
-        for (const TalentNode& n : db->Tree(static_cast<AttackStyle>(s)).nodes) {
+    for (int s = 0; s < SkillTrees::TREES; ++s)
+        for (const TalentNode& n : db->Tree(s).nodes) {
             const int rank = Rank(n.id);
             if (rank <= 0) continue;
             auto it = n.effects.find(effect);

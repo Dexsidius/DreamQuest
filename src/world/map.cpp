@@ -442,6 +442,12 @@ bool Map::Load(const string& path) {
                     st.sort_bias = s.value("lift", 0.0f);
                     st.prompt    = s.value("prompt", string(""));
                     st.mark      = s.value("mark", false);
+                    if (s.contains("tint") && s["tint"].is_array() && s["tint"].size() >= 3) {
+                        st.tinted = true;
+                        st.tint = {static_cast<Uint8>(s["tint"][0].get<int>()), static_cast<Uint8>(s["tint"][1].get<int>()),
+                                   static_cast<Uint8>(s["tint"][2].get<int>()), 255};
+                    }
+                    st.steam     = s.value("steam", 0.0f);
                     d.states.push_back(st);
                 }
             npcs.push_back(d);

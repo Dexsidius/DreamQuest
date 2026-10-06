@@ -125,12 +125,17 @@ bool EnemyDatabase::Load(const string& path) {
                 m.clip      = mj.value("clip", string(""));
                 m.shot      = mj.value("shot", string(""));
                 m.status    = StatusProcFromJson(mj.contains("status") ? mj["status"] : json());
+                m.tick      = std::max(0.1f, mj.value("tick", m.tick));
+                m.pace      = mj.value("pace", m.pace);
+                m.strike_frame = mj.value("strike_frame", m.strike_frame);
+                m.lifesteal = mj.value("lifesteal", m.lifesteal);
                 if (!m.kind.empty()) d.moves.push_back(m);
             }
         if (o.contains("phase2") && o["phase2"].is_object()) {
             const json& p2 = o["phase2"];
             d.phase2.enabled    = true;
             d.phase2.at         = p2.value("at", d.phase2.at);
+            d.phase2.flag       = p2.value("flag", string(""));
             d.phase2.speed      = p2.value("speed", d.phase2.speed);
             d.phase2.cooldown   = p2.value("cooldown", d.phase2.cooldown);
             d.phase2.fire_trail = p2.value("fire_trail", false);
@@ -141,6 +146,8 @@ bool EnemyDatabase::Load(const string& path) {
         d.rooted     = o.value("rooted", false);
         d.circles    = o.value("circles", false);
         d.weak_after = o.value("weak_after", 0.0f);
+        d.lifesteal  = o.value("lifesteal", 0.0f);
+        d.untouchable = o.value("untouchable", false);
 
         d.foot_box = BoxFromJson(o.contains("foot_box") ? o["foot_box"] : json(), d.foot_box);
         d.body_box = BoxFromJson(o.contains("body_box") ? o["body_box"] : json(), d.body_box);
@@ -373,6 +380,7 @@ float Enemy::MoveSpeed() const {
     float speed = def ? def->speed : 0.0f;
     if (phase_two && def) speed *= def->phase2.speed;
     if (enraged > 0.0f) speed *= 1.3f;
+    if (slowed > 0.0f) speed *= slow_share;
     if (status_db)
         for (int i = 0; i < STATUS_COUNT; ++i)
             if (const StatusDef* d = statuses.left[i] > 0.0f ? status_db->Get(static_cast<Status>(i)) : nullptr)
@@ -384,6 +392,7 @@ float Enemy::AttackCooldown() const {
     float gap = def ? def->attack_cooldown : 1.6f;
     if (phase_two && def) gap *= def->phase2.cooldown;
     if (enraged > 0.0f) gap *= 0.6f;
+    if (slowed > 0.0f) gap /= std::max(0.2f, slow_share);
     if (status_db)
         for (int i = 0; i < STATUS_COUNT; ++i)
             if (const StatusDef* d = statuses.left[i] > 0.0f ? status_db->Get(static_cast<Status>(i)) : nullptr)
@@ -527,6 +536,11 @@ void Enemy::SetState(State s) {
             const EnemyMove* m = def && move_i >= 0 && move_i < static_cast<int>(def->moves.size()) ? &def->moves[move_i] : nullptr;
             const string clip = m && !m->clip.empty() && sprite.Def() && sprite.Def()->Find(m->clip) ? m->clip : string("idle");
             sprite.Play(clip, true);
+            // Its blow on the frame the clip shows it: the snip's blades shut
+            // as the wind-up ends, at whatever speed that takes.
+            if (m && m->strike_frame > 0 && clip == m->clip)
+                if (const AnimClip* c = sprite.Def()->Find(clip))
+                    if (c->fps > 0.0f) sprite.speed_scale = static_cast<float>(m->strike_frame) / (c->fps * m->windup);
             break;
         }
     }
@@ -645,8 +659,10 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
     marked   = std::max(0.0f, marked - dt);
     sundered = std::max(0.0f, sundered - dt);
     taunted  = std::max(0.0f, taunted - dt);
+    slowed   = std::max(0.0f, slowed - dt);
+    if (slowed <= 0.0f) slow_share = 1.0f;
     if (!status_db) status_db = ctx.statuses;
-    if (state == State::Dead) { marked = sundered = taunted = 0.0f; statuses.Clear(); }
+    if (state == State::Dead) { marked = sundered = taunted = slowed = 0.0f; slow_share = 1.0f; statuses.Clear(); }
     // What is on it runs down, and what burns, bleeds or sickens takes its
     // share as it goes -- in whole points, in the status's own colour.
     for (int i = 0; i < STATUS_COUNT && hp > 0; ++i) {
@@ -664,7 +680,7 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
             // hides the colour that says what is on it, and what a blow
             // landing looks like.
             const float flash = hurt_flash;
-            Damage(whole);
+            if (!Untouchable()) Damage(whole);
             hurt_flash = flash;
             const SDL_Color c = d ? d->color : SDL_Color{200, 60, 70, 255};
             world.AddText(std::to_string(whole), x + 10.0f, y - 38.0f, c, 0.7f);
@@ -691,6 +707,7 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
     // Half its health gone (or wherever its second phase says): it changes.
     if (def && def->phase2.enabled && !phase_two && hp > 0 && hp <= static_cast<int>(max_hp * def->phase2.at)) {
         phase_two = true;
+        if (!def->phase2.flag.empty() && !world.visiting) world.SetFlag(def->phase2.flag);
         Audio::PlayAt(Sfx::Roar, x, y, 1.0f, 0.7f);
         world.Shock(x, y, 1.1f, 0.6f);
         world.Smoke(x, y - 30.0f, 34.0f * def->scale, false);
@@ -1016,8 +1033,9 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                     // block and a parry are the ways out of it.
                     const DamageResult r = RollMonsterBlow(Profile(), player.Profile(), AttackStyle::Melee, 1.0f, *ctx.rng);
                     const float len = std::max(1.0f, dist);
-                    world.HitPlayer(r.damage, Profile(), x, y,
-                                    (dx / len) * 55.0f, (dy / len) * 55.0f, def->on_hit, -1.0f, -1.0f, this);
+                    Feed(world, world.HitPlayer(r.damage, Profile(), x, y,
+                                                (dx / len) * 55.0f, (dy / len) * 55.0f, def->on_hit, -1.0f, -1.0f, this),
+                         def->lifesteal);
                 } else if (swing_at >= 0 && swing_at == static_cast<int>(player.seat)) {
                     // It was coming for them as it began, and they are out of
                     // the way of it now: a blow dodged.
@@ -1063,9 +1081,10 @@ void Enemy::Update(float dt, World& world, const GameContext& ctx) {
                     StatusProc leaves = def->heavy.status;
                     if (!leaves.Any() && def->on_hit.Any())
                         leaves = {def->on_hit.kind, std::min(1.0f, def->on_hit.chance * 2.0f)};
-                    world.HeavyHitPlayer(HeavyDamage(ctx.rng), x, y,
-                                         (dx / len) * def->heavy.knockback,
-                                         (dy / len) * def->heavy.knockback, leaves, this);
+                    Feed(world, world.HeavyHitPlayer(HeavyDamage(ctx.rng), x, y,
+                                                     (dx / len) * def->heavy.knockback,
+                                                     (dy / len) * def->heavy.knockback, leaves, this),
+                         def->lifesteal);
                 } else if (heavy_at >= 0 && heavy_at == static_cast<int>(player.seat)) {
                     // In the line of it when it was committed, and out of it
                     // now: the tell was read, and it is dodged.
@@ -1237,7 +1256,6 @@ void Enemy::Paddle(World& world, const GameContext& ctx, float dt,
 }
 
 bool Enemy::TryMove(World& world, const GameContext& ctx, float gap) {
-    (void)world;
     vector<int> ready;
     for (size_t i = 0; i < def->moves.size(); ++i) {
         const EnemyMove& m = def->moves[i];
@@ -1250,11 +1268,43 @@ bool Enemy::TryMove(World& world, const GameContext& ctx, float gap) {
     move_i = pick;
     SetState(State::Move);
     const EnemyMove& m = def->moves[pick];
+    // A snip: the blades open round where the player stands now, and shut
+    // there when the wind-up is over -- whether they are still there or not.
+    if (m.kind == "snip") {
+        const SDL_FPoint at = world.player.GroundCentre();
+        snip_x = at.x;
+        snip_y = at.y;
+        world.SnipTell(snip_x, snip_y, m.reach, m.windup);
+    }
+    // A slam: a red mark where it will come down -- where the player stands
+    // now -- for the wind-up and the leap.
+    if (m.kind == "slam") {
+        const SDL_FPoint at = world.player.GroundCentre();
+        snip_x = at.x;
+        snip_y = at.y;
+        world.SlamTell(snip_x, snip_y, m.reach, m.windup + m.active);
+    }
+    // A beam: a thin red line from it to where the player stands, and then
+    // the bolt along it.
+    if (m.kind == "beam") {
+        const SDL_FPoint at = world.player.GroundCentre();
+        snip_x = at.x;
+        snip_y = at.y;
+        world.BeamTell(x, y - 30.0f * def->scale, snip_x, snip_y - 16.0f, m.windup);
+    }
     // The tell is heard as well as seen.
     if (m.kind == "howl") Audio::PlayAt(Sfx::Howl, x, y, 0.9f, 1.0f);
     else if (def->DragonVoice() || def->Boss()) Audio::PlayAt(Sfx::Roar, x, y, 0.7f, 0.8f);
     else Audio::PlayAt(Sfx::SwingHeavy, x, y, 0.7f, 0.6f);
     return true;
+}
+
+void Enemy::Feed(World& world, int taken, float share) {
+    if (taken <= 0 || share <= 0.0f || hp <= 0) return;
+    const int back = std::max(1, static_cast<int>(std::lround(static_cast<float>(taken) * share)));
+    const int was = hp;
+    hp = std::min(max_hp, hp + back);
+    if (hp > was) world.AddText("+" + std::to_string(hp - was), x, y - 48.0f * def->scale, {214, 40, 58, 255}, 0.9f);
 }
 
 void Enemy::FireTrail(World& world) {
@@ -1307,14 +1357,17 @@ void Enemy::UpdateMove(float dt, World& world, const GameContext& ctx, float dx,
         const float r = ctx.rng ? roll(*ctx.rng) : 0.9f;
         return std::max(1, static_cast<int>(std::lround(MaxHit(Profile(), 1.0f) * mult * r)));
     };
+    const float feeds = m.lifesteal >= 0.0f ? m.lifesteal : def->lifesteal;
     const auto strike = [&](bool heavy) {
         if (heavy) {
-            world.HeavyHitPlayer(blow(m.damage), x, y, (dx / len) * m.knockback, (dy / len) * m.knockback,
-                                 m.status.Any() ? m.status : def->on_hit, this);
+            Feed(world, world.HeavyHitPlayer(blow(m.damage), x, y, (dx / len) * m.knockback, (dy / len) * m.knockback,
+                                             m.status.Any() ? m.status : def->on_hit, this),
+                 feeds);
         } else {
             const DamageResult r = RollMonsterBlow(Profile(), player.Profile(), AttackStyle::Melee, m.damage, *ctx.rng);
-            world.HitPlayer(r.damage, Profile(), x, y, (dx / len) * m.knockback, (dy / len) * m.knockback,
-                            m.status.Any() ? m.status : def->on_hit, -1.0f, -1.0f, this);
+            Feed(world, world.HitPlayer(r.damage, Profile(), x, y, (dx / len) * m.knockback, (dy / len) * m.knockback,
+                                        m.status.Any() ? m.status : def->on_hit, -1.0f, -1.0f, this),
+                 feeds);
         }
         // Fire along the ground with each blow of its second phase -- each
         // blow, not each turn of a whirlwind, or the floor is nothing but fire.
@@ -1370,6 +1423,43 @@ void Enemy::UpdateMove(float dt, World& world, const GameContext& ctx, float dx,
             if (sprite.Def() && sprite.Def()->Find("run")) sprite.Play("run");
         } else if (m.kind == "spin") {
             if (sprite.Def() && sprite.Def()->Find("spin")) sprite.Play("spin");
+        } else if (m.kind == "slam") {
+            // Up and at the mark: across the ground to it over the move.
+            const float gx = snip_x - x, gy = snip_y - y, gl = Length(gx, gy);
+            move_dx = gl > 1.0f ? gx / gl : 0.0f;
+            move_dy = gl > 1.0f ? gy / gl : 0.0f;
+            slam_speed = gl / std::max(0.05f, m.active);
+            if (sprite.Def() && sprite.Def()->Find("run")) sprite.Play("run");
+            Audio::PlayAt(Sfx::SwingHeavy, x, y, 0.9f, 0.5f);
+        } else if (m.kind == "beam") {
+            // Along the line it laid down: a bolt that has to be stepped out of.
+            const float ox = x, oy = y - 30.0f * def->scale;
+            const float bx = snip_x - ox, by = snip_y - 16.0f - oy;
+            const float bl = std::max(1.0f, Length(bx, by));
+            const ProjectileDef* pd = ctx.projectiles ? ctx.projectiles->Get(m.shot) : nullptr;
+            world.SpawnProjectile(m.shot, ox, oy, bx / bl, by / bl, Profile(), AttackStyle::Magic,
+                                  (pd ? pd->power : 1.0f) * m.damage, false, ctx);
+            Audio::PlayAt(Sfx::SpellCast, x, y, 0.8f, 0.6f);
+        } else if (m.kind == "summon") {
+            // The next of its calls: whatever waits on that flag comes.
+            if (!world.visiting)
+                for (int k = 1; k <= std::max(1, static_cast<int>(m.reach)); ++k) {
+                    const string f = m.shot + "_" + std::to_string(k);
+                    if (world.Flagged(f)) continue;
+                    world.SetFlag(f);
+                    break;
+                }
+            world.Shock(x, y, 0.8f, 0.4f);
+            world.Smoke(x, y - 20.0f, 30.0f * def->scale, false);
+            Audio::PlayAt(Sfx::Roar, x, y, 1.0f, 0.5f);
+        } else if (m.kind == "snip") {
+            // Shut where they opened: on whoever is still inside them, and on
+            // nothing at all for anyone who stepped clear.
+            world.SnipShut(snip_x, snip_y, m.reach);
+            Audio::PlayAt(Sfx::Snip, snip_x, snip_y, 1.0f, 0.9f);
+            const SDL_FPoint at = player.GroundCentre();
+            if (Length(at.x - snip_x, at.y - snip_y) <= m.reach + player.GroundRadius() * 0.5f) strike(false);
+            else world.Dodged("stepped clear");
         }
     }
 
@@ -1387,24 +1477,63 @@ void Enemy::UpdateMove(float dt, World& world, const GameContext& ctx, float dx,
             sprite.Play("attack", true);
             Audio::PlayAt(Sfx::Swing, x, y, 0.65f, 0.85f);
             if (ArcFinds(world, x, y, SwingArc(), player)) strike(false);
+        } else if (m.kind == "slam") {
+            move_x = move_dx * slam_speed;
+            move_y = move_dy * slam_speed;
+        } else if (m.kind == "gusts") {
+            // A ring of gusts every `tick`, with a gap turned somewhere new in
+            // each: the way through is the gap.
+            spin_tick -= dt;
+            if (spin_tick <= 0.0f) {
+                spin_tick = m.tick;
+                const int n = std::max(6, static_cast<int>(m.reach));
+                const float gap = m.width * 3.14159265f / 180.0f;
+                std::uniform_real_distribution<float> turn(0.0f, 6.2831853f);
+                const float open = ctx.rng ? turn(*ctx.rng) : 0.0f;
+                const ProjectileDef* pd = ctx.projectiles ? ctx.projectiles->Get(m.shot) : nullptr;
+                for (int k = 0; k < n; ++k) {
+                    const float ang = 6.2831853f * static_cast<float>(k) / static_cast<float>(n);
+                    const float off = atan2f(sinf(ang - open), cosf(ang - open));
+                    if (fabsf(off) < gap * 0.5f) continue;
+                    world.SpawnProjectile(m.shot, x, y - 20.0f * def->scale, cosf(ang), sinf(ang), Profile(),
+                                          AttackStyle::Magic, (pd ? pd->power : 1.0f) * m.damage, false, ctx);
+                }
+                Audio::PlayAt(Sfx::Gust, x, y, 0.7f, 1.2f);
+            }
         } else if (m.kind == "spin") {
-            // Whirling, edging after them, striking all round every half second.
+            // Whirling, after them at its own pace (`pace`), striking all round
+            // every `tick` -- half a second for most.
             if (dist > 1.0f) {
-                move_x = (dx / dist) * MoveSpeed() * 0.45f;
-                move_y = (dy / dist) * MoveSpeed() * 0.45f;
+                move_x = (dx / dist) * MoveSpeed() * m.pace;
+                move_y = (dy / dist) * MoveSpeed() * m.pace;
             }
             spin_tick -= dt;
             if (spin_tick <= 0.0f) {
-                spin_tick = 0.5f;
+                spin_tick = m.tick;
                 Audio::PlayAt(Sfx::Swing, x, y, 0.55f, 0.7f);
                 if (gap <= m.reach) strike(false);
             }
         }
         return;
     }
+    // Down: on whoever is still where the mark was, and on nothing for anyone
+    // who got out from under it.
+    if (m.kind == "slam" && !move_hit) {
+        move_hit = true;
+        world.Shock(x, y, 1.0f, 0.5f);
+        world.Smoke(x, y, 26.0f * def->scale, false);
+        world.SnipShut(x, y, m.reach);
+        Audio::PlayAt(Sfx::Impact, x, y, 1.0f, 0.6f);
+        const SDL_FPoint at = player.GroundCentre();
+        if (Length(at.x - x, at.y - y) <= m.reach + player.GroundRadius() * 0.5f) strike(true);
+        else world.Dodged("stepped clear");
+    }
     if (a >= m.active + m.recover) {
+        sprite.speed_scale = 1.0f;
         move_ready[move_i] = m.cooldown;
-        if ((m.kind == "spin" || m.kind == "flame") && def->weak_after > 0.0f) weak_left = def->weak_after;
+        // Spent after a whirl, a breath or a frenzy of gusts: the opening.
+        if ((m.kind == "spin" || m.kind == "flame" || m.kind == "gusts") && def->weak_after > 0.0f)
+            weak_left = def->weak_after;
         attack_timer = std::max(attack_timer, AttackCooldown() * 0.5f);
         SetState(State::Chase);
     }

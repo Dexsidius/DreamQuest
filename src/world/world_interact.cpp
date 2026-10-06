@@ -368,6 +368,15 @@ void World::TryInteract(const GameContext& ctx) {
                 }
                 Wake(WakeReason::Stone);
             } else if (o.type == "range" || o.type == "workbench") {
+                // A trade the story has not given them yet (story.json
+                // "locks"): the loom before Wynn wakes, the cauldron before
+                // Oona teaches. The host's story, so a friend works on.
+                if (o.type == "workbench" && !visiting && !Acting())
+                    if (const string* why = SkillLocked(SkillName(CraftSkill(CraftStationFromName(o.station))))) {
+                        AddText(*why, player.x, player.y - 54.0f, {255, 200, 160, 255}, 2.4f);
+                        Audio::Play(Sfx::UiError);
+                        break;
+                    }
                 WorldRequest r;
                 r.type  = WorldRequest::Type::Craft;
                 r.id    = o.id;

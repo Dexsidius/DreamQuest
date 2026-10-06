@@ -156,6 +156,10 @@ $clipRules = @{
 # single turn of a combo, the Forge Demon's a whirlwind it keeps up.
 $spriteClipRules = @{
     forge_demon = @{ spin = @{ fps = 14; loop = $true } }
+    # Wynn's nightmare (tools/blender_act1b.py): its spin cycle, a full turn
+    # every eight frames for as long as it keeps it up, and the snip -- wide
+    # open on the third frame, held, and snapped shut on the sixth.
+    shear_mannequin = @{ spin = @{ fps = 16; loop = $true }; snip = @{ fps = 10; loop = $false } }
 }
 
 # Filename slot -> the slot the engine knows about. The engine decides what to
@@ -170,7 +174,7 @@ $slotNames = @{
     'swing'       = 'effect'
 }
 
-$weaponsFrom = @{ 'player_warden' = 'player_hero'; 'player_wayfarer' = 'player_hero' }
+$weaponsFrom = @{ 'player_warden' = 'player_hero'; 'player_wayfarer' = 'player_hero'; 'player_lantern' = 'player_hero' }
 
 $out = [ordered]@{}
 $ragged = 0
