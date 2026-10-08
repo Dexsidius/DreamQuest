@@ -428,6 +428,9 @@ public:
     Map     map;
     Camera  camera{1280.0f, 720.0f};
     Ambience ambience;
+    // What the air needs of the world this frame: the light, the players
+    // (the birds keep away from them), and where a bird could stand.
+    Ambience::World Air() const;
     // The seat at this machine: whose camera, targeting, interact prompt and
     // bag the world's are. Alone, the only player there is.
     Player  player;

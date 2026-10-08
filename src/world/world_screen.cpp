@@ -111,7 +111,7 @@ Shaders::Frame World::ScreenFrame(TextureCache& cache) const {
     const bool dreaming = InDream();
     f.night = GlowDarkness();
     // Indoors a draught; outdoors the wind rises and falls over a minute or two.
-    f.wind = map.IsInterior() ? 0.22f : dreaming ? 0.5f : 0.72f + 0.28f * sinf(now * 0.07f);
+    f.wind = map.IsInterior() ? 0.22f : dreaming ? 0.5f : Shaders::OutdoorWind();
 
     const SDL_FRect view = camera.VisibleWorldRect(48.0f);
     const float cx = view.x + view.w * 0.5f, cy = view.y + view.h * 0.5f;
@@ -150,8 +150,17 @@ Shaders::Frame World::ScreenFrame(TextureCache& cache) const {
     else if (!map.IsInterior()) {
         const float dark = clock.Darkness();
         const float warm = clock.Warmth() * (1.0f - dark);
-        grade(1.0f + 0.07f * warm - 0.03f * dark, 1.0f + 0.02f * warm - 0.01f * dark, 1.0f - 0.07f * warm + 0.05f * dark,
-              1.0f + 0.18f * warm - 0.32f * dark, 1.0f + 0.03f * warm, 0.012f * dark);
+        if (Shaders::Cozy())
+            // Cozy: warm and gentle by day; by night a cool dusk with less of
+            // its colour, where a lit window is the warmest thing there is.
+            grade(1.03f + 0.06f * warm - 0.03f * dark, 1.0f + 0.02f * warm, 0.95f - 0.06f * warm + 0.08f * dark,
+                  1.0f + 0.14f * warm - 0.22f * dark, 1.0f + 0.02f * warm + 0.05f * dark, 0.01f * dark);
+        else
+            grade(1.0f + 0.07f * warm - 0.03f * dark, 1.0f + 0.02f * warm - 0.01f * dark, 1.0f - 0.07f * warm + 0.05f * dark,
+                  1.0f + 0.18f * warm - 0.32f * dark, 1.0f + 0.03f * warm, 0.012f * dark);
+    } else if (Shaders::Cozy()) {
+        // Indoors, the same warmth.
+        grade(1.03f, 1.0f, 0.95f, 1.0f, 1.0f, 0.0f);
     }
 
     // The Reverie seen from awake: its swimming edges and its colours, laid

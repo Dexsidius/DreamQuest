@@ -19,6 +19,7 @@
 #include "../src/world/world.h"
 #include "../src/world/story.h"
 #include "../src/world/ambience.h"
+#include "../src/world/ground_paint.h"
 #include "../src/systems/items.h"
 #include "../src/systems/loot.h"
 #include "../src/systems/quest.h"
@@ -41,6 +42,7 @@
 #include "../src/net/session.h"
 #include "../src/coop/coop.h"
 
+#include <cstring>
 #include <fstream>
 #include <deque>
 #include <set>
@@ -51,7 +53,8 @@ namespace fs = std::filesystem;
 static int g_failures = 0;
 static int g_checks = 0;
 
-static void Check(bool ok, const string& what) {
+// What it was asked, back: so a check can guard the ones that lean on it.
+static bool Check(bool ok, const string& what) {
     ++g_checks;
     if (!ok) {
         ++g_failures;
@@ -60,6 +63,7 @@ static void Check(bool ok, const string& what) {
         // Every pass too, for reading the numbers some checks carry.
         printf("  ok    %s\n", what.c_str());
     }
+    return ok;
 }
 
 static void Section(const char* name) {
@@ -7269,6 +7273,20 @@ static void TestActOne(const Databases& db) {
     Check(go("mossvale_herbalist", "entrance") && asleep("npc_oona") && present("apocolo_book"),
           "Oona asleep by her pot, the book on the bench");
     // --- 56-59: Fernhollow ----------------------------------------------------------------------------------------------------------
+    {
+        // From the lane, before the knock: the house as the struggle left it.
+        Map fh;
+        bool intact = false, wrecked = false, breached = false;
+        if (fh.Load("maps/fernhollow.mx"))
+            for (const MapObject& o : fh.Objects()) {
+                if (o.id == "mara_house") intact = w.ObjectPresent(o);
+                if (o.id == "mara_house_wrecked") wrecked = w.ObjectPresent(o);
+                if (o.id == "mara_house_breached") breached = w.ObjectPresent(o);
+            }
+        Check(wrecked && !intact && !breached,
+              "Mara's house from the lane, as the struggle left it: windows smashed in, a shutter torn off, the door "
+              "split and hanging crooked");
+    }
     Check(go("fernhollow", "from_trail") && w.Flagged("ACT1_FERNHOLLOW_DOOR_BROKEN") && w.MapId() == "fernhollow_mara" &&
               present("mara_door_down") && !w.Flagged("ACT1_FERNHOLLOW_VISITED"),
           "Fernhollow asleep, Wendel asleep in his chair, and a door that falls in at a knock");
@@ -7286,6 +7304,9 @@ static void TestActOne(const Databases& db) {
     Check(go("fernhollow", "from_fernhollow_mara") && asleep("npc_nell") && gone("npc_wendel") &&
               shut("college_grounds"),
           "the hamlet asleep, the college's gates shut");
+    Check(present("mara_house_breached") && !present("mara_house_wrecked") && !present("mara_house") &&
+              !present("chimney_mara_0"),
+          "and behind them, her doorway dark where the door fell in -- and no smoke from her chimney");
     // --- 60-62: the report, and the shadow -------------------------------------------------------------------------------------------
     Check(go("guild_hall", "entrance") && talk("npc_mayor_guild") && w.Flagged("ACT1_NEIGHBORS_REPORTED") &&
               log.IsComplete("q_act1_neighbors") && w.Flagged("ACT1_DRAGON_SHADOW_SEEN") && w.Flagged("ACT2_00_STARTED") &&
@@ -8908,6 +8929,299 @@ static void TestLanternWarden(const Databases& db) {
     }
 }
 
+// --- the Cozy look ---------------------------------------------------------------------------------------
+// The art style the player picks on the Visual Effects page. In the Cozy look
+// every map out of doors has its floor painted (GroundPaint) rather than
+// tiled: grass running over the edges of its paths, laid stone, a lip and
+// foam round water, raised ground lifted as its tiles are -- worked out from
+// the map's own tiles, a piece at a time, the same every time.
+static void TestCozyLook(const Databases& db) {
+    (void)db;
+    Section("the Cozy look: the ground painted, not tiled, everywhere out of doors");
+    using GroundPaint::GroundOf;
+    Check(GroundOf("assets/tiles/grass_light_2.png").role == GroundPaint::COVER &&
+              GroundOf("assets/tiles/swamp_grass_1.png").role == GroundPaint::COVER &&
+              GroundOf("assets/tiles/snow.png").role == GroundPaint::COVER &&
+              GroundOf("assets/tiles/dirt.png").role == GroundPaint::EARTH &&
+              GroundOf("assets/tiles/plaza_1.png").role == GroundPaint::STONE &&
+              GroundOf("assets/tiles/plank_floor.png").role == GroundPaint::FLAT &&
+              GroundOf("assets/tiles/college_wallface.png").role == GroundPaint::FLAT,
+          "every ground has its part: grass, swamp grass and snow grow over edges; earth wanders; stone is laid; boards and walls keep to theirs");
+    Check(GroundOf("assets/tiles/water_2.png").role == GroundPaint::FLUID &&
+              GroundOf("assets/tiles/bog_water.png").role == GroundPaint::FLUID &&
+              GroundOf("assets/tiles/lava.png").role == GroundPaint::FLUID,
+          "water, a bog and lava are fluids, drawn as their tiles under the picture");
+    Check(GroundOf("assets/tiles/no_such_ground.png").role == GroundPaint::EARTH &&
+              !GroundOf("assets/tiles/no_such_ground.png").known,
+          "a ground nobody named is earth, painted from its own art");
+    Check(GroundPaint::Covers("assets/tiles/plaza_1.png", false) && !GroundPaint::Covers("assets/tiles/water.png", false) &&
+              GroundPaint::Covers("assets/tiles/dirt.png", true) && !GroundPaint::Covers("assets/tiles/no_such_rug.png", true),
+          "the picture stands in for the floor; water still runs under it; a path laid over grass is painted, and a rug is still drawn");
+    Check(Shaders::Options{}.style == 1 && Settings{}.art_style == 1, "the Cozy look is the one a new game starts in");
+    {
+        fs::create_directories("bin/selftest_net");
+        const string path = "bin/selftest_net/settings_style.json";
+        Settings out;
+        out.art_style = 0;
+        Settings back;
+        Check(out.Save(path) && back.Load(path) && back.art_style == 0, "Classic, once chosen, is kept");
+        { std::ofstream f(path, std::ios::trunc); f << R"({"art_style": 7})"; }
+        Settings odd;
+        Check(odd.Load(path) && odd.art_style == 1, "and a style the game has never heard of reads as Cozy");
+        fs::remove(path);
+    }
+    {
+        int outdoors = 0, painted = 0;
+        string missed;
+        for (const char* id : kMaps) {
+            Map any;
+            if (!any.Load(string("maps/") + id + ".mx")) continue;
+            const bool out = !any.IsInterior() && !any.IsDark() && any.Ambient() != "dungeon";
+            outdoors += out;
+            painted += GroundPaint::Paints(any);
+            if (out != GroundPaint::Paints(any)) missed = id;
+        }
+        Check(missed.empty() && painted >= 30, "every map out of doors is painted, and no house, cellar or dungeon (" +
+                                                   std::to_string(painted) + " of " + std::to_string(outdoors) +
+                                                   (missed.empty() ? string() : ", not " + missed) + ")");
+    }
+
+    Map m;
+    if (!Check(m.Load("maps/town_havenbrook.mx"), "Havenbrook loads")) return;
+    Check(!GroundPaint::Wants(m) || Shaders::Enabled(), "off the GPU renderer the Cozy look is off, and the tiles are drawn");
+    const GroundPaint::Picture a = GroundPaint::Paint(m), b = GroundPaint::Paint(m);
+    Check(a.w == static_cast<int>(m.Width()) && a.h == static_cast<int>(m.Height()) &&
+              a.rgba.size() == static_cast<size_t>(a.w) * a.h * 4,
+          "the picture is the whole town, a pixel for a pixel");
+    Check(a.rgba == b.rgba, "and the same tiles paint the same picture, every time");
+    Check(a.seconds < 6.0f, "painted in good time (" + std::to_string(static_cast<int>(a.seconds * 1000.0f)) + " ms)");
+    {
+        // A piece is painted past its edges, so pieces meet without a seam:
+        // any piece of it is the same as that part of the whole.
+        const SDL_Rect r = {300, 260, 410, 330};
+        const GroundPaint::Picture piece = GroundPaint::PaintRegion(m, r);
+        bool same = piece.w == r.w && piece.h == r.h;
+        for (int y = 0; y < r.h && same; ++y)
+            same = std::memcmp(&piece.rgba[static_cast<size_t>(y) * r.w * 4],
+                               &a.rgba[(static_cast<size_t>(r.y + y) * a.w + r.x) * 4], static_cast<size_t>(r.w) * 4) == 0;
+        Check(same, "painted a piece at a time, the pieces meet without a seam");
+    }
+
+    // The town as cells, from its floor tiles: what each 32 px square is.
+    const auto stem_of = [](const string& path) {
+        string s = fs::path(path).stem().string();
+        const size_t us = s.rfind('_');
+        if (us != string::npos && us + 1 < s.size() && std::all_of(s.begin() + static_cast<long>(us) + 1, s.end(), ::isdigit))
+            s.resize(us);
+        return s;
+    };
+    const auto cells_of = [&](const Map& map) {
+        std::map<std::pair<int, int>, string> cell;
+        for (const TileInstance& t : map.Tiles())
+            if (t.layer == LAYER_GROUND && !t.overlay && t.rect.w == 32.0f && t.rect.h == 32.0f) {
+                const string& path = map.TexturePath(t);
+                string s = stem_of(path);
+                if (s == "grass_light" || s == "grass_olive") s = "grass";
+                if (GroundOf(path).role == GroundPaint::FLUID) s = "fluid";
+                cell[{static_cast<int>(t.rect.x) / 32, static_cast<int>(t.rect.y) / 32}] = s;
+            }
+        return cell;
+    };
+    const std::map<std::pair<int, int>, string> cell = cells_of(m);
+    const auto kind = [&](const std::map<std::pair<int, int>, string>& cs, int cx, int cy) {
+        const auto it = cs.find({cx, cy});
+        return it == cs.end() ? string() : it->second;
+    };
+    const auto pixel = [&](const GroundPaint::Picture& pic, int x, int y) {
+        const size_t i = (static_cast<size_t>(y - pic.y) * pic.w + static_cast<size_t>(x - pic.x)) * 4;
+        return SDL_Color{pic.rgba[i], pic.rgba[i + 1], pic.rgba[i + 2], pic.rgba[i + 3]};
+    };
+    // The middle of a run of one kind: it and the eight round it the same.
+    const auto deep = [&](const std::map<std::pair<int, int>, string>& cs, const string& k, int& cx, int& cy) {
+        for (const auto& [at, what] : cs) {
+            if (what != k) continue;
+            bool all = true;
+            for (int dy = -1; dy <= 1 && all; ++dy)
+                for (int dx = -1; dx <= 1 && all; ++dx) all = kind(cs, at.first + dx, at.second + dy) == k;
+            if (all) { cx = at.first; cy = at.second; return true; }
+        }
+        return false;
+    };
+    int gx = 0, gy = 0, px = 0, py = 0, wx = 0, wy = 0, rx = 0, ry = 0;
+    if (Check(deep(cell, "grass", gx, gy), "Havenbrook has its grass")) {
+        const SDL_Color c = pixel(a, gx * 32 + 16, gy * 32 + 16);
+        Check(c.a == 255 && c.g > c.r && c.g > c.b, "and it is green");
+    }
+    if (Check(deep(cell, "plaza", px, py), "Havenbrook has its square")) {
+        int stone = 0;
+        for (int i = 0; i < 32; ++i) {
+            const SDL_Color c = pixel(a, px * 32 + i, py * 32 + 16);
+            stone += c.a == 255 && c.r >= c.b && std::abs(static_cast<int>(c.r) - static_cast<int>(c.g)) < 40;
+        }
+        Check(stone == 32, "and it is flagged in stone-coloured stone");
+    }
+    if (deep(cell, "road", rx, ry)) {
+        const SDL_Color c = pixel(a, rx * 32 + 16, ry * 32 + 16);
+        Check(c.a == 255 && std::abs(static_cast<int>(c.r) - static_cast<int>(c.b)) < 60, "the roads, cobbled");
+    }
+    if (Check(deep(cell, "fluid", wx, wy), "Havenbrook has its pond"))
+        Check(pixel(a, wx * 32 + 16, wy * 32 + 16).a == 0, "and the picture is clear over the middle of it, where the water runs");
+    {
+        int foam = 0;
+        for (const auto& [at, what] : cell) {
+            if (what != "fluid") continue;
+            for (int y = at.second * 32; y < at.second * 32 + 32; ++y)
+                for (int x = at.first * 32; x < at.first * 32 + 32; ++x) {
+                    const SDL_Color c = pixel(a, x, y);
+                    foam += c.a > 200 && c.r > 200 && c.g > 220 && c.b > 220;
+                }
+        }
+        Check(foam > 40, "a ring of foam round the inside of the bank (" + std::to_string(foam) + " px)");
+    }
+    {
+        // Along rows through every place a path meets grass, where the grass
+        // starts wanders off the line of the cells, and a dark line runs along it.
+        int edges = 0, off_line = 0, lined = 0;
+        for (const auto& [at, what] : cell) {
+            if (what != "dirt" || kind(cell, at.first + 1, at.second) != "grass") continue;
+            for (int k = 4; k < 32; k += 7) {
+                const int y = at.second * 32 + k, edge = (at.first + 1) * 32;
+                int first = -1;
+                bool dark = false;
+                for (int x = at.first * 32 + 8; x < edge + 16; ++x) {
+                    const SDL_Color c = pixel(a, x, y);
+                    dark |= c.r < 70 && c.g < 110 && c.b < 70;
+                    if (first < 0 && c.g > c.r + 8) first = x;
+                }
+                if (first < 0) continue;
+                ++edges;
+                off_line += std::abs(first - edge) >= 2;
+                lined += dark;
+            }
+        }
+        Check(edges >= 8 && off_line * 3 >= edges,
+              "where a path meets the grass the edge wanders off the line of the cells (" + std::to_string(off_line) +
+                  " of " + std::to_string(edges) + ")");
+        Check(edges > 0 && lined * 2 >= edges, "and a dark line runs along it, where the grass lips over (" +
+                                                   std::to_string(lined) + " of " + std::to_string(edges) + ")");
+    }
+
+    // The Bayou's grass is greener than Havenbrook's: deeper, and more of it kept.
+    {
+        const auto greenness = [&](const GroundPaint::Picture& pic) {
+            double sum = 0.0;
+            int n = 0;
+            for (size_t i = 0; i + 3 < pic.rgba.size(); i += 4) {
+                if (pic.rgba[i + 3] != 255) continue;
+                sum += pic.rgba[i + 1] - std::max(pic.rgba[i], pic.rgba[i + 2]);
+                ++n;
+            }
+            return n ? sum / n : 0.0;
+        };
+        Map bayou;
+        int sx = 0, sy = 0;
+        if (Check(bayou.Load("maps/bayou.mx") && deep(cells_of(bayou), "swamp_grass", sx, sy), "the Bayou has its swamp grass")) {
+            const GroundPaint::Picture swamp = GroundPaint::PaintRegion(bayou, {sx * 32 - 32, sy * 32 - 32, 96, 96});
+            const GroundPaint::Picture meadow = GroundPaint::PaintRegion(m, {gx * 32 - 32, gy * 32 - 32, 96, 96});
+            const double g1 = greenness(swamp), g0 = greenness(meadow);
+            Check(g1 > g0 + 6.0, "and it is greener than Havenbrook's (" + std::to_string(static_cast<int>(g1)) + " to " +
+                                     std::to_string(static_cast<int>(g0)) + ")");
+            Check(GroundPaint::PaintRegion(bayou, {sx * 32 - 32, sy * 32 - 32, 96, 96}).rgba == swamp.rgba,
+                  "the Bayou, raised ground and all, paints the same every time");
+        }
+    }
+}
+
+// --- the air out of doors ---------------------------------------------------------------------------------
+// The wind the grass and trees lean in, made visible: leaves tumbling along
+// it and streaks of it, both with the same gusts in the same places; the
+// shadows of clouds drifting over the ground; and birds -- down onto open
+// ground by day, up and away from anybody who comes close, gone by night,
+// and never indoors.
+static void TestAmbientLife(const Databases& db) {
+    (void)db;
+    Section("the air out of doors: the wind, the clouds' shadows, the birds");
+    const SDL_FPoint wd = Shaders::WindDirection();
+    Check(std::fabs(wd.x * wd.x + wd.y * wd.y - 1.0f) < 1e-3f && wd.x > 0.0f, "the wind blows one way, out of the west");
+    float lo = 1.0f, hi = 0.0f;
+    bool fronts = true;
+    for (int i = 0; i < 40; ++i) {
+        const float x = static_cast<float>(i) * 20.0f, y = 300.0f;
+        const float g = Shaders::GustAt(x, y);
+        lo = std::min(lo, g);
+        hi = std::max(hi, g);
+        // Along a gust's front -- across the wind -- it is the same gust.
+        fronts &= std::fabs(Shaders::GustAt(x - wd.y * 150.0f, y + wd.x * 150.0f) - g) < 0.02f;
+    }
+    Check(lo >= 0.0f && hi <= 1.0f && hi - lo > 0.5f, "its gusts roll across the ground, from nothing to their height");
+    Check(fronts, "and a gust reaches everything along its front at once, as the grass and trees feel it");
+
+    const vector<Uint8> mask = Ambience::CloudMask(128);
+    int under = 0;
+    double seam = 0.0, inside = 0.0;
+    for (int y = 0; y < 128; ++y) {
+        for (int x = 0; x < 128; ++x) under += mask[static_cast<size_t>(y) * 128 + x] > 127;
+        seam += std::abs(mask[static_cast<size_t>(y) * 128] - mask[static_cast<size_t>(y) * 128 + 127]);
+        inside += std::abs(mask[static_cast<size_t>(y) * 128 + 64] - mask[static_cast<size_t>(y) * 128 + 63]);
+    }
+    const float cover = static_cast<float>(under) / (128.0f * 128.0f);
+    Check(cover > 0.12f && cover < 0.6f, "the clouds cover some of the sky and not all of it (" +
+                                             std::to_string(static_cast<int>(cover * 100.0f)) + "%)");
+    Check(seam <= inside * 2.5 + 256.0, "and their shadows tile without a seam");
+    {
+        SDL_Surface* sheet = IMG_Load(Ambience::BIRDS_SHEET);
+        Check(sheet && sheet->w == 96 && sheet->h == 48, "the birds are drawn: three of them, six frames each (birds.png)");
+        if (sheet) SDL_DestroySurface(sheet);
+    }
+
+    Camera cam(1280.0f, 720.0f);
+    cam.SetBounds(4000.0f, 4000.0f);
+    cam.SetZoom(2.0f);
+    cam.SnapTo(1000.0f, 1000.0f);
+    Ambience::World out;
+    out.walkers.push_back({3000.0f, 3000.0f});
+    out.stand = [](float, float) { return true; };
+    Ambience air;
+    air.SetKind("overworld", false);
+    for (int i = 0; i < 600; ++i) air.Update(0.05f, cam, out);
+    int down = 0;
+    float bx = 0.0f, by = 0.0f;
+    for (const Ambience::BirdView& b : air.Birds())
+        if (!b.flying) { ++down; bx = b.x; by = b.y; }
+    Check(down >= 2, "out in the open by day, birds come down onto the ground (" + std::to_string(down) + ")");
+    out.walkers[0] = {bx + 30.0f, by};
+    for (int i = 0; i < 20; ++i) air.Update(0.05f, cam, out);
+    bool fled = true;
+    for (const Ambience::BirdView& b : air.Birds())
+        if (!b.flying && std::hypot(b.x - bx, b.y - by) < 60.0f) fled = false;
+    Check(down > 0 && fled, "and go up and away when somebody comes close");
+    out.walkers[0] = {3000.0f, 3000.0f};
+    out.daylight = 0.0f;
+    for (int i = 0; i < 400; ++i) air.Update(0.05f, cam, out);
+    int still = 0;
+    for (const Ambience::BirdView& b : air.Birds()) still += !b.flying;
+    Check(still == 0, "and are gone to roost by night");
+    out.daylight = 1.0f;
+    Ambience house;
+    house.SetKind("town", true);
+    for (int i = 0; i < 600; ++i) house.Update(0.05f, cam, out);
+    Check(house.Birds().empty(), "no birds indoors");
+    Ambience rock;
+    rock.SetKind("overworld", false);
+    Ambience::World nowhere = out;
+    nowhere.stand = [](float, float) { return false; };
+    for (int i = 0; i < 600; ++i) rock.Update(0.05f, cam, nowhere);
+    int landed = 0;
+    for (const Ambience::BirdView& b : rock.Birds()) landed += !b.flying;
+    Check(landed == 0, "and none come down where there is nowhere to stand");
+    Ambience plain;
+    plain.SetKind("overworld", false);
+    Ambience::World quiet = out;
+    quiet.lively = false;
+    for (int i = 0; i < 600; ++i) plain.Update(0.05f, cam, quiet);
+    Check(plain.Birds().empty(), "and with Visual Effects off, the plain look, no birds at all");
+}
+
 int main(int argc, char** argv) {
     // Unbuffered (Windows has no line buffering), so a crash does not take what
     // was printed before it with it.
@@ -8956,6 +9270,8 @@ int main(int argc, char** argv) {
         if (only == "spell-boxes") TestSpellBoxes(db);
         if (only == "warden")      TestLanternWarden(db);
         if (only == "act2")        TestActTwo(db);
+        if (only == "cozy")        TestCozyLook(db);
+        if (only == "air")         TestAmbientLife(db);
         printf("\n%d checks, %d failures\n", g_checks, g_failures);
         return g_failures;
     }
@@ -27471,6 +27787,8 @@ int main(int argc, char** argv) {
     TestFogOfWar(db);
     TestCombatFixes(db);
     TestLanternWarden(db);
+    TestCozyLook(db);
+    TestAmbientLife(db);
     TestBalanceFixes(db);
     TestLateSpells(db);
     TestLateTreeRows(db);
@@ -29857,8 +30175,8 @@ int main(int argc, char** argv) {
             float most = 0.0f, grove_most = 0.0f;
             bool calmed = false;
             for (int f = 0; f < 60 * 120; ++f) {
-                snow.Update(kFrame, cam);
-                grove.Update(kFrame, cam);
+                snow.Update(kFrame, cam, Ambience::World{});
+                grove.Update(kFrame, cam, Ambience::World{});
                 most = std::max(most, snow.Gust());
                 grove_most = std::max(grove_most, grove.Gust());
                 if (most > 0.9f && snow.Gust() <= 0.0f) calmed = true;
@@ -32022,7 +32340,7 @@ int main(int argc, char** argv) {
                     world.camera.SetViewport(1280, 720);
                     world.camera.SetZoom(view.zoom);
                     world.camera.SnapTo(view.x, view.y);
-                    world.ambience.Update(1.0f / 60.0f, world.camera);
+                    world.ambience.Update(1.0f / 60.0f, world.camera, world.Air());
                     world.Render(renderer, cache);
                     SDL_Surface* pixels = SDL_RenderReadPixels(renderer, nullptr);
                     Check(pixels != nullptr, string(view.name) + " produces pixels");

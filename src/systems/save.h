@@ -142,6 +142,8 @@ struct Settings {
     bool   flashes = true;
     bool   colour_fringing = true;
     bool   screen_distortion = true;
+    // The art style: 0 Classic, 1 Cozy (Shaders::Options::style).
+    int    art_style = 1;
 
     bool Load(const string& path = "settings.json");
     bool Save(const string& path = "settings.json") const;

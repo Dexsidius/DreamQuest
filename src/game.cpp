@@ -1,6 +1,7 @@
 #include "game.h"
 #include "systems/waystones.h"
 #include "systems/shaders.h"
+#include "world/ground_paint.h"
 #include "systems/gathering.h"
 
 static constexpr float AUTOSAVE_INTERVAL = 120.0f;
@@ -50,6 +51,7 @@ Game::~Game() {
     world_map.Forget();
     Audio::Shutdown();
     ui.Shutdown();
+    GroundPaint::Release();
     Shaders::Shutdown();
     delete textures;
     if (renderer) SDL_DestroyRenderer(renderer);

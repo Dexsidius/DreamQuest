@@ -1,4 +1,5 @@
 #include "map.h"
+#include "ground_paint.h"
 #include "../systems/shaders.h"
 #include <fstream>
 #include <filesystem>
@@ -862,6 +863,10 @@ void Map::RenderLayer(SDL_Renderer* r, TextureCache& cache,
     static int stamp_counter = 0;
     if (seen_stamp.size() != tiles.size()) seen_stamp.assign(tiles.size(), 0);
     const int stamp = ++stamp_counter;
+    // In the Cozy look a painted map's floor is one picture (GroundPaint),
+    // drawn over whatever of the floor it does not paint -- water, lava, a
+    // floor it has no painter for -- and before anything lying on the floor.
+    const bool painted = layer == LAYER_GROUND && GroundPaint::Wants(*this);
 
     // Two passes over the ground: the floor, then anything lying on it.
     //
@@ -884,6 +889,7 @@ void Map::RenderLayer(SDL_Renderer* r, TextureCache& cache,
             if (layer == LAYER_GROUND && t.overlay != want_overlay) continue;
             seen_stamp[idx] = stamp;
             if (!RectsOverlap(t.rect, view)) continue;
+            if (painted && t.tex >= 0 && GroundPaint::Covers(textures[t.tex], t.overlay)) continue;
 
             SDL_Color dye;
             SDL_Texture* tex = DressedTexture(cache, t.tex, dye);
@@ -895,7 +901,8 @@ void Map::RenderLayer(SDL_Renderer* r, TextureCache& cache,
             const SDL_FRect dst = cam.ToScreenRect(world);
             // Water runs and lava churns, and a tuft of grass lying on the
             // ground stirs in the wind (all no-ops off the GPU renderer).
-            Shaders::UseTile(r, static_cast<Shaders::Surface>(SurfaceOf(t.tex)), ArtOf(t.tex).kind);
+            Shaders::UseTile(r, static_cast<Shaders::Surface>(SurfaceOf(t.tex)), ArtOf(t.tex).kind,
+                             layer != LAYER_GROUND);
 
             // Shaded by its level, dyed by the dress. Put back after: the
             // same texture is the next map's floor.
@@ -907,6 +914,10 @@ void Map::RenderLayer(SDL_Renderer* r, TextureCache& cache,
             if (tinted) SDL_SetTextureColorMod(tex, 255, 255, 255);
         }
     });
+    if (painted && pass == 0) {
+        Shaders::UsePlain(r);
+        GroundPaint::Draw(r, *this, cam);
+    }
     }
     Shaders::UsePlain(r);
 }
@@ -970,7 +981,10 @@ void Map::RenderTile(SDL_Renderer* r, TextureCache& cache, const Camera& cam,
     world.y -= HeightAt(world.x + world.w * 0.5f, world.y + world.h);
     const SDL_FRect dst = cam.ToScreenRect(world);
     const Shaders::PropKind kind = ArtOf(t.tex).kind;
-    if (kind != Shaders::PROP_NONE) Shaders::UseTile(r, Shaders::PLAIN, kind);
+    // Standing scenery: its own shader if it moves or lights, and in the Cozy
+    // look its outline either way.
+    const bool shaded = kind != Shaders::PROP_NONE || Shaders::Cozy();
+    if (shaded) Shaders::UseTile(r, Shaders::PLAIN, kind, true);
     if (t.lean != 0.0f) {
         // A house in a dream leans: its foot where it stands, its top pushed
         // over -- sheared, not turned, so its floors stay level -- and swaying
@@ -986,7 +1000,7 @@ void Map::RenderTile(SDL_Renderer* r, TextureCache& cache, const Camera& cam,
                                  {{dst.x, dst.y + dst.h}, c, {0.0f, 1.0f}}};
         const int idx[6] = {0, 1, 2, 0, 2, 3};
         SDL_RenderGeometry(r, tex, v, 4, idx, 6);
-        if (kind != Shaders::PROP_NONE) Shaders::UsePlain(r);
+        if (shaded) Shaders::UsePlain(r);
         return;
     }
     if (alpha != 255) SDL_SetTextureAlphaMod(tex, alpha);
@@ -994,7 +1008,7 @@ void Map::RenderTile(SDL_Renderer* r, TextureCache& cache, const Camera& cam,
     SDL_RenderTexture(r, tex, nullptr, &dst);
     if (dyed) SDL_SetTextureColorMod(tex, 255, 255, 255);
     if (alpha != 255) SDL_SetTextureAlphaMod(tex, 255);
-    if (kind != Shaders::PROP_NONE) Shaders::UsePlain(r);
+    if (shaded) Shaders::UsePlain(r);
 }
 
 void Map::CollectDecor(const Camera& cam, vector<const TileInstance*>& out) const {

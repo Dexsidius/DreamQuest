@@ -70,6 +70,15 @@ struct Art {
 };
 const Art& ArtOf(const string& path);
 
+// The wind out of doors, as the scenery feels it. It blows one way -- from
+// the west, a little north of it -- and its gusts roll across the ground as
+// a wave, a tree's height a second: grass and trees lean with a gust as it
+// reaches them, and the leaves and streaks in the air (Ambience) speed up
+// and show with the same gust in the same place.
+SDL_FPoint WindDirection();                 // a unit vector, downwind
+float GustAt(float x, float y);             // how hard a gust is at a world point just now, 0..1
+float OutdoorWind();                        // how hard it blows out of doors just now, 0..1
+
 // The player's choices, from the Visual Effects page of Options.
 struct Options {
     bool effects = true;      // all of it; off is the plain look
@@ -77,6 +86,10 @@ struct Options {
     bool flashes = true;      // the screen and a struck sprite flash
     bool fringing = true;     // colours come apart in a dream and a shockwave
     bool distortion = true;   // heat, shockwaves and the dream bend the picture
+    // The art style: 0 Classic, the tiles and sprites as drawn; 1 Cozy, the
+    // ground painted (GroundPaint), a soft brown line round everything that
+    // stands, warm colours by day and a dusk-blue night.
+    int  style = 1;
 };
 void SetOptions(const Options& o);
 const Options& GetOptions();
@@ -90,6 +103,8 @@ bool Init(SDL_Renderer* renderer);   // false (and no effects) off the GPU rende
 void Shutdown();                     // before the renderer is destroyed
 bool Enabled();                      // the shaders are loaded
 bool Effects();                      // ...and the player wants them
+// The Cozy look is on: effects on, and the Cozy art style chosen.
+bool Cozy();
 
 // Before drawing a view of the world into the current target. Returns a
 // texture to draw the world into instead -- hand it to DrawPost afterwards,
@@ -127,8 +142,9 @@ struct Frame {
 void SetFrame(const Frame& frame);
 
 // Switch the shader the next ground tiles or scenery are drawn with. Cheap
-// when nothing changes; PLAIN and PROP_NONE is no shader at all.
-void UseTile(SDL_Renderer* renderer, Surface surface, PropKind kind = PROP_NONE);
+// when nothing changes; PLAIN and PROP_NONE is no shader at all -- unless
+// `standing` (scenery, not floor) and the Cozy look is on, which outlines it.
+void UseTile(SDL_Renderer* renderer, Surface surface, PropKind kind = PROP_NONE, bool standing = false);
 inline void UseSurface(SDL_Renderer* renderer, Surface surface) { UseTile(renderer, surface); }
 void UsePlain(SDL_Renderer* renderer);
 // The glow pass: only the lit pixels of what is drawn, meant to be added.
@@ -137,7 +153,9 @@ bool UseGlow(SDL_Renderer* renderer);
 bool UseReflection(SDL_Renderer* renderer);
 
 // A character with something happening to it. UseSprite sets up the next
-// draw of `src` out of a sheet `tw` by `th`; EndSprite puts things back.
+// draw of `src` out of a sheet `tw` by `th`; EndSprite puts things back. In
+// the Cozy look every character goes through it, for its outline, whether
+// anything is happening to it or not.
 struct SpriteFx {
     SDL_FColor flash{1, 1, 1, 0};        // to this colour, by a
     SDL_FColor glow{1, 0.2f, 0.1f, 0};   // round its outline, by a

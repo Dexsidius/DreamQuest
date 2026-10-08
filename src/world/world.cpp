@@ -1265,13 +1265,30 @@ void World::Update(float dt, const GameContext& ctx) {
     if (cam_hold.on) {
         if (cam_hold.snap) camera.SnapTo(cam_hold.x, cam_hold.y);
         else               camera.Follow(cam_hold.x, cam_hold.y, dt);
-        ambience.Update(dt, camera);
+        ambience.Update(dt, camera, Air());
         Audio::SetListener(cam_hold.x, cam_hold.y);
     } else if (!player.absent) {
         camera.Follow(player.x + player.LookAhead().x, player.y + player.LookAhead().y, dt);
-        ambience.Update(dt, camera);
+        ambience.Update(dt, camera, Air());
         Audio::SetListener(player.x, player.y);
     }
+}
+
+Ambience::World World::Air() const {
+    Ambience::World a;
+    a.daylight = (InDream() || map.IsInterior()) ? 0.0f : 1.0f - clock.Darkness();
+    a.lively = Shaders::Effects();
+    if (!player.absent) a.walkers.push_back({player.x, player.y});
+    for (const auto& g : guests)
+        if (g) a.walkers.push_back({g->x, g->y});
+    // Open, level ground: nothing solid, no water, nothing that burns, and
+    // not up on a bank (a bird stands where the ground is drawn).
+    a.stand = [this](float x, float y) {
+        if (x < 8.0f || y < 8.0f || x > map.Width() - 8.0f || y > map.Height() - 8.0f) return false;
+        const SDL_FRect box{x - 4.0f, y - 3.0f, 8.0f, 3.0f};
+        return !map.Blocked(box) && !map.HazardAt(box) && map.LevelAt(x, y) == 0;
+    };
+    return a;
 }
 
 void World::UpdateSeat(float dt, const GameContext& ctx) {

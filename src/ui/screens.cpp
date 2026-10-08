@@ -791,7 +791,7 @@ void Game::DrawOptions() {
 // -- each on its own, and each greyed out while the whole is off.
 
 namespace {
-enum FxRow { FX_ALL, FX_SHAKE, FX_FLASHES, FX_FRINGING, FX_DISTORTION, FX_BACK, FX_ROWS };
+enum FxRow { FX_ALL, FX_STYLE, FX_SHAKE, FX_FLASHES, FX_FRINGING, FX_DISTORTION, FX_BACK, FX_ROWS };
 }
 
 void Game::ApplyVisualEffects() {
@@ -801,6 +801,7 @@ void Game::ApplyVisualEffects() {
     o.flashes = settings.flashes;
     o.fringing = settings.colour_fringing;
     o.distortion = settings.screen_distortion;
+    o.style = settings.art_style;
     Shaders::SetOptions(o);
 }
 
@@ -808,7 +809,12 @@ void Game::UpdateVisualEffects() {
     MoveCursor(cursor, FX_ROWS);
     const bool confirm = input.Pressed(Action::Confirm) || input.Pressed(Action::Interact);
     const bool change = confirm || input.MenuRight() || input.MenuLeft();
-    if (change) {
+    if (change && cursor == FX_STYLE) {
+        settings.art_style = settings.art_style == 1 ? 0 : 1;
+        ApplyVisualEffects();
+        settings.Save();
+        Audio::Play(Sfx::UiConfirm, 0.7f);
+    } else if (change) {
         bool* flag = nullptr;
         switch (cursor) {
             case FX_ALL:        flag = &settings.visual_effects; break;
@@ -848,6 +854,7 @@ void Game::DrawVisualEffects() {
     const auto onoff = [](bool v) { return string(v ? "On" : "Off"); };
     const pair<string, string> rows[FX_ROWS] = {
         {"Visual Effects",    gpu ? onoff(settings.visual_effects) : string("needs Vulkan")},
+        {"Art Style",         settings.art_style == 1 ? string("Cozy") : string("Classic")},
         {"Screen Shake",      onoff(settings.screen_shake)},
         {"Flashes",           onoff(settings.flashes)},
         {"Colour Fringing",   onoff(settings.colour_fringing)},
@@ -857,6 +864,7 @@ void Game::DrawVisualEffects() {
     // What each row does, under the list, for the one the cursor is on.
     static const char* kWhat[FX_ROWS] = {
         "Wind in the grass, water that ripples, lit windows, fog, glows and the rest. Off draws the plain look.",
+        "Cozy: painted ground in Havenbrook, a soft line round everything that stands, warm days and blue dusk nights. Classic: as it was.",
         "The screen shakes when a meteor lands, a slab is dropped or a boss's blow strikes the ground.",
         "Struck things flash white or the colour of the spell; the screen flashes with lightning.",
         "Colours come apart a little at the edges in a dream and in a shockwave.",

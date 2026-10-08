@@ -87,7 +87,8 @@ SDL_Color World::PlainAmbient() const {
     if (map.IsInterior()) { dark *= 0.5f; warm *= 0.3f; }
     if (dark <= 0.001f && warm <= 0.001f) return white;
 
-    const SDL_Color night{84, 96, 156, 255};
+    // The Cozy look's night is a dusk: bluer, and not as deep.
+    const SDL_Color night = Shaders::Cozy() ? SDL_Color{78, 90, 160, 255} : SDL_Color{84, 96, 156, 255};
     const SDL_Color sunset{255, 178, 128, 255};
     const auto mix = [&](float base, float n, float s) {
         const float c = base + (n - base) * dark;
@@ -714,6 +715,8 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     DrawIce(r);
     // A ritual's ring of fire, where it burns into the ground.
     DrawRingGround(r);
+    // Birds on the ground, and the shadows of those going over.
+    ambience.RenderGround(r, camera);
 
     // Burning ground and pending eruptions lie on the floor, under everyone.
     // Drawn as a squashed disc rather than a rectangle: a hard-edged box reads
@@ -1308,13 +1311,15 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
                 // the GPU renderer).
                 const Shaders::PropKind kind = dulled ? Shaders::PROP_NONE
                                                       : Shaders::ArtOf(used ? o->sprite_open : o->sprite).kind;
-                if (kind != Shaders::PROP_NONE) Shaders::UseTile(r, Shaders::PLAIN, kind);
+                // And in the Cozy look, its outline either way.
+                const bool shaded = kind != Shaders::PROP_NONE || Shaders::Cozy();
+                if (shaded) Shaders::UseTile(r, Shaders::PLAIN, kind, true);
                 SDL_SetTextureAlphaMod(tex, alpha);
                 if (dulled) SDL_SetTextureColorMod(tex, 118, 112, 108);
                 SDL_RenderTexture(r, tex, nullptr, &dst);
                 if (dulled) SDL_SetTextureColorMod(tex, 255, 255, 255);
                 SDL_SetTextureAlphaMod(tex, 255);
-                if (kind != Shaders::PROP_NONE) Shaders::UsePlain(r);
+                if (shaded) Shaders::UsePlain(r);
                 if (o->type == "hive" && !spent) DrawBees(r, *o, world.y, world.h);
                 break;
             }
@@ -2089,18 +2094,32 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     }
 
     map.RenderLayer(r, cache, camera, LAYER_OVERHEAD);
+    // The clouds' shadows drifting over all of it, and the birds in the air.
+    ambience.RenderSky(r, camera);
 
     // Night, dusk, and the dream's violet, multiplied over everything above,
     // with fires and the player's own glow cut out of it.
     // Lava is its own light: the night leaves it, and what is on it, lit.
     vector<SDL_FRect> lit;
     if (Shaders::Effects()) map.SurfaceRects(camera.VisibleWorldRect(32.0f), Shaders::LAVA, lit);
-    lighting.Render(r, camera, AmbientLight(), CollectLights(), &lit);
+    vector<Light> lights = CollectLights();
+    // In the Cozy look's dusk, firelight and lamplight burn warmer: against
+    // the blue, a lit window or a lamp is the warmest thing there is.
+    if (Shaders::Cozy())
+        for (Light& l : lights)
+            if (l.color.r >= l.color.b) {
+                l.color.g = static_cast<Uint8>(l.color.g + (160 - l.color.g) * 0.7f);
+                l.color.b = static_cast<Uint8>(l.color.b + (80 - l.color.b) * 0.7f);
+                l.color.r = 255;
+            }
+    lighting.Render(r, camera, AmbientLight(), lights, &lit);
     // And what is lit from inside, shining through it: see world_screen.cpp.
     DrawGlows(r, cache, decor);
 
     // Leaves, fireflies and dust, and the vignette -- over the world, under
     // the bars and the HUD.
+    ambience.dusk = Shaders::Cozy() && !map.IsInterior() && !InDream() && map.Ambient() != "dungeon" && !map.IsDark()
+                        ? clock.Darkness() : 0.0f;
     ambience.Render(r, camera);
 
     // Health bars over anything the player has attacked. Last, above canopy

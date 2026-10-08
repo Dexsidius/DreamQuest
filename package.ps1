@@ -337,6 +337,9 @@ PLAYING TOGETHER, up to four of you, over Tailscale
     machine that is always on. Run it and everyone joins it; nobody hosts.
 
 Options has an Interface Size for small screens such as a Steam Deck's.
+Options, then Visual Effects, has the Art Style: Cozy (painted ground, soft
+outlines, warm days and dusky nights) or Classic (the tiles as drawn).
+Turning Visual Effects off takes the cloud shadows, birds and wind away too.
 The full manual is README.md in the source repository:
 https://github.com/Dexsidius/DreamQuest
 "@

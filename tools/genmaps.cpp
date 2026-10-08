@@ -420,6 +420,21 @@ public:
         return false;
     }
 
+    // Where a piece of scenery stands (centre x and y, width, height), every
+    // place it was put down -- and taking one back up again, by its centre.
+    vector<std::array<int, 4>> Placed(const string& name) const {
+        const auto it = groups.find(name);
+        return it == groups.end() ? vector<std::array<int, 4>>{} : it->second.locations;
+    }
+    bool Unplace(const string& name, int cx, int cy) {
+        const auto it = groups.find(name);
+        if (it == groups.end()) return false;
+        auto& locs = it->second.locations;
+        for (auto l = locs.begin(); l != locs.end(); ++l)
+            if ((*l)[0] == cx && (*l)[1] == cy) { locs.erase(l); return true; }
+        return false;
+    }
+
     // Makes room in a copy of a finished map: the standing scenery no more
     // than `most` px on a side whose pictures reach into the box -- a stall, a
     // barrel, a bush -- the objects that stand in it, and the collision that
@@ -14848,6 +14863,37 @@ static void Neighbors(MapBuilder& m, const string& id) {
         m.Spawn("mara_lane", hx - 5 * CELL, hy + 30);
         m.Mark("mara_door", hx, hy - 20);
         m.Mark("mara_step", hx, hy + 18);
+        // The house as the struggle left it (58-59), from the lane: the windows
+        // smashed in, a shutter hanging and the other thrown down, the door
+        // split and hanging crooked, the bucket on its side by the step -- and,
+        // once the door has fallen in at a knock, the doorway dark and open.
+        // Nobody keeps a fire there now. Before the story, or for a character
+        // not in it, the cottage as it always was.
+        {
+            std::array<int, 4> house{};
+            int best = 1 << 30;
+            for (const auto& l : m.Placed("fisher_cottage_a")) {
+                const int d = std::abs(l[0] - hx) + std::abs(l[1] + l[3] / 2 - hy);
+                if (d < best) { best = d; house = l; }
+            }
+            if (best < 64 && m.Unplace("fisher_cottage_a", house[0], house[1])) {
+                const int fx = house[0] - m.ox, foot = house[1] + house[3] / 2;
+                Decor(m, "mara_house", "fisher_cottage_a", fx, foot, W({}, {"PROLOGUE", "ACT1_FERNHOLLOW_DOOR_BROKEN"}));
+                Decor(m, "mara_house_wrecked", "fisher_cottage_wrecked", fx, foot,
+                      W({"PROLOGUE"}, {"ACT1_FERNHOLLOW_DOOR_BROKEN"}));
+                Decor(m, "mara_house_breached", "fisher_cottage_breached", fx, foot, W({"ACT1_FERNHOLLOW_DOOR_BROKEN"}));
+                const auto tops = MapBuilder::ChimneyTops().find("fisher_cottage_a");
+                if (tops != MapBuilder::ChimneyTops().end()) {
+                    int k = 0;
+                    for (const auto& t : tops->second) {
+                        json& c = m.Object("chimney_mara_" + std::to_string(k++), "chimney",
+                                           static_cast<int>(std::lround(fx - house[2] / 2.0f + t.first)),
+                                           static_cast<int>(std::lround(foot - house[3] + t.second)));
+                        c["when"] = W({}, {"PROLOGUE", "ACT1_FERNHOLLOW_DOOR_BROKEN"});
+                    }
+                }
+            }
+        }
         // On the road in from the trail: a post to lean on, on the way out of
         // the Ashen Path (83).
         m.Mark("fh_post", 430, 980);

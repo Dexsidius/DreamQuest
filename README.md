@@ -189,6 +189,36 @@ With **Visual Effects** on (Options, then Visual Effects), a good deal more:
   foot of every bank sits in a soft shadow, and in the palace the high
   windows lay stained-glass light on the floor.
 
+- **The air out of doors.** Cloud shadows drift across fields, towns, woods
+  and snow with the wind, faint in a forest's shade and heavier under a storm.
+  Birds come down out of the sky to stand, peck and hop about -- sparrows in
+  fields and towns, crows in the woods and the ash, an egret on the Bayou --
+  and bolt up and away when someone walks close, when one beside them takes
+  fright, or at nightfall; now and then a flock passes over in a loose V. Leaves
+  blow along the ground downwind, turning over as they go, and pale streaks of
+  wind run with the gusts. Trees bend harder in a gust and their crowns rustle,
+  a few leaves at a time. One wind drives all of it (`Shaders::GustAt`), so the
+  leaves quicken exactly where the grass and the trees bend. None of it fights,
+  and none of it is indoors or in a dream. The birds are
+  `assets/effects/birds.png`, drawn by `tools/make_birds.py`; the rest is
+  `src/world/ambience.*`.
+
+**Art Style** (on the same page) is **Cozy** unless you choose **Classic**.
+Cozy repaints the ground of every outdoor map as one picture rather than a
+grid of tiles: soft meadow and forest grass that run into each other on a
+wandering line, beaten earth and roads with worn edges, flagged plazas, sand,
+planking, a darker, greener grass in the Bayou than in Havenbrook, and
+Havenbrook's tilled plots. It is painted on the CPU in 256-pixel pieces that
+meet without a seam -- those in view at once, a ring round them in the
+background -- by `src/world/ground_paint.*`, which decides from each tile's
+art what it is (cover, earth, stone, flat, fluid) and which painter does it.
+Raised ground keeps its lift and its shade. Sprites, scenery and the things on
+the map get a soft brown outline and a little light on their top edge; days
+are warm and nights are a dusky blue, with lamps a warmer gold against it,
+and rooms indoors a touch warmer than out. Classic is the tiles as they are
+drawn, and so is everything with Visual Effects off. Both look the same to the game -- nothing about where you can walk or
+what is where changes.
+
 The Visual Effects page turns all of that off at once, for the plain look,
 and has its own switches for the parts some people would rather not have:
 **screen shake**, **flashes** (a struck sprite's, the screen's, and the
@@ -6129,6 +6159,21 @@ written. Everything below is the host's story; see [In company](#in-company).
   taut, slack and gone (and that the Tanner stands clear of her post); every
   map's states are checked for a sheet that exists and clips it has, and
   every tether for its sleeper.
+- **Mara's house, from the lane.** The fisher's cottage at Fernhollow's south
+  east edge, where the struggle of scenes 56-59 happened, shows it before the
+  player ever knocks: both windows smashed in and their glass on the ground,
+  one shutter hanging by its top hinge with claw marks on it and the other
+  torn off and thrown down, the door split and hanging crooked with a panel
+  stove in, the oar knocked down and the bucket on its side by the step. Once the door has fallen in
+  (`ACT1_FERNHOLLOW_DOOR_BROKEN`) the doorway is dark and open with only the
+  hinge stubs left, and her chimney no longer smokes. Before the story, or for
+  a character not in it, it is the cottage it always was. The three are map
+  objects in genmaps' Fernhollow hook (`mara_house`, `mara_house_wrecked`,
+  `mara_house_breached`) in place of the placed tile, and the art is
+  `_fisher_cottage(variant, wreck)` in `tools/blender_town_props.py`
+  (`prop_fisher_cottage_wrecked`, `prop_fisher_cottage_breached`).
+  `--only act1` checks the wrecked house before the knock and the breached one
+  after.
 
 ### In company
 

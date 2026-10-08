@@ -4,7 +4,9 @@
 //
 //   1 plants     grass, reeds, bushes, trees: the top moves, the foot does not,
 //                and gusts roll across a field as a wave rather than the whole
-//                field nodding at once
+//                field nodding at once; a tree's crown bends with the gust and
+//                rustles -- little clusters of its leaves flicking a pixel this
+//                way and that, more while a gust goes through
 //   2 cloth      banners and tapestries hung from the top, so the free end
 //                moves most, with a flutter running down it; given a negative
 //                strength, a tent or a banner on a pole, held at both ends
@@ -15,6 +17,10 @@
 //   6 glow       after dark, drawn added over the lit scene: only what is lit
 //                from inside -- windows, flames, lava, eyes, crystals -- and
 //                nothing else, so those shine through the night
+//
+// And in the Cozy look (style.x), whatever the mode but the glow: the colour
+// softened, the sun on the top edge, and a soft brown line round the thing --
+// a shade of what it is beside. Mode 0 is that and nothing else.
 //
 // A pixel counts as lit from inside when it is both bright and strongly
 // coloured: the renders put emission into exactly those, and nothing else in
@@ -29,6 +35,8 @@ layout(set = 3, binding = 0) uniform Prop {
     vec4 cam;     // camera xpos, ypos, zoom; seconds
     vec4 mode;    // kind, strength, night 0..1, wind 0..1
     vec4 wind;    // gust direction x, y; gust speed; gust length in world px
+    vec4 style;   // the Cozy look: on, its line's strength, colour kept, the sun on its top edge
+    vec4 more;    // how much a crown rustles (trees 1), and three to spare
 } prop;
 
 float Hash(vec2 p) {
@@ -49,6 +57,29 @@ bool Lit(vec3 c) {
 
 bool Water(vec3 c) {
     return c.b > 0.42 && c.b > c.r + 0.12 && c.b >= c.g - 0.06;
+}
+
+vec3 CozyColour(vec3 c) {
+    float l = dot(c, vec3(0.3, 0.59, 0.11));
+    c = mix(vec3(l), c, prop.style.z);
+    float shade = clamp((0.45 - l) / 0.45, 0.0, 1.0);
+    return mix(c, c * vec3(0.92, 0.96, 1.08), shade * 0.6);
+}
+
+// `col` is what is drawn at `texel`, whose own alpha is `a0` (before any fade).
+vec4 Finish(vec4 col, float a0, vec2 texel, vec2 size) {
+    if (prop.style.x < 0.5) return col;
+    if (a0 > 0.5) {
+        col.rgb = CozyColour(col.rgb);
+        if (texel.y >= 1.0 && At(texel - vec2(0.0, 1.0), size).a < 0.5) col.rgb = min(col.rgb * prop.style.w + 0.02, vec3(1.0));
+        return col;
+    }
+    vec2 dirs[4] = vec2[](vec2(1, 0), vec2(-1, 0), vec2(0, 1), vec2(0, -1));
+    for (int i = 0; i < 4; ++i) {
+        vec4 c = At(texel + dirs[i], size);
+        if (c.a > 0.5) return vec4(c.rgb * v_color.rgb * 0.3 + vec3(0.196, 0.125, 0.078), prop.style.y * v_color.a);
+    }
+    return col;
 }
 
 void main() {
@@ -86,11 +117,25 @@ void main() {
             flutter = sin(texel.y * 0.7 - t * 8.0 + foot.x * 0.05) * 0.8 * free * prop.mode.w;
         }
         float shift = floor(sway * amount + flutter * strength + 0.5);
-        o_color = At(texel - vec2(shift * sign(dir.x), 0.0), size) * v_color;
+        vec2 from = texel - vec2(shift * sign(dir.x), 0.0);
+        if (prop.more.x > 0.0) {
+            // The crown rustles, not the trunk: clusters of three texels flick
+            // over a pixel and back, each on its own beat, more in a gust.
+            float crown = clamp((0.85 - v_uv.y) / 0.5, 0.0, 1.0);
+            float stir = (0.25 + gust * gust) * prop.mode.w * prop.more.x * crown;
+            vec2 cluster = floor(texel / 3.0);
+            float beat = Hash(cluster + vec2(floor(t * 7.0 + Hash(cluster) * 7.0), 0.0));
+            if (beat < stir * 0.55) from.x += Hash(cluster + 17.0) > 0.5 ? 1.0 : -1.0;
+            float lift = Hash(cluster + vec2(0.0, floor(t * 5.0 + Hash(cluster + 3.0) * 5.0)));
+            if (lift < stir * 0.25) from.y += 1.0;
+        }
+        vec4 there = At(from, size);
+        o_color = Finish(there * v_color, there.a, from, size);
         return;
     }
 
-    vec4 col = At(texel, size) * v_color;
+    vec4 base = At(texel, size);
+    vec4 col = base * v_color;
 
     if (kind == 3) {
         // By day the windows are glass; the glow pass lights them after dark.
@@ -115,5 +160,5 @@ void main() {
         o_color = vec4(col.rgb * strength * night * flicker, col.a);
         return;
     }
-    o_color = col;
+    o_color = Finish(col, base.a, texel, size);
 }

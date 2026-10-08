@@ -36,8 +36,8 @@ struct PostBlock {
     float heats[8][4];
 };
 struct FogBlock { float cam[4], field[4], look[4], region[4], more[4]; };
-struct PropBlock { float cam[4], mode[4], wind[4]; };
-struct SpriteBlock { float flash[4], glow[4], status[4], status2[4], misc[4], frame[4]; };
+struct PropBlock { float cam[4], mode[4], wind[4], style[4], more[4]; };
+struct SpriteBlock { float flash[4], glow[4], status[4], status2[4], misc[4], frame[4], style[4]; };
 struct FxBlock { float kind[4], colour[4], size[4], hit[4]; };
 
 // One map's field, and the render states that read it: a render state is
@@ -85,6 +85,8 @@ SDL_GPURenderState* g_now = nullptr;       // what the renderer is set to now
 Uint64   g_views = 0;
 
 SDL_GPURenderState* g_prop[PROP_KINDS] = {};   // one per kind; [PROP_NONE] is the glow pass
+// Scenery that neither moves nor lights, in the Cozy look: only its outline.
+SDL_GPURenderState* g_cozy_prop = nullptr;
 Pool     g_sprites{SH_SPRITE, {}, 0};
 Pool     g_shapes{SH_FX, {}, 0};
 SDL_Texture* g_white = nullptr;
@@ -108,6 +110,23 @@ bool IsNumbered(const string& stem, const string& base) {
 }
 
 bool StartsWith(const string& s, const char* p) { return s.rfind(p, 0) == 0; }
+
+// The wind: which way (before it is made a unit vector), how fast its gusts
+// roll (radians a second), and how far apart they are (world px).
+constexpr float kWindX = 1.0f, kWindY = 0.35f, kGustSpeed = 1.6f, kGustLength = 260.0f;
+// Seconds as the shaders count them: wrapped every hour (see BeginView).
+float Seconds() { return static_cast<float>(std::fmod(SDL_GetTicks() / 1000.0, 3600.0)); }
+
+// The Cozy look's line and colour, as the shaders take it: on; how strong the
+// soft brown line round a thing is; how much of its colour it keeps; how much
+// the sun catches its top edge.
+void CozyStyle(float* dst) {
+    const bool on = g_enabled && g_options.effects && g_options.style == 1;
+    dst[0] = on ? 1.0f : 0.0f;
+    dst[1] = 0.9f;
+    dst[2] = 0.95f;
+    dst[3] = 1.16f;
+}
 
 void Set(SDL_Renderer* r, SDL_GPURenderState* s) {
     if (s == g_now) return;
@@ -340,7 +359,7 @@ void Upload() {
         switch (k) {
             case PROP_NONE:     mode = 6; strength = 0.85f; break;   // the glow pass
             case PROP_GRASS:    mode = 1; strength = 1.0f; break;
-            case PROP_TREE:     mode = 1; strength = 0.5f; break;
+            case PROP_TREE:     mode = 1; strength = 0.8f; break;
             case PROP_CLOTH:    mode = 2; strength = 1.0f; break;
             case PROP_STAKED:   mode = 2; strength = -0.8f; break;   // held at both ends
             case PROP_WINDOWS:  mode = 3; break;
@@ -351,8 +370,20 @@ void Upload() {
         PropBlock prop{};
         Put(prop.cam, g_cam[0], g_cam[1], g_cam[2], g_seconds);
         Put(prop.mode, mode, strength, f.night, f.wind);
-        Put(prop.wind, 1.0f, 0.35f, 1.6f, 260.0f);
+        Put(prop.wind, kWindX, kWindY, kGustSpeed, kGustLength);
+        // Not the glow pass: that is light added over the night, not a thing.
+        if (k != PROP_NONE) CozyStyle(prop.style);
+        // A tree's crown rustles as well as bending.
+        Put(prop.more, k == PROP_TREE ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f);
         SDL_SetGPURenderStateFragmentUniforms(g_prop[k], 0, &prop, sizeof prop);
+    }
+    if (g_cozy_prop) {
+        PropBlock prop{};
+        Put(prop.cam, g_cam[0], g_cam[1], g_cam[2], g_seconds);
+        Put(prop.mode, 0.0f, 1.0f, f.night, f.wind);
+        Put(prop.wind, kWindX, kWindY, kGustSpeed, kGustLength);
+        CozyStyle(prop.style);
+        SDL_SetGPURenderStateFragmentUniforms(g_cozy_prop, 0, &prop, sizeof prop);
     }
 }
 
@@ -536,6 +567,7 @@ bool Init(SDL_Renderer* renderer) {
         g_prop[k] = MakeState(SH_PROP, nullptr);
         if (!g_prop[k]) { Shutdown(); return false; }
     }
+    g_cozy_prop = MakeState(SH_PROP, nullptr);
 
     // What a shape of light and the fog are drawn over: a plain white square.
     g_white = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, 4, 4);
@@ -560,6 +592,8 @@ void Shutdown() {
     ReleasePool(g_sprites);
     ReleasePool(g_shapes);
     for (SDL_GPURenderState*& s : g_prop) { if (s) SDL_DestroyGPURenderState(s); s = nullptr; }
+    if (g_cozy_prop) SDL_DestroyGPURenderState(g_cozy_prop);
+    g_cozy_prop = nullptr;
     if (g_white) SDL_DestroyTexture(g_white);
     g_white = nullptr;
     if (g_scene) SDL_DestroyTexture(g_scene);
@@ -577,6 +611,23 @@ void Shutdown() {
 
 bool Enabled() { return g_enabled; }
 bool Effects() { return g_enabled && g_options.effects; }
+
+SDL_FPoint WindDirection() {
+    const float len = std::sqrt(kWindX * kWindX + kWindY * kWindY);
+    return {kWindX / len, kWindY / len};
+}
+
+float GustAt(float x, float y) {
+    // The same wave prop.frag works out for a thing standing at (x, y).
+    const SDL_FPoint d = WindDirection();
+    return 0.5f + 0.5f * std::sin((x * d.x + y * d.y) / kGustLength * 6.2831853f - Seconds() * kGustSpeed);
+}
+
+float OutdoorWind() {
+    const float now = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+    return 0.72f + 0.28f * std::sin(now * 0.07f);
+}
+bool Cozy() { return g_enabled && g_options.effects && g_options.style == 1; }
 
 // --- a view --------------------------------------------------------------------------------
 
@@ -628,12 +679,13 @@ void SetFrame(const Frame& frame) {
     Upload();
 }
 
-void UseTile(SDL_Renderer* renderer, Surface surface, PropKind kind) {
+void UseTile(SDL_Renderer* renderer, Surface surface, PropKind kind, bool standing) {
     if (!g_current) return;
     SDL_GPURenderState* s = surface == WATER ? g_current->state[SH_WATER]
                           : surface == LAVA  ? g_current->state[SH_LAVA]
                           : kind != PROP_NONE && kind < PROP_KINDS ? g_prop[kind]
-                                                                   : nullptr;
+                          : standing && Cozy() ? g_cozy_prop
+                                               : nullptr;
     Set(renderer, s);
 }
 
@@ -654,7 +706,7 @@ bool UseReflection(SDL_Renderer* renderer) {
 }
 
 bool UseSprite(SDL_Renderer* renderer, const SpriteFx& fx, const SDL_FRect& src, float tw, float th) {
-    if (!g_current || tw <= 0 || th <= 0 || !fx.Any()) return false;
+    if (!g_current || tw <= 0 || th <= 0 || (!fx.Any() && !Cozy())) return false;
     SDL_GPURenderState* s = Take(g_sprites, renderer);
     if (!s) return false;
     SpriteBlock b{};
@@ -665,6 +717,7 @@ bool UseSprite(SDL_Renderer* renderer, const SpriteFx& fx, const SDL_FRect& src,
     Put(b.status2, fx.wet, fx.bleed, fx.dissolve, static_cast<float>(fx.dissolve_kind));
     Put(b.misc, g_seconds, fx.seed, fx.rim ? 1.0f : 0.0f, 0.0f);
     Put(b.frame, src.x / tw, src.y / th, src.w / tw, src.h / th);
+    CozyStyle(b.style);
     SDL_SetGPURenderStateFragmentUniforms(s, 0, &b, sizeof b);
     Set(renderer, s);
     return true;

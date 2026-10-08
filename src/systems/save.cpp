@@ -402,6 +402,7 @@ bool Settings::Load(const string& path) {
     flashes           = j.value("flashes", flashes);
     colour_fringing   = j.value("colour_fringing", colour_fringing);
     screen_distortion = j.value("screen_distortion", screen_distortion);
+    art_style         = std::clamp(j.value("art_style", art_style), 0, 1);
     controls        = j.contains("controls") ? j["controls"] : json();
     recent_hosts.clear();
     if (j.contains("recent_hosts") && j["recent_hosts"].is_array())
@@ -437,6 +438,7 @@ bool Settings::Save(const string& path) const {
         {"flashes", flashes},
         {"colour_fringing", colour_fringing},
         {"screen_distortion", screen_distortion},
+        {"art_style", art_style},
         {"controls", controls},
         {"split_stacked", split_stacked},
         {"recent_hosts", recent_hosts},

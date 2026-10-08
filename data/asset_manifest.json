@@ -2580,6 +2580,14 @@
                                                   "w":  128,
                                                   "h":  128
                                               },
+                   "props/fisher_cottage_breached":  {
+                                                         "w":  128,
+                                                         "h":  128
+                                                     },
+                   "props/fisher_cottage_wrecked":  {
+                                                        "w":  128,
+                                                        "h":  128
+                                                    },
                    "props/forge":  {
                                        "w":  96,
                                        "h":  96

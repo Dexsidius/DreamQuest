@@ -161,6 +161,7 @@ $sizes = @{
     brick_wall = 64; brick_wall_side = 64; brick_pier = 80; dwarf_mine_gate = 192; mine_support = 80
     mine_lantern = 56; dwarf_statue = 80
     fisher_cottage_a = 128; fisher_cottage_b = 128; ferry_house = 160; boat_shed = 128; net_rack = 64
+    fisher_cottage_wrecked = 128; fisher_cottage_breached = 128
     post_lantern = 64; wattle_fence = 64
     # The Primordium (tools/blender_primordium_props.py).
     primordial_rift = 192; conflux_dais = 256; totem_quintessence = 32

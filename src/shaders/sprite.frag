@@ -16,6 +16,9 @@
 //   Bleed                    drops running down it
 //   dying                    dissolving the way it would: to dust, to embers,
 //                            or up into the air
+//   the Cozy look            (every character, when it is on) its colour
+//                            softened, the sun on its top edge and a soft
+//                            brown line round it
 //
 // Everything is worked in the sheet's own texels, so it is pixel art and not
 // a blur. `frame` is the cell being drawn, in UV, so "up" and "down" mean the
@@ -33,6 +36,7 @@ layout(set = 3, binding = 0) uniform Fx {
     vec4 status2;   // wet, bleed, dissolve 0..1, dissolve kind (0 plain, 1 dust, 2 embers, 3 into the air)
     vec4 misc;      // seconds, seed, 1 to draw past the outline (0 for a layer over the body), 0
     vec4 frame;     // the cell drawn, in UV: x, y, w, h
+    vec4 style;     // the Cozy look: on, its line's strength, colour kept, the sun on its top edge
 } fx;
 
 float Hash(vec2 p) {
@@ -47,6 +51,14 @@ float AlphaAt(vec2 texel, vec2 size) {
     vec2 lo = fx.frame.xy * size, hi = (fx.frame.xy + fx.frame.zw) * size;
     if (texel.x < lo.x || texel.y < lo.y || texel.x >= hi.x || texel.y >= hi.y) return 0.0;
     return texture(u_texture, (texel + 0.5) / size).a;
+}
+
+// The Cozy look's colour: a little of it out, and the shade leaning cool.
+vec3 CozyColour(vec3 c) {
+    float l = dot(c, vec3(0.3, 0.59, 0.11));
+    c = mix(vec3(l), c, fx.style.z);
+    float shade = clamp((0.45 - l) / 0.45, 0.0, 1.0);
+    return mix(c, c * vec3(0.92, 0.96, 1.08), shade * 0.6);
 }
 
 void main() {
@@ -81,6 +93,22 @@ void main() {
 
     vec3 add = vec3(0.0);
     float add_a = 0.0;
+
+    // --- the Cozy look: softened, lit along the top, and a soft brown line round it -----------
+    if (fx.style.x > 0.5) {
+        if (inside) {
+            col.rgb = CozyColour(col.rgb);
+            if (texel.y - 1.0 >= fx.frame.y * size.y && AlphaAt(texel - vec2(0, 1), size) < 0.5)
+                col.rgb = min(col.rgb * fx.style.w + 0.02, vec3(1.0));
+        } else if (rim_out) {
+            vec2 dirs[4] = vec2[](vec2(1, 0), vec2(-1, 0), vec2(0, 1), vec2(0, -1));
+            vec3 beside = vec3(0.0);
+            for (int i = 0; i < 4; ++i)
+                if (AlphaAt(texel + dirs[i], size) > 0.5) { beside = texture(u_texture, (texel + dirs[i] + 0.5) / size).rgb; break; }
+            add = beside * v_color.rgb * 0.3 + vec3(0.196, 0.125, 0.078);
+            add_a = fx.style.y;
+        }
+    }
 
     // --- a heavy winding up: a glow round its outline, two texels out --------------
     if (fx.glow.a > 0.0 && !inside && rim_ok) {

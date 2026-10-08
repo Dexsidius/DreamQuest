@@ -313,9 +313,11 @@ bool Sprite::DrawLayers(SDL_Renderer* r, TextureCache& cache,
         // What is happening to them is drawn on every layer of them but the
         // shadow; only the body's outline has flames and sparks round it, or
         // every sword and helmet would have its own.
+        // In the Cozy look every layer of them goes through it for its line,
+        // whether anything is happening to them or not.
         bool shaded = false;
-        if (fx && layer.slot != LayerSlot::Shadow) {
-            Shaders::SpriteFx on = *fx;
+        if ((fx || Shaders::Cozy()) && layer.slot != LayerSlot::Shadow) {
+            Shaders::SpriteFx on = fx ? *fx : Shaders::SpriteFx{};
             on.rim = layer.slot == LayerSlot::Body;
             shaded = Shaders::UseSprite(r, on, src, tw, th);
         }
@@ -332,7 +334,9 @@ bool Sprite::DrawLayers(SDL_Renderer* r, TextureCache& cache,
             if (SDL_Texture* off = cache.Get(def->WeaponSheet(layer.sheet, "off_" + style.offhand_model))) {
                 SDL_SetTextureColorMod(off, tint.r, tint.g, tint.b);
                 SDL_SetTextureAlphaMod(off, tint.a);
+                const bool lined = Shaders::Cozy() && Shaders::UseSprite(r, fx ? *fx : Shaders::SpriteFx{}, src, tw, th);
                 SDL_RenderTexture(r, off, &src, &dst);
+                if (lined) Shaders::EndSprite(r);
                 SDL_SetTextureColorMod(off, 255, 255, 255);
                 SDL_SetTextureAlphaMod(off, 255);
             }
@@ -381,7 +385,9 @@ void Sprite::Draw(SDL_Renderer* r, TextureCache& cache, const Camera& cam,
     SDL_SetTextureBlendMode(tex, blend);
     SDL_SetTextureColorMod(tex, tint.r, tint.g, tint.b);
     SDL_SetTextureAlphaMod(tex, tint.a);
-    const bool shaded = fx && Shaders::UseSprite(r, *fx, src, tw, th);
+    // In the Cozy look everyone drawn plainly blended gets their line.
+    const bool cozy = Shaders::Cozy() && blend == SDL_BLENDMODE_BLEND;
+    const bool shaded = (fx || cozy) && Shaders::UseSprite(r, fx ? *fx : Shaders::SpriteFx{}, src, tw, th);
     SDL_RenderTexture(r, tex, &src, &dst);
     if (shaded) Shaders::EndSprite(r);
     SDL_SetTextureColorMod(tex, 255, 255, 255);

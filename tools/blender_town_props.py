@@ -1086,11 +1086,48 @@ def _boards(name, x0, x1, z0, z1, y, rng, tones=("fh_wood", "fh_wood_lt", "fh_wo
         k += 1
 
 
-def _fisher_cottage(variant):
+def _broken_window(name, x, y, z, w, h, rng, snapped):
+    """A window somebody came in through: the glass gone but for jagged pieces
+    caught in the corners, the dark room behind, and the bars snapped."""
+    blk(name + "_frame", (w + 0.10, 0.06, h + 0.10), (x, y, z), "oak")
+    blk(name + "_dark", (w, 0.04, h), (x, y - 0.03, z), "void", bev=0)
+    for k, (cx, cz, a) in enumerate(((-1, 1, 30), (1, 1, -40), (-1, -1, 62), (1, -1, -18), (0, 1, 8))):
+        if k == 4 and rng.random() < 0.5:
+            continue
+        sx = x + cx * (w / 2 - 0.07)
+        sz = z + cz * (h / 2 - 0.08)
+        blk("%s_shard_%d" % (name, k), (0.07 + rng.random() * 0.05, 0.02, 0.11 + rng.random() * 0.07),
+            (sx, y - 0.055, sz), "glass", rot=(0, math.radians(a), 0), bev=0)
+    if snapped:
+        # The upright snapped and hanging; the cross-bar gone.
+        blk(name + "_mullion", (0.04, 0.05, h * 0.55), (x + 0.04, y - 0.06, z + h * 0.20), "oak",
+            rot=(0, math.radians(20), 0), bev=0)
+    else:
+        blk(name + "_mullion", (0.04, 0.05, h), (x, y - 0.05, z), "oak", bev=0)
+        blk(name + "_transom", (w * 0.55, 0.05, 0.04), (x - w * 0.22, y - 0.05, z + h * 0.1), "oak",
+            rot=(0, math.radians(-14), 0), bev=0)
+    blk(name + "_sill", (w + 0.16, 0.14, 0.05), (x, y - 0.06, z - h / 2 - 0.05), "stone_pale")
+
+
+def _scratches(name, x, y, z, n, length=0.32, lean=-22):
+    """Long ragged scratches, a few side by side: claws, not a blade."""
+    for k in range(n):
+        blk("%s_%d" % (name, k), (0.014, 0.012, length * (0.8 + 0.1 * k)), (x + k * 0.05, y, z - k * 0.02),
+            "wood_cut", rot=(0, math.radians(lean), 0), bev=0)
+
+
+def _fisher_cottage(variant, wreck=0):
     """A fisher's cottage at Fernhollow: low, reed-thatched, on a stone footing
     against the damp, with the day's work hung on it -- a net on the wall, an
     oar by the door, fish drying under the eave. One is grey weatherboard with
-    a blue door; the other limewashed with blue shutters."""
+    a blue door; the other limewashed with blue shutters.
+
+    Mara's is the first, after the night she was taken (scenes 58-59): `wreck`
+    1 is how it is found -- both windows smashed in, a shutter hanging by one
+    hinge and the other torn off and thrown down, the door split and hanging
+    crooked in its frame, claw marks on it, the oar knocked down and the
+    bucket on its side by the step; 2 is the same once the door has fallen in
+    at a knock, the doorway left dark and open."""
     rng = random.Random(51 + variant)
     W, D, H = 2.40, 1.20, 1.55
     front = -D / 2
@@ -1105,14 +1142,41 @@ def _fisher_cottage(variant):
         _boards("board", -W / 2, W / 2, base, base + H, front - 0.03, rng, gap=door_gap)
     for side in (-1, 1):
         blk("corner_%d" % side, (0.10, 0.10, H), (side * (W / 2 - 0.02), front - 0.05, base + H / 2), "fh_wood_dk")
-    blk("door", (0.62, 0.08, 0.96), (0, front - 0.05, base + 0.48), "fh_trim")
-    for i in range(2):
-        blk("door_plank_%d" % i, (0.02, 0.02, 0.92), (-0.1 + i * 0.2, front - 0.10, base + 0.48), "fh_trim_dk", bev=0)
-    blk("door_lintel", (0.80, 0.10, 0.10), (0, front - 0.06, base + 1.00), "fh_wood_dk")
-    sphere("door_knob", 0.04, (0.20, front - 0.11, base + 0.48), "brass")
+    if wreck == 0:
+        blk("door", (0.62, 0.08, 0.96), (0, front - 0.05, base + 0.48), "fh_trim")
+        for i in range(2):
+            blk("door_plank_%d" % i, (0.02, 0.02, 0.92), (-0.1 + i * 0.2, front - 0.10, base + 0.48), "fh_trim_dk", bev=0)
+        sphere("door_knob", 0.04, (0.20, front - 0.11, base + 0.48), "brass")
+    else:
+        # The dark of the house behind the doorway.
+        blk("doorway", (0.62, 0.03, 0.96), (0, front - 0.015, base + 0.48), "void", bev=0)
+        if wreck == 1:
+            # Split, and hanging crooked off its top hinge: a dark wedge of the
+            # doorway showing down one side, a panel stove in, claw marks.
+            tilt = (0, math.radians(-9), 0)
+            blk("door", (0.58, 0.07, 0.92), (0.05, front - 0.07, base + 0.45), "fh_trim", rot=tilt)
+            for i in range(2):
+                blk("door_plank_%d" % i, (0.02, 0.02, 0.88), (-0.06 + i * 0.2, front - 0.115, base + 0.45),
+                    "fh_trim_dk", rot=tilt, bev=0)
+            blk("door_hole", (0.17, 0.03, 0.22), (0.14, front - 0.12, base + 0.66), "void", rot=tilt, bev=0)
+            for k, (dx, dz, a) in enumerate(((-0.10, 0.08, 40), (0.10, 0.10, -35), (-0.08, -0.12, -50), (0.09, -0.11, 30))):
+                blk("splinter_%d" % k, (0.02, 0.02, 0.09), (0.14 + dx, front - 0.125, base + 0.66 + dz), "wood_cut",
+                    rot=(0, math.radians(a), 0), bev=0)
+            _scratches("door_claw", -0.16, front - 0.12, base + 0.42, 3)
+        else:
+            # Fallen in at a knock: only the broken ends of it left on its hinges.
+            for k, dz in enumerate((0.78, 0.22)):
+                blk("hinge_stub_%d" % k, (0.07, 0.05, 0.10), (-0.28, front - 0.07, base + dz), "fh_trim", bev=0.005)
+                blk("hinge_splinter_%d" % k, (0.02, 0.02, 0.07), (-0.23, front - 0.08, base + dz + 0.04), "wood_cut",
+                    rot=(0, math.radians(-35), 0), bev=0)
+    blk("door_lintel", (0.80, 0.10, 0.10), (0, front - 0.06, base + 1.00), "fh_wood_dk",
+        rot=(0, math.radians(3 if wreck else 0), 0))
     blk("step", (0.86, 0.34, 0.08), (0, front - 0.24, 0.04), "stone_pale")
     for side in (-1, 1):
         x = side * 0.80
+        if wreck:
+            _broken_window("win_%d" % side, x, front - 0.05, base + 0.86, 0.40, 0.44, rng, snapped=(side > 0))
+            continue
         window("win_%d" % side, x, front - 0.05, base + 0.86, w=0.40, h=0.44, lit=(side > 0), shutters=False)
         if variant == 1:
             for s2 in (-1, 1):
@@ -1129,10 +1193,40 @@ def _fisher_cottage(variant):
     for k in range(5):
         f = sphere("fish_%d" % k, 0.07, (-0.60 + k * 0.30, front - 0.30, eave - 0.24), "fish_silver")
         f.scale = (0.45, 0.35, 1.3)
-    blk("oar", (0.06, 0.06, 1.10), (0.46 if variant == 0 else -0.46, front - 0.14, base + 0.50), "oak_light",
-        rot=(0, math.radians(14), 0))
-    blk("oar_blade", (0.16, 0.04, 0.34), (0.54 if variant == 0 else -0.38, front - 0.14, base + 1.02), "oak_light",
-        rot=(0, math.radians(14), 0))
+    if wreck:
+        # The shutters they came in through: one hanging by its top hinge,
+        # swung askew and clawed; the other torn off and thrown down, flat on
+        # the ground in front.
+        blk("shutter_hung", (0.13, 0.05, 0.46), (-0.80 - 0.30, front - 0.09, base + 0.80), "fh_trim",
+            rot=(0, math.radians(26), 0))
+        _scratches("shutter_claw", -1.13, front - 0.12, base + 0.86, 2, length=0.22, lean=18)
+        blk("shutter_split", (0.12, 0.05, 0.26), (0.80 + 0.29, front - 0.08, base + 0.97), "fh_trim",
+            rot=(0, math.radians(-7), 0))
+        blk("shutter_split_end", (0.03, 0.02, 0.08), (0.80 + 0.31, front - 0.10, base + 0.81), "wood_cut",
+            rot=(0, math.radians(30), 0), bev=0)
+        blk("shutter_down", (0.46, 0.13, 0.03), (-0.98, front - 0.27, 0.035), "fh_trim", rot=(0, 0, math.radians(24)))
+        # The oar knocked down along the wall; the bucket on its side by the step.
+        blk("oar", (1.10, 0.06, 0.06), (0.98, front - 0.17, 0.05), "oak_light", rot=(0, 0, math.radians(8)))
+        blk("oar_blade", (0.34, 0.16, 0.04), (1.58, front - 0.12, 0.04), "oak_light", rot=(0, 0, math.radians(8)))
+        cyl("bucket", 0.10, 0.16, (0.56, front - 0.22, 0.11), "oak_light", rot=(0, math.radians(90), math.radians(-24)),
+            verts=12)
+        cyl("bucket_mouth", 0.085, 0.02, (0.64, front - 0.26, 0.11), "void", rot=(0, math.radians(90), math.radians(-24)),
+            verts=12)
+        cyl("bucket_hoop", 0.105, 0.03, (0.52, front - 0.20, 0.11), "iron", rot=(0, math.radians(90), math.radians(-24)),
+            verts=12, metal=0.7)
+        # Glass under both windows, splinters on the step.
+        for k in range(10):
+            gx = (-0.80 if k % 2 else 0.80) + rng.uniform(-0.28, 0.28)
+            blk("glass_down_%d" % k, (0.05, 0.04, 0.012), (gx, front - rng.uniform(0.10, 0.30), 0.012), "glass",
+                rot=(0, 0, math.radians(rng.uniform(0, 180))), bev=0)
+        for k in range(4):
+            blk("splinter_down_%d" % k, (0.16, 0.03, 0.02), (rng.uniform(-0.30, 0.30), front - rng.uniform(0.14, 0.32), 0.09),
+                "wood_cut" if k % 2 else "fh_trim", rot=(0, 0, math.radians(rng.uniform(0, 180))), bev=0)
+    else:
+        blk("oar", (0.06, 0.06, 1.10), (0.46 if variant == 0 else -0.46, front - 0.14, base + 0.50), "oak_light",
+            rot=(0, math.radians(14), 0))
+        blk("oar_blade", (0.16, 0.04, 0.34), (0.54 if variant == 0 else -0.38, front - 0.14, base + 1.02), "oak_light",
+            rot=(0, math.radians(14), 0))
     # A stone chimney on the front slope.
     cx = -W / 2 + 0.50 if variant == 0 else W / 2 - 0.50
     blk("chimney", (0.32, 0.32, rise * 0.85), (cx, -0.18, eave + rise * 0.28 + rise * 0.42), "stone")
@@ -1146,6 +1240,16 @@ def prop_fisher_cottage_a():
 
 def prop_fisher_cottage_b():
     return _fisher_cottage(1)
+
+
+def prop_fisher_cottage_wrecked():
+    """Mara's, as it is found (58): see _fisher_cottage."""
+    return _fisher_cottage(0, wreck=1)
+
+
+def prop_fisher_cottage_breached():
+    """Mara's, once its door has fallen in (58): see _fisher_cottage."""
+    return _fisher_cottage(0, wreck=2)
 
 
 def prop_ferry_house():
@@ -1271,6 +1375,8 @@ def prop_wattle_fence():
 PROPS = {
     "fisher_cottage_a": (prop_fisher_cottage_a, 128),
     "fisher_cottage_b": (prop_fisher_cottage_b, 128),
+    "fisher_cottage_wrecked":  (prop_fisher_cottage_wrecked, 128),
+    "fisher_cottage_breached": (prop_fisher_cottage_breached, 128),
     "ferry_house":     (prop_ferry_house, 160),
     "boat_shed":       (prop_boat_shed, 128),
     "net_rack":        (prop_net_rack, 64),
