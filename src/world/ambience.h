@@ -9,7 +9,9 @@
 // through (Shaders::GustAt, the same gusts the grass and trees lean in) --
 // the shadows of clouds drifting over the ground, and birds: pecking about
 // on open ground until somebody comes close, then up and away, and now and
-// then a flock going over, its shadows crossing the ground under it.
+// then a flock going over, its shadows crossing the ground under it. Where
+// the land is burnt -- the Ashen Path, Purgatory's Plateau -- ash coming down
+// and soot blowing through it, under a haze of smoke drifting over.
 //
 // None of it touches gameplay: nothing here can be struck, blocks a step or
 // is told to a friend (each machine has its own birds). It exists so that a
@@ -57,6 +59,13 @@ public:
     // The birds, for the self-test: where each is, how high, and which.
     struct BirdView { float x = 0, y = 0, height = 0; bool flying = false; int species = 0; };
     vector<BirdView> Birds() const;
+    // What is in the air, for the self-test: where each mote is, and what.
+    enum MoteKind { LEAF, FIREFLY, POLLEN, DUST, WISP, SNOW, EMBER, FLURRY, BUBBLE, WIND, RAIN, STREAK, ASH, SOOT };
+    struct MoteView { float x = 0, y = 0; MoteKind kind = POLLEN; };
+    vector<MoteView> Motes() const;
+    // How thick the smoke drifting over a burnt place is, 0 where there is none
+    // (and with Visual Effects off).
+    float Haze() const;
     // The clouds' shadows as a mask, `size` square, that tiles: 0 clear sky,
     // 255 under a cloud, soft between.
     static vector<Uint8> CloudMask(int size);
@@ -69,15 +78,18 @@ private:
     // The Primordium's: bubbles rising in the Deeps, the wind over the
     // Firmament, rain and lightning in the Tempest, and in the Conflux motes
     // of all five elements going up together.
-    enum class Kind { None, Field, Town, Forest, Grove, Dungeon, Dream, Snow, Ash, Deep, Gale, Storm, Conflux };
-    enum MoteKind { LEAF, FIREFLY, POLLEN, DUST, WISP, SNOW, EMBER, FLURRY, BUBBLE, WIND, RAIN, STREAK };
+    // The Scoured Flats are Salt: the plateau's ash coming down on them, and
+    // the wind driving the salt along the ground in its gusts.
+    enum class Kind { None, Field, Town, Forest, Grove, Dungeon, Dream, Snow, Ash, Salt, Deep, Gale, Storm, Conflux };
 
     struct Mote {
         float x = 0, y = 0;          // world position
         float vx = 0, vy = 0;        // drift, world px / s
         float phase = 0, speed = 1;  // sway or pulse
         float size = 1;              // world px
-        float age = 0, life = 0;     // a streak's: how long it has shown, and will
+        float age = 0, life = 0;     // a streak's: how long it has shown, and will;
+                                     // a flake of ash still smouldering: how long it has
+                                     // burned, and will (0, a cold one)
         SDL_Color color{255, 255, 255, 255};
         MoteKind kind = POLLEN;
     };

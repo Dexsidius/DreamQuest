@@ -10774,7 +10774,9 @@ static void BuildPlateauAscent() {
 static void BuildPlateauFlats() {
     using namespace plat;
     MapBuilder m("plateau_flats", "The Scoured Flats", W * CELL, H * CELL);
-    m.Ambient("snow");
+    // The salt driven along the ground in the gusts, as snow is on the
+    // mountain; and the plateau's ash coming down on it.
+    m.Ambient("salt");
     m.Subtitle("Purgatory's Plateau: salt, and the wind across it");
     m.Background(58, 60, 64);
     const vector<Exit> exits = {

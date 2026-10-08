@@ -11,6 +11,7 @@ void Ambience::SetKind(const string& ambient, bool interior) {
     else if (ambient == "dream")  kind = Kind::Dream;
     else if (ambient == "snow")   kind = Kind::Snow;
     else if (ambient == "ash")    kind = Kind::Ash;
+    else if (ambient == "salt")   kind = Kind::Salt;
     else if (ambient == "deep")   kind = Kind::Deep;
     else if (ambient == "gale")   kind = Kind::Gale;
     else if (ambient == "storm")  kind = Kind::Storm;
@@ -89,8 +90,8 @@ Ambience::Mote Ambience::Make(MoteKind k, const SDL_FRect& view) {
             m.size  = Range(rng, 1.0f, 1.6f);
             break;
         case EMBER:
-            // Sparks lifting off the burning ground, with grey ash drifting.
-            m.color = (rng() % 3) ? SDL_Color{255, 150, 60, 255} : SDL_Color{150, 140, 136, 200};
+            // Sparks lifting off the burning ground (the ash comes down: ASH).
+            m.color = (rng() % 3) ? SDL_Color{255, 150, 60, 255} : SDL_Color{255, 196, 90, 230};
             m.vx    = Range(rng, -6.0f, 6.0f);
             m.vy    = Range(rng, -24.0f, -8.0f);
             m.speed = Range(rng, 1.0f, 2.2f);
@@ -136,6 +137,37 @@ Ambience::Mote Ambience::Make(MoteKind k, const SDL_FRect& view) {
             m.life  = Range(rng, 0.8f, 1.5f);
             m.age   = Range(rng, 0.0f, m.life);
             break;
+        case ASH: {
+            // A flake of ash coming down out of the smoke: grey, some near
+            // white, the odd big one near; tumbling as it falls, and carried
+            // along the wind. Now and then one is still smouldering at its
+            // heart, and goes out as it comes down.
+            static const SDL_Color kAsh[] = {
+                {200, 194, 188, 255}, {176, 170, 166, 255}, {224, 220, 214, 255}, {150, 144, 142, 255}};
+            m.color   = kAsh[rng() % 4];
+            m.color.a = static_cast<Uint8>(Range(rng, 190.0f, 245.0f));
+            m.vx      = Range(rng, -3.0f, 3.0f);
+            m.vy      = Range(rng, 6.0f, 15.0f);
+            m.speed   = Range(rng, 0.9f, 1.8f);
+            m.size    = Rand01(rng) < 0.15f ? Range(rng, 3.2f, 4.5f) : Range(rng, 1.6f, 3.0f);
+            if (kind == Kind::Ash && Rand01(rng) < 0.12f) {
+                m.life = Range(rng, 2.5f, 6.0f);
+                m.age  = Range(rng, 0.0f, m.life * 0.5f);
+            }
+            break;
+        }
+        case SOOT: {
+            // Soot: black specks, lighter than the ash -- they never settle,
+            // eddying in little loops and blown along quicker than it falls.
+            static const SDL_Color kSoot[] = {{34, 28, 26, 255}, {52, 44, 40, 255}, {22, 18, 18, 255}};
+            m.color   = kSoot[rng() % 3];
+            m.color.a = static_cast<Uint8>(Range(rng, 150.0f, 225.0f));
+            m.vx      = Range(rng, -4.0f, 4.0f);
+            m.vy      = Range(rng, -3.0f, 5.0f);
+            m.speed   = Range(rng, 1.6f, 3.2f);
+            m.size    = Range(rng, 1.2f, 2.0f);
+            break;
+        }
         case RAIN:
             // Slanting down hard.
             m.color = {176, 190, 222, static_cast<Uint8>(Range(rng, 90.0f, 160.0f))};
@@ -149,7 +181,7 @@ Ambience::Mote Ambience::Make(MoteKind k, const SDL_FRect& view) {
 }
 
 void Ambience::Populate(const SDL_FRect& view) {
-    int leaves = 0, flies = 0, pollen = 0, dust = 0, streaks = 0;
+    int leaves = 0, flies = 0, pollen = 0, dust = 0, streaks = 0, ash = 0, soot = 0;
     switch (kind) {
         case Kind::Forest:  leaves = 42; flies = 14; streaks = 5; break;
         case Kind::Grove:   leaves = 18; flies = 10; streaks = 10; break;
@@ -158,7 +190,8 @@ void Ambience::Populate(const SDL_FRect& view) {
         case Kind::Dungeon: dust = 44; break;
         case Kind::Dream:   break;
         case Kind::Snow:    break;
-        case Kind::Ash:     dust = 10; streaks = 6; break;
+        case Kind::Ash:     ash = 130; soot = 90; streaks = 6; break;
+        case Kind::Salt:    ash = 60; soot = 40; break;
         case Kind::Deep:    dust = 12; break;
         case Kind::Gale:    break;
         case Kind::Storm:   break;
@@ -171,6 +204,8 @@ void Ambience::Populate(const SDL_FRect& view) {
     for (int i = 0; i < pollen; ++i) motes.push_back(Make(POLLEN, view));
     for (int i = 0; i < dust; ++i)   motes.push_back(Make(DUST, view));
     for (int i = 0; i < streaks; ++i) motes.push_back(Make(STREAK, view));
+    for (int i = 0; i < ash; ++i)    motes.push_back(Make(ASH, view));
+    for (int i = 0; i < soot; ++i)   motes.push_back(Make(SOOT, view));
     if (kind == Kind::Dream)
         for (int i = 0; i < 60; ++i) motes.push_back(Make(WISP, view));
     if (kind == Kind::Snow) {
@@ -178,7 +213,9 @@ void Ambience::Populate(const SDL_FRect& view) {
         for (int i = 0; i < 80; ++i) motes.push_back(Make(FLURRY, view));
     }
     if (kind == Kind::Ash)
-        for (int i = 0; i < 46; ++i) motes.push_back(Make(EMBER, view));
+        for (int i = 0; i < 30; ++i) motes.push_back(Make(EMBER, view));
+    if (kind == Kind::Salt)
+        for (int i = 0; i < 80; ++i) motes.push_back(Make(FLURRY, view));
     if (kind == Kind::Deep)
         for (int i = 0; i < 54; ++i) motes.push_back(Make(BUBBLE, view));
     if (kind == Kind::Gale)
@@ -202,9 +239,9 @@ void Ambience::Update(float dt, const Camera& cam, const World& world) {
         seeded = true;
     }
 
-    // The wind, on the mountain and over the Firmament: a gust every so often,
-    // rising and dying away.
-    if (kind == Kind::Snow || kind == Kind::Gale) {
+    // The wind, on the mountain, across the salt and over the Firmament: a
+    // gust every so often, rising and dying away.
+    if (kind == Kind::Snow || kind == Kind::Salt || kind == Kind::Gale) {
         if (gust_age < 0.0f) {
             gust_wait -= dt;
             if (gust_wait <= 0.0f) {
@@ -283,6 +320,22 @@ void Ambience::Update(float dt, const Camera& cam, const World& world) {
                 m.x += (m.vx + sinf(m.phase) * 7.0f) * dt;
                 m.y += m.vy * dt;
                 break;
+            case ASH: {
+                // Down, swaying as it turns over, and along the wind -- faster
+                // as a gust reaches it, and faster still across the salt as
+                // the wind gets up there.
+                const float push = (14.0f + 46.0f * Shaders::GustAt(m.x, m.y) + 120.0f * gust) * blow;
+                m.x += (m.vx + sinf(m.phase) * 10.0f + wd.x * push) * dt;
+                m.y += (m.vy + cosf(m.phase * 0.7f) * 3.0f + wd.y * push) * dt;
+                if (m.life > 0.0f && (m.age += dt) >= m.life) m.life = 0.0f;   // gone out
+                break;
+            }
+            case SOOT: {
+                const float push = (28.0f + 80.0f * Shaders::GustAt(m.x, m.y) + 160.0f * gust) * blow;
+                m.x += (m.vx + cosf(m.phase) * 12.0f + wd.x * push) * dt;
+                m.y += (m.vy + sinf(m.phase * 1.3f) * 9.0f + wd.y * push) * dt;
+                break;
+            }
             case BUBBLE:
                 m.x += (m.vx + sinf(m.phase * 2.0f) * 5.0f) * dt;
                 m.y += m.vy * dt;
@@ -377,6 +430,48 @@ void Ambience::Render(SDL_Renderer* r, const Camera& cam) const {
                 SDL_RenderFillRect(r, &q);
                 break;
             }
+            case ASH: {
+                // Its width breathes as it turns over, as a leaf's does; the
+                // side turned away a shade darker, a faint shadow under it, and
+                // all of it dimmer by night. A smouldering one has a spark of
+                // red at its heart, which the dark does not dim.
+                const float k = 0.4f + 0.6f * std::clamp(daylight, 0.0f, 1.0f);
+                const float turn = fabsf(cosf(m.phase));
+                const float w = std::max(1.0f, roundf(m.size * z * (0.4f + 0.6f * turn)));
+                const float h = std::max(1.0f, roundf(m.size * z * 0.75f));
+                SDL_SetRenderDrawColor(r, 12, 10, 10, static_cast<Uint8>(30.0f * k));
+                const SDL_FRect sh = {roundf(p.x - w / 2.0f + z), roundf(p.y - h / 2.0f + 5.0f * z), w, h};
+                SDL_RenderFillRect(r, &sh);
+                const float shade = (cosf(m.phase) < 0.0f ? 0.8f : 1.0f) * k;
+                // A darker edge along its underside, so a pale flake reads on
+                // the pale ash of the Ascent as well as on the dark.
+                const float edge = std::max(1.0f, roundf(z * 0.5f));
+                SDL_SetRenderDrawColor(r, static_cast<Uint8>(m.color.r * shade * 0.5f),
+                                       static_cast<Uint8>(m.color.g * shade * 0.5f),
+                                       static_cast<Uint8>(m.color.b * shade * 0.5f), m.color.a);
+                const SDL_FRect under = {roundf(p.x - w / 2.0f), roundf(p.y - h / 2.0f) + edge, w, h};
+                SDL_RenderFillRect(r, &under);
+                SDL_SetRenderDrawColor(r, static_cast<Uint8>(m.color.r * shade), static_cast<Uint8>(m.color.g * shade),
+                                       static_cast<Uint8>(m.color.b * shade), m.color.a);
+                const SDL_FRect q = {roundf(p.x - w / 2.0f), roundf(p.y - h / 2.0f), w, h};
+                SDL_RenderFillRect(r, &q);
+                if (m.life > 0.0f) {
+                    const float burn = (1.0f - m.age / m.life) * (0.6f + 0.4f * sinf(m.phase * 3.1f));
+                    SDL_SetRenderDrawColor(r, 255, 110, 40, static_cast<Uint8>(255.0f * std::clamp(burn, 0.0f, 1.0f)));
+                    const float c = std::max(1.0f, roundf(z * 0.5f * std::min(m.size, 2.0f)));
+                    const SDL_FRect core = {roundf(p.x - c / 2.0f), roundf(p.y - c / 2.0f), c, c};
+                    SDL_RenderFillRect(r, &core);
+                }
+                break;
+            }
+            case SOOT: {
+                SDL_SetRenderDrawColor(r, m.color.r, m.color.g, m.color.b,
+                                       static_cast<Uint8>(m.color.a * (0.5f + 0.5f * std::clamp(daylight, 0.0f, 1.0f))));
+                const float s = std::max(1.0f, roundf(m.size * z));
+                const SDL_FRect q = {roundf(p.x - s / 2.0f), roundf(p.y - s / 2.0f), s, s};
+                SDL_RenderFillRect(r, &q);
+                break;
+            }
             case FLURRY: {
                 // A streak along the wind, as long as the gust is strong.
                 const Uint8 a = static_cast<Uint8>(m.color.a * gust);
@@ -449,11 +544,13 @@ void Ambience::Render(SDL_Renderer* r, const Camera& cam) const {
         }
     }
 
-    // A gust whitens the whole view a little: the air thick with snow.
-    if (kind == Kind::Snow && gust > 0.02f) {
+    // A gust whitens the whole view a little: the air thick with snow, or
+    // with salt off the flats.
+    if ((kind == Kind::Snow || kind == Kind::Salt) && gust > 0.02f) {
         int w = 0, h = 0;
         SDL_GetCurrentRenderOutputSize(r, &w, &h);
-        SDL_SetRenderDrawColor(r, 236, 244, 255, static_cast<Uint8>(52.0f * gust));
+        if (kind == Kind::Salt) SDL_SetRenderDrawColor(r, 236, 232, 224, static_cast<Uint8>(40.0f * gust));
+        else                    SDL_SetRenderDrawColor(r, 236, 244, 255, static_cast<Uint8>(52.0f * gust));
         const SDL_FRect all = {0.0f, 0.0f, static_cast<float>(w), static_cast<float>(h)};
         SDL_RenderFillRect(r, &all);
     }
@@ -488,6 +585,7 @@ void Ambience::Render(SDL_Renderer* r, const Camera& cam) const {
     else if (kind == Kind::Dream)   { strength = 1.1f;  tint = {26, 8, 46, 255}; }
     else if (kind == Kind::Snow)    { strength = 0.7f;  tint = {210, 226, 240, 255}; }
     else if (kind == Kind::Ash)     { strength = 0.9f;  tint = {60, 12, 6, 255}; }
+    else if (kind == Kind::Salt)    { strength = 0.7f;  tint = {120, 112, 104, 255}; }
     else if (kind == Kind::Deep)    { strength = 1.0f;  tint = {4, 24, 40, 255}; }
     else if (kind == Kind::Gale)    { strength = 0.5f;  tint = {200, 214, 236, 255}; }
     else if (kind == Kind::Storm)   { strength = 1.1f;  tint = {12, 12, 26, 255}; }
@@ -541,6 +639,7 @@ void Ambience::UpdateBirds(float dt, const SDL_FRect& view, const World& world) 
         case Kind::Grove:  target = 5; break;
         case Kind::Snow:   target = 2; break;
         case Kind::Ash:    target = 2; break;
+        case Kind::Salt:   target = 2; break;
         default:           target = 0; break;
     }
     const bool day = daylight > 0.45f;
@@ -725,6 +824,12 @@ vector<Ambience::BirdView> Ambience::Birds() const {
     return out;
 }
 
+vector<Ambience::MoteView> Ambience::Motes() const {
+    vector<MoteView> out;
+    for (const Mote& m : motes) out.push_back({m.x, m.y, m.kind});
+    return out;
+}
+
 // --- clouds ------------------------------------------------------------------------------------
 
 vector<Uint8> Ambience::CloudMask(int size) {
@@ -767,8 +872,18 @@ float Ambience::CloudStrength() const {
         case Kind::Grove:  return 0.24f;
         case Kind::Snow:   return 0.20f;
         case Kind::Ash:    return 0.30f;
+        case Kind::Salt:   return 0.20f;
         case Kind::Storm:  return 0.34f;
         default:           return 0.0f;
+    }
+}
+
+float Ambience::Haze() const {
+    if (!lively) return 0.0f;
+    switch (kind) {
+        case Kind::Ash:  return 0.26f;
+        case Kind::Salt: return 0.12f;
+        default:         return 0.0f;
     }
 }
 
@@ -856,6 +971,31 @@ void Ambience::RenderSky(SDL_Renderer* r, const Camera& cam) const {
                 const SDL_FRect dst = cam.ToScreenRect({x, y, tile, tile});
                 SDL_RenderTexture(r, clouds, nullptr, &dst);
             }
+    }
+    // Smoke drifting over a burnt place, between the ground and the birds: the
+    // same soft picture as the clouds, sooty, in two layers -- a broad one and
+    // a nearer, smaller one going by faster -- so it rolls past rather than
+    // sliding over as one sheet.
+    const float haze = Haze();
+    if (clouds && haze > 0.01f) {
+        const SDL_FPoint wd = Shaders::WindDirection();
+        const SDL_FRect view = cam.VisibleWorldRect(0.0f);
+        const double now = SDL_GetTicks() / 1000.0;
+        SDL_SetTextureColorMod(clouds, 104, 94, 88);
+        const struct { float tile, speed, alpha, shift; } layers[] = {{1400.0f, 30.0f, 1.0f, 0.0f},
+                                                                     {560.0f, 55.0f, 0.6f, 230.0f}};
+        for (const auto& l : layers) {
+            const float drift = static_cast<float>(std::fmod(now * l.speed, static_cast<double>(l.tile) * 64.0));
+            const float ox = std::fmod(drift * wd.x + l.shift, l.tile), oy = std::fmod(drift * wd.y + l.shift, l.tile);
+            SDL_SetTextureAlphaMod(clouds, static_cast<Uint8>(255.0f * haze * l.alpha));
+            const float x0 = std::floor((view.x - ox) / l.tile) * l.tile + ox;
+            const float y0 = std::floor((view.y - oy) / l.tile) * l.tile + oy;
+            for (float y = y0; y < view.y + view.h; y += l.tile)
+                for (float x = x0; x < view.x + view.w; x += l.tile) {
+                    const SDL_FRect dst = cam.ToScreenRect({x, y, l.tile, l.tile});
+                    SDL_RenderTexture(r, clouds, nullptr, &dst);
+                }
+        }
     }
     for (const Bird& b : birds)
         if (b.h > 0.5f) DrawBird(r, cam, b, false);

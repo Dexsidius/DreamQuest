@@ -9220,6 +9220,65 @@ static void TestAmbientLife(const Databases& db) {
     quiet.lively = false;
     for (int i = 0; i < 600; ++i) plain.Update(0.05f, cam, quiet);
     Check(plain.Birds().empty(), "and with Visual Effects off, the plain look, no birds at all");
+
+    // --- ash and soot, where the land is burnt ---
+    Section("ash and soot in the air: the Ashen Path and Purgatory's Plateau");
+    const auto count = [](const Ambience& a, Ambience::MoteKind k) {
+        int n = 0;
+        for (const Ambience::MoteView& m : a.Motes()) n += m.kind == k;
+        return n;
+    };
+    Ambience ash;
+    ash.SetKind("ash", false);
+    ash.Update(0.05f, cam, out);
+    Check(count(ash, Ambience::ASH) >= 40 && count(ash, Ambience::SOOT) >= 30 && count(ash, Ambience::EMBER) > 0 &&
+              count(ash, Ambience::SNOW) == 0,
+          "burnt land: ash coming down, soot blowing through it, and sparks still lifting off the ground (" +
+              std::to_string(count(ash, Ambience::ASH)) + " flakes, " + std::to_string(count(ash, Ambience::SOOT)) +
+              " specks)");
+    // Which way each goes, a step at a time -- leaving out any that went off
+    // one side of the view and came back in at the other.
+    double ash_x = 0.0, ash_y = 0.0, soot_x = 0.0;
+    int ash_n = 0, soot_n = 0;
+    for (int step = 0; step < 40; ++step) {
+        const vector<Ambience::MoteView> was = ash.Motes();
+        ash.Update(0.05f, cam, out);
+        const vector<Ambience::MoteView> now = ash.Motes();
+        for (size_t i = 0; i < now.size() && i < was.size(); ++i) {
+            const float dx = now[i].x - was[i].x, dy = now[i].y - was[i].y;
+            if (std::fabs(dx) > 30.0f || std::fabs(dy) > 30.0f) continue;
+            if (now[i].kind == Ambience::ASH) { ash_x += dx; ash_y += dy; ++ash_n; }
+            if (now[i].kind == Ambience::SOOT) { soot_x += dx; ++soot_n; }
+        }
+    }
+    const double ash_dx = ash_n ? ash_x / ash_n / 0.05 : 0.0, ash_dy = ash_n ? ash_y / ash_n / 0.05 : 0.0;
+    const double soot_dx = soot_n ? soot_x / soot_n / 0.05 : 0.0;
+    Check(ash_dy > 4.0 && ash_dx * wd.x > 4.0, "the ash comes down and is carried along the wind (" +
+                                                   std::to_string(static_cast<int>(ash_dx)) + ", " +
+                                                   std::to_string(static_cast<int>(ash_dy)) + " px a second)");
+    Check(soot_dx > ash_dx + 5.0, "and the soot, lighter, is blown along it quicker (" +
+                                      std::to_string(static_cast<int>(soot_dx)) + " px a second)");
+    Check(ash.Haze() > 0.0f && air.Haze() == 0.0f, "smoke drifts over the burnt land, and nowhere else");
+    Ambience dull;
+    dull.SetKind("ash", false);
+    dull.Update(0.05f, cam, quiet);
+    Check(dull.Haze() == 0.0f && count(dull, Ambience::ASH) > 0,
+          "with Visual Effects off the smoke is gone, and the ash still falls, as the snow does");
+    Ambience salt;
+    salt.SetKind("salt", false);
+    salt.Update(0.05f, cam, out);
+    Check(count(salt, Ambience::ASH) > 0 && count(salt, Ambience::FLURRY) > 0 && count(salt, Ambience::SNOW) == 0,
+          "on the Scoured Flats, the plateau's ash comes down, the salt is driven under it, and no snow falls");
+    const vector<std::pair<string, string>> burnt = {{"ashen_path", "ash"},       {"plateau_ascent", "ash"},
+                                                     {"plateau_flats", "salt"},   {"plateau_terraces", "ash"},
+                                                     {"plateau_stronghold", "ash"}};
+    string wrong;
+    for (const auto& [id, want] : burnt) {
+        Map m;
+        if (!m.Load("maps/" + id + ".mx") || m.Ambient() != want) wrong += " " + id;
+    }
+    Check(wrong.empty(), "the Ashen Path and every map of Purgatory's Plateau have it in their air:" +
+                             (wrong.empty() ? string(" all five") : wrong));
 }
 
 int main(int argc, char** argv) {

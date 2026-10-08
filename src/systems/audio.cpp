@@ -1838,8 +1838,8 @@ void SetAmbience(const string& kind, bool interior) {
         p.wind = 0.035f; p.wind_cut = 0.6f;
         p.pad = 0.05f;
         p.chime_lo = 2.0f; p.chime_hi = 6.0f;
-    } else if (kind == "snow") {
-        // A hard wind over bare rock, and nothing singing in it.
+    } else if (kind == "snow" || kind == "salt") {
+        // A hard wind over bare rock, or the salt, and nothing singing in it.
         p.wind = 0.26f; p.wind_cut = 1.6f;
     } else if (kind == "ash") {
         p.wind = 0.12f; p.wind_cut = 0.55f;

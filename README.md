@@ -199,7 +199,17 @@ With **Visual Effects** on (Options, then Visual Effects), a good deal more:
   wind run with the gusts. Trees bend harder in a gust and their crowns rustle,
   a few leaves at a time. One wind drives all of it (`Shaders::GustAt`), so the
   leaves quicken exactly where the grass and the trees bend. None of it fights,
-  and none of it is indoors or in a dream. The birds are
+  and none of it is indoors or in a dream.
+- **Ash and soot.** Where the land is burnt -- the Ashen Path, Purgatory's
+  Plateau, and the Kiln past its rift -- grey ash comes down out of the sky,
+  tumbling along the wind with a faint shadow under each flake, now and then
+  one still smouldering red at its heart until it goes out. Black soot eddies
+  through it, lighter, blown along quicker than the ash falls, and a haze of
+  smoke rolls over in two layers, a broad slow one and a nearer quicker one.
+  On the Scoured Flats the plateau's ash comes down on the salt, and the
+  gusts drive the salt along the ground under it (their air is `salt`, which
+  is otherwise the mountain's). The ash and soot fall with Visual Effects off
+  as the snow does; the smoke goes with the rest. The birds are
   `assets/effects/birds.png`, drawn by `tools/make_birds.py`; the rest is
   `src/world/ambience.*`.
 
@@ -8195,6 +8205,10 @@ so no other tile changed):
 | **The Brine Terraces** | wet dark stone, brine pools with steam off them | Brine and Gale Dragons, Greater Demons | 58-64 |
 | **The Stronghold** | bone-dust outside, flagstones within | Storm and Gale Dragons round it, Greater Demons in the courtyard | 63-70 |
 | **the Keep** | the fort's own hall: pillars, pale braziers, a vault | the Stronghold's best Greater Demons, and a Storm Dragon on the vault | 67-70 |
+
+Ash comes down over all four out of doors, with soot blowing through it and
+smoke rolling over, as it does on the Ashen Path below; on the Flats the gusts
+drive the salt along the ground under it (see [What it draws with](#what-it-draws-with)).
 
 **The monsters.** The five **elemental dragons** are one dragon -- Hoarfang's
 frame, heavier or lighter -- dressed five ways, so that what tells them apart at

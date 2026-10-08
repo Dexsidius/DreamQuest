@@ -143,7 +143,7 @@ Shaders::Frame World::ScreenFrame(TextureCache& cache) const {
         grade(1.02f, 0.98f, 1.06f, 1.12f, 1.02f, 0.0f);
     else if (ambient == "ash" || StartsWith(id, "palace_") || StartsWith(id, "dungeon_emberfell") || id == "dungeon_infernal")
         grade(1.07f, 0.96f, 0.86f, 1.1f, 1.05f, 0.0f);
-    else if (ambient == "snow")
+    else if (ambient == "snow" || ambient == "salt")
         grade(0.93f, 0.99f, 1.08f, 0.84f, 1.03f, 0.012f);
     else if (ambient == "dungeon")
         grade(0.97f, 0.97f, 1.01f, 0.88f, 1.06f, 0.0f);
