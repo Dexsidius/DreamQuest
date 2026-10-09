@@ -9937,52 +9937,73 @@ static void TestJournalSections(const Databases& db) {
             if (const QuestDef* d = log.Definition(id)) own_major &= d->major;
     Check(own_major, "a part's own quests are all story quests (major), so they are listed in the Story tab");
 
-    // A new journal: the parts in order, each as its title card has it, and
-    // only those with something in them -- then the tales.
-    const Journal::Page story = Journal::Build(log, chapters, Journal::STORY);
-    vector<string> titles;
-    for (const Journal::Section& sec : story.sections) titles.push_back(sec.title);
-    Check(titles.size() == 4 && titles[0] == "Prologue" && titles[1] == "Act I" && titles[2] == "Act II" &&
-              titles[3] == "Tales of the Hollowmarch",
-          "the Story tab is headed Prologue, Act I, Act II, then the Tales of the Hollowmarch (an act with no quests yet is not)");
-    Check(story.sections.size() > 1 && story.sections[1].sub == "Learning the Rules", "Act I is 'Learning the Rules', as its title card says");
-    // Act I's quests in the order it tells them.
-    vector<string> act1;
-    for (const Journal::Row& r : story.rows) if (r.section == 1) act1.push_back(r.id);
-    const QuestChapter* first_act = nullptr;
-    for (const QuestChapter& c : chapters.All()) if (c.id == "act1") first_act = &c;
-    Check(first_act && act1 == first_act->quests, "Act I lists its quests in the order it tells them, from Anyone Awake? to Word to the Neighbors");
-    // Every story quest is listed once, and nothing else is in the tab.
-    int majors = 0;
-    for (const auto& kv : log.Definitions()) majors += kv.second.major && !kv.second.daily;
-    std::set<string> listed;
-    for (const Journal::Row& r : story.rows) listed.insert(r.id);
-    Check(static_cast<int>(story.rows.size()) == majors && static_cast<int>(listed.size()) == majors,
-          "every story quest is listed in the Story tab once (" + std::to_string(majors) + ")");
-
-    // In hand and done, it stays where it is in its part.
-    log.Start("q_pro_anyone_awake");
-    log.Start("q_act1_vask");
-    const Journal::Page going = Journal::Build(log, chapters, Journal::STORY);
-    vector<string> act1_now;
-    int vask_state = -1;
-    for (const Journal::Row& r : going.rows)
-        if (going.sections[static_cast<size_t>(r.section)].title == "Act I") {
-            act1_now.push_back(r.id);
-            if (r.id == "q_act1_vask") vask_state = r.state;
-        }
-    Check(act1_now == first_act->quests && vask_state == Journal::IN_HAND && going.in_hand == 2,
-          "a quest taken is in hand where it stands in the act, not pulled to the top");
-
-    // The other tabs: what goes alongside a part, then everything by what it is.
-    const Journal::Page side = Journal::Build(log, chapters, Journal::SIDE);
-    vector<string> side_titles;
-    for (const Journal::Section& sec : side.sections) side_titles.push_back(sec.title);
+    const auto titles_of = [](const Journal::Page& pg) {
+        vector<string> t;
+        for (const Journal::Section& sec : pg.sections) t.push_back(sec.title);
+        return t;
+    };
     const auto heading_of = [](const Journal::Page& pg, const string& id) {
         for (const Journal::Row& r : pg.rows)
             if (r.id == id) return pg.sections[static_cast<size_t>(r.section)].title;
         return string();
     };
+    const QuestChapter* first_act = nullptr;
+    for (const QuestChapter& c : chapters.All()) if (c.id == "act1") first_act = &c;
+
+    // A new journal: no part of the story has begun, so none of it is there --
+    // not a title, not a quest, not an errand alongside it. Only the tales.
+    const Journal::Page fresh = Journal::Build(log, chapters, Journal::STORY);
+    bool spoiled = false;
+    for (const Journal::Row& r : fresh.rows) spoiled |= chapters.Of(r.id) >= 0;
+    Check(titles_of(fresh) == vector<string>{"Tales of the Hollowmarch"} && !spoiled,
+          "before the story begins the journal says nothing of it: only the Tales of the Hollowmarch");
+    const Journal::Page fresh_side = Journal::Build(log, chapters, Journal::SIDE);
+    Check(heading_of(fresh_side, "q_chime_posy").empty() && heading_of(fresh_side, "q_act2_mossvale_house").empty(),
+          "and none of the errands alongside it");
+
+    // The prologue begun: it is there, and Act I is not.
+    log.Start("q_pro_meet_mayor");
+    const Journal::Page prologue = Journal::Build(log, chapters, Journal::STORY);
+    Check(titles_of(prologue) == vector<string>{"Prologue", "Tales of the Hollowmarch"},
+          "the prologue begun, the prologue is listed -- and not yet the first act");
+
+    // Act I begun: all of it, in the order it is told, a quest in hand where it
+    // stands and not pulled to the top; and still nothing of Act II.
+    log.Start("q_pro_anyone_awake");
+    log.Start("q_act1_vask");
+    const Journal::Page going = Journal::Build(log, chapters, Journal::STORY);
+    vector<string> act1;
+    int vask_state = -1;
+    for (const Journal::Row& r : going.rows)
+        if (going.sections[static_cast<size_t>(r.section)].title == "Act I") {
+            act1.push_back(r.id);
+            if (r.id == "q_act1_vask") vask_state = r.state;
+        }
+    Check(titles_of(going) == vector<string>{"Prologue", "Act I", "Tales of the Hollowmarch"},
+          "Act I begun, it is listed after the prologue, and Act II is not");
+    Check(going.sections.size() > 1 && going.sections[1].sub == "Learning the Rules", "Act I is 'Learning the Rules', as its title card says");
+    Check(first_act && act1 == first_act->quests && vask_state == Journal::IN_HAND && going.in_hand == 3,
+          "Act I lists all its quests in the order it tells them, the one in hand where it stands");
+    const Journal::Page act1_side = Journal::Build(log, chapters, Journal::SIDE);
+    Check(heading_of(act1_side, "q_chime_posy") == "Alongside Act I" && heading_of(act1_side, "q_act2_mossvale_house").empty(),
+          "the Dawn Chimes are listed alongside Act I now, and the house in Mossvale, alongside Act II, still is not");
+
+    // Act II begun: every part with a quest in it is there, and every story
+    // quest is listed once.
+    log.Start("q_guild_ledger");
+    const Journal::Page story = Journal::Build(log, chapters, Journal::STORY);
+    Check(titles_of(story) == vector<string>{"Prologue", "Act I", "Act II", "Tales of the Hollowmarch"},
+          "Act II begun, the Story tab is headed Prologue, Act I, Act II, then the tales (Act III, with no quests yet, is not)");
+    int majors = 0;
+    for (const auto& kv : log.Definitions()) majors += kv.second.major && !kv.second.daily;
+    std::set<string> listed;
+    for (const Journal::Row& r : story.rows) listed.insert(r.id);
+    Check(static_cast<int>(story.rows.size()) == majors && static_cast<int>(listed.size()) == majors,
+          "and every story quest is listed in it once (" + std::to_string(majors) + ")");
+
+    // The other tabs: what goes alongside a part, then everything by what it is.
+    const Journal::Page side = Journal::Build(log, chapters, Journal::SIDE);
+    const vector<string> side_titles = titles_of(side);
     Check(heading_of(side, "q_chime_posy") == "Alongside Act I" && heading_of(side, "q_act2_mossvale_house") == "Alongside Act II",
           "the Dawn Chimes are listed alongside Act I, the house in Mossvale alongside Act II");
     string favour;

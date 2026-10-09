@@ -6675,7 +6675,14 @@ how many of its quests are done (`3/15`):
 | **Tutorials** | **Trades**: the three trades' lessons (a part's own lessons, were any marked tutorial, would come first, alongside it) |
 | **Side quests** | **Alongside Act I** (the Dawn Chimes, supper at Bess's, the gatherers' lessons), **Alongside Act II** (a house in Mossvale), then **Favours**, **The Guild's ledger** and **Boards and orders** |
 
-An act's quests are listed in the order the act tells them, whatever has
+**A part is not in the journal at all until it has begun** -- one of its own
+quests taken. Before that there is nothing of it to read: not its title, not
+its quests, not the errands alongside it. A new character's Story tab holds only
+the tales; the prologue appears with its first quest, Act I with *Anyone
+Awake?*, Act II with the Guild's ledger. What is in hand or done is listed
+wherever it belongs, always.
+
+Once begun, an act's quests are listed in the order the act tells them, whatever has
 become of them, so where the story has got to reads straight off the page:
 the done ones green above, the one in hand blue, what is still to come red
 below. Under the other headings what is in hand comes first, then what is
@@ -6687,9 +6694,9 @@ shown. `--screen journal:side:4` opens a tab with the cursor on its fifth
 quest, and `bin\selftest.exe --only journal` checks the parts against the
 quests, the order, and where each kind of quest is headed.
 
-Quests **not yet taken are listed too**, in their place under their heading,
-which is the point of the story tab: what is still ahead is as much a part of
-a journal as what is in it. A quest not yet taken shows its first step in place
+Quests **not yet taken are listed too** (in a part that has begun), in their
+place under their heading, which is the point of the story tab: what is still
+ahead is as much a part of a journal as what is in it. A quest not yet taken shows its first step in place
 of an objective, and its Combat requirement if it has one, in green once you
 meet it. Dailies are the exception: there are dozens of them and they come back
 every morning, so they are listed only while one is actually taken. A list

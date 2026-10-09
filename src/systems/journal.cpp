@@ -48,6 +48,12 @@ int TabOf(const QuestDef& d) {
     return d.major ? STORY : d.tutorial ? TUTORIALS : SIDE;
 }
 
+bool Begun(const QuestLog& log, const QuestChapter& chapter) {
+    for (const string& id : chapter.quests)
+        if (log.Status(id) != QuestStatus::NotStarted) return true;
+    return false;
+}
+
 Page Build(const QuestLog& log, const QuestChapters& chapters, int tab) {
     // The headings this tab can have, in the order they come: in the Story tab
     // each part and then the tales; elsewhere what goes alongside each part,
@@ -73,6 +79,9 @@ Page Build(const QuestLog& log, const QuestChapters& chapters, int tab) {
     // done -- and by level within each.
     struct Line { Row row; int key0 = 0, key1 = 0; string key2; };
     vector<Line> lines;
+    // Which parts have begun: the rest are kept out of the journal entirely.
+    vector<bool> begun;
+    for (const QuestChapter& c : chapters.All()) begun.push_back(Begun(log, c));
     const auto add = [&](const string& id, int state) {
         const QuestDef* d = log.Definition(id);
         if (!d || TabOf(*d) != tab) return;
@@ -82,6 +91,7 @@ Page Build(const QuestLog& log, const QuestChapters& chapters, int tab) {
         bool side = false;
         int place = 0;
         const int part = chapters.Of(id, &side, &place);
+        if (state == AHEAD && part >= 0 && part < parts && !begun[static_cast<size_t>(part)]) return;
         if (part >= 0 && part < parts) {
             l.row.section = part;
             // A part's own before what goes alongside it, in its order.

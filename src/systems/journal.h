@@ -14,6 +14,11 @@
 //  what it is: favours people ask, the Guild's ledger, the boards and orders,
 //  the trades.
 //
+//  A part is not in the journal at all until it has begun -- one of its own
+//  quests taken -- so nothing of the second act, not even its title, is read
+//  there while the first is being played. What is in hand or done is always
+//  listed, wherever it belongs.
+//
 //  Worked out here rather than in the screen, so the self-test can ask it.
 // =============================================================================
 
@@ -65,8 +70,10 @@ struct Page {
 };
 
 // What a tab lists: every quest of it in hand, every one still ahead (but not
-// the dailies, which come back every day and would bury the rest), and every
-// one done.
+// the dailies, which come back every day and would bury the rest, and not a
+// part's that has not begun), and every one done.
 Page Build(const QuestLog& log, const QuestChapters& chapters, int tab);
+// Whether a part of the story has begun: one of its own quests taken.
+bool Begun(const QuestLog& log, const QuestChapter& chapter);
 
 }   // namespace Journal
