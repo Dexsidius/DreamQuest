@@ -1,0 +1,40 @@
+{
+ "_comment": "The story's parts, as the quest journal heads its lists (src/systems/journal.h). Each is titled as its title card titles it (story.json's \"title\" steps). \"quests\" are its own, in the order they come, listed under its heading in the Story tab; \"side\" are the errands and lessons that go alongside it, listed under \"Alongside\" its title in the side quests' and tutorials' tabs. A part with no quests yet is not shown.",
+ "chapters": [
+  {
+   "id": "prologue",
+   "title": "Prologue",
+   "sub": "The Town That Wouldn't Wake",
+   "quests": ["q_pro_meet_mayor", "q_pro_wake_sleeper", "q_pro_experiment", "q_pro_arm", "q_pro_escape",
+              "q_pro_first_blood"],
+   "side": []
+  },
+  {
+   "id": "act1",
+   "title": "Act I",
+   "sub": "Learning the Rules",
+   "quests": ["q_pro_anyone_awake", "q_act1_vask", "q_act1_break_hold", "q_act1_bells", "q_act1_gather",
+              "q_act1_forge", "q_act1_save_halda", "q_act1_bess", "q_act1_save_bess", "q_act1_hides",
+              "q_act1_save_tanner", "q_act1_clothier", "q_act1_save_clothier", "q_act1_finale", "q_act1_neighbors"],
+   "side": ["q_act1_tut_wood", "q_act1_tut_fish", "q_act1_tut_mine", "q_act1_supper",
+            "q_chime_posy", "q_chime_tobin", "q_chime_ivo", "q_chime_marrow", "q_chime_wenna",
+            "q_chime_perrin", "q_chime_pip", "q_chime_bram", "q_chime_hester", "q_chime_hollis"]
+  },
+  {
+   "id": "act2",
+   "title": "Act II",
+   "sub": "WWDD",
+   "quests": ["q_guild_ledger", "q_act2_torn_pages", "q_act2_wake_neighbors", "q_act2_college",
+              "q_act2_wake_college", "q_act2_death_talisman", "q_act2_hoarfang", "q_act2_ashen_path",
+              "q_act2_tell_headmaster"],
+   "side": ["q_act2_mossvale_house"]
+  },
+  {
+   "id": "act3",
+   "title": "Act III",
+   "sub": "Attack on the Reverie",
+   "quests": [],
+   "side": []
+  }
+ ]
+}

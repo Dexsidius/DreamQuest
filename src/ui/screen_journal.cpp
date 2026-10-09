@@ -22,45 +22,19 @@ const char* Game::QuestTabName(int tab) {
     }
 }
 
-// What each tab holds, in the order it is listed: what you are doing, then what
-// is still ahead of you, then what is done. A story quest is one marked
-// "major" in data/quests.json and a tutorial one marked "tutorial"; everything
-// else -- board contracts, daily orders, the favours people ask -- is a side
-// quest, so no list is buried under another.
+// What each tab holds, under its headings: see Journal::Build. A story quest is
+// one marked "major" in data/quests.json and a tutorial one marked "tutorial";
+// everything else -- board contracts, daily orders, the favours people ask --
+// is a side quest, so no list is buried under another. The Story tab is headed
+// by the story's parts (data/chapters.json), each with its quests in the order
+// it tells them, so where the story has got to reads off the page.
 //
 // Quests not yet taken are listed too, which is the point of the story tab:
 // what is coming is as much a part of a journal as what is in hand. Dailies
 // are the exception -- there are dozens, they come back every day, and listing
 // every one of them unasked-for is the clutter the tabs exist to stop.
-void Game::QuestList(int tab, vector<string>& out, size_t& active_count,
-                     size_t& not_started_count) const {
-    const auto belongs = [&](const string& id) {
-        const QuestDef* d = quests->Definition(id);
-        if (!d) return false;
-        const int home = d->major ? 0 : (d->tutorial ? 1 : 2);
-        return home == tab;
-    };
-    out.clear();
-    for (const string& id : quests->Active()) if (belongs(id)) out.push_back(id);
-    active_count = out.size();
-
-    vector<const QuestDef*> ahead;
-    for (const auto& kv : quests->Definitions()) {
-        const QuestDef& d = kv.second;
-        if (d.daily || !belongs(kv.first)) continue;
-        if (quests->Status(kv.first) != QuestStatus::NotStarted) continue;
-        ahead.push_back(&d);
-    }
-    // In the order they are meant to be met.
-    std::sort(ahead.begin(), ahead.end(), [](const QuestDef* a, const QuestDef* b) {
-        if (a->recommended_level != b->recommended_level)
-            return a->recommended_level < b->recommended_level;
-        return a->id < b->id;
-    });
-    for (const QuestDef* d : ahead) out.push_back(d->id);
-    not_started_count = ahead.size();
-
-    for (const string& id : quests->Completed()) if (belongs(id)) out.push_back(id);
+Journal::Page Game::QuestPage(int tab) const {
+    return Journal::Build(*quests, chapters, tab);
 }
 
 // Red for what has not been started, blue for what is in hand, green for what
@@ -378,27 +352,26 @@ void Game::DrawRewardChoice() {
 }
 
 void Game::UpdateQuestPanel() {
-    vector<string> list;
-    size_t active_count = 0, ahead = 0;
-
     // Left and right step between the tabs; the cursor of each is its own.
     const int before = quest_tab;
     if (input.MenuLeft())  quest_tab = (quest_tab + kQuestTabs - 1) % kQuestTabs;
     if (input.MenuRight()) quest_tab = (quest_tab + 1) % kQuestTabs;
     if (quest_tab != before) Audio::Play(Sfx::UiMove);
 
-    QuestList(quest_tab, list, active_count, ahead);
-    MoveCursor(quest_cursor[quest_tab], static_cast<int>(list.size()));
+    // The cursor goes from quest to quest; the headings between are passed over.
+    const Journal::Page page = QuestPage(quest_tab);
+    MoveCursor(quest_cursor[quest_tab], static_cast<int>(page.rows.size()));
     // Confirm on a quest in hand follows it: the waypoint is that one's until
     // it is done, or until this is pressed on it again. On a finished one with
     // a reward still to choose, it asks which.
-    if ((input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) && !list.empty()) {
-        const size_t at = static_cast<size_t>(std::clamp(quest_cursor[quest_tab], 0, static_cast<int>(list.size()) - 1));
-        if (at < active_count) {
-            quests->Follow(list[at]);
+    if ((input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) && !page.rows.empty()) {
+        const Journal::Row& row =
+            page.rows[static_cast<size_t>(std::clamp(quest_cursor[quest_tab], 0, static_cast<int>(page.rows.size()) - 1))];
+        if (row.state == Journal::IN_HAND) {
+            quests->Follow(row.id);
             Audio::Play(Sfx::UiConfirm);
-        } else if (quests->ChoicesOwed(list[at]) > 0) {
-            OpenRewardChoice(list[at]);
+        } else if (quests->ChoicesOwed(row.id) > 0) {
+            OpenRewardChoice(row.id);
             return;
         } else {
             Audio::Play(Sfx::UiError);
@@ -443,16 +416,13 @@ void Game::DrawQuestPanel() {
     ui.Text("Quest Journal", panel.x + 24.0f, panel.y + 16.0f, TextSize::Large,
             Palette::Highlight);
 
+    const Journal::Page page = QuestPage(quest_tab);
     vector<string> list;
-    size_t active_size = 0, ahead_size = 0;
-    QuestList(quest_tab, list, active_size, ahead_size);
+    for (const Journal::Row& row : page.rows) list.push_back(row.id);
     const int cursor_here = std::clamp(quest_cursor[quest_tab], 0,
                                        std::max(0, static_cast<int>(list.size()) - 1));
     // What each row is: in hand, still ahead, or finished.
-    const auto state_of = [&](size_t i) {
-        if (i < active_size) return 1;
-        return i < active_size + ahead_size ? 0 : 2;
-    };
+    const auto state_of = [&](size_t i) { return i < page.rows.size() ? page.rows[i].state : 0; };
     const SDL_Color kStateColour[3] = {kQuestNotStarted, kQuestActive, kQuestDone};
 
     // The two tabs, drawn as headings with the count each holds. The one you
@@ -460,12 +430,10 @@ void Game::DrawQuestPanel() {
     {
         float tx = panel.x + 24.0f;
         for (int tab = 0; tab < kQuestTabs; ++tab) {
-            vector<string> in_tab;
-            size_t tab_active = 0, tab_ahead = 0;
-            QuestList(tab, in_tab, tab_active, tab_ahead);
+            const Journal::Page in_tab = QuestPage(tab);
             // In hand out of everything the tab knows about.
             const string label = string(QuestTabName(tab)) + "  " +
-                                 std::to_string(tab_active) + "/" + std::to_string(in_tab.size());
+                                 std::to_string(in_tab.in_hand) + "/" + std::to_string(in_tab.rows.size());
             const bool on = tab == quest_tab;
             const float w = ui.Measure(label, TextSize::Small).x + 24.0f;
             const SDL_FRect box = {tx, panel.y + 46.0f, w, 24.0f};
@@ -494,19 +462,52 @@ void Game::DrawQuestPanel() {
         // Left: the list. Right: detail for whatever is highlighted.
         const float list_w = 290.0f;
         const float row_h = 34.0f;
-
-        // The window of rows the cursor is inside, so a long list scrolls
-        // rather than running off the panel.
+        const float head_h = 26.0f;
         const size_t visible = 9;
-        size_t first = 0;
-        if (list.size() > visible)
-            first = std::min(list.size() - visible,
-                             static_cast<size_t>(std::max(0, cursor_here - static_cast<int>(visible) / 2)));
 
-        for (size_t k = 0; k < visible && first + k < list.size(); ++k) {
-            const size_t i = first + k;
-            const SDL_FRect row = {panel.x + 20.0f, panel.y + 82.0f + k * row_h,
-                                   list_w, row_h - 4.0f};
+        // The lines as drawn: each part's heading, then its quests. The cursor
+        // is only ever on a quest.
+        struct Line { bool heading; size_t index; };
+        vector<Line> lines;
+        size_t cursor_line = 0;
+        for (size_t i = 0; i < page.rows.size(); ++i) {
+            if (i == 0 || page.rows[i].section != page.rows[i - 1].section)
+                lines.push_back({true, static_cast<size_t>(page.rows[i].section)});
+            if (static_cast<int>(i) == cursor_here) cursor_line = lines.size();
+            lines.push_back({false, i});
+        }
+        // The window of lines the cursor is inside, so a long list scrolls
+        // rather than running off the panel: about half of it above the
+        // cursor, the heading of its part with it where there is room.
+        const float budget = visible * row_h;
+        const auto tall = [&](const Line& l) { return l.heading ? head_h : row_h; };
+        size_t first = cursor_line, last = cursor_line;
+        float used = tall(lines[cursor_line]);
+        while (first > 0 && used + tall(lines[first - 1]) <= budget * 0.5f) used += tall(lines[--first]);
+        while (last + 1 < lines.size() && used + tall(lines[last + 1]) <= budget) used += tall(lines[++last]);
+        while (first > 0 && used + tall(lines[first - 1]) <= budget) used += tall(lines[--first]);
+
+        float ly = panel.y + 82.0f;
+        for (size_t at = first; at <= last && at < lines.size(); ++at) {
+            const Line& line = lines[at];
+            if (line.heading) {
+                // A part's heading: its title and, in the Story tab, the line
+                // under it on its title card; how many of its quests are done.
+                const Journal::Section& sec = page.sections[line.index];
+                const string tally = std::to_string(sec.done) + "/" + std::to_string(sec.count);
+                const float tally_w = ui.Measure(tally, TextSize::Small).x;
+                string head = sec.title;
+                if (quest_tab == Journal::STORY && !sec.sub.empty()) head += "  -  " + sec.sub;
+                head = ui.Fit(head, list_w - tally_w - 26.0f, TextSize::Small);
+                ui.Text(head, panel.x + 24.0f, ly + 5.0f, TextSize::Small, Palette::Highlight);
+                ui.Text(tally, panel.x + 20.0f + list_w - 4.0f, ly + 5.0f, TextSize::Small, Palette::TextDim, Align::Right);
+                ui.Fill({panel.x + 24.0f, ly + head_h - 5.0f, list_w - 8.0f, 1.0f}, Palette::BorderDim);
+                ly += head_h;
+                continue;
+            }
+            const size_t i = line.index;
+            const SDL_FRect row = {panel.x + 20.0f, ly, list_w, row_h - 4.0f};
+            ly += row_h;
             const bool selected = (static_cast<int>(i) == cursor_here);
             const int state = state_of(i);
 
@@ -539,7 +540,8 @@ void Game::DrawQuestPanel() {
                     ui.Text(tag, row.x + row.w - 8.0f, row.y + 5.0f, TextSize::Small, gold, Align::Right);
             }
         }
-        if (list.size() > visible)
+        // More than fits: which quest of how many.
+        if (first > 0 || last + 1 < lines.size())
             ui.Text(std::to_string(cursor_here + 1) + "/" + std::to_string(list.size()),
                     panel.x + 20.0f + list_w, panel.y + 82.0f + visible * row_h, TextSize::Small,
                     Palette::TextDim, Align::Right);

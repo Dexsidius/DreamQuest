@@ -6666,14 +6666,35 @@ without being read: **red** for a quest not started, **blue** for one in hand,
 **green** for one finished. The detail panel says the same word -- *Not
 started*, *In progress*, *Completed* -- in the same colour.
 
-Quests **not yet taken are listed too**, under whatever is in hand and in the
-order they are meant to be met, which is the point of the story tab: what is
-still ahead is as much a part of a journal as what is in it. A quest not yet
-taken shows its first step in place of an objective, and its Combat requirement
-if it has one, in green once you meet it. Dailies are the exception: there are
-dozens of them and they come back every morning, so they are listed only while
-one is actually taken. A list longer than nine rows scrolls with the cursor and
-says where you are in it.
+**Each tab is in sections**, under headings the cursor steps over, each with
+how many of its quests are done (`3/15`):
+
+| Tab | Its headings |
+| --- | --- |
+| **Story** | **Prologue** -- *The Town That Wouldn't Wake*; **Act I** -- *Learning the Rules*; **Act II** -- *WWDD*; then **Tales of the Hollowmarch**, the story quests of no act (Maren's chain, the barrow, the dragon and the rest) |
+| **Tutorials** | **Trades**: the three trades' lessons (a part's own lessons, were any marked tutorial, would come first, alongside it) |
+| **Side quests** | **Alongside Act I** (the Dawn Chimes, supper at Bess's, the gatherers' lessons), **Alongside Act II** (a house in Mossvale), then **Favours**, **The Guild's ledger** and **Boards and orders** |
+
+An act's quests are listed in the order the act tells them, whatever has
+become of them, so where the story has got to reads straight off the page:
+the done ones green above, the one in hand blue, what is still to come red
+below. Under the other headings what is in hand comes first, then what is
+ahead, then what is done. The parts -- their titles as their title cards give
+them, their own quests in order, and what goes alongside each -- are
+`data/chapters.json`, read by `src/systems/journal.*` (`Journal::Build`, which
+the screen only draws); an act with nothing in it yet, Act III so far, is not
+shown. `--screen journal:side:4` opens a tab with the cursor on its fifth
+quest, and `bin\selftest.exe --only journal` checks the parts against the
+quests, the order, and where each kind of quest is headed.
+
+Quests **not yet taken are listed too**, in their place under their heading,
+which is the point of the story tab: what is still ahead is as much a part of
+a journal as what is in it. A quest not yet taken shows its first step in place
+of an objective, and its Combat requirement if it has one, in green once you
+meet it. Dailies are the exception: there are dozens of them and they come back
+every morning, so they are listed only while one is actually taken. A list
+longer than the panel scrolls with the cursor, keeping its heading in view
+where there is room, and says where you are in it.
 
 ### Choosing a reward
 

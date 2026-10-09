@@ -10,6 +10,7 @@
 #include "systems/items.h"
 #include "systems/loot.h"
 #include "systems/quest.h"
+#include "systems/journal.h"
 #include "systems/dialogue.h"
 #include "systems/projectile.h"
 #include "systems/spell.h"
@@ -153,10 +154,9 @@ private:
     void UpdateSkillsPanel();
     void UpdateQuestPanel();
     void UpdateWorldMap();
-    // The ids in one tab of the journal, active first; active_count is how
-    // many of them are still going.
-    void QuestList(int tab, vector<string>& out, size_t& active_count,
-                   size_t& not_started_count) const;
+    // One tab of the journal: its headings, and the quests under them in
+    // order (see Journal::Build).
+    Journal::Page QuestPage(int tab) const;
     static const char* QuestTabName(int tab);
     void UpdateDialogue(float dt);
     void UpdateBoard();
@@ -277,6 +277,8 @@ private:
     // The journal of whoever is being served: Player One's own, or in split
     // screen Player Two's. See ServeSeat.
     QuestLog         own_quests, quests_two;
+    // The story's parts, for the journal's headings (data/chapters.json).
+    QuestChapters    chapters;
     QuestLog*        quests = &own_quests;
     DialogueDatabase dialogue_db;
     ProjectileDatabase projectile_db;

@@ -21,6 +21,7 @@
 #include "../src/world/ambience.h"
 #include "../src/world/ground_paint.h"
 #include "../src/world/weather.h"
+#include "../src/systems/journal.h"
 #include "../src/systems/items.h"
 #include "../src/systems/loot.h"
 #include "../src/systems/quest.h"
@@ -9898,6 +9899,116 @@ static void TestRadialMovement(const Databases& db) {
     }
 }
 
+
+// The quest journal's headings: the story's parts in the Story tab, each with
+// its quests in the order it tells them, the tales after; what goes alongside
+// a part, and the kinds of everything else, in the other tabs. Run with
+// --only journal.
+static void TestJournalSections(const Databases& db) {
+    (void)db;
+    Section("the quest journal: the story's parts, and everything else by what it is");
+    QuestChapters chapters;
+    Check(chapters.Load("data/chapters.json"), "data/chapters.json loads");
+    QuestLog log;
+    log.LoadDefinitions("data/quests.json");
+
+    // Every quest a part names is a quest, and no quest is in two places.
+    string missing, twice;
+    std::set<string> seen;
+    for (const QuestChapter& c : chapters.All())
+        for (const vector<string>* list : {&c.quests, &c.side})
+            for (const string& id : *list) {
+                if (!log.Definition(id)) missing += " " + id;
+                if (!seen.insert(id).second) twice += " " + id;
+            }
+    Check(missing.empty(), "every quest the parts name is in data/quests.json" + missing);
+    Check(twice.empty(), "and none is named twice" + twice);
+    // Every story quest has its part: the prologue's and the acts' own.
+    string loose;
+    for (const auto& kv : log.Definitions()) {
+        const string& id = kv.first;
+        const bool story = id.rfind("q_pro_", 0) == 0 || id.rfind("q_act", 0) == 0 || id.rfind("q_chime_", 0) == 0;
+        if (story && chapters.Of(id) < 0) loose += " " + id;
+    }
+    Check(loose.empty(), "every quest of the prologue and the acts is in its part" + loose);
+    bool own_major = true;
+    for (const QuestChapter& c : chapters.All())
+        for (const string& id : c.quests)
+            if (const QuestDef* d = log.Definition(id)) own_major &= d->major;
+    Check(own_major, "a part's own quests are all story quests (major), so they are listed in the Story tab");
+
+    // A new journal: the parts in order, each as its title card has it, and
+    // only those with something in them -- then the tales.
+    const Journal::Page story = Journal::Build(log, chapters, Journal::STORY);
+    vector<string> titles;
+    for (const Journal::Section& sec : story.sections) titles.push_back(sec.title);
+    Check(titles.size() == 4 && titles[0] == "Prologue" && titles[1] == "Act I" && titles[2] == "Act II" &&
+              titles[3] == "Tales of the Hollowmarch",
+          "the Story tab is headed Prologue, Act I, Act II, then the Tales of the Hollowmarch (an act with no quests yet is not)");
+    Check(story.sections.size() > 1 && story.sections[1].sub == "Learning the Rules", "Act I is 'Learning the Rules', as its title card says");
+    // Act I's quests in the order it tells them.
+    vector<string> act1;
+    for (const Journal::Row& r : story.rows) if (r.section == 1) act1.push_back(r.id);
+    const QuestChapter* first_act = nullptr;
+    for (const QuestChapter& c : chapters.All()) if (c.id == "act1") first_act = &c;
+    Check(first_act && act1 == first_act->quests, "Act I lists its quests in the order it tells them, from Anyone Awake? to Word to the Neighbors");
+    // Every story quest is listed once, and nothing else is in the tab.
+    int majors = 0;
+    for (const auto& kv : log.Definitions()) majors += kv.second.major && !kv.second.daily;
+    std::set<string> listed;
+    for (const Journal::Row& r : story.rows) listed.insert(r.id);
+    Check(static_cast<int>(story.rows.size()) == majors && static_cast<int>(listed.size()) == majors,
+          "every story quest is listed in the Story tab once (" + std::to_string(majors) + ")");
+
+    // In hand and done, it stays where it is in its part.
+    log.Start("q_pro_anyone_awake");
+    log.Start("q_act1_vask");
+    const Journal::Page going = Journal::Build(log, chapters, Journal::STORY);
+    vector<string> act1_now;
+    int vask_state = -1;
+    for (const Journal::Row& r : going.rows)
+        if (going.sections[static_cast<size_t>(r.section)].title == "Act I") {
+            act1_now.push_back(r.id);
+            if (r.id == "q_act1_vask") vask_state = r.state;
+        }
+    Check(act1_now == first_act->quests && vask_state == Journal::IN_HAND && going.in_hand == 2,
+          "a quest taken is in hand where it stands in the act, not pulled to the top");
+
+    // The other tabs: what goes alongside a part, then everything by what it is.
+    const Journal::Page side = Journal::Build(log, chapters, Journal::SIDE);
+    vector<string> side_titles;
+    for (const Journal::Section& sec : side.sections) side_titles.push_back(sec.title);
+    const auto heading_of = [](const Journal::Page& pg, const string& id) {
+        for (const Journal::Row& r : pg.rows)
+            if (r.id == id) return pg.sections[static_cast<size_t>(r.section)].title;
+        return string();
+    };
+    Check(heading_of(side, "q_chime_posy") == "Alongside Act I" && heading_of(side, "q_act2_mossvale_house") == "Alongside Act II",
+          "the Dawn Chimes are listed alongside Act I, the house in Mossvale alongside Act II");
+    string favour;
+    for (const auto& kv : log.Definitions())
+        if (!kv.second.major && !kv.second.tutorial && !kv.second.daily && !kv.second.guild_bounty && chapters.Of(kv.first) < 0) {
+            favour = kv.first;
+            break;
+        }
+    string page_id;
+    for (const auto& kv : log.Definitions()) if (kv.second.guild_bounty) { page_id = kv.first; break; }
+    Check(!favour.empty() && heading_of(side, favour) == "Favours" && heading_of(side, page_id) == "The Guild's ledger",
+          "a favour someone asks is under Favours, a page of the Guild's ledger under the ledger");
+    string order;
+    for (const auto& kv : log.Definitions())
+        if (kv.second.daily && kv.first.rfind("q_order_", 0) == 0) { order = kv.first; break; }
+    Check(heading_of(side, order).empty(), "an order not taken is not listed (there are dozens, every day)");
+    log.Start(order);
+    Check(heading_of(Journal::Build(log, chapters, Journal::SIDE), order) == "Boards and orders",
+          "and taken, it is under Boards and orders");
+    const Journal::Page lessons = Journal::Build(log, chapters, Journal::TUTORIALS);
+    Check(heading_of(lessons, "q_learn_woodcutting") == "Trades", "the tutorials' lessons are under Trades");
+    bool tallied = true;
+    for (const Journal::Section& sec : side.sections) tallied &= sec.count > 0 && sec.done <= sec.count;
+    Check(tallied && side_titles.size() >= 4, "every heading has something under it, and its tally is of what is under it");
+}
+
 int main(int argc, char** argv) {
     // Unbuffered (Windows has no line buffering), so a crash does not take what
     // was printed before it with it.
@@ -9950,6 +10061,7 @@ int main(int argc, char** argv) {
         if (only == "air")         TestAmbientLife(db);
         if (only == "life")        TestLifeAbout(db);
         if (only == "steer")       TestRadialMovement(db);
+        if (only == "journal")     TestJournalSections(db);
         printf("\n%d checks, %d failures\n", g_checks, g_failures);
         return g_failures;
     }
@@ -28476,6 +28588,7 @@ int main(int argc, char** argv) {
     TestAmbientLife(db);
     TestLifeAbout(db);
     TestRadialMovement(db);
+    TestJournalSections(db);
     TestBalanceFixes(db);
     TestLateSpells(db);
     TestLateTreeRows(db);

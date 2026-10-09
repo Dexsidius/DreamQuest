@@ -471,7 +471,15 @@ int Game::Start(int argc, char** argv) {
                 else if (what == "effects")   { OpenPanel(GameState::Options); SetState(GameState::VisualEffects); }
                 else if (what == "options")   OpenPanel(GameState::Options);
                 else if (what == "map")       OpenPanel(GameState::WorldMapPage);
-                else if (what == "journal")   OpenPanel(GameState::QuestPanel);
+                // "journal:side" (or "tutorials", or "story"), and ":12" after it
+                // puts the cursor on the thirteenth quest of the tab.
+                else if (what == "journal")   {
+                    OpenPanel(GameState::QuestPanel);
+                    const size_t c2 = arg.find(':');
+                    const string tab = arg.substr(0, c2);
+                    quest_tab = tab == "side" ? 2 : tab == "tutorials" ? 1 : 0;
+                    if (c2 != string::npos) quest_cursor[quest_tab] = std::max(0, std::atoi(arg.c_str() + c2 + 1));
+                }
                 else if (what == "inventory") OpenPanel(GameState::Inventory);
                 else if (what == "skills")    {
                     skills_tab = 0;
@@ -589,6 +597,8 @@ bool Game::LoadContent() {
     loot.Load("data/loot_tables_armour.json", false);   // optional armour drops
     ok &= own_quests.LoadDefinitions("data/quests.json");
     ok &= quests_two.LoadDefinitions("data/quests.json");
+    // Without it the journal is one list a tab, as it was.
+    chapters.Load("data/chapters.json");
     ok &= dialogue_db.Load("data/dialogue.json");
     // Not a reason to stop: without it there is simply no prologue.
     story.Load("data/story.json");
