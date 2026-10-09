@@ -2688,6 +2688,30 @@
                                                 "w":  32,
                                                 "h":  96
                                             },
+                   "props/hanging_sign_anvil":  {
+                                                    "w":  20,
+                                                    "h":  18
+                                                },
+                   "props/hanging_sign_fish":  {
+                                                   "w":  20,
+                                                   "h":  18
+                                               },
+                   "props/hanging_sign_leaf":  {
+                                                   "w":  20,
+                                                   "h":  18
+                                               },
+                   "props/hanging_sign_mug":  {
+                                                  "w":  20,
+                                                  "h":  18
+                                              },
+                   "props/hanging_sign_shield":  {
+                                                     "w":  20,
+                                                     "h":  18
+                                                 },
+                   "props/hanging_sign_spool":  {
+                                                    "w":  20,
+                                                    "h":  18
+                                                },
                    "props/hay_rick":  {
                                           "w":  56,
                                           "h":  56
@@ -2931,6 +2955,14 @@
                    "props/knight_scrap":  {
                                               "w":  36,
                                               "h":  20
+                                          },
+                   "props/laundry_posts":  {
+                                               "w":  80,
+                                               "h":  80
+                                           },
+                   "props/laundry_wash":  {
+                                              "w":  80,
+                                              "h":  80
                                           },
                    "props/lava_bridge":  {
                                              "w":  128,
@@ -3267,6 +3299,10 @@
                    "props/shop_counter":  {
                                               "w":  96,
                                               "h":  96
+                                          },
+                   "props/sign_bracket":  {
+                                              "w":  26,
+                                              "h":  7
                                           },
                    "props/signpost":  {
                                           "w":  56,

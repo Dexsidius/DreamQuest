@@ -1,6 +1,6 @@
 """The ambient birds: assets/effects/birds.png.
 
-Three birds, a row each -- a sparrow, a crow, an egret -- and six frames each,
+Four birds, a row each -- a sparrow, a crow, an egret, a gull -- and six frames each,
 16 px square, facing right (the game flips them):
 
     0 standing   1 pecking   2 mid-hop   3 wings up   4 wings level   5 wings down
@@ -26,6 +26,10 @@ BIRDS = {
                  beak=(34, 34, 42), legs=(40, 40, 46), scale=1.0, neck=0),
     "egret": dict(body=(238, 238, 232), belly=(226, 226, 220), head=(246, 246, 240), wing=(216, 220, 226),
                   beak=(232, 176, 56), legs=(60, 60, 54), scale=1.0, neck=2),
+    # Over the water at Mossvale and Fernhollow: white, grey-backed, the
+    # wingtips black.
+    "gull": dict(body=(240, 242, 244), belly=(250, 250, 250), head=(246, 246, 246), wing=(166, 176, 188),
+                 beak=(236, 196, 64), legs=(222, 168, 96), scale=1.0, neck=0, tip=(34, 34, 40)),
 }
 
 
@@ -79,6 +83,12 @@ def bird(cols, frame):
         tip = {3: (4.2, 3.8), 4: (5.6, 1.2), 5: (8.4, 4.4)}[frame]
         poly([(5.6, y - 0.6), (9.2, y - 0.6), (tip[0] + 2.8, tip[1]), (tip[0], tip[1] + 0.6)], cols["wing"])
         poly([(5.6, y + 0.6), (9.2, y + 0.6), (tip[0] + 2.8, 2 * y - tip[1]), (tip[0], 2 * y - tip[1] - 0.6)], far)
+        if "tip" in cols:
+            # Black at the ends of both wings.
+            poly([(tip[0] + 1.6, tip[1] + 0.2), (tip[0] + 2.8, tip[1]), (tip[0], tip[1] + 0.6), (tip[0] + 0.4, tip[1] + 1.4)],
+                 cols["tip"])
+            poly([(tip[0] + 1.6, 2 * y - tip[1] - 0.2), (tip[0] + 2.8, 2 * y - tip[1]), (tip[0], 2 * y - tip[1] - 0.6),
+                  (tip[0] + 0.4, 2 * y - tip[1] - 1.4)], cols["tip"])
         poly([(1.2, y - 1.6), (4.6, y), (1.2, y + 1.6)], cols["wing"])
         ell(3.5, y - 1.5, 11.5, y + 1.5, cols["body"])
         ell(10, y - 1.6, 13.4, y + 1.6, cols["head"])

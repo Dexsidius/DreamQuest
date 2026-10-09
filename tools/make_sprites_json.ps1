@@ -27,12 +27,28 @@ Add-Type -AssemblyName System.Drawing
 $charDir = "assets\characters"
 if (-not (Test-Path $charDir)) { throw "No $charDir - run tools/import_assets.ps1 first." }
 
-# Frame size, column count, and the number of non-empty leading frames per row.
-function Get-SheetLayout($path) {
+# The side of a character's frame: a sheet's height over its four rows. The
+# clips a character goes about in (idle, walk, run, sprint) can have eight rows,
+# the four between the four as well, which would read as frames twice the size;
+# so a character's frame is the smallest any of its sheets gives.
+function Get-FrameSize($sheets) {
+    $least = 0
+    foreach ($sheet in $sheets) {
+        $bmp = [System.Drawing.Bitmap]::FromFile($sheet.FullName)
+        try { $f = [int]($bmp.Height / 4) } finally { $bmp.Dispose() }
+        if ($f -gt 0 -and ($least -eq 0 -or $f -lt $least)) { $least = $f }
+    }
+    return $least
+}
+
+# Frame size, column count, rows, and the number of non-empty leading frames per row.
+function Get-SheetLayout($path, $frame) {
     $bmp = [System.Drawing.Bitmap]::FromFile($path)
     try {
-        $frame = [int]($bmp.Height / 4)
+        if ($frame -le 0) { $frame = [int]($bmp.Height / 4) }
         if ($frame -le 0) { return $null }
+        $rows = [int][math]::Round($bmp.Height / $frame)
+        if ($rows -le 0) { return $null }
         $cols = [int]($bmp.Width / $frame)
         if ($cols -le 0) { return $null }
 
@@ -45,7 +61,7 @@ function Get-SheetLayout($path) {
             [Runtime.InteropServices.Marshal]::Copy($data.Scan0, $bytes, 0, $bytes.Length)
 
             $rowFrames = @()
-            for ($r = 0; $r -lt 4; $r++) {
+            for ($r = 0; $r -lt $rows; $r++) {
                 $last = -1
                 for ($c = 0; $c -lt $cols; $c++) {
                     $any = $false
@@ -62,7 +78,7 @@ function Get-SheetLayout($path) {
                 # A row with nothing in it still needs one frame to draw.
                 $rowFrames += [math]::Max(1, $last + 1)
             }
-            return @{ frame = $frame; cols = $cols; rowFrames = $rowFrames }
+            return @{ frame = $frame; cols = $cols; rows = $rows; rowFrames = $rowFrames }
         } finally { $bmp.UnlockBits($data) }
     } finally { $bmp.Dispose() }
 }
@@ -185,12 +201,11 @@ foreach ($dir in (Get-ChildItem $charDir -Directory | Sort-Object Name)) {
     if ($sheets.Count -eq 0) { continue }
 
     $clips = [ordered]@{}
-    $frameSize = 0
+    $frameSize = Get-FrameSize $sheets
 
     foreach ($sheet in $sheets) {
-        $layout = Get-SheetLayout $sheet.FullName
+        $layout = Get-SheetLayout $sheet.FullName $frameSize
         if ($null -eq $layout) { continue }
-        $frameSize = $layout.frame
 
         $rule = $null
         if ($spriteClipRules.ContainsKey($dir.Name)) { $rule = $spriteClipRules[$dir.Name][$sheet.BaseName] }
@@ -204,6 +219,8 @@ foreach ($dir in (Get-ChildItem $charDir -Directory | Sort-Object Name)) {
             loop   = $rule.loop
         }
         if ($rule.fit) { $clip["fit"] = $true }
+        # Eight facings, where the sheet has them.
+        if ($layout.rows -ne 4) { $clip["rows"] = $layout.rows }
 
         # Only record per-row counts when a row is actually short, so the data
         # stays readable and the common case carries no extra noise.

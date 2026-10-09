@@ -41,7 +41,9 @@ net::PlayerState StateOf(const Player& p, uint8_t seat) {
     s.x      = p.x;
     s.y      = p.y;
     s.lift   = p.draw_lift;
-    s.facing = static_cast<uint8_t>(p.facing);
+    // The four-way facing in the low bits, and which of the eight ways they
+    // are drawn turned (plus one) in the high: see Player::Heading.
+    s.facing = static_cast<uint8_t>((static_cast<int>(p.facing) & 3) | ((p.Heading() + 1) << 4));
     s.frame  = static_cast<uint8_t>(std::clamp(p.ClipFrame(), 0, 255));
     s.clip   = p.Clip();
     s.hp     = static_cast<int16_t>(std::clamp(p.hp, 0, 32767));
@@ -1881,7 +1883,8 @@ void Guest::PosePuppets(float dt, net::Client& client, World& world, const GameC
                 lift += (b.state.lift - a.state.lift) * t;
             }
         }
-        g->Pose(x, y, static_cast<Facing>(std::min<uint8_t>(a.state.facing, 3)), a.state.clip, a.state.frame, ctx.items);
+        g->Pose(x, y, static_cast<Facing>(a.state.facing & 3), a.state.clip, a.state.frame, ctx.items,
+                static_cast<int>(a.state.facing >> 4) - 1);
         g->draw_lift = lift;
         g->hp = a.state.hp;
         g->max_hp = std::max<int>(1, a.state.max_hp);

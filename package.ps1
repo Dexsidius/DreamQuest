@@ -340,6 +340,8 @@ Options has an Interface Size for small screens such as a Steam Deck's.
 Options, then Visual Effects, has the Art Style: Cozy (painted ground, soft
 outlines, warm days and dusky nights) or Classic (the tiles as drawn).
 Turning Visual Effects off takes the cloud shadows, birds and wind away too.
+Showers come over the land now and then and pass, fog lies at dawn, and small
+animals about the place run from you; none of it touches the game.
 The full manual is README.md in the source repository:
 https://github.com/Dexsidius/DreamQuest
 "@

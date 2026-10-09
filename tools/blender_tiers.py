@@ -2836,7 +2836,8 @@ OFFHAND_KINDS = ("dagger",)
 
 def weapon_layers(clip_name, models, out_dir):
     _, frames, loops = bc.CLIPS[clip_name]
-    cols, rows = frames, len(bc.FACINGS)
+    facings = bc.facings_for(clip_name)
+    cols, rows = frames, len(facings)
 
     bc.clear_scene()
     bc._materials.clear()
@@ -2845,7 +2846,7 @@ def weapon_layers(clip_name, models, out_dir):
     right, up = bc.camera_basis()
 
     occluders, own_sword, grips, grips_left = [], [], [], []
-    for row, (facing, turn) in enumerate(bc.FACINGS):
+    for row, (facing, turn) in enumerate(facings):
         for col in range(frames):
             t = col / float(frames) if loops else col / float(frames - 1)
             joints, groups, extras = bc.build_character()

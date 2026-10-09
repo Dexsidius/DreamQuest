@@ -1,4 +1,5 @@
 #include "world.h"
+#include "weather.h"
 #include "../input.h"
 #include "../systems/loot.h"
 #include "../systems/quest.h"
@@ -53,6 +54,7 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
     impacts.clear();
     dust.clear();
     motes.clear();
+    sparks.clear();
     shots_seen.clear();
     queued_shots.clear();
     slabs.clear();
@@ -103,6 +105,7 @@ bool World::LoadMap(const string& id, const string& spawn, const GameContext& ct
     camera.SetBounds(map.Width(), map.Height());
     camera.SnapTo(player.x, player.y);
     ambience.SetKind(map.Ambient(), map.IsInterior());
+    ambience.SetPlace(map);
     Audio::SetAmbience(map.Ambient(), map.IsInterior());
     Audio::SetListener(player.x, player.y);
     if (ctx.quests) {
@@ -773,7 +776,7 @@ void World::HandOver(World& to) {
     to.next_net_id = std::max(to.next_net_id, next_net_id);
     enemies.clear(); npcs.clear(); pickups.clear(); projectiles.clear();
     ground_effects.clear(); impacts.clear(); guests.clear(); seat_states.clear();
-    motes.clear(); shots_seen.clear();
+    motes.clear(); sparks.clear(); shots_seen.clear();
     // Whoever either host seat was fighting has changed hands.
     targeting.Clear();
     to.targeting.Clear();
@@ -1272,15 +1275,44 @@ void World::Update(float dt, const GameContext& ctx) {
         ambience.Update(dt, camera, Air());
         Audio::SetListener(player.x, player.y);
     }
+    UpdateNearSounds(dt);
+}
+
+void World::UpdateNearSounds(float dt) {
+    // The rain on the roof or in the trees; the water lapping at the shore
+    // and the lava's rumble, as much as there is of each in earshot.
+    const bool outdoors = !map.IsInterior() && !InDream();
+    const float shower = Weather::RainsOn(map.Ambient()) && !InDream() ? Weather::Rain(clock.Seconds()) : 0.0f;
+    Audio::SetWeather(shower, !outdoors);
+    if ((near_sound_wait -= dt) > 0.0f) return;
+    near_sound_wait = 0.25f;
+    const float lx = cam_hold.on ? cam_hold.x : player.x, ly = cam_hold.on ? cam_hold.y : player.y;
+    const SDL_FRect ear{lx - 240.0f, ly - 180.0f, 480.0f, 360.0f};
+    vector<SDL_FPoint> spots;
+    map.SurfaceSpots(ear, Shaders::WATER, 48.0f, spots);
+    const float water = std::min(1.0f, static_cast<float>(spots.size()) / 14.0f);
+    spots.clear();
+    map.SurfaceSpots(ear, Shaders::LAVA, 48.0f, spots);
+    const float lava = std::min(1.0f, static_cast<float>(spots.size()) / 10.0f);
+    Audio::SetNearby(outdoors ? water : 0.0f, outdoors || map.Ambient() == "dungeon" ? lava : 0.0f,
+                     outdoors && (map.Ambient() == "forest" || map.Ambient() == "grove"));
 }
 
 Ambience::World World::Air() const {
     Ambience::World a;
     a.daylight = (InDream() || map.IsInterior()) ? 0.0f : 1.0f - clock.Darkness();
+    a.sun = InDream() ? 0.0f : 1.0f - clock.Darkness();
+    a.hour = clock.Hours();
     a.lively = Shaders::Effects();
-    if (!player.absent) a.walkers.push_back({player.x, player.y});
+    // A shower falls on the open land, and soaks it; under a roof it is only
+    // heard (UpdateNearSounds), and nothing falls in a dream.
+    if (!InDream() && !map.IsInterior() && Weather::RainsOn(map.Ambient())) {
+        a.rain = Weather::Rain(clock.Seconds());
+        a.wet = Weather::Wet(clock.Seconds());
+    }
+    if (!player.absent) a.walkers.push_back({player.x, player.y, player.Sprinting()});
     for (const auto& g : guests)
-        if (g) a.walkers.push_back({g->x, g->y});
+        if (g) a.walkers.push_back({g->x, g->y, g->Sprinting()});
     // Open, level ground: nothing solid, no water, nothing that burns, and
     // not up on a bank (a bird stands where the ground is drawn).
     a.stand = [this](float x, float y) {

@@ -504,6 +504,9 @@ bool Map::Load(const string& path) {
                 m.tie_dy = o["tie_at"][1].get<float>();
             }
             if (o.contains("slack")) m.slack = FlagCond::FromJson(o["slack"]);
+            m.species = o.value("species", string(""));
+            m.count   = o.value("count", 0);
+            m.radius  = o.value("radius", 0.0f);
             if (o.contains("light") && o["light"].is_object()) {
                 const json& l = o["light"];
                 if (l.contains("colour") && l["colour"].is_array() && l["colour"].size() >= 3)
@@ -902,7 +905,7 @@ void Map::RenderLayer(SDL_Renderer* r, TextureCache& cache,
             // Water runs and lava churns, and a tuft of grass lying on the
             // ground stirs in the wind (all no-ops off the GPU renderer).
             Shaders::UseTile(r, static_cast<Shaders::Surface>(SurfaceOf(t.tex)), ArtOf(t.tex).kind,
-                             layer != LAYER_GROUND);
+                             layer != LAYER_GROUND, &t.rect, ArtOf(t.tex).tavern);
 
             // Shaded by its level, dyed by the dress. Put back after: the
             // same texture is the next map's floor.
@@ -984,7 +987,7 @@ void Map::RenderTile(SDL_Renderer* r, TextureCache& cache, const Camera& cam,
     // Standing scenery: its own shader if it moves or lights, and in the Cozy
     // look its outline either way.
     const bool shaded = kind != Shaders::PROP_NONE || Shaders::Cozy();
-    if (shaded) Shaders::UseTile(r, Shaders::PLAIN, kind, true);
+    if (shaded) Shaders::UseTile(r, Shaders::PLAIN, kind, true, &t.rect, ArtOf(t.tex).tavern);
     if (t.lean != 0.0f) {
         // A house in a dream leans: its foot where it stands, its top pushed
         // over -- sheared, not turned, so its floors stay level -- and swaying

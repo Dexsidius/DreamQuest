@@ -5,6 +5,67 @@
 
 static constexpr float COMBO_WINDOW   = 0.42f;
 static constexpr float RUN_THRESHOLD  = 0.62f;
+// How fast the way they are drawn turns to follow the stick, in radians a
+// second: about a fifth of a second to turn right round.
+static constexpr float TURN_RATE      = 15.0f;
+// How far past the halfway mark between two facings the stick has to go
+// before the facing changes, in radians.
+static constexpr float FACING_HOLD    = 0.14f;
+// How quickly the pace eases toward what the stick asks: getting going, and
+// slowing or stopping (per second, as an exponential).
+static constexpr float PACE_UP        = 22.0f;
+static constexpr float PACE_DOWN      = 30.0f;
+
+namespace {
+constexpr float kPi = 3.14159265f;
+float Wrap(float a) {
+    while (a > kPi) a -= 2.0f * kPi;
+    while (a < -kPi) a += 2.0f * kPi;
+    return a;
+}
+// The eight ways, by the angle each points (0 right, a quarter turn down...),
+// and the sheet row each is drawn from (Sprite::heading).
+constexpr int kRowOfEighth[8] = {FACE_RIGHT, 5, FACE_DOWN, 4, FACE_LEFT, 6, FACE_UP, 7};
+constexpr int kEighthOfRow[8] = {2, 4, 0, 6, 3, 1, 5, 7};
+// And the four.
+constexpr Facing kFacingOfQuarter[4] = {FACE_RIGHT, FACE_DOWN, FACE_LEFT, FACE_UP};
+int QuarterOf(Facing f) {
+    switch (f) {
+        case FACE_RIGHT: return 0;
+        case FACE_DOWN:  return 1;
+        case FACE_LEFT:  return 2;
+        default:         return 3;
+    }
+}
+}   // namespace
+
+void Player::HeadToward(Facing f) {
+    heading_angle = static_cast<float>(QuarterOf(f)) * kPi * 0.5f;
+    heading_row = static_cast<int>(f);
+    steered = f;
+}
+
+void Player::Steer(const Vec2& move, float dt) {
+    const float want = atan2f(move.y, move.x);
+    // Which of the four: the nearest, unless the one already faced is still
+    // within a little past its halfway marks.
+    const float quarter = kPi * 0.5f;
+    const int held = QuarterOf(facing);
+    if (fabsf(Wrap(want - held * quarter)) > quarter * 0.5f + FACING_HOLD) {
+        const int q = (static_cast<int>(std::lround(want / quarter)) % 4 + 4) % 4;
+        facing = kFacingOfQuarter[q];
+    }
+    steered = facing;
+    // The way they are drawn swings round toward it the short way.
+    const float step = TURN_RATE * dt;
+    heading_angle = Wrap(heading_angle + std::clamp(Wrap(want - heading_angle), -step, step));
+    const float eighth = kPi * 0.25f;
+    const int now = kEighthOfRow[std::clamp(heading_row, 0, 7)];
+    if (fabsf(Wrap(heading_angle - now * eighth)) > eighth * 0.5f + FACING_HOLD * 0.6f) {
+        const int e = (static_cast<int>(std::lround(heading_angle / eighth)) % 8 + 8) % 8;
+        heading_row = kRowOfEighth[e];
+    }
+}
 static constexpr float KNOCK_DECAY    = 9.0f;
 static constexpr float DEATH_DURATION = 2.4f;
 
@@ -1419,11 +1480,15 @@ const Enemy* Player::LockedTarget(const World& world) const {
     return local ? world.targeting.Locked() : nullptr;
 }
 
-void Player::Pose(float px, float py, Facing face, const string& clip, int frame, const ItemDatabase* db) {
+void Player::Pose(float px, float py, Facing face, const string& clip, int frame, const ItemDatabase* db,
+                  int heading) {
     x = px;
     y = py;
     facing = face;
     sprite.facing = face;
+    heading_row = heading >= 0 && heading < 8 ? heading : static_cast<int>(face);
+    sprite.heading = heading_row;
+    sprite.heading_for = face;
     sprite.style = BuildLayerStyle(db);
     sprite.Play(clip.empty() ? string("idle") : clip);
     sprite.SetFrame(frame);
@@ -2130,7 +2195,9 @@ void Player::UpdateAnimation(const Vec2& move) {
         return;
     }
     else                          sprite.Play("run");
-    if (own_speed) sprite.speed_scale = 1.0f;
+    // A light tilt of the stick is a slow walk, and the feet keep step with it
+    // rather than treading air.
+    if (own_speed) sprite.speed_scale = mag < RUN_THRESHOLD ? std::clamp(mag / RUN_THRESHOLD, 0.45f, 1.0f) : 1.0f;
 }
 
 void Player::Update(float dt, World& world, const GameContext& ctx) {
@@ -2452,20 +2519,25 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     // lock on, face the locked monster, so the next shot does not have to turn.
     // Behind a shield, keep it between you and whatever you are fighting while
     // you step: turning to walk away would turn the guard away with you.
+    // Turned some other way since the stick last turned them -- a blow struck
+    // at a target, a lunge, a leap -- the way they are drawn turns with it.
+    if (facing != steered) HeadToward(facing);
     const Enemy* guard_target = blocking ? CurrentTarget(world) : nullptr;
     if (guard_target) {
         const SDL_FPoint a = Targeting::AimPoint(*guard_target);
         FacePoint(a.x, a.y);
     } else if (!attack.Active() && Length(move.x, move.y) > 0.05f) {
-        if (fabsf(move.x) > fabsf(move.y)) facing = (move.x > 0) ? FACE_RIGHT : FACE_LEFT;
-        else                               facing = (move.y > 0) ? FACE_DOWN  : FACE_UP;
+        Steer(move, dt);
     } else if (!attack.Active()) {
         if (const Enemy* t = LockedTarget(world)) {
             const SDL_FPoint a = Targeting::AimPoint(*t);
             FacePoint(a.x, a.y);
         }
     }
+    if (facing != steered) HeadToward(facing);
     sprite.facing = facing;
+    sprite.heading = heading_row;
+    sprite.heading_for = facing;
 
     // --- movement ------------------------------------------------------------
     float speed = move_speed * (1.0f + talents.Global("move_speed"));
@@ -2481,8 +2553,19 @@ void Player::Update(float dt, World& world, const GameContext& ctx) {
     else if (charging)        speed *= 0.42f;      // charging slows you to a walk
     else if (blocking || parrying) speed *= BLOCK_MOVE_SCALE;
 
-    float dx = move.x * speed * dt;
-    float dy = move.y * speed * dt;
+    // Eased toward what the stick asks: quicker to slow than to get going.
+    // Held fast, they stop where they stand.
+    if (Held()) {
+        walk_vel = {0.0f, 0.0f};
+    } else {
+        const float want_x = move.x * speed, want_y = move.y * speed;
+        const bool faster = Length(want_x, want_y) > Length(walk_vel.x, walk_vel.y);
+        const float k = 1.0f - std::exp(-(faster ? PACE_UP : PACE_DOWN) * dt);
+        walk_vel.x += (want_x - walk_vel.x) * k;
+        walk_vel.y += (want_y - walk_vel.y) * k;
+    }
+    float dx = walk_vel.x * dt;
+    float dy = walk_vel.y * dt;
     // The leap carries the character its whole distance through the flight,
     // and stops them where they land.
     if (rushing) {

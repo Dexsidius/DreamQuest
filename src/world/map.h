@@ -385,6 +385,12 @@ struct MapObject {
     string   tie;
     float    tie_dx = 0.0f, tie_dy = 0.0f;
     FlagCond slack;
+    // Where some of the small life about the place lives ("critters"): the
+    // hens' yard (`species` "hen", `count` of them, about it within `radius`),
+    // a cat's step ("cat"), water gulls wheel over ("gull"). See Ambience.
+    string species;
+    int    count = 0;
+    float  radius = 0.0f;
 };
 
 // A skill the story has not given the player yet: while `when` holds, the

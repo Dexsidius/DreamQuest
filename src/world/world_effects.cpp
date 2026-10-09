@@ -477,6 +477,15 @@ void World::UpdateChimneys(float dt) {
         m.drag = 0.12f;
         m.gravity = -2.0f;
         motes.push_back(m);
+        // A forge's chimney throws sparks up with its smoke: quick, bright,
+        // and out before they have gone far.
+        for (int k = 0; o.id.find("forge") != string::npos && k < 2; ++k) {
+            Mote s = Speck(o.x + Between(-2.0f, 2.0f), o.y - 2.0f, breeze * Between(0.4f, 1.4f) + Between(-6.0f, 6.0f),
+                           -Between(34.0f, 56.0f), Between(0.5f, 0.9f), 1.0f, {255, 214, 120, 255}, {220, 70, 20, 0});
+            s.drag = 0.6f;
+            s.gravity = 8.0f;
+            sparks.push_back(s);
+        }
     }
 }
 
@@ -501,6 +510,17 @@ void World::Steam(float x, float y, float size) {
 }
 
 void World::UpdateMotes(float dt) {
+    for (Mote& m : sparks) {
+        m.life -= dt;
+        m.vy += m.gravity * dt;
+        const float keep = std::max(0.0f, 1.0f - m.drag * dt);
+        m.vx *= keep;
+        m.vy *= keep;
+        m.x += m.vx * dt;
+        m.y += m.vy * dt;
+    }
+    sparks.erase(std::remove_if(sparks.begin(), sparks.end(), [](const Mote& m) { return m.life <= 0.0f; }), sparks.end());
+    if (sparks.size() > 120) sparks.erase(sparks.begin(), sparks.begin() + (sparks.size() - 120));
     for (Mote& m : motes) {
         m.life -= dt;
         m.vy += m.gravity * dt;
@@ -522,6 +542,11 @@ void World::AddDust(float x, float y, float dir_x, float dir_y) {
     // travel and spreading as they fade.
     static std::mt19937 rng(0xD057);
     std::uniform_real_distribution<float> u(-1.0f, 1.0f);
+    // What it is depends on the ground: dust off earth and roads, grey off ash,
+    // white off snow and salt, bits of grass, drops off the wet; nothing off
+    // floorboards.
+    const SDL_Color colour = ambience.KickedUp(x, y);
+    if (colour.a == 0) return;
     const int n = 2 + static_cast<int>(rng() % 2);
     for (int i = 0; i < n; ++i) {
         Dust d;
@@ -531,6 +556,7 @@ void World::AddDust(float x, float y, float dir_x, float dir_y) {
         d.vy = -dir_y * 10.0f - 5.0f + u(rng) * 3.0f;
         d.life = d.max_life = 0.38f + 0.12f * u(rng);
         d.size = 2.2f + 0.8f * u(rng);
+        d.colour = colour;
         dust.push_back(d);
     }
     if (dust.size() > 64) dust.erase(dust.begin(), dust.begin() + (dust.size() - 64));

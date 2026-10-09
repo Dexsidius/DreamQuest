@@ -3057,6 +3057,88 @@ static void BuildDreamHavenbrook(const MapBuilder& town);
 // is a dream of: see "The dream lands".
 static void BuildDreamLand(const MapBuilder& waking, const string& land);
 
+// --- the life of a village (see Ambience) --------------------------------------------------
+//
+// A washing line wherever one of the places tried has room for it; a sign over
+// each shop's door, swinging in the wind; the yard the hens scratch about in,
+// the step a cat sleeps on, and the water the gulls wheel over ("critters"
+// objects: the game puts the animals there).
+
+// Room for something `w` wide and `h` deep standing at (x, y): nothing solid
+// and no other standing picture in the way.
+static bool RoomFor(const MapBuilder& m, int x, int y, int w, int h) {
+    for (int dx = -w / 2; dx <= w / 2; dx += 12)
+        for (int dy = -h; dy <= 8; dy += 8)
+            if (!m.Clear(x + dx, y + dy)) return false;
+    return !m.Standing(x - w / 2, y - h, w, h + 8);
+}
+
+static bool WashingLine(MapBuilder& m, std::initializer_list<std::pair<int, int>> tries) {
+    for (const auto& [x, y] : tries) {
+        if (!RoomFor(m, x, y, 92, 44)) continue;
+        // Two pictures in the same spot: the posts and the line, which stand
+        // still, and the wash, which the wind takes.
+        m.Prop("props", "laundry_posts", x, y);
+        m.Prop("props", "laundry_wash", x, y);
+        // The posts are solid; under the line is not.
+        m.Collision(x - 41, y - 6, 8, 6);
+        m.Collision(x + 33, y - 6, 8, 6);
+        return true;
+    }
+    return false;
+}
+
+// A shop's sign, hung from an iron arm to the right of its door (at door_x,
+// with the building's foot at foot_y): the board swings, the arm does not.
+static void HangSign(MapBuilder& m, const string& id, const string& what, int door_x, int foot_y) {
+    const int x = door_x + 38, y = foot_y + 1;
+    json& sign = m.Object(id, "hanging_sign", x, y);
+    sign["sprite"] = "assets/props/hanging_sign_" + what + ".png";
+    sign["lift"] = 34;
+    // The arm's foot (its picture's bottom) where the chains begin, and its
+    // wall end just past the door's frame.
+    json& arm = m.Object(id + "_arm", "decor", x - 8, y);
+    arm["sprite"] = "assets/props/sign_bracket.png";
+    arm["lift"] = 34 + 18 - 1;
+}
+
+static void Critters(MapBuilder& m, const string& id, const string& species, int x, int y, int count, int radius) {
+    json& o = m.Object(id, "critters", x, y);
+    o["species"] = species;
+    o["count"] = count;
+    o["radius"] = radius;
+}
+
+static void TownLife(MapBuilder& m, const string& id) {
+    const auto WashingLine = [&](std::initializer_list<std::pair<int, int>> tries) {
+        if (!::WashingLine(m, tries)) printf("  %s: no room for a washing line where it was tried\n", id.c_str());
+    };
+    if (id == "town_havenbrook") {
+        // Havenbrook keeps its own hens, to be caught (data/enemies.json): no
+        // more of them here as scenery.
+        WashingLine({{288, 470}, {1150, 1000}, {1240, 900}, {150, 560}, {760, 1180}});
+        WashingLine({{2000, 470}, {1850, 330}, {600, 1240}, {320, 1250}});
+        HangSign(m, "sign_hang_inn", "mug", 1410, 20 * 32);
+        HangSign(m, "sign_hang_forge", "anvil", 14 * 32, 33 * 32);
+        HangSign(m, "sign_hang_guild", "shield", 28 * 32 + 16, 14 * 32);
+        Critters(m, "cat_maren", "cat", 300, 20 * 32 + 24 + 14, 1, 0);
+        Critters(m, "cat_inn", "cat", 1384, 20 * 32 + 16, 1, 0);
+    } else if (id == "mossvale") {
+        WashingLine({{300, 610}, {560, 700}, {300, 1050}, {700, 1260}, {1300, 1300}});
+        HangSign(m, "sign_hang_weaver", "spool", 20 * 32 + 16, 13 * 32);
+        HangSign(m, "sign_hang_lodge", "mug", 30 * 32 + 16, 16 * 32);
+        HangSign(m, "sign_hang_herbalist", "leaf", 12 * 32 + 16, 37 * 32);
+        Critters(m, "hens_mossvale", "hen", 700, 1000, 4, 56);
+        Critters(m, "cat_lodge", "cat", 30 * 32 + 16 - 32, 16 * 32 + 16, 1, 0);
+    } else if (id == "fernhollow") {
+        WashingLine({{880, 905}, {300, 470}, {250, 600}, {560, 860}});
+        HangSign(m, "sign_hang_ferry", "fish", 12 * 32 + 16, 11 * 32);
+        Critters(m, "hens_fernhollow", "hen", 930, 862, 3, 46);
+        Critters(m, "cat_ferry", "cat", 12 * 32 + 16 - 30, 11 * 32 + 22, 1, 0);
+        Critters(m, "gulls_pond", "gull", 1040, 470, 3, 200);
+    }
+}
+
 static void BuildTown() {
     // Sixteen columns wider than it was, for the farm: everything else in the
     // town is placed from the west wall or from the crossroads, and the fence,
@@ -3682,6 +3764,7 @@ static void BuildTown() {
         else                m.Prop("objects", Pick(kSmallBushes, rng), x, y);
     }
 
+    TownLife(m, "town_havenbrook");
     pro::Town(m);
     act1::Town(m);
     act2::Interior(m, "town_havenbrook");
@@ -8288,6 +8371,7 @@ static void BuildMossvale() {
     m.Spawn("default", (sq_cx - 2) * CELL, (sq_cy + 3) * CELL);
     m.Spawn("respawn", (sq_cx - 2) * CELL, (sq_cy + 3) * CELL);
 
+    TownLife(m, "mossvale");
     act1::Interior(m, "mossvale");
     m.Write("maps");
 }
@@ -8894,6 +8978,7 @@ static void BuildFernhollow() {
     m.Spawn("default",    gate_col * CELL + 16, 20 * CELL);
     m.Spawn("respawn",    gate_col * CELL + 16, 20 * CELL);
 
+    TownLife(m, "fernhollow");
     act1::Interior(m, "fernhollow");
     m.Write("maps");
 }

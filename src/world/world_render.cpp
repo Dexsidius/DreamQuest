@@ -7,6 +7,7 @@
 //  world_render. Nothing but where a function lives changed when it was cut.
 // -----------------------------------------------------------------------------
 #include "world.h"
+#include "weather.h"
 #include "../input.h"
 #include "../systems/loot.h"
 #include "../systems/quest.h"
@@ -85,7 +86,13 @@ SDL_Color World::PlainAmbient() const {
     float dark = clock.Darkness();
     float warm = clock.Warmth() * (1.0f - dark * 0.7f);
     if (map.IsInterior()) { dark *= 0.5f; warm *= 0.3f; }
-    if (dark <= 0.001f && warm <= 0.001f) return white;
+    // A shower darkens the day under its cloud, and indoors the windows' light.
+    const float shower = Weather::RainsOn(map.Ambient()) ? Weather::Rain(clock.Seconds()) : 0.0f;
+    const float grey = 1.0f - (map.IsInterior() ? 0.12f : 0.3f) * shower;
+    if (dark <= 0.001f && warm <= 0.001f) {
+        if (shower <= 0.001f) return white;
+        return {static_cast<Uint8>(255.0f * grey), static_cast<Uint8>(255.0f * grey), static_cast<Uint8>(255.0f * (grey + 0.04f * shower)), 255};
+    }
 
     // The Cozy look's night is a dusk: bluer, and not as deep.
     const SDL_Color night = Shaders::Cozy() ? SDL_Color{78, 90, 160, 255} : SDL_Color{84, 96, 156, 255};
@@ -94,8 +101,20 @@ SDL_Color World::PlainAmbient() const {
         const float c = base + (n - base) * dark;
         return static_cast<Uint8>(std::clamp(c * (1.0f + (s / 255.0f - 1.0f) * warm * 0.6f), 0.0f, 255.0f));
     };
-    return {mix(255.0f, night.r, sunset.r), mix(255.0f, night.g, sunset.g),
-            mix(255.0f, night.b, sunset.b), 255};
+    SDL_Color out{mix(255.0f, night.r, sunset.r), mix(255.0f, night.g, sunset.g), mix(255.0f, night.b, sunset.b), 255};
+    // Under the Frostreach's aurora the night is a little green.
+    if (map.Id().rfind("frost_", 0) == 0 && dark > 0.3f && Shaders::Effects()) {
+        const float k = (dark - 0.3f) / 0.7f * 0.35f;
+        out.r = static_cast<Uint8>(out.r + (70 - out.r) * k);
+        out.g = static_cast<Uint8>(out.g + (140 - out.g) * k);
+        out.b = static_cast<Uint8>(out.b + (140 - out.b) * k);
+    }
+    if (shower > 0.0f) {
+        out.r = static_cast<Uint8>(out.r * grey);
+        out.g = static_cast<Uint8>(out.g * grey);
+        out.b = static_cast<Uint8>(std::min(255.0f, out.b * (grey + 0.04f * shower)));
+    }
+    return out;
 }
 
 vector<Light> World::CollectLights() const {
@@ -615,7 +634,7 @@ SDL_FPoint World::ShieldDome(const Player& who) {
     return {std::max(wide * 0.5f + 11.0f, high * 0.52f), high};
 }
 
-void World::DrawMotes(SDL_Renderer* r) const {
+void World::DrawMoteList(SDL_Renderer* r, const vector<Mote>& motes) const {
     if (motes.empty()) return;
     const float z = camera.zoom;
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
@@ -680,7 +699,7 @@ static float FeetAbove(const Sprite& s, TextureCache& cache) {
     if (!tex) return 0.0f;
     float tw = 0, th = 0;
     SDL_GetTextureSize(tex, &tw, &th);
-    const float fh = th / std::max(1, def->rows);
+    const float fh = th / std::max(1, idle->rows > 0 ? idle->rows : def->rows);
     const SDL_FRect ob = cache.OpaqueBounds(idle->sheet);
     float bottom = fmodf((ob.y + ob.h) * th, fh);
     if (bottom < 0.5f) bottom = fh;
@@ -989,7 +1008,7 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
         const float px = roundf(p.x / camera.zoom) * camera.zoom - size / 2.0f;
         const float py = roundf(p.y / camera.zoom) * camera.zoom - size / 2.0f;
         SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
-        SDL_SetRenderDrawColor(r, 214, 196, 160, static_cast<Uint8>(150 * t));
+        SDL_SetRenderDrawColor(r, d.colour.r, d.colour.g, d.colour.b, static_cast<Uint8>(d.colour.a * t));
         const SDL_FRect puff = {px, py, size, size};
         SDL_RenderFillRect(r, &puff);
     }
@@ -1076,6 +1095,12 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
         queue.push_back({player.SortY(), 1, &player});
     for (const auto& g : guests)
         if (!g->under_ice && RectsOverlap(g->BodyBox(), view)) queue.push_back({g->SortY(), 1, g.get()});
+    // The small animals about the place, standing among everything else:
+    // their index rides in the pointer (see case 6).
+    vector<Ambience::Standing> critters;
+    ambience.CollectStanding(view, critters);
+    for (const Ambience::Standing& c : critters)
+        queue.push_back({c.sort_y, 6, reinterpret_cast<const void*>(static_cast<intptr_t>(c.index))});
 
     std::stable_sort(queue.begin(), queue.end(),
                      [](const Item& a, const Item& b) { return a.sort_y < b.sort_y; });
@@ -1233,8 +1258,32 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
                 if (!awake) SDL_SetTextureColorMod(tex, 255, 255, 255);
                 break;
             }
+            case 6:
+                ambience.DrawStanding(r, camera, static_cast<int>(reinterpret_cast<intptr_t>(it.ptr)));
+                break;
             case 3: {
                 const MapObject* o = static_cast<const MapObject*>(it.ptr);
+                // A shop's sign hanging out over the street, swinging from the
+                // middle of its top edge in the wind: harder in a gust, and
+                // each to its own beat.
+                if (o->type == "hanging_sign") {
+                    SDL_Texture* tex = cache.Get(o->sprite);
+                    if (!tex) break;
+                    float tw = 0, th = 0;
+                    SDL_GetTextureSize(tex, &tw, &th);
+                    const SDL_FRect world = {o->x - tw / 2.0f, o->y - th - o->lift, tw, th};
+                    const SDL_FRect dst = camera.ToScreenRect(world);
+                    const float now = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+                    const float g = Shaders::GustAt(o->x, o->y);
+                    const float wind = map.IsInterior() ? 0.0f : Shaders::OutdoorWind();
+                    const double degrees = (2.5f + 9.0f * g * g) * wind * sinf(now * 2.6f + o->x * 0.037f) +
+                                           4.0f * g * wind;
+                    const SDL_FPoint pivot = {dst.w / 2.0f, 0.0f};
+                    if (Shaders::Cozy()) Shaders::UseTile(r, Shaders::PLAIN, Shaders::PROP_NONE, true);
+                    SDL_RenderTextureRotated(r, tex, nullptr, &dst, degrees, &pivot, SDL_FLIP_NONE);
+                    if (Shaders::Cozy()) Shaders::UsePlain(r);
+                    break;
+                }
                 // A strange thing in the grass: its own icon, lifted a little
                 // off the ground, with a faint light under it and now and then
                 // a glint off it -- so somebody looking finds it, and somebody
@@ -1313,7 +1362,9 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
                                                       : Shaders::ArtOf(used ? o->sprite_open : o->sprite).kind;
                 // And in the Cozy look, its outline either way.
                 const bool shaded = kind != Shaders::PROP_NONE || Shaders::Cozy();
-                if (shaded) Shaders::UseTile(r, Shaders::PLAIN, kind, true);
+                if (shaded)
+                    Shaders::UseTile(r, Shaders::PLAIN, kind, true, &world,
+                                     Shaders::ArtOf(used ? o->sprite_open : o->sprite).tavern);
                 SDL_SetTextureAlphaMod(tex, alpha);
                 if (dulled) SDL_SetTextureColorMod(tex, 118, 112, 108);
                 SDL_RenderTexture(r, tex, nullptr, &dst);
@@ -2115,6 +2166,8 @@ void World::Render(SDL_Renderer* r, TextureCache& cache) const {
     lighting.Render(r, camera, AmbientLight(), lights, &lit);
     // And what is lit from inside, shining through it: see world_screen.cpp.
     DrawGlows(r, cache, decor);
+    // Sparks over the night: see World::sparks.
+    DrawMoteList(r, sparks);
 
     // Leaves, fireflies and dust, and the vignette -- over the world, under
     // the bars and the HUD.

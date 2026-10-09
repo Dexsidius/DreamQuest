@@ -803,6 +803,50 @@ Buf MakeCricket(uint32_t seed) {
     return b;
 }
 
+// A frog in the reeds after dark: a low throaty "rib-bit", two buzzing
+// pulses, the second a little higher.
+Buf MakeFrog(uint32_t seed) {
+    Noise n(seed);
+    Buf b = Blank(0.6f);
+    const float f = n.Range(170.0f, 260.0f);
+    const int calls = 1 + static_cast<int>(n.Unit() * 2.0f);
+    float t = 0.0f;
+    for (int c = 0; c < calls; ++c) {
+        Tone(b, t, 0.09f, f, f * 0.92f, 1.0f, 0.004f, 0.05f, SAW);
+        Tone(b, t + 0.12f, 0.11f, f * 1.18f, f * 1.05f, 0.9f, 0.004f, 0.06f, SAW);
+        t += 0.26f + n.Range(0.0f, 0.06f);
+    }
+    LowpassAll(b, 900.0f);
+    Normalize(b, 0.12f);
+    return b;
+}
+
+// An owl in the woods at night: a soft "hoo, hoo-hoo", a long way off.
+Buf MakeOwl(uint32_t seed) {
+    Noise n(seed);
+    Buf b = Blank(1.6f);
+    const float f = n.Range(330.0f, 420.0f);
+    Tone(b, 0.0f, 0.34f, f * 1.04f, f * 0.94f, 1.0f, 0.08f, 0.2f);
+    Tone(b, 0.62f, 0.18f, f, f * 0.96f, 0.8f, 0.05f, 0.1f);
+    Tone(b, 0.84f, 0.40f, f * 1.02f, f * 0.9f, 0.9f, 0.06f, 0.24f);
+    LowpassAll(b, 1400.0f);
+    Echo(b, 0.21f, 0.25f, 2);
+    Normalize(b, 0.09f);
+    return b;
+}
+
+// A bubble of lava breaking: a thick low bloop.
+Buf MakeBloop(uint32_t seed) {
+    Noise n(seed);
+    Buf b = Blank(0.4f);
+    const float f = n.Range(70.0f, 120.0f);
+    Tone(b, 0.0f, 0.22f, f, f * 1.9f, 1.0f, 0.01f, 0.12f);
+    Hiss(b, 0.15f, 0.12f, 0.4f, 0.002f, 0.08f, 900.0f, 300.0f, 60.0f, seed * 3 + 1);
+    LowpassAll(b, 700.0f);
+    Normalize(b, 0.14f);
+    return b;
+}
+
 // A dream chime: a soft bell a long way off, with an echo.
 Buf MakeChime(uint32_t seed) {
     Noise n(seed);
@@ -1638,7 +1682,7 @@ struct State {
     bool built = false;
 
     vector<Buf> bank;
-    vector<Buf> birds, drips, crackles, crickets, chimes;
+    vector<Buf> birds, drips, crackles, crickets, chimes, frogs, owls, bloops;
     // The menu's theme takes a few hundred milliseconds to make, so it is made
     // on a thread of its own while the game starts, and the mixer leaves it
     // alone until it is ready. Written once, by that thread, before `ready`.
@@ -1670,7 +1714,17 @@ struct State {
     bool theme_on = false;         // playing, or still fading out
     float bird_timer = 2.0f, drip_timer = 3.0f, crackle_timer = 0.5f;
     float cricket_timer = 1.0f, chime_timer = 1.5f;
+    float frog_timer = 1.0f, owl_timer = 6.0f, bloop_timer = 1.0f;
     float night = 0.0f;
+    // The weather and what is near (SetWeather, SetNearby): targets, and the
+    // levels easing to them.
+    float rain_t = 0.0f, rain_g = 0.0f, water_t = 0.0f, water_g = 0.0f, lava_t = 0.0f, lava_g = 0.0f;
+    float insect_g = 0.0f;
+    bool  indoors = false, woods = false;
+    float rain_cut = 5200.0f;
+    Noise nrain{505}, nrain2{606}, nwater{707}, nlava{808}, nbug{909};
+    float rl = 0.0f, rl2 = 0.0f, rr = 0.0f, rr2 = 0.0f, wl_ = 0.0f, wl2_ = 0.0f, lv = 0.0f, lv2 = 0.0f, bug = 0.0f, bug2 = 0.0f;
+    float wave_ph = 0.0f, bug_ph = 0.0f;
     float pad_a = 0.0f, pad_b = 0.0f, pad_c = 0.0f;
 
     Noise nl{101}, nr{202}, fx{303}, play{404};
@@ -1695,6 +1749,9 @@ void Build() {
     for (uint32_t i = 0; i < 8; ++i)  g.crackles.push_back(MakeCrackle(3000 + i * 71));
     for (uint32_t i = 0; i < 6; ++i)  g.crickets.push_back(MakeCricket(4000 + i * 29));
     for (uint32_t i = 0; i < 8; ++i)  g.chimes.push_back(MakeChime(5000 + i * 41));
+    for (uint32_t i = 0; i < 5; ++i)  g.frogs.push_back(MakeFrog(6000 + i * 43));
+    for (uint32_t i = 0; i < 3; ++i)  g.owls.push_back(MakeOwl(7000 + i * 47));
+    for (uint32_t i = 0; i < 5; ++i)  g.bloops.push_back(MakeBloop(8000 + i * 59));
     g.theme_maker = std::thread([] {
         g.theme = theme::Make();
         g.theme_loop = theme::LoopFrame();
@@ -1873,11 +1930,29 @@ void SetAmbience(const string& kind, bool interior) {
     }
     Lock lock;
     g.target = p;
+    // A new place: what was near the last one is not near this one. The world
+    // says again what is (SetNearby, SetWeather) on its next frame.
+    g.rain_t = g.water_t = g.lava_t = 0.0f;
+    g.woods = false;
 }
 
 void SetNight(float amount) {
     Lock lock;
     g.night = std::clamp(amount, 0.0f, 1.0f);
+}
+
+void SetWeather(float rain, bool indoors) {
+    Lock lock;
+    g.rain_t = std::clamp(rain, 0.0f, 1.0f);
+    g.indoors = indoors;
+    g.rain_cut = indoors ? 700.0f : 5200.0f;
+}
+
+void SetNearby(float water, float lava, bool woods) {
+    Lock lock;
+    g.water_t = std::clamp(water, 0.0f, 1.0f);
+    g.lava_t = std::clamp(lava, 0.0f, 1.0f);
+    g.woods = woods;
 }
 
 void SetVolumes(float master, float sfx, float ambience) {
@@ -1934,6 +2009,12 @@ void Mix(float* out, int frames) {
             schedule(g.cricket_timer, t.bird_hi > 0.0f ? 0.4f : 0.0f,
                      t.bird_hi > 0.0f ? 1.8f : 0.0f, g.crickets, 0.3f, 1.0f, 0.9f);
         schedule(g.chime_timer, t.chime_lo, t.chime_hi, g.chimes, 0.4f, 1.0f, 0.8f);
+        // After dark, frogs wherever there is water close by, and an owl in
+        // the woods now and then; lava bubbling wherever there is lava.
+        if (g.night >= 0.5f && g.water_t > 0.15f) schedule(g.frog_timer, 0.5f, 2.4f, g.frogs, 0.3f, 0.9f, 0.9f);
+        if (g.night >= 0.5f && g.woods) schedule(g.owl_timer, 7.0f, 19.0f, g.owls, 0.35f, 0.8f, 0.9f);
+        if (g.lava_t > 0.15f)
+            schedule(g.bloop_timer, 0.7f / g.lava_t, 2.2f / g.lava_t, g.bloops, 0.3f * g.lava_t, 0.8f * g.lava_t, 0.6f);
         schedule(g.drip_timer, t.drip_lo, t.drip_hi, g.drips, 0.3f, 1.0f, 0.8f);
         schedule(g.crackle_timer, t.crackle_lo, t.crackle_hi, g.crackles, 0.5f, 1.0f, 0.3f);
     }
@@ -2028,6 +2109,57 @@ void Mix(float* out, int frames) {
             l += g.story[g.story_pos * 2] * g.story_g * 0.9f;
             r += g.story[g.story_pos * 2 + 1] * g.story_g * 0.9f;
             if (++g.story_pos * 2 >= g.story.size()) g.story_pos = 0;
+        }
+
+        // A shower: a hiss in each ear, bright out of doors and dull through a
+        // roof.
+        g.rain_g  += (g.rain_t - g.rain_g) * SMOOTH;
+        g.water_g += (g.water_t - g.water_g) * SMOOTH;
+        g.lava_g  += (g.lava_t - g.lava_g) * SMOOTH;
+        const float insect_t = g.woods && g.night > 0.5f ? (g.water_t > 0.1f ? 0.045f : 0.02f) * (1.0f - g.rain_t) : 0.0f;
+        g.insect_g += (insect_t - g.insect_g) * SMOOTH;
+        if (g.rain_g > 0.0005f) {
+            const float c = Coef(g.rain_cut), c2 = Coef(g.indoors ? 160.0f : 600.0f);
+            g.rl += (g.nrain.Next() - g.rl) * c;   g.rl2 += (g.rl - g.rl2) * c2;
+            g.rr += (g.nrain2.Next() - g.rr) * c;  g.rr2 += (g.rr - g.rr2) * c2;
+            const float k = (g.indoors ? 0.5f : 0.34f) * g.rain_g;
+            l += (g.rl - g.rl2) * k;
+            r += (g.rr - g.rr2) * k;
+        }
+        // Water lapping at the edge: a low wash that comes and goes.
+        if (g.water_g > 0.0005f) {
+            g.wave_ph += 0.16f / RATE;
+            g.wave_ph -= std::floor(g.wave_ph);
+            const float swell = std::pow(0.5f + 0.5f * std::sin(g.wave_ph * TAU), 2.0f) * 0.8f + 0.2f;
+            const float c = Coef(380.0f);
+            g.wl_ += (g.nwater.Next() - g.wl_) * c;
+            g.wl2_ += (g.wl_ - g.wl2_) * c;
+            const float w = g.wl2_ * std::sqrt((2.0f - c) / c) * 0.9f * swell * g.water_g * 0.11f;
+            l += w;
+            r += w * 0.85f;
+        }
+        // Lava: a rumble under everything, felt more than heard.
+        if (g.lava_g > 0.0005f) {
+            const float c = Coef(70.0f);
+            g.lv += (g.nlava.Next() - g.lv) * c;
+            g.lv2 += (g.lv - g.lv2) * c;
+            const float v = g.lv2 * std::sqrt((2.0f - c) / c) * 2.2f * g.lava_g * 0.16f;
+            l += v;
+            r += v;
+        }
+        // Insects in the warm dark: a shimmering trill, pulsing.
+        if (g.insect_g > 0.0005f) {
+            g.bug_ph += 31.0f / RATE;
+            g.bug_ph -= std::floor(g.bug_ph);
+            const float c = Coef(7000.0f), c2 = Coef(3600.0f);
+            const float nb = g.nbug.Next();
+            g.bug += (nb - g.bug) * c;
+            g.bug2 += (nb - g.bug2) * c2;
+            const float pulse = std::sin(g.bug_ph * TAU) > 0.2f ? 1.0f : 0.15f;
+            const float swell = 0.6f + 0.4f * std::sin(g.lfo * TAU * 0.13f);
+            const float v = (g.bug - g.bug2) * pulse * swell * g.insect_g;
+            l += v;
+            r += v * 0.8f;
         }
 
         // A hearth: a low rumble under the crackles.

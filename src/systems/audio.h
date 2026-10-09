@@ -82,6 +82,13 @@ vector<float> MakeMusic(const string& cue);
 // 0 by day, 1 at night: outdoors the birds fall quiet as it rises and the
 // crickets start.
 void SetNight(float amount);
+// A shower: how hard it is coming down where the listener is (0 for none),
+// and whether they hear it through a roof. See Weather.
+void SetWeather(float rain, bool indoors);
+// What is in earshot, 0..1 each: water (it laps, and after dark the frogs
+// call), lava (a rumble, and bubbles breaking); and whether this is the woods
+// (an owl at night, insects in the warm dark).
+void SetNearby(float water, float lava, bool woods);
 void SetVolumes(float master, float sfx, float ambience);
 
 // Offline inspection, used by the self-test.

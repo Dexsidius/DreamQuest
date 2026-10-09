@@ -163,6 +163,8 @@ $sizes = @{
     fisher_cottage_a = 128; fisher_cottage_b = 128; ferry_house = 160; boat_shed = 128; net_rack = 64
     fisher_cottage_wrecked = 128; fisher_cottage_breached = 128
     post_lantern = 64; wattle_fence = 64
+    # A washing line: its posts, and the wash on it (the wash sways: Shaders::ArtOf).
+    laundry_posts = 80; laundry_wash = 80
     # The Primordium (tools/blender_primordium_props.py).
     primordial_rift = 192; conflux_dais = 256; totem_quintessence = 32
     kiln_vent = 64; obsidian_spire = 96; magma_well = 160; cinder_heap = 48
@@ -251,7 +253,7 @@ $NOSHADOW = @("claw_marks", "frost_patch", "web_patch", "web_strand", "papers_dr
               "hanging_hammer", "dream_barrier_v", "dawn_chime", "apron_hook", "sampler",
               "thread_rack", "thread_snarl", "thread_strand_crimson", "thread_strand_ivory", "thread_strand_gold",
               "thread_strand_cobalt", "thread_strand_moss", "thread_strand_violet", "portrait_gown", "nail_patch",
-              "shears_lying", "giant_spool", "clothier_sign", "thread_net", "hoarfang_trophy")
+              "shears_lying", "giant_spool", "clothier_sign", "thread_net", "hoarfang_trophy", "laundry_wash")
 
 # Pictures that stand in for one another in the same spot -- a dress form
 # dressed a piece at a time, the portrait and the clean patch where it hung,
@@ -265,6 +267,7 @@ $ALIGN = @{
     dress_form_skirt = "dress_form"; dress_form_full = "dress_form"
     portrait_gown = "portrait"; nail_patch = "portrait"
     thread_rack = "thread_rack"; thread_snarl = "thread_rack"
+    laundry_posts = "laundry"; laundry_wash = "laundry"
 }
 
 # Pieces laid end to end, whose outline must not close at the join: the edge

@@ -36,7 +36,7 @@ struct PostBlock {
     float heats[8][4];
 };
 struct FogBlock { float cam[4], field[4], look[4], region[4], more[4]; };
-struct PropBlock { float cam[4], mode[4], wind[4], style[4], more[4]; };
+struct PropBlock { float cam[4], mode[4], wind[4], style[4], more[4], walk[2][4]; };
 struct SpriteBlock { float flash[4], glow[4], status[4], status2[4], misc[4], frame[4], style[4]; };
 struct FxBlock { float kind[4], colour[4], size[4], hit[4]; };
 
@@ -87,6 +87,8 @@ Uint64   g_views = 0;
 SDL_GPURenderState* g_prop[PROP_KINDS] = {};   // one per kind; [PROP_NONE] is the glow pass
 // Scenery that neither moves nor lights, in the Cozy look: only its outline.
 SDL_GPURenderState* g_cozy_prop = nullptr;
+// A building whose lamps are out: its windows glass, as by day, whatever the hour.
+SDL_GPURenderState* g_dark_windows = nullptr;
 Pool     g_sprites{SH_SPRITE, {}, 0};
 Pool     g_shapes{SH_FX, {}, 0};
 SDL_Texture* g_white = nullptr;
@@ -373,9 +375,19 @@ void Upload() {
         Put(prop.wind, kWindX, kWindY, kGustSpeed, kGustLength);
         // Not the glow pass: that is light added over the night, not a thing.
         if (k != PROP_NONE) CozyStyle(prop.style);
-        // A tree's crown rustles as well as bending.
-        Put(prop.more, k == PROP_TREE ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f);
+        // A tree's crown rustles as well as bending; grass leans away from
+        // whoever walks through it.
+        Put(prop.more, k == PROP_TREE ? 1.0f : 0.0f, k == PROP_GRASS ? 1.0f : 0.0f, 0.0f, 0.0f);
+        for (int w = 0; w < 4; ++w) {
+            const bool there = w < static_cast<int>(f.walkers.size());
+            prop.walk[w / 2][(w % 2) * 2] = there ? f.walkers[static_cast<size_t>(w)].x : -99999.0f;
+            prop.walk[w / 2][(w % 2) * 2 + 1] = there ? f.walkers[static_cast<size_t>(w)].y : -99999.0f;
+        }
         SDL_SetGPURenderStateFragmentUniforms(g_prop[k], 0, &prop, sizeof prop);
+        if (k == PROP_WINDOWS && g_dark_windows) {
+            Put(prop.mode, mode, strength, 0.0f, f.wind);
+            SDL_SetGPURenderStateFragmentUniforms(g_dark_windows, 0, &prop, sizeof prop);
+        }
     }
     if (g_cozy_prop) {
         PropBlock prop{};
@@ -411,19 +423,22 @@ const Art& ArtOf(const string& path) {
         a.kind = PROP_GRASS;
     else if (prefix({"tree_", "treesmall_", "bush_", "bushsmall_"}) || any({"snow_pine", "swamp_tree", "charred_tree", "cypress_tree", "bottle_tree"}))
         a.kind = PROP_TREE;
-    else if (prefix({"tapestry_"}) || any({"banner", "palace_banner", "guild_banner"}))
+    else if (prefix({"tapestry_"}) || any({"banner", "palace_banner", "guild_banner", "laundry_wash"}))
         a.kind = PROP_CLOTH;
     else if (any({"tent", "college_banner"}))
         a.kind = PROP_STAKED;
-    else if (prefix({"building_"}) ||
+    else if (prefix({"building_", "townhouse_"}) ||
              any({"clothier_shop", "inn_building", "herbalist_cottage", "mossvale_lodge", "mage_college",
                   "college_hall", "college_wing", "palace_keep", "palace_tower", "stronghold_keep", "stronghold_tower",
-                  "stronghold_gate", "hex_temple"}))
+                  "stronghold_gate", "hex_temple", "fisher_cottage_a", "fisher_cottage_b", "trapper_cabin", "guild_house",
+                  "mayor_hall", "ferry_house", "howe_hall", "shellback_hut"}))
         a.kind = PROP_WINDOWS;
     else if (any({"college_fountain", "well", "spring_basin", "quench_trough", "tide_well"}))
         a.kind = PROP_FOUNTAIN;
     else if (any({"waystone_lit", "crystal_pylon", "ice_crystal", "dream_mirror"}))
         a.kind = PROP_PULSE;
+
+    a.tavern = any({"inn_building", "mossvale_lodge", "guild_house", "howe_hall"});
 
     // Fires: the air over them wavers, and they glow and throw a halo after dark.
     a.hot = any({"campfire", "campfire_ring", "hearth", "cottage_hearth", "inn_fireplace", "forge",
@@ -568,6 +583,7 @@ bool Init(SDL_Renderer* renderer) {
         if (!g_prop[k]) { Shutdown(); return false; }
     }
     g_cozy_prop = MakeState(SH_PROP, nullptr);
+    g_dark_windows = MakeState(SH_PROP, nullptr);
 
     // What a shape of light and the fog are drawn over: a plain white square.
     g_white = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, 4, 4);
@@ -594,6 +610,8 @@ void Shutdown() {
     for (SDL_GPURenderState*& s : g_prop) { if (s) SDL_DestroyGPURenderState(s); s = nullptr; }
     if (g_cozy_prop) SDL_DestroyGPURenderState(g_cozy_prop);
     g_cozy_prop = nullptr;
+    if (g_dark_windows) SDL_DestroyGPURenderState(g_dark_windows);
+    g_dark_windows = nullptr;
     if (g_white) SDL_DestroyTexture(g_white);
     g_white = nullptr;
     if (g_scene) SDL_DestroyTexture(g_scene);
@@ -679,15 +697,36 @@ void SetFrame(const Frame& frame) {
     Upload();
 }
 
-void UseTile(SDL_Renderer* renderer, Surface surface, PropKind kind, bool standing) {
+void UseTile(SDL_Renderer* renderer, Surface surface, PropKind kind, bool standing, const SDL_FRect* where,
+             bool tavern) {
     if (!g_current) return;
     SDL_GPURenderState* s = surface == WATER ? g_current->state[SH_WATER]
                           : surface == LAVA  ? g_current->state[SH_LAVA]
                           : kind != PROP_NONE && kind < PROP_KINDS ? g_prop[kind]
                           : standing && Cozy() ? g_cozy_prop
                                                : nullptr;
+    if (kind == PROP_WINDOWS && where && g_dark_windows && surface == PLAIN &&
+        !WindowsLit(where->x + where->w * 0.5f, where->y + where->h, tavern))
+        s = g_dark_windows;
     Set(renderer, s);
 }
+
+bool WindowsLitAt(float hour, float x, float y, bool tavern) {
+    uint32_t h = static_cast<uint32_t>(static_cast<int>(x)) * 0x9E3779B1u ^ static_cast<uint32_t>(static_cast<int>(y)) * 0x85EBCA77u;
+    const auto next = [&]() {
+        h ^= h >> 16; h *= 0x7feb352du; h ^= h >> 15; h *= 0x846ca68bu; h ^= h >> 16;
+        return static_cast<float>(h >> 8) / 16777216.0f;
+    };
+    const float on = 17.5f + 2.5f * next();
+    const float off = tavern ? 26.0f : 21.5f + 5.0f * next();     // past midnight counts on: 25 is one
+    const bool early = next() < 0.3f;
+    const float rise = 3.6f + 1.6f * next();
+    const float t = hour < 12.0f ? hour + 24.0f : hour;
+    if (t >= on && t < off) return true;
+    return early && hour >= rise && hour < 8.0f;
+}
+
+bool WindowsLit(float x, float y, bool tavern) { return WindowsLitAt(g_frame.hour, x, y, tavern); }
 
 void UsePlain(SDL_Renderer* renderer) {
     if (g_current) Set(renderer, nullptr);

@@ -67,6 +67,7 @@ struct Art {
     bool glows = false;     // lit from inside: shines through the night
     bool hot = false;       // a fire: the air over it wavers
     bool halo = false;      // a light: the air round it glows after dark
+    bool tavern = false;    // a building whose lights burn late: the inn, the lodge, the guild
 };
 const Art& ArtOf(const string& path);
 
@@ -138,13 +139,28 @@ struct Frame {
     // The flip between the waking world and the Reverie: the picture's colours
     // turned inside out (0..1), and a ripple out from the middle of the view.
     float invert = 0.0f, ripple = 0.0f;
+    // Whoever is walking about, in world pixels: the grass they walk through
+    // leans away from them. Up to four.
+    vector<SDL_FPoint> walkers;
+    // The hour on the clock: each house's windows go dark at its own (WindowsLit).
+    float hour = 12.0f;
 };
 void SetFrame(const Frame& frame);
 
 // Switch the shader the next ground tiles or scenery are drawn with. Cheap
 // when nothing changes; PLAIN and PROP_NONE is no shader at all -- unless
 // `standing` (scenery, not floor) and the Cozy look is on, which outlines it.
-void UseTile(SDL_Renderer* renderer, Surface surface, PropKind kind = PROP_NONE, bool standing = false);
+// A building's windows, given `where` it is drawn (world pixels), are lit or
+// dark by WindowsLit.
+void UseTile(SDL_Renderer* renderer, Surface surface, PropKind kind = PROP_NONE, bool standing = false,
+             const SDL_FRect* where = nullptr, bool tavern = false);
+// Whether the house standing at (x, y) -- its foot -- has its lamps lit at
+// this hour of the frame: each house lights up at dusk at its own time
+// between half past five and eight, and goes dark at its own between half
+// past nine and half past two; some are up again before dawn; a tavern's
+// burn till two whatever. By day it does not matter: the windows are glass.
+bool WindowsLit(float x, float y, bool tavern = false);
+bool WindowsLitAt(float hour, float x, float y, bool tavern);
 inline void UseSurface(SDL_Renderer* renderer, Surface surface) { UseTile(renderer, surface); }
 void UsePlain(SDL_Renderer* renderer);
 // The glow pass: only the lit pixels of what is drawn, meant to be added.

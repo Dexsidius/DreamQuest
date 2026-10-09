@@ -4,7 +4,7 @@
 #include "camera.h"
 #include "systems/shaders.h"
 
-// Animated 4-direction sprites.
+// Animated 4-direction sprites -- and 8, for the clips the player goes about in.
 //
 // Every CraftPix character sheet in this project is laid out the same way:
 // a fixed-size square frame, one row per facing in the order down / left /
@@ -119,6 +119,11 @@ struct AnimClip {
     // means this clip is a single flattened sheet.
     vector<AnimLayer> layers;
 
+    // Facings in this clip's sheets when they are not the rig's own count: the
+    // player's idle, walk, run and sprint have eight, the four after the usual
+    // four being down-left, down-right, up-left and up-right. 0 is the rig's.
+    int rows = 0;
+
     int FramesForRow(int row) const {
         if (row < 0 || row >= static_cast<int>(row_frames.size())) return frames;
         return std::max(1, row_frames[row]);
@@ -214,7 +219,18 @@ public:
     SDL_FRect WorldBounds(float world_x, float world_y) const;
 
     Facing facing = FACE_DOWN;
+    // Which of eight ways the character is turned (the rows of an eight-row
+    // clip: 0-3 as Facing, then down-left, down-right, up-left, up-right), for
+    // the clips that have them; -1, or any other clip, draws the facing.
+    int heading = -1;
+    // The facing the heading was worked out with. Something that turns them
+    // since -- a scene, a blow at a target -- and the heading is stale: the
+    // facing's own row is drawn until it is worked out again.
+    Facing heading_for = FACE_DOWN;
     string current;
+    // Facings in the sheets of the clip playing, and which row is drawn.
+    int Rows() const;
+    int Row() const;
 
     // Owner-supplied; ignored by sprites that are not layered.
     LayerStyle style;

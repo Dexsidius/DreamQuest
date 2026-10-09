@@ -10532,6 +10532,7 @@
                                                    "frames":  8,
                                                    "fps":  8,
                                                    "loop":  true,
+                                                   "rows":  8,
                                                    "layers":  [
                                                                   {
                                                                       "slot":  "shadow",
@@ -13797,6 +13798,7 @@
                                                   "frames":  8,
                                                   "fps":  13,
                                                   "loop":  true,
+                                                  "rows":  8,
                                                   "layers":  [
                                                                  {
                                                                      "slot":  "shadow",
@@ -17014,6 +17016,7 @@
                                                      "frames":  8,
                                                      "fps":  16,
                                                      "loop":  true,
+                                                     "rows":  8,
                                                      "layers":  [
                                                                     {
                                                                         "slot":  "shadow",
@@ -18456,6 +18459,7 @@
                                                    "frames":  8,
                                                    "fps":  10,
                                                    "loop":  true,
+                                                   "rows":  8,
                                                    "layers":  [
                                                                   {
                                                                       "slot":  "shadow",
@@ -21540,6 +21544,7 @@
                                                       "frames":  8,
                                                       "fps":  8,
                                                       "loop":  true,
+                                                      "rows":  8,
                                                       "layers":  [
                                                                      {
                                                                          "slot":  "shadow",
@@ -22501,6 +22506,7 @@
                                                      "frames":  8,
                                                      "fps":  13,
                                                      "loop":  true,
+                                                     "rows":  8,
                                                      "layers":  [
                                                                     {
                                                                         "slot":  "shadow",
@@ -23702,6 +23708,7 @@
                                                         "frames":  8,
                                                         "fps":  16,
                                                         "loop":  true,
+                                                        "rows":  8,
                                                         "layers":  [
                                                                        {
                                                                            "slot":  "shadow",
@@ -24304,6 +24311,7 @@
                                                       "frames":  8,
                                                       "fps":  10,
                                                       "loop":  true,
+                                                      "rows":  8,
                                                       "layers":  [
                                                                      {
                                                                          "slot":  "shadow",
@@ -26597,6 +26605,7 @@
                                                      "frames":  8,
                                                      "fps":  8,
                                                      "loop":  true,
+                                                     "rows":  8,
                                                      "layers":  [
                                                                     {
                                                                         "slot":  "shadow",
@@ -27558,6 +27567,7 @@
                                                     "frames":  8,
                                                     "fps":  13,
                                                     "loop":  true,
+                                                    "rows":  8,
                                                     "layers":  [
                                                                    {
                                                                        "slot":  "shadow",
@@ -28519,6 +28529,7 @@
                                                        "frames":  8,
                                                        "fps":  16,
                                                        "loop":  true,
+                                                       "rows":  8,
                                                        "layers":  [
                                                                       {
                                                                           "slot":  "shadow",
@@ -29001,6 +29012,7 @@
                                                      "frames":  8,
                                                      "fps":  10,
                                                      "loop":  true,
+                                                     "rows":  8,
                                                      "layers":  [
                                                                     {
                                                                         "slot":  "shadow",
@@ -31294,6 +31306,7 @@
                                                        "frames":  8,
                                                        "fps":  8,
                                                        "loop":  true,
+                                                       "rows":  8,
                                                        "layers":  [
                                                                       {
                                                                           "slot":  "shadow",
@@ -32255,6 +32268,7 @@
                                                       "frames":  8,
                                                       "fps":  13,
                                                       "loop":  true,
+                                                      "rows":  8,
                                                       "layers":  [
                                                                      {
                                                                          "slot":  "shadow",
@@ -33216,6 +33230,7 @@
                                                          "frames":  8,
                                                          "fps":  16,
                                                          "loop":  true,
+                                                         "rows":  8,
                                                          "layers":  [
                                                                         {
                                                                             "slot":  "shadow",
@@ -33698,6 +33713,7 @@
                                                        "frames":  8,
                                                        "fps":  10,
                                                        "loop":  true,
+                                                       "rows":  8,
                                                        "layers":  [
                                                                       {
                                                                           "slot":  "shadow",

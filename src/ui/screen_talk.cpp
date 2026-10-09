@@ -154,7 +154,7 @@ void DrawBeast(UI& ui, SDL_Renderer* r, TextureCache& cache, const SpriteLibrary
     const AnimClip* idle = def ? def->Find("idle") : nullptr;
     if (!idle) return;
     const SDL_Point sheet = cache.Size(idle->sheet);
-    const int fw = sheet.x / std::max(1, idle->frames), fh = sheet.y / std::max(1, def->rows);
+    const int fw = sheet.x / std::max(1, idle->frames), fh = sheet.y / std::max(1, idle->rows > 0 ? idle->rows : def->rows);
     if (fw <= 0 || fh <= 0) return;
     // Measured on the first frame facing down -- the one the figure is drawn in.
     const SDL_FRect seen = cache.OpaqueBoundsIn(idle->sheet, {0, 0, fw, fh});

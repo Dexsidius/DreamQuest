@@ -20,6 +20,7 @@
 #include "../src/world/story.h"
 #include "../src/world/ambience.h"
 #include "../src/world/ground_paint.h"
+#include "../src/world/weather.h"
 #include "../src/systems/items.h"
 #include "../src/systems/loot.h"
 #include "../src/systems/quest.h"
@@ -9170,7 +9171,7 @@ static void TestAmbientLife(const Databases& db) {
     Check(seam <= inside * 2.5 + 256.0, "and their shadows tile without a seam");
     {
         SDL_Surface* sheet = IMG_Load(Ambience::BIRDS_SHEET);
-        Check(sheet && sheet->w == 96 && sheet->h == 48, "the birds are drawn: three of them, six frames each (birds.png)");
+        Check(sheet && sheet->w == 96 && sheet->h == 64, "the birds are drawn: four of them, six frames each (birds.png)");
         if (sheet) SDL_DestroySurface(sheet);
     }
 
@@ -9281,6 +9282,622 @@ static void TestAmbientLife(const Databases& db) {
                              (wrong.empty() ? string(" all five") : wrong));
 }
 
+
+// The life about the world (Ambience, Weather): the weather and what it leaves,
+// the small animals and where each keeps, prints in soft ground, the light
+// under the trees and in a room, the cold's breath and its aurora, and the
+// villages' washing lines, signs, hens and cats. Run with --only life.
+static void TestLifeAbout(const Databases& db) {
+    (void)db;
+    Section("the weather: showers that come and go, and the morning's fog");
+    {
+        bool first_dry = true, some = false, bounded = true;
+        for (double t = 0.0; t < Weather::SLOT; t += 5.0) first_dry &= Weather::Rain(t) == 0.0f;
+        int showers = 0;
+        for (long long slot = 1; slot < 40; ++slot) {
+            double a = 0, b = 0;
+            float heavy = 0;
+            if (Weather::ShowerIn(slot, a, b, heavy)) {
+                ++showers;
+                some = true;
+                bounded &= b - a >= 150.0 && b - a <= 320.0 && heavy >= 0.5f && heavy <= 1.0f;
+                bounded &= Weather::Rain((a + b) * 0.5) > 0.4f && Weather::Rain(a - 1.0) == 0.0f;
+                // Wet while it falls, and drying for minutes after.
+                bounded &= Weather::Wet(b - 1.0) > 0.9f && Weather::Wet(b + 120.0) > 0.3f && Weather::Wet(b + 300.0) == 0.0f;
+            }
+        }
+        Check(first_dry, "nobody's first look at the world is through rain");
+        Check(some && showers >= 8 && showers <= 24, "showers come over a few times an hour of play, and most of the time it is dry (" +
+                                                         std::to_string(showers) + " of 39 stretches)");
+        Check(bounded, "each comes on and eases off, lasts minutes, and leaves the ground wet for a while after");
+        Check(Weather::MorningFog(6.0f) > 0.95f && Weather::MorningFog(12.0f) == 0.0f && Weather::MorningFog(2.0f) == 0.0f &&
+                  Weather::MorningFog(8.5f) > 0.0f && Weather::MorningFog(8.5f) < 1.0f,
+              "a fog lies at dawn and burns off through the morning");
+        Check(Weather::RainsOn("forest") && Weather::RainsOn("grove") && Weather::RainsOn("town") && Weather::RainsOn("overworld") &&
+                  !Weather::RainsOn("ash") && !Weather::RainsOn("snow") && !Weather::RainsOn("dream") && !Weather::RainsOn("dungeon"),
+              "it rains on the fields, the woods, the towns and the wetlands; not on the snow, the burnt land, in dreams or underground");
+        Weather::Force(0.7f);
+        const bool forced = Weather::Rain(10.0) == 0.7f && Weather::Wet(10.0) == 1.0f;
+        Weather::Force(-1.0f);
+        Check(forced && Weather::Rain(10.0) == 0.0f, "and a shower can be called up to look at (--rain), and sent away again");
+    }
+
+    Section("what is underfoot, and what a sprint kicks up from it");
+    {
+        Check(Ambience::FootingOf("assets/tiles/snow_1.png") == Ambience::FOOT_SNOW &&
+                  Ambience::FootingOf("assets/tiles/ash_2.png") == Ambience::FOOT_ASH &&
+                  Ambience::FootingOf("assets/tiles/salt_crust.png") == Ambience::FOOT_SALT &&
+                  Ambience::FootingOf("assets/tiles/swamp_mud.png") == Ambience::FOOT_MUD &&
+                  Ambience::FootingOf("assets/tiles/grass_light_3.png") == Ambience::FOOT_GRASS &&
+                  Ambience::FootingOf("assets/tiles/road_1.png") == Ambience::FOOT_STONE &&
+                  Ambience::FootingOf("assets/tiles/plank_floor.png") == Ambience::FOOT_WOOD &&
+                  Ambience::FootingOf("assets/tiles/sand.png") == Ambience::FOOT_SAND,
+              "snow, ash, salt, mud, grass, road, boards and sand are each what they are");
+    }
+
+    Camera cam(1280.0f, 720.0f);
+    cam.SetZoom(2.0f);
+    const auto load = [](const string& id, Map& m) { return m.Load("maps/" + id + ".mx"); };
+    const auto standing = [](const Map& m) {
+        return [&m](float x, float y) {
+            if (x < 8.0f || y < 8.0f || x > m.Width() - 8.0f || y > m.Height() - 8.0f) return false;
+            const SDL_FRect box{x - 4.0f, y - 3.0f, 8.0f, 3.0f};
+            return !m.Blocked(box) && !m.HazardAt(box) && m.LevelAt(x, y) == 0;
+        };
+    };
+    const auto count = [](const Ambience& a, int kind) {
+        int n = 0;
+        for (const Ambience::CritterView& c : a.Critters()) n += c.kind == kind && !c.hidden;
+        return n;
+    };
+    const auto run = [&](Ambience& a, Ambience::World& w, float seconds) {
+        for (float t = 0.0f; t < seconds; t += 0.05f) a.Update(0.05f, cam, w);
+    };
+
+    Section("the places: what each has for the life about it");
+    Map havenbrook, fernhollow, wood, overworld, crypt, frost, ashen, dream, mossvale;
+    const bool loaded = load("town_havenbrook", havenbrook) && load("fernhollow", fernhollow) &&
+                        load("whisperwood_trail", wood) && load("overworld", overworld) && load("crypt_1", crypt) &&
+                        load("frost_barrows", frost) && load("ashen_path", ashen) && load("dreamworld", dream) &&
+                        load("mossvale", mossvale);
+    Check(loaded, "the places load");
+    if (!loaded) return;
+    {
+        Ambience a;
+        a.SetKind(wood.Ambient(), false);
+        a.SetPlace(wood);
+        const Ambience::PlaceView v = a.Place();
+        Check(v.trees > 30 && v.bushes > 5, "the Whisperwood: trees to shade the ground and bushes to bolt into (" +
+                                                std::to_string(v.trees) + " trees, " + std::to_string(v.bushes) + " bushes)");
+        Ambience h;
+        h.SetKind(havenbrook.Ambient(), false);
+        h.SetPlace(havenbrook);
+        Check(h.Place().lilies >= 2 && h.Place().nests >= 2 && h.Place().puddles > 10,
+              "Havenbrook: lily pads on its pond, cats on its steps, dips where the rain will stand");
+        Ambience o;
+        o.SetKind(overworld.Ambient(), false);
+        o.SetPlace(overworld);
+        Check(o.Place().graves > 60, "Hollowrest's gravestones, for the bats (" + std::to_string(o.Place().graves) + ")");
+        Ambience f;
+        f.SetKind(fernhollow.Ambient(), false);
+        f.SetPlace(fernhollow);
+        Check(f.Place().water > 20 && f.Place().nests >= 3, "Fernhollow: its pond, its hens, a cat and the gulls");
+    }
+
+    Section("the small animals, each where it lives and gone when somebody comes");
+    {
+        // Rabbits and squirrels in the wood by day, and one bolting for cover.
+        Ambience a;
+        a.SetKind(wood.Ambient(), false);
+        a.SetPlace(wood);
+        Ambience::World w;
+        w.hour = 11.0f;
+        w.stand = standing(wood);
+        SDL_FPoint spawn{};
+        wood.Spawn("default", spawn);
+        cam.SetBounds(wood.Width(), wood.Height());
+        cam.SnapTo(spawn.x, spawn.y);
+        w.walkers.push_back({spawn.x - 2000.0f, spawn.y - 2000.0f});
+        run(a, w, 20.0f);
+        const int small = count(a, Ambience::RABBIT) + count(a, Ambience::SQUIRREL);
+        Check(small > 0, "in the Whisperwood by day, rabbits and squirrels about (" + std::to_string(small) + ")");
+        float cx = 0, cy = 0;
+        for (const Ambience::CritterView& c : a.Critters())
+            if ((c.kind == Ambience::RABBIT || c.kind == Ambience::SQUIRREL) && !c.hidden) { cx = c.x; cy = c.y; break; }
+        w.walkers[0] = {cx + 40.0f, cy};
+        run(a, w, 0.2f);
+        bool fled = false;
+        for (const Ambience::CritterView& c : a.Critters())
+            if ((c.kind == Ambience::RABBIT || c.kind == Ambience::SQUIRREL) && std::hypot(c.x - cx, c.y - cy) < 30.0f) fled |= c.fleeing || c.hidden;
+        run(a, w, 3.0f);
+        bool gone = true;
+        for (const Ambience::CritterView& c : a.Critters())
+            if ((c.kind == Ambience::RABBIT || c.kind == Ambience::SQUIRREL) && std::hypot(c.x - cx, c.y - cy) < 20.0f && !c.hidden)
+                gone = false;
+        Check(small > 0 && fled && gone, "and one bolts when somebody walks up, and is gone into cover");
+
+        // Nothing at all with Visual Effects off.
+        Ambience plain;
+        plain.SetKind(wood.Ambient(), false);
+        plain.SetPlace(wood);
+        Ambience::World quiet = w;
+        quiet.lively = false;
+        quiet.walkers[0] = {spawn.x - 2000.0f, spawn.y - 2000.0f};
+        run(plain, quiet, 10.0f);
+        Check(plain.Critters().empty(), "and with Visual Effects off, none of them");
+    }
+    {
+        // Deer at the edge of the trees at dawn, in a place that has none to hunt.
+        Ambience a;
+        a.SetKind(mossvale.Ambient(), false);
+        a.SetPlace(mossvale);
+        Ambience::World w;
+        w.stand = standing(mossvale);
+        w.hour = 6.0f;
+        w.walkers.push_back({-5000.0f, -5000.0f});
+        cam.SetBounds(mossvale.Width(), mossvale.Height());
+        int deer = 0;
+        // Look about the place's edges, where its trees are.
+        for (float x = 200.0f; x < mossvale.Width() && deer == 0; x += 300.0f)
+            for (float y = 200.0f; y < mossvale.Height() && deer == 0; y += 300.0f) {
+                cam.SnapTo(x, y);
+                a.SetKind(mossvale.Ambient(), false);
+                run(a, w, 3.0f);
+                deer = count(a, Ambience::DEER);
+            }
+        Check(deer > 0, "deer at the edge of the trees at dawn (" + std::to_string(deer) + ")");
+        Ambience noon;
+        noon.SetKind(mossvale.Ambient(), false);
+        noon.SetPlace(mossvale);
+        Ambience::World nw = w;
+        nw.hour = 12.0f;
+        int none = 0;
+        for (float x = 200.0f; x < mossvale.Width(); x += 400.0f)
+            for (float y = 200.0f; y < mossvale.Height(); y += 400.0f) {
+                cam.SnapTo(x, y);
+                noon.SetKind(mossvale.Ambient(), false);
+                run(noon, nw, 2.0f);
+                none += count(noon, Ambience::DEER);
+            }
+        Check(none == 0, "and none by midday");
+        Ambience hunt;
+        hunt.SetKind(wood.Ambient(), false);
+        hunt.SetPlace(wood);
+        bool kept = true;
+        for (const EnemySpawnDef& e : wood.Enemies())
+            if (e.type == "deer") kept &= hunt.TwinNear(Ambience::DEER, e.x + 100.0f, e.y);
+        Check(kept, "and none as scenery where there are deer to hunt");
+    }
+    {
+        // Hens about their yard by day, gone in at night; gulls over the pond.
+        Ambience a;
+        a.SetKind(fernhollow.Ambient(), false);
+        a.SetPlace(fernhollow);
+        Ambience::World w;
+        w.stand = standing(fernhollow);
+        w.hour = 10.0f;
+        w.walkers.push_back({100.0f, 1100.0f});
+        cam.SetBounds(fernhollow.Width(), fernhollow.Height());
+        cam.SnapTo(900.0f, 700.0f);
+        run(a, w, 12.0f);
+        int gulls = 0;
+        for (const Ambience::BirdView& b : a.Birds()) gulls += b.species == Ambience::GULL;
+        Check(count(a, Ambience::HEN) >= 2, "Fernhollow's hens are out in their yard (" + std::to_string(count(a, Ambience::HEN)) + ")");
+        run(a, w, 30.0f);
+        for (const Ambience::BirdView& b : a.Birds()) gulls += b.species == Ambience::GULL;
+        Check(gulls > 0, "and gulls wheel over its pond");
+        w.daylight = 0.0f;
+        w.hour = 23.0f;
+        run(a, w, 5.0f);
+        Check(count(a, Ambience::HEN) == 0, "and the hens are in by night");
+    }
+    {
+        // A cat asleep on a step, that gets up and goes when somebody comes close.
+        Ambience a;
+        a.SetKind(havenbrook.Ambient(), false);
+        a.SetPlace(havenbrook);
+        Ambience::World w;
+        w.stand = standing(havenbrook);
+        w.hour = 13.0f;
+        w.walkers.push_back({2200.0f, 100.0f});
+        cam.SetBounds(havenbrook.Width(), havenbrook.Height());
+        cam.SnapTo(1384.0f, 640.0f);
+        run(a, w, 4.0f);
+        float cx = -1, cy = -1;
+        for (const Ambience::CritterView& c : a.Critters())
+            if (c.kind == Ambience::CAT) { cx = c.x; cy = c.y; }
+        w.walkers[0] = {cx + 20.0f, cy};
+        run(a, w, 0.3f);
+        bool off = false;
+        for (const Ambience::CritterView& c : a.Critters()) off |= c.kind == Ambience::CAT && c.fleeing;
+        Check(cx >= 0.0f && off, "a cat asleep on the inn's step, that gets up and goes when somebody comes close");
+        // Frogs on the lily pads, at evening.
+        w.walkers[0] = {2200.0f, 100.0f};
+        w.daylight = 0.2f;
+        w.hour = 21.0f;
+        cam.SnapTo(1530.0f, 1170.0f);
+        run(a, w, 16.0f);
+        Check(count(a, Ambience::FROG) > 0, "frogs on the pond's lily pads of an evening");
+    }
+    {
+        // Bats over Hollowrest at dusk, none at noon; bats and rats in the crypt.
+        Ambience a;
+        a.SetKind(overworld.Ambient(), false);
+        a.SetPlace(overworld);
+        Ambience::World w;
+        w.stand = standing(overworld);
+        w.hour = 19.6f;
+        w.daylight = 0.4f;
+        w.walkers.push_back({1800.0f, 3230.0f});
+        cam.SetBounds(overworld.Width(), overworld.Height());
+        cam.SnapTo(1800.0f, 3230.0f);
+        run(a, w, 10.0f);
+        const int dusk_bats = count(a, Ambience::BAT);
+        Ambience::World noon = w;
+        noon.hour = 12.0f;
+        noon.daylight = 1.0f;
+        Ambience b;
+        b.SetKind(overworld.Ambient(), false);
+        b.SetPlace(overworld);
+        run(b, noon, 10.0f);
+        Check(dusk_bats > 0 && count(b, Ambience::BAT) == 0, "bats over Hollowrest's graves at dusk, and none at noon");
+        Ambience c;
+        c.SetKind(crypt.Ambient(), false);
+        c.SetPlace(crypt);
+        Ambience::World cw;
+        cw.stand = standing(crypt);
+        cw.walkers.push_back({-5000.0f, -5000.0f});
+        SDL_FPoint at{};
+        crypt.Spawn("default", at);
+        cam.SetBounds(crypt.Width(), crypt.Height());
+        cam.SnapTo(at.x, at.y);
+        run(c, cw, 10.0f);
+        Check(count(c, Ambience::BAT) > 0 && count(c, Ambience::RAT) > 0, "and down in the crypt, bats and rats along its walls");
+    }
+    {
+        // The figure in the Reverie: there at the edge, and gone when you come close.
+        Ambience a;
+        a.SetKind(dream.Ambient(), false);
+        a.SetPlace(dream);
+        Ambience::World w;
+        w.stand = standing(dream);
+        SDL_FPoint at{};
+        dream.Spawn("default", at);
+        w.walkers.push_back({at.x, at.y});
+        cam.SetBounds(dream.Width(), dream.Height());
+        cam.SnapTo(at.x, at.y);
+        float fx = -1, fy = -1;
+        for (float t = 0.0f; t < 100.0f && fx < 0.0f; t += 0.05f) {
+            a.Update(0.05f, cam, w);
+            for (const Ambience::CritterView& c : a.Critters())
+                if (c.kind == Ambience::WATCHER && !c.hidden) { fx = c.x; fy = c.y; }
+        }
+        Check(fx >= 0.0f && std::hypot(fx - at.x, fy - at.y) > 200.0f, "in the Reverie a figure stands at the edge of sight");
+        w.walkers[0] = {fx - 100.0f, fy};
+        run(a, w, 1.0f);
+        Check(count(a, Ambience::WATCHER) == 0, "and is not there when you get close");
+        int feathers = 0, petals = 0;
+        for (const Ambience::MoteView& m : a.Motes()) { feathers += m.kind == Ambience::FEATHER; petals += m.kind == Ambience::PETAL; }
+        Check(feathers > 0 && petals > 0, "and feathers and petals come down out of nowhere");
+    }
+
+    Section("prints in soft ground, splashes in the wet, breath in the cold");
+    {
+        // Walk across the burnt land: prints in the ash behind.
+        Ambience a;
+        a.SetKind(ashen.Ambient(), false);
+        a.SetPlace(ashen);
+        float ax = -1, ay = -1;
+        for (float y = 100.0f; y < ashen.Height() && ax < 0.0f; y += 32.0f)
+            for (float x = 100.0f; x < ashen.Width() - 200.0f && ax < 0.0f; x += 32.0f) {
+                bool run_ok = true;
+                for (float d = 0.0f; d < 160.0f; d += 16.0f) run_ok &= a.FootingAt(x + d, y) == Ambience::FOOT_ASH;
+                if (run_ok) { ax = x; ay = y; }
+            }
+        Ambience::World w;
+        w.hour = 12.0f;
+        w.walkers.push_back({ax, ay});
+        cam.SetBounds(ashen.Width(), ashen.Height());
+        cam.SnapTo(ax, ay);
+        for (int i = 0; i < 60; ++i) {
+            w.walkers[0].x = ax + i * 2.5f;
+            a.Update(0.05f, cam, w);
+        }
+        int ash = 0;
+        for (const Ambience::PrintView& p : a.Prints()) ash += p.on == Ambience::FOOT_ASH;
+        Check(ax >= 0.0f && ash >= 6, "a walk across the ash leaves prints in it (" + std::to_string(ash) + ")");
+        const SDL_Color kick = a.KickedUp(ax, ay);
+        Check(kick.a > 0 && kick.r < 140, "and a sprint there kicks up grey ash, not the road's dust");
+
+        // On the grass, dry: nothing; soaked from a shower: the splash of it.
+        Ambience g;
+        g.SetKind(fernhollow.Ambient(), false);
+        g.SetPlace(fernhollow);
+        float gx = -1, gy = -1;
+        for (float y = 300.0f; y < fernhollow.Height() && gx < 0.0f; y += 32.0f)
+            for (float x = 100.0f; x < fernhollow.Width() - 200.0f && gx < 0.0f; x += 32.0f) {
+                bool run_ok = true;
+                for (float d = 0.0f; d < 160.0f; d += 16.0f) run_ok &= g.FootingAt(x + d, y) == Ambience::FOOT_EARTH;
+                if (run_ok) { gx = x; gy = y; }
+            }
+        Ambience::World dry;
+        dry.hour = 12.0f;
+        dry.walkers.push_back({gx, gy});
+        for (int i = 0; i < 60; ++i) { dry.walkers[0].x = gx + i * 2.5f; g.Update(0.05f, cam, dry); }
+        const size_t dry_prints = g.Prints().size();
+        Ambience::World soaked = dry;
+        soaked.rain = 0.8f;
+        soaked.wet = 1.0f;
+        for (int i = 0; i < 60; ++i) { soaked.walkers[0].x = gx + 150.0f - i * 2.5f; g.Update(0.05f, cam, soaked); }
+        Check(gx >= 0.0f && dry_prints == 0 && g.Prints().size() > 4,
+              "a dry earth path takes no prints; after a shower it is mud underfoot");
+        Check(g.PuddlesShown() > 0 && g.RainShown() > 0.7f, "and the rain stands in puddles while it is wet");
+        Ambience::World dried = dry;
+        g.Update(0.05f, cam, dried);
+        Check(g.PuddlesShown() == 0, "and they are gone when it has dried");
+
+        // Out in the snow, a breath now and then.
+        Ambience s;
+        s.SetKind(frost.Ambient(), false);
+        s.SetPlace(frost);
+        Ambience::World cold;
+        cold.hour = 23.0f;
+        cold.daylight = 0.0f;
+        SDL_FPoint at{};
+        frost.Spawn("default", at);
+        cold.walkers.push_back({at.x, at.y});
+        cam.SetBounds(frost.Width(), frost.Height());
+        cam.SnapTo(at.x, at.y);
+        run(s, cold, 3.0f);
+        Check(s.Breaths() > 0, "in the cold, breath shows");
+        Check(s.Aurora(), "and over the Frostreach by night, an aurora");
+        Ambience::World bright = cold;
+        bright.daylight = 1.0f;
+        bright.hour = 12.0f;
+        s.Update(0.05f, cam, bright);
+        Check(!s.Aurora(), "which is gone by day");
+        Ambience f;
+        f.SetKind(fernhollow.Ambient(), false);
+        f.SetPlace(fernhollow);
+        run(f, cold, 3.0f);
+        Check(f.Breaths() == 0 && !f.Aurora(), "and not in a warm village");
+    }
+
+    Section("indoors, the window light; in the villages, their washing, signs and lamps");
+    {
+        Ambience room;
+        room.SetKind("town", true);
+        Ambience::World w;
+        w.walkers.push_back({0.0f, 0.0f});
+        run(room, w, 0.5f);
+        int dust = 0;
+        for (const Ambience::MoteView& m : room.Motes()) dust += m.kind == Ambience::DUST;
+        Check(dust > 10, "a room has dust turning in its window light");
+
+        // Every village has its washing out, and a sign over each shop.
+        string wrong;
+        for (const Map* m : {&havenbrook, &mossvale, &fernhollow}) {
+            int signs = 0, washing = 0;
+            for (const MapObject& o : m->Objects())
+                if (o.type == "hanging_sign") {
+                    ++signs;
+                    SDL_Surface* img = IMG_Load(o.sprite.c_str());
+                    if (!img) wrong += " " + o.sprite;
+                    else SDL_DestroySurface(img);
+                }
+            for (const TileInstance& t : m->Tiles()) washing += m->TexturePath(t).find("laundry_wash") != string::npos;
+            if (signs < 1 || washing < 1) wrong += " " + m->Id();
+        }
+        Check(wrong.empty(), "Havenbrook, Mossvale and Fernhollow have washing lines and shop signs" + wrong);
+        Check(Shaders::ArtOf("assets/props/laundry_wash.png").kind == Shaders::PROP_CLOTH &&
+                  Shaders::ArtOf("assets/props/laundry_posts.png").kind == Shaders::PROP_NONE,
+              "the wash moves in the wind; its posts stand still");
+
+        // The houses' lamps: out by day, lit at dusk each at its own time, out
+        // again through the night at their own; the inn's last.
+        int lit_eight = 0, lit_midnight = 0, lit_day = 0, lit_two = 0, inn_one = 0, inn_four = 0;
+        for (int i = 0; i < 60; ++i) {
+            const float x = 100.0f + i * 37.0f, y = 200.0f + (i % 7) * 53.0f;
+            lit_day += Shaders::WindowsLitAt(13.0f, x, y, false);
+            lit_eight += Shaders::WindowsLitAt(20.2f, x, y, false);
+            lit_midnight += Shaders::WindowsLitAt(0.5f, x, y, false);
+            lit_two += Shaders::WindowsLitAt(2.8f, x, y, false);
+            inn_one += Shaders::WindowsLitAt(1.0f, x, y, true);
+            inn_four += Shaders::WindowsLitAt(4.4f, x, y, true);
+        }
+        Check(lit_day == 0 && lit_eight > 50 && lit_midnight > 5 && lit_midnight < lit_eight && lit_two < lit_midnight,
+              "the houses light up at dusk and go dark one by one through the night (" + std::to_string(lit_eight) + ", " +
+                  std::to_string(lit_midnight) + ", " + std::to_string(lit_two) + " of 60)");
+        Check(inn_one == 60 && inn_four < 60, "and the inn's burn till two");
+        Check(Shaders::ArtOf("assets/props/townhouse_a.png").kind == Shaders::PROP_WINDOWS &&
+                  Shaders::ArtOf("assets/props/fisher_cottage_b.png").kind == Shaders::PROP_WINDOWS &&
+                  Shaders::ArtOf("assets/props/inn_building.png").tavern,
+              "Havenbrook's houses and Fernhollow's cottages have windows that light; the inn keeps late hours");
+        SDL_Surface* sheet = IMG_Load(Ambience::CRITTERS_SHEET);
+        Check(sheet && sheet->w == 160 && sheet->h == 208, "the critters are drawn (critters.png)");
+        if (sheet) SDL_DestroySurface(sheet);
+    }
+}
+
+
+// The stick as a circle and not a cross: walking any way it points at the same
+// pace, eased in and out; the facing a blow goes by following it at once and
+// holding a little past each halfway mark; the way the player is drawn swinging
+// round through the eight, and the eight rows in the sheets the player goes
+// about in. Run with --only steer.
+static void TestRadialMovement(const Databases& db) {
+    SpriteLibrary& sprites = db.sprites; ItemDatabase& items = db.items; EnemyDatabase& enemy_db = db.enemy_db;
+    LootSystem& loot = db.loot; QuestLog& quests = db.quests; DialogueDatabase& dialogue = db.dialogue;
+    ProjectileDatabase& projectiles = db.projectiles;
+    SpellBook& spells = db.spells; SkillTrees& trees = db.trees;
+    Section("walking any way the stick points, and turned the way they go");
+
+    Input input;
+    std::mt19937 rng(808);
+    GameContext ctx;
+    ctx.sprites = &sprites;   ctx.items = &items;       ctx.loot = &loot;
+    ctx.quests = &quests;     ctx.dialogue = &dialogue; ctx.enemies = &enemy_db;
+    ctx.projectiles = &projectiles; ctx.spells = &spells; ctx.trees = &trees;
+    ctx.input = &input;       ctx.rng = &rng;
+    const float dt = 1.0f / 60.0f;
+    World w;
+    w.player.Init(ctx, "player_hero");
+    if (!w.LoadMap("overworld", "start", ctx)) { Check(false, "the overworld loads"); return; }
+    w.enemies.clear();
+    w.clock.Set(1, 12.0f);
+    w.player.hands_external = true;
+    const auto steer = [&](float mx, float my, int n) {
+        for (int f = 0; f < n; ++f) {
+            w.player.hands = PlayerInput{};
+            w.player.hands.move = {mx, my};
+            input.Update(dt);
+            w.Update(dt, ctx);
+        }
+    };
+    const auto at = [&]() { return SDL_FPoint{w.player.x, w.player.y}; };
+    const auto open = [&](float x, float y) {
+        w.player.x = x;
+        w.player.y = y;
+        steer(0.0f, 0.0f, 30);
+    };
+    // Somewhere open on the overworld, round the start.
+    SDL_FPoint start{};
+    w.CurrentMap().Spawn("start", start);
+    float ox = start.x, oy = start.y;
+    for (float r = 0.0f; r < 600.0f; r += 40.0f) {
+        bool clear = true;
+        for (float a = 0.0f; a < 6.28f && clear; a += 0.4f) {
+            const SDL_FRect box{start.x + r - 8.0f + cosf(a) * 90.0f, start.y - 11.0f + sinf(a) * 90.0f, 16.0f, 11.0f};
+            clear = !w.CurrentMap().Blocked(box) && w.CurrentMap().LevelAt(box.x, box.y) == w.CurrentMap().LevelAt(start.x + r, start.y);
+        }
+        if (clear) { ox = start.x + r; oy = start.y; break; }
+    }
+
+    // The same pace every way: a diagonal is not a shortcut, nor a crawl.
+    open(ox, oy);
+    SDL_FPoint a = at();
+    steer(1.0f, 0.0f, 60);
+    const float across = Length(at().x - a.x, at().y - a.y);
+    open(ox, oy);
+    a = at();
+    steer(0.70710678f, 0.70710678f, 60);
+    const SDL_FPoint b = at();
+    const float slant = Length(b.x - a.x, b.y - a.y);
+    Check(across > 40.0f && std::fabs(slant - across) < across * 0.08f && std::fabs((b.x - a.x) - (b.y - a.y)) < 6.0f,
+          "down and to the right goes as far as straight right, at forty-five degrees (" + std::to_string(static_cast<int>(slant)) +
+              " and " + std::to_string(static_cast<int>(across)) + " px in a second)");
+    Check(w.player.Heading() == 5, "and they are drawn turned down and to the right (row " + std::to_string(w.player.Heading()) + ")");
+    Check(w.player.facing == FACE_RIGHT || w.player.facing == FACE_DOWN, "while a blow would go one of the four ways");
+
+    // Eased in and out: not there in a frame, there in a few hundredths; and
+    // stopped as quickly.
+    open(ox, oy);
+    steer(1.0f, 0.0f, 1);
+    const float first = w.player.Velocity().x;
+    steer(1.0f, 0.0f, 11);
+    const float soon = w.player.Velocity().x;
+    steer(1.0f, 0.0f, 30);
+    const float full = w.player.Velocity().x;
+    steer(0.0f, 0.0f, 8);
+    const float stopping = Length(w.player.Velocity().x, w.player.Velocity().y);
+    Check(first > 0.0f && first < full * 0.5f && soon > full * 0.95f,
+          "a push of the stick gets them going over a few hundredths of a second, not in one frame");
+    Check(stopping < full * 0.05f, "and letting go stops them as quickly");
+
+    // The facing a blow goes by holds a little past the halfway mark.
+    open(ox, oy);
+    const auto towards = [&](float degrees, int n) { steer(cosf(degrees * 0.01745329f), sinf(degrees * 0.01745329f), n); };
+    towards(40.0f, 20);
+    const Facing at40 = w.player.facing;
+    towards(50.0f, 20);
+    const Facing at50 = w.player.facing;
+    towards(62.0f, 20);
+    const Facing at62 = w.player.facing;
+    towards(40.0f, 20);
+    const Facing back40 = w.player.facing;
+    Check(at40 == FACE_RIGHT && at50 == FACE_RIGHT && at62 == FACE_DOWN && back40 == FACE_DOWN,
+          "a stick held near a diagonal does not flicker between two facings");
+
+    // Turned about: the blow goes the new way at once, and the figure swings
+    // round through the ways between.
+    open(ox, oy);
+    steer(1.0f, 0.0f, 30);
+    std::set<int> passed;
+    steer(-1.0f, 0.0f, 1);
+    const Facing turned = w.player.facing;
+    for (int f = 0; f < 20; ++f) {
+        passed.insert(w.player.Heading());
+        steer(-1.0f, 0.0f, 1);
+    }
+    passed.insert(w.player.Heading());
+    const bool through = passed.count(0) + passed.count(3) + passed.count(4) + passed.count(5) + passed.count(6) + passed.count(7) > 0;
+    Check(turned == FACE_LEFT && through && w.player.Heading() == FACE_LEFT,
+          "turning about, a blow goes the new way at once and they swing round to it through the ways between");
+
+    // A light tilt is a slow walk, and its steps slow with it.
+    open(ox, oy);
+    steer(0.3f, 0.0f, 30);
+    Check(w.player.Clip() == "walk" && w.player.sprite.speed_scale < 0.8f && w.player.Velocity().x < 40.0f,
+          "a light tilt walks, slowly, and the feet keep step with it");
+
+    // A friend's machine draws them turned the same way.
+    open(ox, oy);
+    steer(-0.70710678f, -0.70710678f, 40);
+    const net::PlayerState told = coop::StateOf(w.player, 0);
+    Player puppet;
+    puppet.Init(ctx, "player_hero");
+    puppet.puppet = true;
+    puppet.Pose(told.x, told.y, static_cast<Facing>(told.facing & 3), told.clip, told.frame, ctx.items,
+                static_cast<int>(told.facing >> 4) - 1);
+    Check(w.player.Heading() == 6 && puppet.Heading() == 6 && puppet.sprite.Row() == 6,
+          "and a friend sees them turned up and to the left too");
+
+    Section("the eight ways in the sheets the player goes about in");
+    {
+        string wrong;
+        int sheets = 0;
+        for (const char* rig : {"player_hero", "player_warden", "player_wayfarer", "player_lantern"}) {
+            const SpriteDef* def = sprites.Get(rig);
+            if (!def) { wrong += string(" ") + rig; continue; }
+            for (const char* name : {"idle", "walk", "run", "sprint"}) {
+                const AnimClip* c = def->Find(name);
+                if (!c || c->rows != 8) { wrong += string(" ") + rig + "/" + name; continue; }
+                vector<string> paths{c->sheet};
+                for (const AnimLayer& l : c->layers) paths.push_back(l.sheet);
+                for (const string& path : paths) {
+                    SDL_Surface* img = IMG_Load(path.c_str());
+                    if (!img) continue;
+                    if (img->h != 8 * 64) wrong += " " + path;
+                    ++sheets;
+                    SDL_DestroySurface(img);
+                }
+            }
+            const AnimClip* attack = def->Find("attack");
+            if (!attack || attack->rows == 8) wrong += string(" ") + rig + "/attack";
+        }
+        // And every weapon of every tier in hand, walking.
+        for (const char* kind : {"sword", "bow", "staff", "dagger", "greatsword", "crossbow", "orb"})
+            for (const char* tier : {"wood", "iron", "azuryte"}) {
+                const string path = string("assets/characters/player_hero/layers/walk_4_weapon_") + kind + "_" + tier + ".png";
+                SDL_Surface* img = IMG_Load(path.c_str());
+                if (!img) continue;
+                if (img->h != 8 * 64) wrong += " " + path;
+                ++sheets;
+                SDL_DestroySurface(img);
+            }
+        Check(wrong.empty() && sheets > 300, "idle, walk, run and sprint have eight rows in every layer, armour and weapon (" +
+                                                 std::to_string(sheets) + " sheets)" + wrong);
+        // The first four rows of an eight-row sheet are the four the rest of
+        // the game knows: a townsperson drawn from the hero's rig still faces
+        // the four ways it always did.
+        Sprite townsfolk;
+        townsfolk.SetDef(sprites.Get("player_hero"));
+        townsfolk.Play("walk");
+        townsfolk.facing = FACE_UP;
+        Check(townsfolk.Rows() == 8 && townsfolk.Row() == FACE_UP, "anybody else drawn from the rig faces its four ways as before");
+    }
+}
+
 int main(int argc, char** argv) {
     // Unbuffered (Windows has no line buffering), so a crash does not take what
     // was printed before it with it.
@@ -9331,6 +9948,8 @@ int main(int argc, char** argv) {
         if (only == "act2")        TestActTwo(db);
         if (only == "cozy")        TestCozyLook(db);
         if (only == "air")         TestAmbientLife(db);
+        if (only == "life")        TestLifeAbout(db);
+        if (only == "steer")       TestRadialMovement(db);
         printf("\n%d checks, %d failures\n", g_checks, g_failures);
         return g_failures;
     }
@@ -9830,6 +10449,9 @@ int main(int argc, char** argv) {
         for (const NpcDef& n : room.Npcs())
             Check(reachable(n.x, n.y), string(id) + ": " + n.name + " can be walked up to");
         for (const MapObject& o : room.Objects()) {
+            // Where the gulls wheel and the hens scratch, and a sign over a door,
+            // are not things anybody walks up to.
+            if (o.type == "critters" || o.type == "hanging_sign") continue;
             // Preserve the existing gathering layout; this pass adds route
             // coverage to the old overworld rather than auditing every tree.
             if (string(id) == "overworld" && o.id != "sign_trailhead" && o.type != "herb") continue;
@@ -11204,7 +11826,9 @@ int main(int argc, char** argv) {
             if (!def || def->rows < 2) continue;
             const AnimClip* idle = def->Find("idle");
             if (!idle || !fs::exists(idle->sheet)) continue;
-            const vector<int> base = row_feet(idle->sheet, def->rows, idle->frames);
+            // A clip's own rows: the player's goings-about have eight.
+            const auto rows_of = [&](const AnimClip* c) { return c->rows > 0 ? c->rows : def->rows; };
+            const vector<int> base = row_feet(idle->sheet, rows_of(idle), idle->frames);
             // Only clips the creature is still standing up in: a death lies
             // down, and where it lies is the point of it.
             for (const char* name : {"walk", "run", "attack", "hurt"}) {
@@ -11219,9 +11843,10 @@ int main(int argc, char** argv) {
                 static const std::set<string> kReaching = {"ashen_vanguard/walk", "ashen_vanguard/run",
                                                            "forge_demon/walk", "forge_demon/attack", "hushed/attack"};
                 if (kReaching.count(id + "/" + name)) continue;
-                const vector<int> feet = row_feet(clip->sheet, def->rows, clip->frames);
+                const vector<int> feet = row_feet(clip->sheet, rows_of(clip), clip->frames);
                 int off = 0;
-                for (int r = 1; r < def->rows; ++r)
+                const int both = std::min(rows_of(clip), rows_of(idle));
+                for (int r = 1; r < both; ++r)
                     off = std::max(off, std::abs((feet[r] - feet[0]) - (base[r] - base[0])));
                 ++checked;
                 if (off > worst) { worst = off; worst_name = id + "/" + name; }
@@ -11272,7 +11897,8 @@ int main(int argc, char** argv) {
             if (!def || def->rows != 4) continue;
             for (const auto& kv : def->clips) {
                 int bad = 0;
-                const bool read = crosses_edge(kv.second.sheet, def->rows, kv.second.frames, bad);
+                const bool read = crosses_edge(kv.second.sheet, kv.second.rows > 0 ? kv.second.rows : def->rows,
+                                               kv.second.frames, bad);
                 Check(read, string(who) + "/" + kv.first + " sheet loads");
                 Check(bad == 0, string(who) + "/" + kv.first + " draws nothing across a cell edge  -  " +
                                 std::to_string(bad) + " frames do");
@@ -27848,6 +28474,8 @@ int main(int argc, char** argv) {
     TestLanternWarden(db);
     TestCozyLook(db);
     TestAmbientLife(db);
+    TestLifeAbout(db);
+    TestRadialMovement(db);
     TestBalanceFixes(db);
     TestLateSpells(db);
     TestLateTreeRows(db);

@@ -71,6 +71,7 @@ bool SpriteLibrary::Load(const string& json_path) {
                 a.fps    = c.value().value("fps", 10.0f);
                 a.loop   = c.value().value("loop", true);
                 a.fit    = c.value().value("fit", false);
+                a.rows   = c.value().value("rows", 0);
                 if (c.value().contains("row_frames"))
                     for (const auto& n : c.value()["row_frames"])
                         a.row_frames.push_back(std::max(1, n.get<int>()));
@@ -141,10 +142,21 @@ void Sprite::Play(const string& name, bool restart) {
     finished = false;
 }
 
+int Sprite::Rows() const {
+    if (clip && clip->rows > 0) return clip->rows;
+    return def ? std::max(1, def->rows) : 4;
+}
+
+int Sprite::Row() const {
+    const int rows = Rows();
+    if (rows <= 1) return 0;
+    if (rows >= 8 && heading >= 0 && heading_for == facing) return heading % 8;
+    return static_cast<int>(facing) % rows;
+}
+
 int Sprite::FrameCount() const {
     if (!clip || !def) return 1;
-    const int row = (def->rows > 1) ? static_cast<int>(facing) % def->rows : 0;
-    return clip->FramesForRow(row);
+    return clip->FramesForRow(Row());
 }
 
 void Sprite::Update(float dt) {
@@ -292,7 +304,7 @@ bool Sprite::DrawLayers(SDL_Renderer* r, TextureCache& cache,
         if (tw <= 0 || th <= 0) continue;
 
         const float fw = tw / static_cast<float>(clip->frames);
-        const float fh = th / static_cast<float>(std::max(1, def->rows));
+        const float fh = th / static_cast<float>(Rows());
         const SDL_FRect src = {shown * fw, row * fh, fw, fh};
 
         SDL_Color c = tint;
@@ -360,8 +372,8 @@ void Sprite::Draw(SDL_Renderer* r, TextureCache& cache, const Camera& cam,
     if (tw <= 0 || th <= 0) return;
 
     const float fw = tw / static_cast<float>(clip->frames);
-    const float fh = th / static_cast<float>(std::max(1, def->rows));
-    const int   row = (def->rows > 1) ? static_cast<int>(facing) % def->rows : 0;
+    const float fh = th / static_cast<float>(Rows());
+    const int   row = Row();
     const int   shown = std::min(frame, clip->FramesForRow(row) - 1);
 
     const SDL_FRect src = {shown * fw, row * fh, fw, fh};
@@ -408,8 +420,8 @@ void Sprite::DrawAt(SDL_Renderer* r, TextureCache& cache,
     if (tw <= 0 || th <= 0) return;
 
     const float fw = tw / static_cast<float>(clip->frames);
-    const float fh = th / static_cast<float>(std::max(1, def->rows));
-    const int   row = (def->rows > 1) ? static_cast<int>(facing) % def->rows : 0;
+    const float fh = th / static_cast<float>(Rows());
+    const int   row = Row();
     const int   shown = std::min(frame, clip->FramesForRow(row) - 1);
     const SDL_FRect src = {shown * fw, row * fh, fw, fh};
 

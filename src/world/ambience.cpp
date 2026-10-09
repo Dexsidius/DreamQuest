@@ -16,7 +16,7 @@ void Ambience::SetKind(const string& ambient, bool interior) {
     else if (ambient == "gale")   kind = Kind::Gale;
     else if (ambient == "storm")  kind = Kind::Storm;
     else if (ambient == "conflux") kind = Kind::Conflux;
-    else if (interior)            kind = Kind::None;
+    else if (interior)            kind = Kind::Room;
     else if (ambient == "forest") kind = Kind::Forest;
     else if (ambient == "grove")  kind = Kind::Grove;
     else if (ambient == "town")   kind = Kind::Town;
@@ -35,6 +35,24 @@ void Ambience::SetKind(const string& ambient, bool interior) {
     birds.clear();
     land_wait = -1.0f;   // a few already about when the map is come into: see UpdateBirds
     flock_wait = 9.0f;
+    critters.clear();
+    prints.clear();
+    splashes.clear();
+    breath.clear();
+    step_left.clear();
+    critter_wait = -1.0f;   // the same: a few about already (UpdateCritters)
+    fish_wait = 3.0f;
+    watcher_wait = 12.0f;
+    rain_shown = 0.0f;
+}
+
+bool Ambience::OutdoorsKind() const {
+    return kind == Kind::Field || kind == Kind::Town || kind == Kind::Forest || kind == Kind::Grove ||
+           kind == Kind::Snow || kind == Kind::Ash || kind == Kind::Salt;
+}
+
+bool Ambience::RainsHere() const {
+    return kind == Kind::Field || kind == Kind::Town || kind == Kind::Forest || kind == Kind::Grove;
 }
 
 Ambience::Mote Ambience::Make(MoteKind k, const SDL_FRect& view) {
@@ -68,12 +86,32 @@ Ambience::Mote Ambience::Make(MoteKind k, const SDL_FRect& view) {
             m.size  = 1.0f;
             break;
         case DUST:
+            if (kind == Kind::Room) {
+                // Indoors: motes hanging in the window light, turning slowly,
+                // catching it now and then.
+                m.color = {250, 238, 206, static_cast<Uint8>(Range(rng, 70.0f, 130.0f))};
+                m.vx    = Range(rng, -2.0f, 2.0f);
+                m.vy    = Range(rng, -1.5f, 1.5f);
+                m.speed = Range(rng, 0.2f, 0.6f);
+                m.size  = 1.0f;
+                break;
+            }
             m.color = {196, 188, 176, static_cast<Uint8>(Range(rng, 40.0f, 90.0f))};
             m.vy    = Range(rng, -5.0f, -1.5f);
             m.speed = Range(rng, 0.3f, 0.8f);
             m.size  = 1.0f;
             break;
         case SNOW:
+            if (place.frost) {
+                // The Frostreach's: big soft flakes coming straight down, slowly,
+                // swaying as they come -- snow falling, not snow blown.
+                m.color = {240, 246, 255, static_cast<Uint8>(Range(rng, 160.0f, 235.0f))};
+                m.vx    = Range(rng, -6.0f, -1.0f);
+                m.vy    = Range(rng, 12.0f, 24.0f);
+                m.speed = Range(rng, 0.6f, 1.2f);
+                m.size  = Rand01(rng) < 0.2f ? Range(rng, 2.4f, 3.2f) : Range(rng, 1.3f, 2.4f);
+                break;
+            }
             // Flakes on the mountain wind: slanting down, a few big and near.
             m.color = {236, 244, 255, static_cast<Uint8>(Range(rng, 170.0f, 240.0f))};
             m.vx    = Range(rng, -22.0f, -8.0f);
@@ -81,6 +119,23 @@ Ambience::Mote Ambience::Make(MoteKind k, const SDL_FRect& view) {
             m.speed = Range(rng, 1.0f, 2.0f);
             m.size  = Range(rng, 1.0f, 2.2f);
             break;
+        case FEATHER:
+            // The Reverie's: a white feather rocking down out of nowhere.
+            m.color = Rand01(rng) < 0.3f ? SDL_Color{226, 214, 250, 230} : SDL_Color{246, 244, 250, 230};
+            m.vx    = Range(rng, -4.0f, 4.0f);
+            m.vy    = Range(rng, 5.0f, 10.0f);
+            m.speed = Range(rng, 0.5f, 1.0f);
+            m.size  = Range(rng, 3.0f, 4.5f);
+            break;
+        case PETAL: {
+            static const SDL_Color kPetals[] = {{246, 172, 204, 235}, {212, 176, 250, 235}, {252, 222, 236, 235}};
+            m.color = kPetals[rng() % 3];
+            m.vx    = Range(rng, -6.0f, 6.0f);
+            m.vy    = Range(rng, 7.0f, 14.0f);
+            m.speed = Range(rng, 1.2f, 2.2f);
+            m.size  = Range(rng, 1.6f, 2.6f);
+            break;
+        }
         case FLURRY:
             // Driven snow, low and fast: only seen while a gust is blowing.
             m.color = {240, 246, 255, static_cast<Uint8>(Range(rng, 140.0f, 220.0f))};
@@ -169,9 +224,11 @@ Ambience::Mote Ambience::Make(MoteKind k, const SDL_FRect& view) {
             break;
         }
         case RAIN:
-            // Slanting down hard.
-            m.color = {176, 190, 222, static_cast<Uint8>(Range(rng, 90.0f, 160.0f))};
-            m.vx    = Range(rng, -70.0f, -50.0f);
+            // Slanting down hard: in the Tempest against the wind it has, in
+            // a shower with the land's own wind (from the west).
+            m.color = kind == Kind::Storm ? SDL_Color{176, 190, 222, static_cast<Uint8>(Range(rng, 90.0f, 160.0f))}
+                                          : SDL_Color{206, 216, 238, static_cast<Uint8>(Range(rng, 120.0f, 190.0f))};
+            m.vx    = kind == Kind::Storm ? Range(rng, -70.0f, -50.0f) : Range(rng, 30.0f, 55.0f);
             m.vy    = Range(rng, 260.0f, 340.0f);
             m.speed = 1.0f;
             m.size  = Range(rng, 3.0f, 5.0f);
@@ -196,6 +253,7 @@ void Ambience::Populate(const SDL_FRect& view) {
         case Kind::Gale:    break;
         case Kind::Storm:   break;
         case Kind::Conflux: dust = 8; break;
+        case Kind::Room:    dust = 28; break;
         case Kind::None:    break;
     }
     motes.clear();
@@ -206,12 +264,18 @@ void Ambience::Populate(const SDL_FRect& view) {
     for (int i = 0; i < streaks; ++i) motes.push_back(Make(STREAK, view));
     for (int i = 0; i < ash; ++i)    motes.push_back(Make(ASH, view));
     for (int i = 0; i < soot; ++i)   motes.push_back(Make(SOOT, view));
-    if (kind == Kind::Dream)
+    if (kind == Kind::Dream) {
         for (int i = 0; i < 60; ++i) motes.push_back(Make(WISP, view));
-    if (kind == Kind::Snow) {
-        for (int i = 0; i < 90; ++i) motes.push_back(Make(SNOW, view));
-        for (int i = 0; i < 80; ++i) motes.push_back(Make(FLURRY, view));
+        for (int i = 0; i < 10; ++i) motes.push_back(Make(FEATHER, view));
+        for (int i = 0; i < 16; ++i) motes.push_back(Make(PETAL, view));
     }
+    if (kind == Kind::Snow) {
+        for (int i = 0; i < (place.frost ? 150 : 90); ++i) motes.push_back(Make(SNOW, view));
+        for (int i = 0; i < (place.frost ? 30 : 80); ++i) motes.push_back(Make(FLURRY, view));
+    }
+    // A shower's rain: always there, drawn as much of it as is coming down.
+    if (RainsHere())
+        for (int i = 0; i < 230; ++i) motes.push_back(Make(RAIN, view));
     if (kind == Kind::Ash)
         for (int i = 0; i < 30; ++i) motes.push_back(Make(EMBER, view));
     if (kind == Kind::Salt)
@@ -228,7 +292,12 @@ void Ambience::Populate(const SDL_FRect& view) {
 
 void Ambience::Update(float dt, const Camera& cam, const World& world) {
     daylight = world.daylight;
+    sun = world.sun;
+    hour = world.hour;
+    rain = world.rain;
+    wet = world.wet;
     lively = world.lively;
+    rain_shown = RainsHere() ? world.rain : 0.0f;
     if (kind == Kind::None) return;
     const SDL_FRect view = cam.VisibleWorldRect(0.0f);
     const SDL_FPoint wd = Shaders::WindDirection();
@@ -250,7 +319,8 @@ void Ambience::Update(float dt, const Camera& cam, const World& world) {
             }
         } else if ((gust_age += dt) >= gust_len) {
             gust_age = -1.0f;
-            gust_wait = Range(rng, 14.0f, 30.0f);
+            // Down in the Frostreach the snow mostly just falls.
+            gust_wait = place.frost ? Range(rng, 35.0f, 70.0f) : Range(rng, 14.0f, 30.0f);
         }
         gust = gust_age < 0.0f ? 0.0f
                                : std::clamp(std::min(gust_age / GUST_RISE, (gust_len - gust_age) / GUST_FALL), 0.0f, 1.0f);
@@ -308,6 +378,16 @@ void Ambience::Update(float dt, const Camera& cam, const World& world) {
                 m.x += (m.vx + sinf(m.phase) * 6.0f) * dt;
                 m.y += m.vy * dt;
                 break;
+            case FEATHER:
+                // Rocking side to side as it comes down, slowest at each end
+                // of the rock.
+                m.x += (m.vx + sinf(m.phase) * 16.0f) * dt;
+                m.y += (m.vy * (0.55f + 0.45f * fabsf(cosf(m.phase)))) * dt;
+                break;
+            case PETAL:
+                m.x += (m.vx + sinf(m.phase) * 10.0f + wd.x * 8.0f) * dt;
+                m.y += (m.vy + cosf(m.phase * 0.7f) * 3.0f) * dt;
+                break;
             case SNOW:
                 m.x += (m.vx - 150.0f * gust + sinf(m.phase) * 9.0f) * dt;
                 m.y += m.vy * (1.0f - 0.35f * gust) * dt;
@@ -362,6 +442,9 @@ void Ambience::Update(float dt, const Camera& cam, const World& world) {
         if (m.y > bottom) { m.y = top + Range(rng, 0.0f, margin);    m.x = Range(rng, view.x, view.x + view.w); }
     }
 
+    UpdateWeather(dt, view, world);
+    UpdateSteps(dt, world);
+    UpdateCritters(dt, view, world);
     UpdateBirds(dt, view, world);
 }
 
@@ -370,8 +453,13 @@ void Ambience::Render(SDL_Renderer* r, const Camera& cam) const {
     const float z = cam.zoom;
 
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+    // A shower draws as much of its rain as is coming down; the Tempest all.
+    const bool shower = kind != Kind::Storm;
+    int rain_drawn = 0;
+    const int rain_limit = shower ? static_cast<int>(230.0f * rain_shown) : 1 << 20;
     for (const Mote& m : motes) {
         const SDL_FPoint p = cam.ToScreen(m.x, m.y);
+        if (m.kind == RAIN && rain_drawn++ >= rain_limit) continue;
         switch (m.kind) {
             case LEAF: {
                 // Its width breathes with the sway, which is what reads as a
@@ -522,20 +610,58 @@ void Ambience::Render(SDL_Renderer* r, const Camera& cam) const {
                 break;
             }
             case RAIN: {
-                // A short slanted streak: three steps down its slope.
-                SDL_SetRenderDrawColor(r, m.color.r, m.color.g, m.color.b, m.color.a);
-                const float s = std::max(1.0f, roundf(z * 0.5f));
+                // A short slanted streak: three steps down its slope -- leaning
+                // the way it is blown. Fainter by night, in a shower.
+                const float dim = shower ? 0.45f + 0.55f * std::clamp(daylight, 0.0f, 1.0f) : 1.0f;
+                SDL_SetRenderDrawColor(r, m.color.r, m.color.g, m.color.b, static_cast<Uint8>(m.color.a * dim));
+                // A shower's drops a whole art pixel wide, so they read at size.
+                const float s = shower ? z : std::max(1.0f, roundf(z * 0.5f));
                 const float step = std::max(1.0f, roundf(m.size * z * 0.34f));
-                for (int k = 0; k < 3; ++k) {
-                    const SDL_FRect q = {roundf(p.x - k * s), roundf(p.y + k * step), s, step};
+                const float lean = m.vx < 0.0f ? -s : s;
+                for (int k = 0; k < (shower ? 4 : 3); ++k) {
+                    const SDL_FRect q = {roundf(p.x + k * lean), roundf(p.y + k * step), s, step};
                     SDL_RenderFillRect(r, &q);
                 }
+                break;
+            }
+            case FEATHER: {
+                // A quill and its vane, turning: its length breathes with the
+                // rock, and it tips the way it is swinging.
+                const float turn = sinf(m.phase);
+                const float len = std::max(2.0f, roundf(m.size * z * (0.55f + 0.45f * fabsf(cosf(m.phase)))));
+                const float h = std::max(1.0f, roundf(z));
+                const float tip = roundf(turn * z);
+                SDL_SetRenderDrawColor(r, m.color.r, m.color.g, m.color.b, m.color.a);
+                const SDL_FRect vane = {roundf(p.x - len / 2.0f), roundf(p.y - h / 2.0f), len, h};
+                SDL_RenderFillRect(r, &vane);
+                const SDL_FRect end = {roundf(p.x + (turn > 0 ? len / 2.0f - z : -len / 2.0f)), roundf(p.y - h / 2.0f - tip),
+                                       z, h};
+                SDL_RenderFillRect(r, &end);
+                SDL_SetRenderDrawColor(r, 150, 140, 180, static_cast<Uint8>(m.color.a * 0.7f));
+                const SDL_FRect quill = {roundf(p.x - len / 2.0f), roundf(p.y + h / 2.0f), roundf(len * 0.6f), std::max(1.0f, roundf(z * 0.5f))};
+                SDL_RenderFillRect(r, &quill);
+                break;
+            }
+            case PETAL: {
+                const float w = std::max(1.0f, roundf(m.size * z * (0.4f + 0.6f * fabsf(cosf(m.phase)))));
+                const float h = std::max(1.0f, roundf(m.size * z * 0.7f));
+                const bool under = cosf(m.phase) < 0.0f;
+                SDL_SetRenderDrawColor(r, under ? static_cast<Uint8>(m.color.r * 0.85f) : m.color.r,
+                                       under ? static_cast<Uint8>(m.color.g * 0.85f) : m.color.g,
+                                       under ? static_cast<Uint8>(m.color.b * 0.85f) : m.color.b, m.color.a);
+                const SDL_FRect q = {roundf(p.x - w / 2.0f), roundf(p.y - h / 2.0f), w, h};
+                SDL_RenderFillRect(r, &q);
                 break;
             }
             case SNOW:
             case POLLEN:
             case DUST: {
-                SDL_SetRenderDrawColor(r, m.color.r, m.color.g, m.color.b, m.color.a);
+                Uint8 a = m.color.a;
+                // A room's dust shows where the window light catches it.
+                if (m.kind == DUST && kind == Kind::Room)
+                    a = static_cast<Uint8>(m.color.a * std::clamp(sun, 0.15f, 1.0f) *
+                                           (0.35f + 0.65f * std::max(0.0f, sinf(m.phase * 1.7f))));
+                SDL_SetRenderDrawColor(r, m.color.r, m.color.g, m.color.b, a);
                 const float s = std::max(1.0f, roundf(m.size * z));
                 const SDL_FRect q = {roundf(p.x - s / 2.0f), roundf(p.y - s / 2.0f), s, s};
                 SDL_RenderFillRect(r, &q);
@@ -544,13 +670,28 @@ void Ambience::Render(SDL_Renderer* r, const Camera& cam) const {
         }
     }
 
+    // Bats and a fish out of the water, over the night -- dark things the dark
+    // would swallow -- but dimmed with it.
+    Sheet(r);
+    critter_light = 0.55f + 0.45f * std::clamp(daylight, 0.0f, 1.0f);
+    for (const Critter& c : critters)
+        if (c.kind == BAT || c.kind == FISH) DrawCritter(r, cam, c, false);
+    critter_light = 1.0f;
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+    // Breath in the cold (over the night, or the night would swallow it), the
+    // sky's own lights and the moon on the water, then the window light.
+    DrawBreath(r, cam);
+    DrawAurora(r);
+    DrawMoon(r, cam);
+    DrawRoomLight(r, cam);
+
     // A gust whitens the whole view a little: the air thick with snow, or
     // with salt off the flats.
     if ((kind == Kind::Snow || kind == Kind::Salt) && gust > 0.02f) {
         int w = 0, h = 0;
         SDL_GetCurrentRenderOutputSize(r, &w, &h);
         if (kind == Kind::Salt) SDL_SetRenderDrawColor(r, 236, 232, 224, static_cast<Uint8>(40.0f * gust));
-        else                    SDL_SetRenderDrawColor(r, 236, 244, 255, static_cast<Uint8>(52.0f * gust));
+        else SDL_SetRenderDrawColor(r, 236, 244, 255, static_cast<Uint8>((place.frost ? 30.0f : 52.0f) * gust));
         const SDL_FRect all = {0.0f, 0.0f, static_cast<float>(w), static_cast<float>(h)};
         SDL_RenderFillRect(r, &all);
     }
@@ -630,6 +771,15 @@ int Ambience::PickSpecies(bool flock) {
     }
 }
 
+namespace {
+// Near any of them, within r.
+bool NearAny(const vector<Ambience::Walker>& walkers, float x, float y, float r) {
+    for (const Ambience::Walker& w : walkers)
+        if ((w.x - x) * (w.x - x) + (w.y - y) * (w.y - y) < r * r) return true;
+    return false;
+}
+}
+
 void Ambience::UpdateBirds(float dt, const SDL_FRect& view, const World& world) {
     int target = 0;
     switch (kind) {
@@ -643,11 +793,9 @@ void Ambience::UpdateBirds(float dt, const SDL_FRect& view, const World& world) 
         default:           target = 0; break;
     }
     const bool day = daylight > 0.45f;
-    const auto near_walker = [&](float x, float y, float r) {
-        for (const SDL_FPoint& w : world.walkers)
-            if ((w.x - x) * (w.x - x) + (w.y - y) * (w.y - y) < r * r) return true;
-        return false;
-    };
+    // Nothing comes down to stand about in a shower.
+    const bool sheltering = rain > 0.35f;
+    const auto near_walker = [&](float x, float y, float r) { return NearAny(world.walkers, x, y, r); };
     const float cx = view.x + view.w * 0.5f, cy = view.y + view.h * 0.5f;
     const float reach = std::max(view.w, view.h) * 0.75f + 60.0f;
 
@@ -671,7 +819,7 @@ void Ambience::UpdateBirds(float dt, const SDL_FRect& view, const World& world) 
 
     // Down out of the sky onto open ground, a few at a time, out of sight of
     // whoever is near.
-    if (lively && target > 0 && day && world.stand && (land_wait -= dt) <= 0.0f) {
+    if (lively && target > 0 && day && !sheltering && world.stand && (land_wait -= dt) <= 0.0f) {
         land_wait = Range(rng, 2.5f, 5.0f);
         int down = 0;
         for (const Bird& b : birds) down += b.state != Bird::PASSING && b.state != Bird::FLEEING;
@@ -769,9 +917,10 @@ void Ambience::UpdateBirds(float dt, const SDL_FRect& view, const World& world) 
             case Bird::PECKING:
             case Bird::HOPPING: {
                 // Somebody close: up and away -- and whoever is beside it too.
-                bool scare = !day;
+                // And off to shelter when the rain comes on hard.
+                bool scare = !day || rain > 0.55f;
                 float fx = b.x, fy = b.y + 1.0f;
-                for (const SDL_FPoint& w : world.walkers)
+                for (const Walker& w : world.walkers)
                     if ((w.x - b.x) * (w.x - b.x) + (w.y - b.y) * (w.y - b.y) < 80.0f * 80.0f) { scare = true; fx = w.x; fy = w.y; }
                 for (const Bird& o : birds)
                     if (&o != &b && o.state == Bird::FLEEING && o.t < 0.4f && o.h < 20.0f &&
@@ -808,6 +957,46 @@ void Ambience::UpdateBirds(float dt, const SDL_FRect& view, const World& world) 
                 b.x += b.vx * dt;
                 b.y += b.vy * dt;
                 break;
+            case Bird::CIRCLING: {
+                // A gull wheeling over the water, round and round, now and then
+                // dropping low over it; off out of sight when it has had enough.
+                const float a = b.glide + b.t * 0.55f;
+                const float radius = 70.0f + 25.0f * sinf(b.t * 0.21f + b.glide);
+                const float nx = b.tx + cosf(a) * radius, ny = b.ty + sinf(a) * radius * 0.6f;
+                b.left = nx < b.x;
+                b.x = nx;
+                b.y = ny;
+                b.h = 70.0f + 30.0f * sinf(b.t * 0.33f + b.glide * 2.0f);
+                if (b.t > b.until || !day) {
+                    b.state = Bird::FLEEING;
+                    b.vx = (b.left ? -1.0f : 1.0f) * 110.0f;
+                    b.vy = -30.0f;
+                }
+                break;
+            }
+        }
+    }
+    // Gulls, over open water near a village: two or three wheeling at once.
+    if (lively && place.gulls && day && rain < 0.5f && !place.water.empty()) {
+        int wheeling = 0;
+        for (const Bird& b : birds) wheeling += b.state == Bird::CIRCLING;
+        if (wheeling < 3 && Rand01(rng) < dt * 0.2f) {
+            // Over water near the view, never right overhead the moment it comes.
+            const SDL_FPoint& w = place.water[rng() % place.water.size()];
+            if (fabsf(w.x - cx) < view.w && fabsf(w.y - cy) < view.h) {
+                Bird b;
+                b.state = Bird::CIRCLING;
+                b.species = GULL;
+                b.tx = w.x;
+                b.ty = w.y;
+                b.glide = Range(rng, 0.0f, 6.2831853f);
+                b.x = w.x + cosf(b.glide) * 70.0f;
+                b.y = w.y + sinf(b.glide) * 42.0f;
+                b.h = 80.0f;
+                b.until = Range(rng, 25.0f, 60.0f);
+                b.flap = Range(rng, 0.0f, 1.0f);
+                birds.push_back(b);
+            }
         }
     }
     // Gone: the far side of the view, or left far behind.
@@ -902,6 +1091,39 @@ SDL_Texture* Ambience::Sheet(SDL_Renderer* r) const {
             SDL_SetTextureScaleMode(clouds, SDL_SCALEMODE_LINEAR);
             SDL_SetTextureBlendMode(clouds, SDL_BLENDMODE_BLEND);
         }
+        critter_sheet = IMG_LoadTexture(r, CRITTERS_SHEET);
+        if (critter_sheet) SDL_SetTextureScaleMode(critter_sheet, SDL_SCALEMODE_NEAREST);
+        // The leaves' shade: dark where the leaves are, holes of sun between,
+        // at the art's own pixel size (it is drawn two world pixels a texel).
+        constexpr int dsize = 64, dw = dsize * DAPPLE_FRAMES;
+        vector<Uint8> drgba(static_cast<size_t>(dw) * dsize * 4, 255);
+        for (int f = 0; f < DAPPLE_FRAMES; ++f) {
+            const vector<Uint8> dm = DappleMask(dsize, f);
+            for (int y = 0; y < dsize; ++y)
+                for (int x = 0; x < dsize; ++x)
+                    drgba[(static_cast<size_t>(y) * dw + f * dsize + x) * 4 + 3] = dm[static_cast<size_t>(y) * dsize + x];
+        }
+        dapples = SDL_CreateTexture(r, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, dw, dsize);
+        if (dapples) {
+            SDL_UpdateTexture(dapples, nullptr, drgba.data(), dw * 4);
+            SDL_SetTextureScaleMode(dapples, SDL_SCALEMODE_NEAREST);
+            SDL_SetTextureBlendMode(dapples, SDL_BLENDMODE_BLEND);
+        }
+        // A shaft of light: soft across, fading along its length.
+        constexpr int bw = 32, bh = 128;
+        vector<Uint8> brgba(static_cast<size_t>(bw) * bh * 4, 255);
+        for (int y = 0; y < bh; ++y)
+            for (int x = 0; x < bw; ++x) {
+                const float across = 1.0f - fabsf((x + 0.5f) / bw * 2.0f - 1.0f);
+                const float along = std::min(1.0f, (y + 0.5f) / (bh * 0.25f)) * (1.0f - 0.7f * y / bh);
+                brgba[(static_cast<size_t>(y) * bw + x) * 4 + 3] = static_cast<Uint8>(255.0f * std::pow(across, 1.3f) * along);
+            }
+        beam = SDL_CreateTexture(r, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, bw, bh);
+        if (beam) {
+            SDL_UpdateTexture(beam, nullptr, brgba.data(), bw * 4);
+            SDL_SetTextureScaleMode(beam, SDL_SCALEMODE_LINEAR);
+            SDL_SetTextureBlendMode(beam, SDL_BLENDMODE_ADD);
+        }
     }
     return sheet;
 }
@@ -930,7 +1152,9 @@ void Ambience::DrawBird(SDL_Renderer* r, const Camera& cam, const Bird& b, bool 
         case Bird::HOPPING:  frame = 2; break;
         default: {
             static const int kFlap[4] = {3, 4, 5, 4};
-            frame = kFlap[static_cast<int>(b.flap * (b.species == EGRET ? 8.0f : 12.0f)) % 4];
+            frame = kFlap[static_cast<int>(b.flap * (b.species == EGRET || b.species == GULL ? 8.0f : 12.0f)) % 4];
+            // A gull wheels on still wings, with a few beats now and then.
+            if (b.state == Bird::CIRCLING && sinf(b.t * 0.9f + b.glide) > -0.3f) frame = 4;
             // A flock flaps and glides by turns, each bird to its own beat.
             if (b.state == Bird::PASSING && sinf(b.glide + b.t * 0.8f) > 0.25f) frame = 4;
             if (b.state == Bird::LANDING && b.h < 4.0f) frame = 2;
@@ -944,8 +1168,16 @@ void Ambience::DrawBird(SDL_Renderer* r, const Camera& cam, const Bird& b, bool 
 }
 
 void Ambience::RenderGround(SDL_Renderer* r, const Camera& cam) const {
-    if (birds.empty()) return;
+    Sheet(r);
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+    // Puddles and rings on the water, the leaves' shade, prints in the ground.
+    DrawWet(r, cam);
+    DrawDapples(r, cam);
+    DrawPrints(r, cam);
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+    // The shadows of whatever small thing is about (it stands with the rest:
+    // DrawStanding), and of what is up in the air.
+    for (const Critter& c : critters) DrawCritter(r, cam, c, true);
     for (const Bird& b : birds) DrawBird(r, cam, b, true);
     for (const Bird& b : birds)
         if (b.h <= 0.5f) DrawBird(r, cam, b, false);
@@ -956,7 +1188,7 @@ void Ambience::RenderSky(SDL_Renderer* r, const Camera& cam) const {
     // The clouds' shadows: one soft picture, tiled over the world a tile a
     // thousand pixels across, drifting downwind -- cooler than the light
     // round them, not just darker.
-    const float strength = lively ? CloudStrength() * std::clamp(daylight, 0.0f, 1.0f) : 0.0f;
+    const float strength = lively ? (CloudStrength() + 0.22f * rain_shown) * std::clamp(daylight, 0.0f, 1.0f) : 0.0f;
     if (clouds && strength > 0.01f) {
         constexpr float tile = 1024.0f;
         const SDL_FPoint wd = Shaders::WindDirection();
@@ -997,6 +1229,10 @@ void Ambience::RenderSky(SDL_Renderer* r, const Camera& cam) const {
                 }
         }
     }
+    // The sun down through the trees.
+    DrawShafts(r, cam);
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+    // The birds in the air (bats and fish are drawn over the night: Render).
     for (const Bird& b : birds)
         if (b.h > 0.5f) DrawBird(r, cam, b, false);
 }

@@ -27,6 +27,9 @@ PlayerInput PlayerInput::FromDevice(const Input& in) {
 }
 
 static constexpr float STICK_DEADZONE = 0.25f;
+// And at the rim: most sticks never quite reach 1, least of all on a
+// diagonal, so anything past this is all the way.
+static constexpr float STICK_OUTER    = 0.92f;
 static constexpr float REPEAT_DELAY   = 0.35f;
 static constexpr float REPEAT_RATE    = 0.09f;
 
@@ -664,8 +667,10 @@ Vec2 Input::MoveAxis() const {
     if (mode != InputMode::KeyboardMouse && pad) {
         const float mag = Length(stick.x, stick.y);
         if (mag > STICK_DEADZONE) {
-            // Rescale past the dead zone so slow walking is still reachable.
-            const float s = (mag - STICK_DEADZONE) / (1.0f - STICK_DEADZONE) / mag;
+            // Rescale past the dead zone so slow walking is still reachable,
+            // and to the rim, so a full push runs whichever way it points.
+            // The same in every direction: the stick is a circle, not a cross.
+            const float s = std::min(1.0f, (mag - STICK_DEADZONE) / (STICK_OUTER - STICK_DEADZONE)) / mag;
             v.x = stick.x * s;
             v.y = stick.y * s;
         }

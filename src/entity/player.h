@@ -854,8 +854,15 @@ public:
     bool puppet = false;
     uint8_t seat = 0;
     string  name;
-    // Poses a puppet: where, which way, which clip and which frame of it.
-    void Pose(float px, float py, Facing face, const string& clip, int frame, const ItemDatabase* db);
+    // Poses a puppet: where, which way, which clip and which frame of it --
+    // and which of the eight ways it is turned, for the clips that have them.
+    void Pose(float px, float py, Facing face, const string& clip, int frame, const ItemDatabase* db,
+              int heading = -1);
+    // Which of the eight ways they are turned, as their sheets' rows count
+    // them (see Sprite::heading): what the server tells a friend.
+    int Heading() const { return heading_row; }
+    // How fast they are going just now, in world pixels a second.
+    Vec2 Velocity() const { return walk_vel; }
     // The clip playing and the frame it is on, for the server to tell.
     const string& Clip() const { return sprite.current; }
     int ClipFrame() const { return sprite.Frame(); }
@@ -1000,6 +1007,21 @@ private:
     bool  moving = false;
 
     bool  sprinting = false;
+    // Which way they are turned as the stick turns them. The facing everything
+    // else asks for (which way a blow goes, a shield faces) follows the stick
+    // at once, one of four, and holds a little past each halfway mark so a
+    // stick held on a diagonal does not flicker between two. The way they are
+    // drawn swings round toward the stick (TURN_RATE) rather than jumping to it,
+    // and is one of eight: turning about, they pass through the ways between.
+    float heading_angle = 1.5707963f;   // radians, screen y down: down is +pi/2
+    int   heading_row = 0;             // of the eight: see Sprite::heading
+    Facing steered = FACE_DOWN;        // the facing the stick last set
+    // How fast they are going, eased toward what the stick asks for: a few
+    // hundredths of a second to get going and to stop, so a flick of the
+    // stick is a step and a turn about is a turn and not a reflection.
+    Vec2  walk_vel{0.0f, 0.0f};
+    void  Steer(const Vec2& move, float dt);
+    void  HeadToward(Facing f);
     bool  blocking = false;
     float ward_struck = 1.0f;
     bool  parrying = false;

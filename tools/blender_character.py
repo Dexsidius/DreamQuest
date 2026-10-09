@@ -2400,6 +2400,16 @@ CLIPS = {
 # Rows in the order every sheet in this project uses, and how far the
 # character turns from its modelled facing toward the camera.
 FACINGS = [("down", 0.0), ("left", 270.0), ("right", 90.0), ("up", 180.0)]
+# And, for the clips a character goes about in, the four between: a stick is not
+# four buttons, and someone running down and to the right is turned that way.
+# Rows four to seven, after the four everything else has, so a sheet with all
+# eight reads the same as one with four to anything that asks for the first four.
+DIAGONALS = [("down_left", 315.0), ("down_right", 45.0), ("up_left", 225.0), ("up_right", 135.0)]
+EIGHT_WAY = ("idle", "walk", "run", "sprint")
+
+
+def facings_for(clip_name):
+    return FACINGS + DIAGONALS if clip_name in EIGHT_WAY else FACINGS
 
 
 # Where a clip's weapon sheet goes in the draw order: 4, between the body and
@@ -2433,6 +2443,11 @@ def pose_for(clip_name, t, facing):
         for k in ("lean", "hips_lean", "lunge"):
             if k in values:
                 values[k] *= 0.4
+    # Half turned, half of that.
+    elif facing in ("down_left", "down_right", "up_left", "up_right") and clip_name in ("run", "sprint"):
+        for k in ("lean", "hips_lean", "lunge"):
+            if k in values:
+                values[k] *= 0.7
     return values
 
 
@@ -2876,7 +2891,8 @@ def build_sheet(clip_name, out_dir):
     global CURRENT_CLIP
     CURRENT_CLIP = clip_name
     _, frames, loops = CLIPS[clip_name]
-    cols, rows = frames, len(FACINGS)
+    facings = facings_for(clip_name)
+    cols, rows = frames, len(facings)
 
     clear_scene()
     _materials.clear()
@@ -2889,7 +2905,7 @@ def build_sheet(clip_name, out_dir):
         for key in ARMOUR_GROUPS:
             layers[key] = []
 
-    for row, (facing, turn) in enumerate(FACINGS):
+    for row, (facing, turn) in enumerate(facings):
         for col in range(frames):
             t = col / float(frames) if loops else col / float(frames - 1)
             joints, groups, extras = build_character()

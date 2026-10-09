@@ -431,6 +431,7 @@ public:
     // What the air needs of the world this frame: the light, the players
     // (the birds keep away from them), and where a bird could stand.
     Ambience::World Air() const;
+    void UpdateNearSounds(float dt);
     // The seat at this machine: whose camera, targeting, interact prompt and
     // bag the world's are. Alone, the only player there is.
     Player  player;
@@ -906,7 +907,7 @@ public:
 
     // A puff kicked up by a sprinting footfall, drifting back the way the
     // runner came.
-    struct Dust { float x, y, vx, vy, life, max_life, size; };
+    struct Dust { float x, y, vx, vy, life, max_life, size; SDL_Color colour; };
     vector<Dust> dust;
     void AddDust(float x, float y, float dir_x, float dir_y);
 
@@ -915,6 +916,9 @@ public:
     // point, thrown back along (nx, ny) -- the face of a wall, or the way it
     // came -- or all round for nothing; `size` is one for an apprentice's bolt.
     vector<Mote> motes;
+    // Motes that are their own light -- a forge chimney's sparks -- drawn over
+    // the night rather than under it.
+    vector<Mote> sparks;
     void BurstOf(Element e, float x, float y, float lift, float size, float nx, float ny);
 
     // Shots that are owed: a Mineral Burst is eight stones one after another,
@@ -1257,7 +1261,8 @@ private:
     vector<float> chimney_timers;   // until each chimney's next puff
     void ShedFromShots();
     void ShedFromGround(float dt);
-    void DrawMotes(SDL_Renderer* r) const;
+    void DrawMotes(SDL_Renderer* r) const { DrawMoteList(r, motes); }
+    void DrawMoteList(SDL_Renderer* r, const vector<Mote>& list) const;
     void SpawnEntitiesFromMap(const GameContext& ctx);
     void ApplyPlayerAttack(const GameContext& ctx);
     // What an ability begun this step does to the place: see Player::TryAbility.
@@ -1342,6 +1347,9 @@ private:
     vector<string> story_uses;
     float  reverie_veil = 0.0f;
     bool   veil_motes = false;
+    // How much water and lava there is round whoever is listening, for the
+    // lapping and the rumble (Audio::SetNearby), looked for a few times a second.
+    float  near_sound_wait = 0.0f;
     bool   flip = false;              // the transition under way is the flip
     bool   tear = false;              // and it is torn rather than rippled (TearInto)
     struct ShadowPass {

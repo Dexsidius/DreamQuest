@@ -209,9 +209,77 @@ With **Visual Effects** on (Options, then Visual Effects), a good deal more:
   On the Scoured Flats the plateau's ash comes down on the salt, and the
   gusts drive the salt along the ground under it (their air is `salt`, which
   is otherwise the mountain's). The ash and soot fall with Visual Effects off
-  as the snow does; the smoke goes with the rest. The birds are
+  as the snow does; the smoke goes with the rest.
+- **Showers.** Over the fields, the woods, the villages and the wetlands a
+  shower comes over now and then -- a few minutes of it, a few times an hour
+  of play -- and passes. The day greys and darkens, rain slants down with the
+  wind, it bounces off the ground and opens rings all over the water, the
+  birds go to shelter and the rabbits for cover, and puddles stand in the ruts
+  of the roads and the dips of the earth, with the rain ringing in them; the
+  ground stays wet and the puddles stand for a few minutes after, and a walk
+  over soaked earth leaves muddy prints and splashes. Indoors it is heard on
+  the roof. When it rains is worked out from the clock alone
+  (`src/world/weather.*`), so friends in one world see the same shower; it
+  touches nothing in the game. `--rain 0.8` calls one up to look at.
+- **Morning fog.** A fog lies low over the open land before dawn, thickest
+  from half past five to seven -- in the woods and the wetlands most -- and
+  burns off through the morning.
+- **Small animals** (`src/world/ambience_critters.cpp`, drawn by
+  `tools/make_critters.py`). Rabbits nibble on the grass and bolt for the
+  nearest bush or tree when somebody comes; squirrels sit at the foot of a
+  tree in the woods and run up it; deer graze at the woods' edge at dawn and
+  dusk, lift their heads, and bound off, the herd together; frogs sit on the
+  lily pads and croak of an evening, and leap off with a plop; fish jump out of
+  rivers and ponds; bats flit over Hollowrest's graves from dusk and down in
+  the crypt; rats run along a dungeon's walls; lizards bask on the burnt land
+  by its rocks and dart under them. In the villages, hens scratch about their
+  yards by day, cats sleep on doorsteps (and sit up and watch at night, and get
+  up and go if you come too close), and gulls wheel over Fernhollow's pond. None
+  can be struck or caught: where the map posts the same animal to be hunted
+  (Havenbrook's hens, the woods' deer), none of that kind is about as scenery
+  near it.
+- **Underfoot.** Prints are left in snow, sand, salt, mud and ash -- a heel and
+  a toe a step, left and right, filling in after half a minute -- and a sprint
+  kicks up what the ground is: dust off earth and roads, grey off ash, white
+  off snow and salt, bits of grass, water off the wet, nothing off boards.
+  Grass, sedge and reeds lean away from whoever walks through them and stand
+  up again behind them (`prop.frag`, from the walkers' positions each frame).
+- **Light.** Every tree throws a shade on the ground under its crown, with holes
+  of sun in it that move as the leaves move; shafts of sun come down through
+  the gaps in the Whisperwood's and the Brackenwood's canopy; on a clear night
+  the moon lies on still water, its road broken into bars toward you; and a
+  room's windows let in a slant of daylight with dust turning in it.
+- **The cold.** The Frostreach has its own snow, big soft flakes falling
+  straight down with only now and then a gust, where the mountain's is blown;
+  whoever is out in the snow breathes in puffs; and over the Frostreach at night
+  an aurora hangs in curtains of green and violet, the night a little green
+  under it.
+- **Villages.** Washing lines in the yards, the wash flapping on them (the
+  posts and the line are a picture that stands still, the wash one that the wind
+  takes); a sign over each shop's door -- a tankard, an anvil, a shield, a
+  leaf, a spool, a fish -- swinging on its arm, harder in a gust
+  (`tools/make_signs.py`); sparks up the forge's chimney with its smoke; and
+  every house's lamps lit at dusk each at its own time and out again at its own
+  through the night, some up again before dawn, the inns' burning till two
+  (`Shaders::WindowsLit`). Havenbrook's houses and Fernhollow's cottages light up
+  now as the halls always did.
+- **Sounds.** The rain, bright out of doors and dull through a roof; water
+  lapping wherever there is water in earshot, and after dark frogs there; owls in
+  the woods at night, and insects in the warm dark, thickest in the wetlands; the
+  rumble of lava and bubbles breaking in it. Like the rest of the game's sounds
+  they are made from nothing at start-up (`src/systems/audio.cpp`).
+- **The Reverie.** Feathers and petals come down out of nowhere, rocking; and
+  now and then a figure stands at the edge of what can be seen, looking back,
+  and is not there when you get close. The birds are
   `assets/effects/birds.png`, drawn by `tools/make_birds.py`; the rest is
   `src/world/ambience.*`.
+
+`bin\selftest.exe --only life` checks the weather's clock, what each place
+has for its animals and each animal's habits (out by day or at dusk, gone into
+cover when somebody comes, none where its huntable twin is posted), the prints
+and puddles, breath and the aurora, the villages' signs and washing, and the
+houses' lamps going out through the night; `--only air` the wind, the clouds,
+the birds and the ash.
 
 **Art Style** (on the same page) is **Cozy** unless you choose **Classic**.
 Cozy repaints the ground of every outdoor map as one picture rather than a
@@ -1011,6 +1079,34 @@ In co-op the host decides every blow, as it always has, and "dodged" goes up
 over whoever the blow was coming for: a swing remembers the seat it was aimed
 at, and a shot the seat it was loosed at. The code is `World::Dodged`, the
 `swing_at` and `heavy_at` in `Enemy`, and `Projectile::aim`.
+
+### Moving on a stick
+
+The left stick is a circle, not a cross: you walk whichever way it points, at
+the same pace on a diagonal as straight ahead, and as fast as it is pushed -- a
+light tilt is a slow walk whose steps slow with it, a full push a run. There is
+a dead zone in the middle (a quarter of the way out) and the rim counts from 92%
+of the way, since most sticks never quite reach the edge, least of all on a
+diagonal. The pace eases in and out over a few hundredths of a second, so a
+flick of the stick is a step and a turn about is a turn rather than a mirror.
+
+Going about -- standing, walking, running and sprinting -- the player is drawn
+turned any of **eight** ways, the four diagonals as well as up, down, left and
+right, and turning about they swing round through the ways between in about a
+fifth of a second. Everything you do with your hands still goes one of the four
+ways, and that facing follows the stick at once (a blow always goes where you
+point), holding a little past each halfway mark so a stick held on a diagonal
+does not flicker between two. The keyboard gets the same: two keys at once is a
+diagonal, and the character turns to it.
+
+The eight are in the sheets themselves, rendered from the rig like everything
+else (`DIAGONALS` and `EIGHT_WAY` in `tools/blender_character.py`; a clip's
+`rows` in `data/sprites.json`): rows four to seven of the idle, walk, run and
+sprint, after the four every sheet has, for every character, cut of armour and
+weapon in hand. Anything else drawn from the rig -- a townsperson in the hero's
+clothes -- uses the first four, as before. A friend's machine draws them turned
+the same way (protocol 25). `bin\selftest.exe --only steer` checks the pace on a
+diagonal, the easing, the hold, the turn and the sheets.
 
 ### Sprinting
 

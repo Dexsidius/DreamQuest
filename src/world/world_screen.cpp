@@ -12,6 +12,7 @@
 //  and the world draws exactly as it did before any of it.
 // -----------------------------------------------------------------------------
 #include "world.h"
+#include "weather.h"
 
 namespace {
 
@@ -130,6 +131,33 @@ Shaders::Frame World::ScreenFrame(TextureCache& cache) const {
     // Fog lies thickest in the dark: out of doors the day burns most of it off.
     f.fog = map.GroundFog();
     if (!map.IsInterior() && !dreaming) f.fog.density *= 0.6f + 0.4f * clock.Darkness();
+    // And on the open land a fog of its own at dawn, lying low and burning off
+    // through the morning -- thickest in the woods and the wetlands -- and a
+    // little in the air while a shower comes down.
+    const bool weathered = !map.IsInterior() && !dreaming && Weather::RainsOn(map.Ambient());
+    const float shower = weathered ? Weather::Rain(clock.Seconds()) : 0.0f;
+    if (weathered) {
+        const string& air = map.Ambient();
+        const float base = air == "grove" ? 0.5f : air == "forest" ? 0.45f : air == "town" ? 0.22f : 0.32f;
+        const float extra = Weather::MorningFog(clock.Hours()) * base + 0.07f * shower;
+        if (extra > 0.01f) {
+            if (!f.fog.on) {
+                f.fog = Shaders::Fog{};
+                f.fog.on = true;
+                f.fog.r = 0.84f; f.fog.g = 0.87f; f.fog.b = 0.89f;
+                f.fog.density = 0.0f;
+                f.fog.by_water = 0.6f;
+                f.fog.drift = 5.0f;
+            }
+            f.fog.density += extra;
+        }
+    }
+    // Who is about, for the grass to lean away from; and the hour, for the
+    // houses' lamps.
+    if (!player.absent) f.walkers.push_back({player.x, player.y});
+    for (const auto& g : guests)
+        if (g && f.walkers.size() < 4) f.walkers.push_back({g->x, g->y});
+    f.hour = clock.Hours();
 
     // Each place its own colours, and the hour its own on top outdoors: warm
     // and rich in the golden hour, the colour drained out of the dead of night.
@@ -161,6 +189,14 @@ Shaders::Frame World::ScreenFrame(TextureCache& cache) const {
     } else if (Shaders::Cozy()) {
         // Indoors, the same warmth.
         grade(1.03f, 1.0f, 0.95f, 1.0f, 1.0f, 0.0f);
+    }
+
+    // A shower greys the day: less colour, a little cooler, flatter.
+    if (shower > 0.0f) {
+        f.grade[0] *= 1.0f - 0.05f * shower;
+        f.grade[2] *= 1.0f + 0.03f * shower;
+        f.grade[3] *= 1.0f - 0.25f * shower;
+        f.contrast *= 1.0f - 0.05f * shower;
     }
 
     // The Reverie seen from awake: its swimming edges and its colours, laid
@@ -343,7 +379,10 @@ void World::DrawGlows(SDL_Renderer* r, TextureCache& cache, const vector<const T
             if (!tex) continue;
             SDL_FRect world = t->rect;
             world.y -= map.HeightAt(world.x + world.w * 0.5f, world.y + world.h);
-            if (art.glows) glow(tex, world);
+            // A house whose lamps are out has nothing to shine.
+            const bool dark_house = art.kind == Shaders::PROP_WINDOWS &&
+                                    !Shaders::WindowsLit(t->rect.x + t->rect.w * 0.5f, t->rect.y + t->rect.h, art.tavern);
+            if (art.glows && !dark_house) glow(tex, world);
             if (art.halo) halo_of(map.TexturePath(*t), world, map.TexturePath(*t) + std::to_string(t->rect.x));
         }
         for (const MapObject& o : map.Objects()) {
@@ -361,7 +400,8 @@ void World::DrawGlows(SDL_Renderer* r, TextureCache& cache, const vector<const T
             float tw = 0, th = 0;
             SDL_GetTextureSize(tex, &tw, &th);
             const SDL_FRect world = {o.x - tw / 2.0f, o.y - th, tw, th};
-            if (art.glows) glow(tex, world);
+            const bool dark_house = art.kind == Shaders::PROP_WINDOWS && !Shaders::WindowsLit(o.x, o.y - o.lift, art.tavern);
+            if (art.glows && !dark_house) glow(tex, world);
             if (art.halo || lamp) halo_of(shown, world, o.id);
         }
         Shaders::UsePlain(r);

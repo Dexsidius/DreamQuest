@@ -2,6 +2,7 @@
 #include "systems/waystones.h"
 #include "systems/shaders.h"
 #include "world/ground_paint.h"
+#include "world/weather.h"
 #include "systems/gathering.h"
 
 static constexpr float AUTOSAVE_INTERVAL = 120.0f;
@@ -141,6 +142,10 @@ int Game::Start(int argc, char** argv) {
             // to a fish already hooked ("fight"), for looking at the bobber
             // under and at the reel's gauge without waiting on the water.
             World::dev_angle = argv[++i];
+        } else if (arg == "--rain" && more) {
+            // A shower this hard (0 to 1) wherever showers fall, for looking
+            // at the rain without waiting for one; 0 keeps it dry.
+            Weather::Force(static_cast<float>(SDL_atof(argv[++i])));
         } else if (arg == "--hour" && more) {
             launch_hour = std::clamp(static_cast<float>(SDL_atof(argv[++i])), 0.0f, 23.99f);
         } else if (arg == "--map" && more) {

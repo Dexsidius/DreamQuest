@@ -1372,7 +1372,105 @@ def prop_wattle_fence():
     return 2.0
 
 
+# --- a washing line ---------------------------------------------------------------------
+#
+# Two pictures laid one on the other in the same spot (make_props.ps1 sits them
+# on the floor together, $ALIGN): the posts and the line, which stand still, and
+# what is pegged out on it, which the wind takes (Shaders::ArtOf: "laundry_wash"
+# is cloth hung from the top, so the hems move most and the line not at all).
+
+bp.PALETTE.update({
+    "linen":       (0.930, 0.910, 0.860),
+    "linen_dk":    (0.820, 0.800, 0.750),
+    "cloth_sky":   (0.600, 0.730, 0.860),
+    "cloth_rose":  (0.870, 0.610, 0.610),
+    "cloth_ochre": (0.800, 0.640, 0.360),
+    "cloth_sage":  (0.600, 0.730, 0.560),
+    "rope":        (0.780, 0.700, 0.540),
+})
+
+_LINE_X = 1.15
+_LINE_TOP = 1.24
+
+
+def _line_z(x):
+    """How high the line hangs at x: from the post tops, sagging in the middle."""
+    return _LINE_TOP - 0.12 * (1.0 - (x / _LINE_X) ** 2)
+
+
+def _line():
+    n = 18
+    for k in range(n):
+        x0 = -_LINE_X + 2 * _LINE_X * k / n
+        x1 = -_LINE_X + 2 * _LINE_X * (k + 1) / n
+        z0, z1 = _line_z(x0), _line_z(x1)
+        length = math.hypot(x1 - x0, z1 - z0)
+        blk("line_%d" % k, (length + 0.01, 0.03, 0.03), ((x0 + x1) / 2, 0, (z0 + z1) / 2), "rope",
+            rot=(0, -math.atan2(z1 - z0, x1 - x0), 0), bev=0)
+
+
+def prop_laundry_posts():
+    """A washing line's two posts, and the line between them."""
+    for sx in (-1, 1):
+        blk("post_%d" % sx, (0.09, 0.09, 1.30), (sx * _LINE_X, 0, 0.65), "oak_light")
+        blk("cap_%d" % sx, (0.13, 0.13, 0.05), (sx * _LINE_X, 0, 1.32), "oak")
+        blk("foot_%d" % sx, (0.16, 0.16, 0.06), (sx * _LINE_X, 0, 0.03), "stone")
+    _line()
+    return 2.6
+
+
+def _peg(name, x):
+    blk(name, (0.035, 0.05, 0.09), (x, -0.03, _line_z(x) - 0.02), "wood_cut", bev=0)
+
+
+def prop_laundry_wash():
+    """What is pegged out on the line: a sheet, a shirt, a pair of breeches, a
+    striped towel and two stockings. The line is drawn again here, still, so
+    the cloth hangs from something whichever picture is on top."""
+    _line()
+    # The sheet, folded over the line: two layers, the back one a shade darker.
+    x0, x1 = -0.98, -0.40
+    top = _line_z((x0 + x1) / 2)
+    blk("sheet_back", (x1 - x0, 0.02, 0.60), ((x0 + x1) / 2, 0.02, top - 0.30), "linen_dk", bev=0)
+    blk("sheet", (x1 - x0 - 0.04, 0.02, 0.52), ((x0 + x1) / 2 - 0.02, -0.01, top - 0.26), "linen", bev=0)
+    for x in (x0 + 0.06, x1 - 0.06):
+        _peg("sheet_peg_%d" % int(x * 100), x)
+    # The shirt, hung by its tails: body, two sleeves hanging down and out.
+    cx = -0.10
+    top = _line_z(cx)
+    blk("shirt", (0.34, 0.02, 0.40), (cx, -0.01, top - 0.21), "cloth_sky", bev=0)
+    for sx in (-1, 1):
+        blk("sleeve_%d" % sx, (0.10, 0.02, 0.30), (cx + sx * 0.21, -0.01, top - 0.30), "cloth_sky",
+            rot=(0, sx * math.radians(18), 0), bev=0)
+    blk("collar", (0.14, 0.02, 0.05), (cx, -0.02, top - 0.40), "linen", bev=0)
+    for x in (cx - 0.14, cx + 0.14):
+        _peg("shirt_peg_%d" % int(x * 100 + 200), x)
+    # Breeches, by the waistband.
+    cx = 0.34
+    top = _line_z(cx)
+    blk("waist", (0.28, 0.02, 0.06), (cx, -0.01, top - 0.04), "cloth_ochre", bev=0)
+    for sx in (-1, 1):
+        blk("leg_%d" % sx, (0.12, 0.02, 0.44), (cx + sx * 0.075, -0.01, top - 0.28), "cloth_ochre", bev=0)
+    _peg("breeches_peg_a", cx - 0.12)
+    _peg("breeches_peg_b", cx + 0.12)
+    # A towel with a stripe across it.
+    cx = 0.70
+    top = _line_z(cx)
+    blk("towel", (0.24, 0.02, 0.34), (cx, -0.01, top - 0.18), "linen", bev=0)
+    blk("towel_stripe", (0.24, 0.02, 0.05), (cx, -0.02, top - 0.26), "cloth_rose", bev=0)
+    _peg("towel_peg", cx)
+    # And a pair of stockings.
+    for k, cx in enumerate((0.93, 1.03)):
+        top = _line_z(cx)
+        blk("stocking_%d" % k, (0.06, 0.02, 0.22), (cx, -0.01, top - 0.12), "cloth_sage", bev=0)
+        blk("stocking_foot_%d" % k, (0.09, 0.02, 0.05), (cx + 0.02, -0.01, top - 0.22), "cloth_sage", bev=0)
+        _peg("stocking_peg_%d" % k, cx)
+    return 2.6
+
+
 PROPS = {
+    "laundry_posts":   (prop_laundry_posts, 80),
+    "laundry_wash":    (prop_laundry_wash, 80),
     "fisher_cottage_a": (prop_fisher_cottage_a, 128),
     "fisher_cottage_b": (prop_fisher_cottage_b, 128),
     "fisher_cottage_wrecked":  (prop_fisher_cottage_wrecked, 128),

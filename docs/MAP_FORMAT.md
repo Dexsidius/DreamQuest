@@ -101,6 +101,8 @@ One list covers everything interactive. `type` decides the behaviour:
 | `range` | Cooks one raw item per press | `title` |
 | `workbench` | Opens the crafting panel | `title` |
 | `tether` | Not used: the Anchor's thread, drawn from an NPC's ankle to a knot at `lift` over `x`, `y`; taut until `slack` holds, then lying loose | `tie` (the NPC's id), `tie_at` (`[dx, dy]` from their drawn feet -- an ankle, a belt; dx mirrored when they face left), `lift`, `slack`, `when` |
+| `hanging_sign` | Not used: a shop's board hanging out over the street, swung from the middle of its top edge by the wind (lay the iron arm it hangs from as a `decor` at the same foot) | `sprite`, `lift` |
+| `critters` | Not used and not drawn: where some of the small life about a village lives (see `Ambience`). `"hen"`: that many hens scratch about within `radius` of it by day; `"cat"`: a cat asleep there, that gets up and goes when somebody comes close; `"gull"`: gulls wheel over the map's water | `species`, `count`, `radius` |
 
 Common to all of them: `id` (unique across the save — it is what the world
 flags key on), `x`, `y` (the base the sprite stands on), `sprite`, and an

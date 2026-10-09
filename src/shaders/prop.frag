@@ -36,7 +36,9 @@ layout(set = 3, binding = 0) uniform Prop {
     vec4 mode;    // kind, strength, night 0..1, wind 0..1
     vec4 wind;    // gust direction x, y; gust speed; gust length in world px
     vec4 style;   // the Cozy look: on, its line's strength, colour kept, the sun on its top edge
-    vec4 more;    // how much a crown rustles (trees 1), and three to spare
+    vec4 more;    // how much a crown rustles (trees 1); grass parts for walkers (1); two to spare
+    vec4 walk0;   // whoever is walking about, world px: x, y of two
+    vec4 walk1;   // and of two more (-99999 for nobody)
 } prop;
 
 float Hash(vec2 p) {
@@ -118,6 +120,19 @@ void main() {
         }
         float shift = floor(sway * amount + flutter * strength + 0.5);
         vec2 from = texel - vec2(shift * sign(dir.x), 0.0);
+        if (prop.more.y > 0.0) {
+            // Walked through: the tuft leans away from whoever is in it, its top
+            // most, and straightens again behind them.
+            vec2 ws[4] = vec2[](prop.walk0.xy, prop.walk0.zw, prop.walk1.xy, prop.walk1.zw);
+            float push = 0.0;
+            for (int i = 0; i < 4; ++i) {
+                vec2 d = foot - ws[i];
+                float near = 1.0 - clamp(length(d * vec2(1.0, 1.8)) / 26.0, 0.0, 1.0);
+                push += (d.x >= 0.0 ? 1.0 : -1.0) * near;
+            }
+            float h = 1.0 - v_uv.y;
+            from.x -= floor(clamp(push, -1.0, 1.0) * 5.0 * h * h + 0.5 * sign(push));
+        }
         if (prop.more.x > 0.0) {
             // The crown rustles, not the trunk: clusters of three texels flick
             // over a pixel and back, each on its own beat, more in a gust.
