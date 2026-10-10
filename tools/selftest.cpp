@@ -10191,6 +10191,37 @@ static void TestLooks(const Databases& db) {
 }
 
 
+// Every doorway walked through can be walked into. A dreamt copy of a room
+// seals the waking room's doorways with collision, and the dream Mayor's Hall
+// opened its own way out in the same doorway: the doors "groaned open" after
+// the last knight, and nobody could step into them (2026-10-10). A door that is
+// pushed (interact) is used from in front of it, and may stand in its wall.
+// Run with --only doors.
+static void TestWalkInDoors(const Databases& db) {
+    (void)db;
+    Section("doorways: every one walked through can be walked into");
+    string buried;
+    int doors = 0;
+    for (const char* id : kMaps) {
+        Map m;
+        if (!m.Load(string("maps/") + id + ".mx")) continue;
+        for (const Portal& p : m.Portals()) {
+            if (p.requires_interact) continue;
+            ++doors;
+            // A foot's worth of room anywhere in it is a way in.
+            bool open = false;
+            for (int i = 1; i < 8 && !open; ++i)
+                for (int j = 1; j < 4 && !open; ++j) {
+                    const float x = p.rect.x + p.rect.w * i / 8.0f, y = p.rect.y + p.rect.h * j / 4.0f;
+                    open = !m.Blocked({x - 2.0f, y - 2.0f, 4.0f, 4.0f});
+                }
+            if (!open) buried += " " + string(id) + "->" + p.target_map;
+        }
+    }
+    Check(doors > 50 && buried.empty(), "every one of the " + std::to_string(doors) +
+                                        " doorways walked through has room to step into it" + buried);
+}
+
 // The Guild's Charter and the questlines out of it (README, "Questlines"): the
 // data hangs together, the quest log reads a stage ending in '*', a "done:"
 // flag and a kill's own kind, and the journal heads each questline with only
@@ -10435,6 +10466,7 @@ int main(int argc, char** argv) {
         if (only == "journal")     TestJournalSections(db);
         if (only == "looks")       TestLooks(db);
         if (only == "questlines")  TestQuestlines(db);
+        if (only == "doors")       TestWalkInDoors(db);
         printf("\n%d checks, %d failures\n", g_checks, g_failures);
         return g_failures;
     }
@@ -28969,6 +29001,7 @@ int main(int argc, char** argv) {
     TestJournalSections(db);
     TestLooks(db);
     TestQuestlines(db);
+    TestWalkInDoors(db);
     TestBalanceFixes(db);
     TestLateSpells(db);
     TestLateTreeRows(db);

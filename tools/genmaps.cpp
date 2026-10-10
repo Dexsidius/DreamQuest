@@ -491,6 +491,17 @@ public:
     void Portal(int x, int y, int w, int h, const string& target,
                 const string& spawn, const string& label,
                 bool interact = true, const string& locked_by = "") {
+        // A doorway walked through cannot also be a wall. A dreamt copy of a
+        // room seals the waking room's doorways with collision (Dreamt), and the
+        // dream Mayor's Hall and Guild Hall then opened their own way out in the
+        // very same doorway: shut by nothing, and still impossible to walk into,
+        // so the player was kept in the Mayor's Hall after the last knight fell.
+        if (!interact) {
+            const json rect = json::array({x + ox, y, w, h});
+            json& walls = dq["collision"];
+            for (size_t i = walls.size(); i-- > 0;)
+                if (walls[i] == rect) walls.erase(i);
+        }
         json p;
         p["rect"]     = json::array({x + ox, y, w, h});
         p["target"]   = target;
