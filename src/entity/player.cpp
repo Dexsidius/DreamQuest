@@ -353,6 +353,7 @@ AttackStyle Player::Style() const {
 
 LayerStyle Player::BuildLayerStyle(const ItemDatabase* db) const {
     LayerStyle s;
+    s.looks = looks;
     const SDL_Color armour = equipment.ArmourTint();
     s.body = armour;
     // The head only takes the tint when something is actually worn on it, so a
@@ -529,9 +530,10 @@ vector<string> Player::StartingPack(const string& character_id) {
     return {};
 }
 
-LayerStyle Player::KitStyle(const string& character_id, const ItemDatabase* db) {
+LayerStyle Player::KitStyle(const string& character_id, const ItemDatabase* db, const Looks& looks) {
     Player dressed;
     dressed.sprite_id = character_id;
+    dressed.looks = looks;
     dressed.item_db = db;
     dressed.equipment.SetDatabase(db);
     dressed.inventory.SetDatabase(db);
@@ -3081,6 +3083,7 @@ static void WardsFromJson(Player& p, const json& j) {
 json Player::ToJson() const {
     json j = json{
         {"sprite",    sprite_id},
+        {"looks",     looks.ToJson()},
         {"x",         x},
         {"y",         y},
         {"facing",    static_cast<int>(facing)},
@@ -3130,6 +3133,9 @@ static void MealFromJson(const ItemDef*& meal, float& meal_left, const json& j, 
 
 void Player::ApplySheet(const json& j, const GameContext& ctx) {
     item_db = ctx.items;
+    // A friend's colours come with their sheet, and go on to the others in
+    // their Outfit from here.
+    if (j.contains("looks")) looks = Looks::FromJson(j["looks"]);
     inventory.SetDatabase(ctx.items);
     equipment.SetDatabase(ctx.items);
     talents.SetDatabase(ctx.trees);
@@ -3169,6 +3175,7 @@ void Player::ApplySheet(const json& j, const GameContext& ctx) {
 
 void Player::FromJson(const json& j, const GameContext& ctx) {
     sprite_id = j.value("sprite", string(kDefaultCharacter));
+    looks = Looks::FromJson(j.value("looks", json::object()));
     item_db = ctx.items;
     if (ctx.sprites) sprite.SetDef(ctx.sprites->Get(sprite_id));
     inventory.SetDatabase(ctx.items);

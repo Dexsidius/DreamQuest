@@ -79,7 +79,7 @@ string Game::PlayerTwoPath() const {
     return coop::CharacterPath(characters_dir, net::CleanLine(settings.p2_name, net::MAX_NAME), "", true);
 }
 
-bool Game::JoinSplit(bool without_a_controller) {
+bool Game::JoinSplit(bool without_a_controller, bool ask_looks) {
     if (split_active) return true;
     if (InPrologue()) {
         PushToast("Player Two can join once the prologue is over.", Palette::TextDim);
@@ -105,11 +105,18 @@ bool Game::JoinSplit(bool without_a_controller) {
     json character;
     quests_two.FromJson(json::object());
     p2_flags.clear();
-    if (!never_save && coop::LoadCharacter(PlayerTwoPath(), kept)) {
+    const bool known = !never_save && coop::LoadCharacter(PlayerTwoPath(), kept);
+    if (known) {
         character = kept.player;
         quests_two.FromJson(kept.quests);
         p2_flags = kept.flags;
         look = kept.player.value("sprite", look);
+    } else if (ask_looks) {
+        // Someone new: their colours first, on the looks screen, which seats
+        // them when it is done (UpdateCharacterLooks).
+        looks_p2_padless = without_a_controller;
+        OpenLooks(LooksFor::PlayerTwo, look);
+        return false;
     }
 
     const int seat = RealmServer().ReserveSeat(name, look);
@@ -118,7 +125,7 @@ bool Game::JoinSplit(bool without_a_controller) {
         return false;
     }
     p2_seat = static_cast<uint8_t>(seat);
-    coop_host.AddLocal(p2_seat, name, look, &quests_two, character);
+    coop_host.AddLocal(p2_seat, name, look, &quests_two, character, known ? Looks() : p2_looks);
     quests_two.SetDay(home_world.clock.QuestDay());
 
     // One keyboard and one controller: the controller is Player Two's. Two

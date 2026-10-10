@@ -389,6 +389,8 @@ Bytes Encode(const Outfit& m) {
     const size_t n = m.worn.size() < MAX_WORN ? m.worn.size() : MAX_WORN;
     w.U8(static_cast<uint8_t>(n));
     for (size_t i = 0; i < n; ++i) w.Str(m.worn[i], MAX_ITEM_ID);
+    // A colour with a bit above it, or nothing for the calling's own.
+    for (int32_t c : m.looks) w.U32(c < 0 ? 0u : (0x01000000u | (static_cast<uint32_t>(c) & 0xFFFFFFu)));
     return w.Take();
 }
 
@@ -403,6 +405,10 @@ bool Decode(const Bytes& b, Outfit& out) {
     for (uint8_t i = 0; i < n; ++i) {
         out.worn.push_back(r.Str(MAX_ITEM_ID));
         if (!r.Ok()) return false;
+    }
+    for (int32_t& c : out.looks) {
+        const uint32_t v = r.U32();
+        c = (v & 0x01000000u) ? static_cast<int32_t>(v & 0xFFFFFFu) : -1;
     }
     return r.Done();
 }
@@ -475,6 +481,7 @@ Bytes Encode(const Delta& m) {
     for (size_t i = 0, c = count(m.quests.size()); i < c; ++i) {
         const Delta::Quest& q = m.quests[i];
         w.U8(q.type); w.Str(q.target, MAX_FLAG); w.Str(q.secondary, MAX_FLAG); w.Str(q.map, MAX_MAP_ID); w.I32(q.amount);
+        w.Str(q.kind, MAX_FLAG);
     }
     for (size_t i = 0, c = count(m.chain.size()); i < c; ++i) w.Str(m.chain[i], MAX_CLIP);
     for (size_t i = 0, c = count(m.sounds.size()); i < c; ++i) {
@@ -540,6 +547,7 @@ bool Decode(const Bytes& b, Delta& out) {
     for (uint16_t i = 0; i < c; ++i) {
         Delta::Quest q;
         q.type = r.U8(); q.target = r.Str(MAX_FLAG); q.secondary = r.Str(MAX_FLAG); q.map = r.Str(MAX_MAP_ID); q.amount = r.I32();
+        q.kind = r.Str(MAX_FLAG);
         if (!r.Ok()) return false;
         out.quests.push_back(std::move(q));
     }

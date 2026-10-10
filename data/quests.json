@@ -10556,5 +10556,1402 @@
    "coins": 4000
   },
   "completion": "The talisman is warm to the touch, and it hums."
+ },
+ "q_charter_iron": {
+  "name": "The Charter: The Mire Road",
+  "source": "npc",
+  "giver": "npc_guildmaster",
+  "level": 15,
+  "summary": "One of the Guild's commissions. Set its survey marks at the Lizardmen's Camp in the Mire, where its map runs out, earn Orla the Tanner's word, and Guild Master Orlend will put the Guild's iron seal on you for it.",
+  "prereq": [
+   "q_guild_ledger"
+  ],
+  "stages": [
+   {
+    "desc": "Set the Guild's survey marks at the Lizardmen's Camp in the Mire",
+    "type": "interact",
+    "target": "survey_iron_*",
+    "count": 3
+   },
+   {
+    "desc": "Earn Orla the Tanner's word: Scale and Reed",
+    "type": "flag",
+    "target": "done:q_scale_and_reed",
+    "where": "npc_orla"
+   },
+   {
+    "desc": "Report to Guild Master Orlend",
+    "type": "talk",
+    "target": "npc_guildmaster"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 375
+   },
+   "coins": 750,
+   "items": [
+    {
+     "id": "guild_seal_iron",
+     "qty": 1
+    }
+   ]
+  },
+  "completion": "Orlend inks it onto the Guild's map from your notes, and the Iron Seal of the Guild goes round your neck."
+ },
+ "q_charter_steel": {
+  "name": "The Charter: The Old Growth",
+  "source": "npc",
+  "giver": "npc_guildmaster",
+  "level": 22,
+  "summary": "One of the Guild's commissions. Set its survey marks in the Brackenwood's Old Growth, where its map runs out, earn Hale the Trapper's word, and Guild Master Orlend will put the Guild's steel seal on you for it.",
+  "prereq": [
+   "q_charter_iron"
+  ],
+  "stages": [
+   {
+    "desc": "Set the Guild's survey marks in the Brackenwood's Old Growth",
+    "type": "interact",
+    "target": "survey_steel_*",
+    "count": 3
+   },
+   {
+    "desc": "Earn Hale the Trapper's word: The Den Mother",
+    "type": "flag",
+    "target": "done:q_the_den_mother",
+    "where": "npc_hale"
+   },
+   {
+    "desc": "Report to Guild Master Orlend",
+    "type": "talk",
+    "target": "npc_guildmaster"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 550
+   },
+   "coins": 1100,
+   "items": [
+    {
+     "id": "guild_seal_steel",
+     "qty": 1
+    }
+   ]
+  },
+  "completion": "Orlend inks it onto the Guild's map from your notes, and the Steel Seal of the Guild goes round your neck."
+ },
+ "q_charter_azuryte": {
+  "name": "The Charter: The Far Bank",
+  "source": "npc",
+  "giver": "npc_guildmaster",
+  "level": 32,
+  "summary": "One of the Guild's commissions. Set its survey marks in the Bayou, where its map runs out, earn Warden Ilse's word, and Guild Master Orlend will put the Guild's azuryte seal on you for it.",
+  "prereq": [
+   "q_charter_steel"
+  ],
+  "stages": [
+   {
+    "desc": "Set the Guild's survey marks in the Bayou",
+    "type": "interact",
+    "target": "survey_azuryte_*",
+    "count": 3
+   },
+   {
+    "desc": "Earn Warden Ilse's word: The Singers in the Bayou",
+    "type": "flag",
+    "target": "done:q_hags_of_the_bayou",
+    "where": "npc_ilse"
+   },
+   {
+    "desc": "Report to Guild Master Orlend",
+    "type": "talk",
+    "target": "npc_guildmaster"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 800
+   },
+   "coins": 1600,
+   "items": [
+    {
+     "id": "guild_seal_azuryte",
+     "qty": 1
+    }
+   ]
+  },
+  "completion": "Orlend inks it onto the Guild's map from your notes, and the Azuryte Seal of the Guild goes round your neck."
+ },
+ "q_charter_damascus": {
+  "name": "The Charter: Scratching under Hollowrest",
+  "source": "npc",
+  "giver": "npc_guildmaster",
+  "level": 40,
+  "summary": "One of the Guild's commissions. Set its survey marks in Hollowrest Crypt's Vaults and Ossuary, where its map runs out, earn Watchman Brask's word, and Guild Master Orlend will put the Guild's damascus seal on you for it.",
+  "prereq": [
+   "q_charter_azuryte"
+  ],
+  "stages": [
+   {
+    "desc": "Set the Guild's survey marks in Hollowrest Crypt's Vaults and Ossuary",
+    "type": "interact",
+    "target": "survey_damascus_*",
+    "count": 3
+   },
+   {
+    "desc": "Earn Watchman Brask's word: Shut the Crypt",
+    "type": "flag",
+    "target": "done:q_shut_the_crypt",
+    "where": "npc_brask"
+   },
+   {
+    "desc": "Report to Guild Master Orlend",
+    "type": "talk",
+    "target": "npc_guildmaster"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 1000
+   },
+   "coins": 2000,
+   "items": [
+    {
+     "id": "guild_seal_damascus",
+     "qty": 1
+    }
+   ]
+  },
+  "completion": "Orlend inks it onto the Guild's map from your notes, and the Damascus Seal of the Guild goes round your neck."
+ },
+ "q_charter_orichalcum": {
+  "name": "The Charter: The Pale Ascent",
+  "source": "npc",
+  "giver": "npc_guildmaster",
+  "level": 50,
+  "summary": "One of the Guild's commissions. Set its survey marks on the Pale Ascent, the Scoured Flats and the Brine Terraces, where its map runs out, earn Battlemaster Ysolde's word, and Guild Master Orlend will put the Guild's orichalcum seal on you for it.",
+  "prereq": [
+   "q_charter_damascus"
+  ],
+  "stages": [
+   {
+    "desc": "Set the Guild's survey marks on the Pale Ascent, the Scoured Flats and the Brine Terraces",
+    "type": "interact",
+    "target": "survey_orichalcum_*",
+    "count": 3
+   },
+   {
+    "desc": "Earn Battlemaster Ysolde's word: The First Two Breaths",
+    "type": "flag",
+    "target": "done:q_breaths_1",
+    "where": "npc_college_instructor"
+   },
+   {
+    "desc": "Report to Guild Master Orlend",
+    "type": "talk",
+    "target": "npc_guildmaster"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 1250
+   },
+   "coins": 2500,
+   "items": [
+    {
+     "id": "guild_seal_orichalcum",
+     "qty": 1
+    }
+   ]
+  },
+  "completion": "Orlend inks it onto the Guild's map from your notes, and the Orichalcum Seal of the Guild goes round your neck."
+ },
+ "q_charter_diamond": {
+  "name": "The Charter: Black Water",
+  "source": "npc",
+  "giver": "npc_guildmaster",
+  "level": 57,
+  "summary": "One of the Guild's commissions. Set its survey marks in the Drowns, on the Strand and in the Candle Fens, where its map runs out, earn Oona the Herbalist's word, and Guild Master Orlend will put the Guild's diamond seal on you for it.",
+  "prereq": [
+   "q_charter_orichalcum"
+  ],
+  "stages": [
+   {
+    "desc": "Set the Guild's survey marks in the Drowns, on the Strand and in the Candle Fens",
+    "type": "interact",
+    "target": "survey_diamond_*",
+    "count": 3
+   },
+   {
+    "desc": "Earn Oona the Herbalist's word: Black Water",
+    "type": "flag",
+    "target": "done:q_black_water_1",
+    "where": "npc_oona"
+   },
+   {
+    "desc": "Report to Guild Master Orlend",
+    "type": "talk",
+    "target": "npc_guildmaster"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 1425
+   },
+   "coins": 2850,
+   "items": [
+    {
+     "id": "guild_seal_diamond",
+     "qty": 1
+    }
+   ]
+  },
+  "completion": "Orlend inks it onto the Guild's map from your notes, and the Diamond Seal of the Guild goes round your neck."
+ },
+ "q_charter_platinum": {
+  "name": "The Charter: Beyond the Spire",
+  "source": "npc",
+  "giver": "npc_guildmaster",
+  "level": 62,
+  "summary": "One of the Guild's commissions. Set its survey marks in the Draugr Barrows, on the Glass Mere and on the Rimefall Glacier, where its map runs out, earn Elder Vask's word, and Guild Master Orlend will put the Guild's platinum seal on you for it.",
+  "prereq": [
+   "q_charter_diamond"
+  ],
+  "stages": [
+   {
+    "desc": "Set the Guild's survey marks in the Draugr Barrows, on the Glass Mere and on the Rimefall Glacier",
+    "type": "interact",
+    "target": "survey_platinum_*",
+    "count": 3
+   },
+   {
+    "desc": "Earn Elder Vask's word: The Spirewatch's Own",
+    "type": "flag",
+    "target": "done:q_spirewatch_1",
+    "where": "npc_vask_porch"
+   },
+   {
+    "desc": "Report to Guild Master Orlend",
+    "type": "talk",
+    "target": "npc_guildmaster"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 1550
+   },
+   "coins": 3100,
+   "items": [
+    {
+     "id": "guild_seal_platinum",
+     "qty": 1
+    }
+   ]
+  },
+  "completion": "Orlend inks it onto the Guild's map from your notes, and the Platinum Seal of the Guild goes round your neck."
+ },
+ "q_charter_demonite": {
+  "name": "The Charter: His Hall",
+  "source": "npc",
+  "giver": "npc_guildmaster",
+  "level": 72,
+  "summary": "One of the Guild's commissions. Set its survey marks at the burnt road's end, in the Brimstone Palace's foyer and its Chambers Wing, where its map runs out, earn Wren the Bard's word, and Guild Master Orlend will put the Guild's demonite seal on you for it.",
+  "prereq": [
+   "q_charter_platinum"
+  ],
+  "stages": [
+   {
+    "desc": "Set the Guild's survey marks at the burnt road's end, in the Brimstone Palace's foyer and its Chambers Wing",
+    "type": "interact",
+    "target": "survey_demonite_*",
+    "count": 3
+   },
+   {
+    "desc": "Earn Wren the Bard's word: The Song Nobody Finishes",
+    "type": "flag",
+    "target": "done:q_song_1",
+    "where": "npc_bard"
+   },
+   {
+    "desc": "Report to Guild Master Orlend",
+    "type": "talk",
+    "target": "npc_guildmaster"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 1800
+   },
+   "coins": 3600,
+   "items": [
+    {
+     "id": "guild_seal_demonite",
+     "qty": 1
+    }
+   ]
+  },
+  "completion": "Orlend inks it onto the Guild's map from your notes, and the Demonite Seal of the Guild goes round your neck."
+ },
+ "q_charter_dracon": {
+  "name": "The Charter: The Rift",
+  "source": "npc",
+  "giver": "npc_guildmaster",
+  "level": 80,
+  "summary": "One of the Guild's commissions. Set its survey marks in the Kiln, the Bedrock and the Deeps, where its map runs out, earn Magister Orrin's word, and Guild Master Orlend will put the Guild's dracon seal on you for it.",
+  "prereq": [
+   "q_charter_demonite"
+  ],
+  "stages": [
+   {
+    "desc": "Set the Guild's survey marks in the Kiln, the Bedrock and the Deeps",
+    "type": "interact",
+    "target": "survey_dracon_*",
+    "count": 3
+   },
+   {
+    "desc": "Earn Magister Orrin's word: What the World Was Made Of",
+    "type": "flag",
+    "target": "done:q_world_made_1",
+    "where": "npc_magister"
+   },
+   {
+    "desc": "Report to Guild Master Orlend",
+    "type": "talk",
+    "target": "npc_guildmaster"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 2000
+   },
+   "coins": 4000,
+   "items": [
+    {
+     "id": "guild_seal_dracon",
+     "qty": 1
+    }
+   ]
+  },
+  "completion": "Orlend inks it onto the Guild's map from your notes, and the Dracon Seal of the Guild goes round your neck."
+ },
+ "q_charter_enchanted": {
+  "name": "The Charter: The Last Blank",
+  "source": "npc",
+  "giver": "npc_guildmaster",
+  "level": 95,
+  "summary": "One of the Guild's commissions. Set its survey marks in the Firmament, the Tempest and the Conflux, where its map runs out, earn Magister Orrin's word, and Guild Master Orlend will put the Guild's enchanted seal on you for it.",
+  "prereq": [
+   "q_charter_dracon"
+  ],
+  "stages": [
+   {
+    "desc": "Set the Guild's survey marks in the Firmament, the Tempest and the Conflux",
+    "type": "interact",
+    "target": "survey_enchanted_*",
+    "count": 3
+   },
+   {
+    "desc": "Earn Magister Orrin's word: The Storm and the Whole",
+    "type": "flag",
+    "target": "done:q_world_made_3",
+    "where": "npc_magister"
+   },
+   {
+    "desc": "Report to Guild Master Orlend",
+    "type": "talk",
+    "target": "npc_guildmaster"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 2375
+   },
+   "coins": 4750,
+   "items": [
+    {
+     "id": "guild_seal_enchanted",
+     "qty": 1
+    }
+   ]
+  },
+  "completion": "Orlend inks it onto the Guild's map from your notes, and the Enchanted Seal of the Guild goes round your neck.",
+  "sets_flag": "CHARTER_COMPLETE"
+ },
+ "q_scale_and_reed": {
+  "name": "Scale and Reed",
+  "source": "npc",
+  "giver": "npc_orla",
+  "level": 14,
+  "summary": "Orla the Tanner wants lizard scale, and nobody brings it: the lizardfolk have started hanging reed dolls along the Mire. Five scales, and a look at the painted hide their chief keeps in his hut.",
+  "stages": [
+   {
+    "desc": "Bring Orla five lizard scales from the Lizardmen's Camp",
+    "type": "deliver",
+    "target": "lizard_scale",
+    "to": "npc_orla",
+    "count": 5
+   },
+   {
+    "desc": "Put down the Lizardman Chief at the camp",
+    "type": "kill",
+    "target": "lizardman_chief"
+   },
+   {
+    "desc": "Take the painted hide from beside the chief's hut",
+    "type": "interact",
+    "target": "painted_hide_chief"
+   },
+   {
+    "desc": "Show Orla the painted hide",
+    "type": "deliver",
+    "target": "painted_hide",
+    "to": "npc_orla"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Ranged": 700,
+    "Hitpoints": 500
+   },
+   "coins": 300,
+   "items": [
+    {
+     "id": "iron_hide_body",
+     "qty": 1
+    }
+   ]
+  },
+  "completion": "Orla cut you a jerkin from the scale you brought, and read the hide: not a hunting map, a road, going west into water.",
+  "then": "q_reed_road"
+ },
+ "q_reed_road": {
+  "name": "The Reed Road",
+  "source": "npc",
+  "giver": "npc_orla",
+  "level": 24,
+  "summary": "The marks on the chief's hide are a road, Orla says, and it ends in the Bayou. Follow it to whatever the lizardfolk have built there, then tell Warden Ilse at Fernhollow, whose ferry keeps bringing people out of that water.",
+  "prereq": [
+   "q_scale_and_reed"
+  ],
+  "stages": [
+   {
+    "desc": "Follow the hide's road west to the Bayou",
+    "type": "reach",
+    "target": "bayou"
+   },
+   {
+    "desc": "Find the sunk shrine where the road ends",
+    "type": "interact",
+    "target": "shrine_reed_road"
+   },
+   {
+    "desc": "Tell Warden Ilse at Fernhollow what the lizardfolk are marking",
+    "type": "talk",
+    "target": "npc_ilse"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 720
+   },
+   "coins": 700,
+   "choices": [
+    {
+     "style": "melee",
+     "label": "Blade work",
+     "xp": {
+      "Attack": 960,
+      "Strength": 960
+     }
+    },
+    {
+     "style": "ranged",
+     "label": "Bow work",
+     "xp": {
+      "Ranged": 1920
+     }
+    },
+    {
+     "style": "magic",
+     "label": "Staff work",
+     "xp": {
+      "Magic": 1920
+     }
+    }
+   ]
+  },
+  "completion": "Ilse heard it out and asked you, for once, to help her with something."
+ },
+ "q_dream_collector_1": {
+  "name": "Things with a Dream Still in Them",
+  "source": "npc",
+  "giver": "npc_collector",
+  "level": 27,
+  "summary": "The Collector's better cases are open, and the next ones are for things from further down: the Deep Reverie, where Havenbrook's sleepers walk. Put six of the Sleepwalkers to rest.",
+  "prereq": [
+   "q_lights_on_the_pond"
+  ],
+  "stages": [
+   {
+    "desc": "Climb down the ladder into the Deep Reverie",
+    "type": "reach",
+    "target": "dreamworld_2"
+   },
+   {
+    "desc": "Put six Sleepwalkers to rest in the Deep Reverie",
+    "type": "kill",
+    "target": "dream_lizardman",
+    "map": "dreamworld_2",
+    "count": 6
+   },
+   {
+    "desc": "Tell the Collector what they were",
+    "type": "talk",
+    "target": "npc_collector"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 810
+   },
+   "coins": 900,
+   "choices": [
+    {
+     "style": "melee",
+     "label": "Blade work",
+     "xp": {
+      "Attack": 1080,
+      "Strength": 1080
+     }
+    },
+    {
+     "style": "ranged",
+     "label": "Bow work",
+     "xp": {
+      "Ranged": 2160
+     }
+    },
+    {
+     "style": "magic",
+     "label": "Staff work",
+     "xp": {
+      "Magic": 2160
+     }
+    }
+   ]
+  },
+  "completion": "Havenbrook's own, dreaming, the Collector said. And something at the bottom of that depth is not dreaming at all.",
+  "then": "q_dream_collector_2"
+ },
+ "q_dream_collector_2": {
+  "name": "The One That Does Not Sleep",
+  "source": "npc",
+  "giver": "npc_collector",
+  "level": 47,
+  "summary": "At the bottom of the Deep Reverie is the Sleepless, which never closes its eyes. The Collector would like it to.",
+  "prereq": [
+   "q_dream_collector_1"
+  ],
+  "stages": [
+   {
+    "desc": "Put down the Sleepless, at the bottom of the Deep Reverie",
+    "type": "kill",
+    "target": "nightmare_troll"
+   },
+   {
+    "desc": "Tell the Collector it is done",
+    "type": "talk",
+    "target": "npc_collector"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 1410
+   },
+   "coins": 2500,
+   "choices": [
+    {
+     "style": "melee",
+     "label": "Blade work",
+     "xp": {
+      "Attack": 1880,
+      "Strength": 1880
+     }
+    },
+    {
+     "style": "ranged",
+     "label": "Bow work",
+     "xp": {
+      "Ranged": 3760
+     }
+    },
+    {
+     "style": "magic",
+     "label": "Staff work",
+     "xp": {
+      "Magic": 3760
+     }
+    }
+   ]
+  },
+  "completion": "The Collector lifted the cloth off a case you had not seen before."
+ },
+ "q_coal_1": {
+  "name": "Hotter Than Coal",
+  "source": "npc",
+  "giver": "npc_hulda",
+  "level": 56,
+  "summary": "Garrow works platinum with demon horn, and Hulda Anvilhand is not impressed. She wants what a dragon breathes with: the glands behind a Pyre Dragon's jaw.",
+  "prereq": [
+   "q_horns_for_the_forge"
+  ],
+  "stages": [
+   {
+    "desc": "Bring Hulda two pyre glands from the Pyre Dragons on the Plateau",
+    "type": "deliver",
+    "target": "pyre_gland",
+    "to": "npc_hulda",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 3500
+   },
+   "coins": 1500,
+   "items": [
+    {
+     "id": "diamond_ingot",
+     "qty": 3
+    }
+   ]
+  },
+  "completion": "The forge went from orange to white in a breath, and Hulda worked diamond flat in four blows while Garrow pretended not to look.",
+  "then": "q_coal_2"
+ },
+ "q_coal_2": {
+  "name": "Darker Than Coal",
+  "source": "npc",
+  "giver": "npc_hulda",
+  "level": 78,
+  "summary": "There is a darker fire than a dragon's, Hulda says: an Abyssal Demon's horn burns without any light at all. Two of them.",
+  "prereq": [
+   "q_coal_1"
+  ],
+  "stages": [
+   {
+    "desc": "Bring Hulda two abyssal horns",
+    "type": "deliver",
+    "target": "abyssal_horn",
+    "to": "npc_hulda",
+    "count": 2
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 7000
+   },
+   "coins": 3000,
+   "items": [
+    {
+     "id": "demonite_bar",
+     "qty": 3
+    }
+   ]
+  },
+  "completion": "The metal went dark red and soft as wax. \"Demonite,\" Hulda said. \"Now we are smiths.\"",
+  "then": "q_coal_3"
+ },
+ "q_coal_3": {
+  "name": "Older Than Coal",
+  "source": "npc",
+  "giver": "npc_hulda",
+  "level": 83,
+  "summary": "One more fire: the one that was lit before there was anything to burn. An Ember Core from the Primordium's Kiln -- and then Hulda's hammer to Halda in Havenbrook, with a message.",
+  "prereq": [
+   "q_coal_2"
+  ],
+  "stages": [
+   {
+    "desc": "Bring Hulda an Ember Core from the Kiln",
+    "type": "deliver",
+    "target": "ember_core",
+    "to": "npc_hulda"
+   },
+   {
+    "desc": "Take Hulda's hammer to Smith Halda in Havenbrook",
+    "type": "deliver",
+    "target": "hulda_hammer",
+    "to": "npc_smith"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Smithing": 11000
+   },
+   "coins": 5000,
+   "items": [
+    {
+     "id": "dracon_bar",
+     "qty": 2
+    }
+   ]
+  },
+  "completion": "Halda hung Hulda's hammer over her own anvil, and sent back a message of her own: nothing."
+ },
+ "q_breaths_1": {
+  "name": "The First Two Breaths",
+  "source": "npc",
+  "giver": "npc_college_instructor",
+  "level": 56,
+  "summary": "The College used to send its adepts up Purgatory's Plateau to learn the elements off the things that breathe them, and stopped fifty years ago without saying why. Battlemaster Ysolde wants a report: the earth's breath and the fire's first.",
+  "stages": [
+   {
+    "desc": "Put down a Basalt Dragon on the Pale Ascent",
+    "type": "kill",
+    "target": "dragon_earth"
+   },
+   {
+    "desc": "Put down a Pyre Dragon on the Ascent or the Scoured Flats",
+    "type": "kill",
+    "target": "dragon_fire"
+   },
+   {
+    "desc": "Tell Lector Maud what the earth and the fire did",
+    "type": "talk",
+    "target": "npc_college_lector"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 1680
+   },
+   "coins": 2240
+  },
+  "completion": "The Lector wrote it all down, and underlined the part where the stone smothered the fire twice.",
+  "then": "q_breaths_2"
+ },
+ "q_breaths_2": {
+  "name": "Water and Air",
+  "source": "npc",
+  "giver": "npc_college_instructor",
+  "level": 63,
+  "summary": "The Lector's circle wants its other two: the sea's breath and the wind's.",
+  "prereq": [
+   "q_breaths_1"
+  ],
+  "stages": [
+   {
+    "desc": "Put down a Brine Dragon on the Brine Terraces",
+    "type": "kill",
+    "target": "dragon_water"
+   },
+   {
+    "desc": "Put down a Gale Dragon on the Flats or the Terraces",
+    "type": "kill",
+    "target": "dragon_air"
+   },
+   {
+    "desc": "Tell Lector Maud what the water and the air did",
+    "type": "talk",
+    "target": "npc_college_lector"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 1890
+   },
+   "coins": 2520
+  },
+  "completion": "Four of four, the Lector said, and the circle closed -- and then asked you about the fifth, which is not in it.",
+  "then": "q_breaths_3"
+ },
+ "q_breaths_3": {
+  "name": "The Breath Outside the Circle",
+  "source": "npc",
+  "giver": "npc_college_instructor",
+  "level": 68,
+  "summary": "The storm's breath is in no lecture. Ysolde wants it seen, and the old adepts wrote about something else at the top of the Plateau: a rift in the Stronghold.",
+  "prereq": [
+   "q_breaths_2"
+  ],
+  "stages": [
+   {
+    "desc": "Put down a Storm Dragon round the Stronghold",
+    "type": "kill",
+    "target": "dragon_lightning"
+   },
+   {
+    "desc": "Read what is scratched at the rift inside the Stronghold",
+    "type": "interact",
+    "target": "sign_stronghold_rift"
+   },
+   {
+    "desc": "Tell Battlemaster Ysolde about the rift",
+    "type": "talk",
+    "target": "npc_college_instructor"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 2040
+   },
+   "coins": 3000,
+   "choices": [
+    {
+     "style": "melee",
+     "label": "Blade work",
+     "xp": {
+      "Attack": 2720,
+      "Strength": 2720
+     }
+    },
+    {
+     "style": "ranged",
+     "label": "Bow work",
+     "xp": {
+      "Ranged": 5440
+     }
+    },
+    {
+     "style": "magic",
+     "label": "Staff work",
+     "xp": {
+      "Magic": 5440
+     }
+    }
+   ]
+  },
+  "completion": "That was why they stopped, Ysolde said. Not the dragons: the adepts came back wanting to know where breath comes from."
+ },
+ "q_black_water_1": {
+  "name": "Black Water",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 57,
+  "summary": "The knots on the poppet are cord, not reed, and Oona has seen that knot once before: on a jar of light out of the swamp north of the Bayou. Go and see who is tying them.",
+  "prereq": [
+   "q_poppets_hunger"
+  ],
+  "stages": [
+   {
+    "desc": "Put down six Voodoo Cultists in the Cypress Drowns",
+    "type": "kill",
+    "target": "hex_cultist",
+    "map": "hex_drowns",
+    "count": 6
+   },
+   {
+    "desc": "Find where the cult ties its knots",
+    "type": "interact",
+    "target": "cult_jar_drowns"
+   },
+   {
+    "desc": "Tell Oona whose knot it is",
+    "type": "talk",
+    "target": "npc_oona"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 1710
+   },
+   "coins": 2280
+  },
+  "completion": "The same knot, Oona said, laying the two side by side.",
+  "then": "q_black_water_2"
+ },
+ "q_black_water_2": {
+  "name": "The Drums",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 62,
+  "summary": "The Shellbacks are at war with the cult and take its cord off its dead, and the cult beats three drums in the Candle Fens to call whatever it calls. Oona wants the drums stopped.",
+  "prereq": [
+   "q_black_water_1"
+  ],
+  "stages": [
+   {
+    "desc": "Put down a Shellback Elder on the Strand",
+    "type": "kill",
+    "target": "shellback_elder"
+   },
+   {
+    "desc": "Break the cult's three drums in the Candle Fens",
+    "type": "interact",
+    "target": "cult_drum_*",
+    "count": 3
+   },
+   {
+    "desc": "Tell Oona the drums are quiet",
+    "type": "talk",
+    "target": "npc_oona"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 1860
+   },
+   "coins": 2480
+  },
+  "completion": "The ferrymen noticed the quiet before Oona did.",
+  "then": "q_black_water_3"
+ },
+ "q_black_water_3": {
+  "name": "The One They Answer To",
+  "source": "npc",
+  "giver": "npc_oona",
+  "level": 65,
+  "summary": "The cult answers to its High Priest, in the Sanctum behind its temple. When he is gone, Oona will burn his cord.",
+  "prereq": [
+   "q_black_water_2"
+  ],
+  "stages": [
+   {
+    "desc": "Put down the Voodoo High Priest in the Sanctum",
+    "type": "kill",
+    "target": "hex_priest"
+   },
+   {
+    "desc": "Bring Oona the High Priest's cord",
+    "type": "talk",
+    "target": "npc_oona"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 1950
+   },
+   "coins": 3500,
+   "choices": [
+    {
+     "style": "melee",
+     "label": "Blade work",
+     "xp": {
+      "Attack": 2600,
+      "Strength": 2600
+     }
+    },
+    {
+     "style": "ranged",
+     "label": "Bow work",
+     "xp": {
+      "Ranged": 5200
+     }
+    },
+    {
+     "style": "magic",
+     "label": "Staff work",
+     "xp": {
+      "Magic": 5200
+     }
+    }
+   ]
+  },
+  "completion": "Oona put the cord in the fire and watched it go to the end. Her mother's mother tied the first one."
+ },
+ "q_spirewatch_1": {
+  "name": "The Spirewatch's Own",
+  "source": "npc",
+  "giver": "npc_vask_porch",
+  "level": 62,
+  "summary": "Twelve of the Spirewatch went up the Ice Spire and one came down. The other eleven were laid in the old mounds of the Frostreach, and the mounds do not keep their dead any more. Elder Vask would like to know which of his are walking, and would like them to stop.",
+  "stages": [
+   {
+    "desc": "Cross west from the Ice Spire into the Frostreach",
+    "type": "reach",
+    "target": "frost_barrows"
+   },
+   {
+    "desc": "Find the Spirewatch's cairn in the Draugr Barrows",
+    "type": "interact",
+    "target": "spirewatch_cairn"
+   },
+   {
+    "desc": "Put the eleven to rest: eleven of the draugr in the Barrows",
+    "type": "kill",
+    "target": "draugr",
+    "map": "frost_barrows",
+    "count": 11
+   },
+   {
+    "desc": "Tell Elder Vask",
+    "type": "talk",
+    "target": "npc_vask_porch"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 1860
+   },
+   "coins": 2480
+  },
+  "completion": "Vask said the eleven names, one by one. The captain's was not on the stone: her sword was never in the mound.",
+  "then": "q_spirewatch_2"
+ },
+ "q_spirewatch_2": {
+  "name": "The Captain's Sword",
+  "source": "npc",
+  "giver": "npc_vask_porch",
+  "level": 66,
+  "summary": "The Spirewatch's captain was not laid with her sword. Old Harl, who keeps the cabin on the Glass Mere, would know where it went: read what he wrote.",
+  "prereq": [
+   "q_spirewatch_1"
+  ],
+  "stages": [
+   {
+    "desc": "Read Old Harl's journal, in the cabin on the Glass Mere",
+    "type": "interact",
+    "target": "journal_harl"
+   },
+   {
+    "desc": "Find the captain's sword out on the Glass Mere",
+    "type": "interact",
+    "target": "spirewatch_sword_mere"
+   },
+   {
+    "desc": "Bring the sword to Elder Vask",
+    "type": "talk",
+    "target": "npc_vask_porch"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 1980
+   },
+   "coins": 3000,
+   "choices": [
+    {
+     "style": "melee",
+     "label": "Blade work",
+     "xp": {
+      "Attack": 2640,
+      "Strength": 2640
+     }
+    },
+    {
+     "style": "ranged",
+     "label": "Bow work",
+     "xp": {
+      "Ranged": 5280
+     }
+    },
+    {
+     "style": "magic",
+     "label": "Staff work",
+     "xp": {
+      "Magic": 5280
+     }
+    }
+   ]
+  },
+  "completion": "Vask hung the sword over his door, where he can see it from his chair. Now the twelve of them are home.",
+  "sets_flag": "SPIREWATCH_SWORD_HUNG"
+ },
+ "q_fortieth_winter": {
+  "name": "The Fortieth Winter",
+  "source": "note",
+  "giver": "journal_harl",
+  "level": 70,
+  "summary": "Old Harl's journal stops in the middle of a line: trap four at the Howe door, something taking from it that does not eat, gone to look. Follow his trapline.",
+  "stages": [
+   {
+    "desc": "Follow Harl's trapline across the Rimefall Glacier",
+    "type": "interact",
+    "target": "harl_trap_*",
+    "count": 4
+   },
+   {
+    "desc": "Go into the Howe after him",
+    "type": "reach",
+    "target": "frost_howe_hall"
+   },
+   {
+    "desc": "Put down the Undead Warlords in the Howe's hall",
+    "type": "kill",
+    "target": "undead_warlord",
+    "map": "frost_howe_hall",
+    "count": 3
+   },
+   {
+    "desc": "Find Harl's pack by the eldest's seat",
+    "type": "interact",
+    "target": "harl_pack_howe"
+   },
+   {
+    "desc": "The white one came onto the ice: put down the Abominable Snowman",
+    "type": "kill",
+    "target": "abominable_snowman",
+    "where": "frost_glacier"
+   },
+   {
+    "desc": "Take Harl's knife to Hale the Trapper in the Brackenwood",
+    "type": "talk",
+    "target": "npc_hale"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 2100
+   },
+   "coins": 4000,
+   "choices": [
+    {
+     "style": "melee",
+     "label": "Blade work",
+     "xp": {
+      "Attack": 2800,
+      "Strength": 2800
+     }
+    },
+    {
+     "style": "ranged",
+     "label": "Bow work",
+     "xp": {
+      "Ranged": 5600
+     }
+    },
+    {
+     "style": "magic",
+     "label": "Staff work",
+     "xp": {
+      "Magic": 5600
+     }
+    }
+   ]
+  },
+  "completion": "Hale and Harl trapped together for thirty years. Hale gave you the cabin on the Mere, and Harl's chest in it.",
+  "sets_flag": "HARL_CABIN_YOURS"
+ },
+ "q_song_1": {
+  "name": "The Song Nobody Finishes",
+  "source": "npc",
+  "giver": "npc_bard",
+  "level": 74,
+  "summary": "Wren knows a fourth song. It starts on the burnt road and stops at a drawbridge, because nobody who crossed it came back to sing the rest. Find the verses.",
+  "stages": [
+   {
+    "desc": "Find what is left of the herald by the moat, at the burnt road's end",
+    "type": "interact",
+    "target": "herald_standard_ashen"
+   },
+   {
+    "desc": "Read the verse cut into the stone in the Brimstone Palace's foyer",
+    "type": "interact",
+    "target": "verse_foyer"
+   },
+   {
+    "desc": "Bring Wren the first two verses",
+    "type": "talk",
+    "target": "npc_bard"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 2220
+   },
+   "coins": 2960
+  },
+  "completion": "Wren had them by heart before you finished telling them, and wanted the rest.",
+  "then": "q_song_2"
+ },
+ "q_song_2": {
+  "name": "The Last Verse",
+  "source": "npc",
+  "giver": "npc_bard",
+  "level": 82,
+  "summary": "The song ends at the Cinder King's table. Find his guest list in the Dining Hall, and then the King.",
+  "prereq": [
+   "q_song_1"
+  ],
+  "stages": [
+   {
+    "desc": "Find the guest list in the Dining Hall",
+    "type": "interact",
+    "target": "guest_list_dining"
+   },
+   {
+    "desc": "Put down the Cinder King",
+    "type": "kill",
+    "target": "cinder_king"
+   },
+   {
+    "desc": "Bring Wren the end of the song",
+    "type": "talk",
+    "target": "npc_bard"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 2460
+   },
+   "coins": 6000,
+   "choices": [
+    {
+     "style": "melee",
+     "label": "Blade work",
+     "xp": {
+      "Attack": 3280,
+      "Strength": 3280
+     }
+    },
+    {
+     "style": "ranged",
+     "label": "Bow work",
+     "xp": {
+      "Ranged": 6560
+     }
+    },
+    {
+     "style": "magic",
+     "label": "Staff work",
+     "xp": {
+      "Magic": 6560
+     }
+    }
+   ]
+  },
+  "completion": "Wren sang it through at the inn, and for once the room went quiet and listened.",
+  "sets_flag": "WREN_SONG_SUNG"
+ },
+ "q_world_made_1": {
+  "name": "What the World Was Made Of",
+  "source": "npc",
+  "giver": "npc_magister",
+  "level": 82,
+  "summary": "The elements are what the land lends you, Magister Orrin has taught for forty years, and he never once asked who lent them to the land. Through the rift in the Stronghold: bring him the heart of the fire and of the stone.",
+  "prereq": [
+   "q_breaths_3"
+  ],
+  "stages": [
+   {
+    "desc": "Go through the rift in the Stronghold",
+    "type": "reach",
+    "target": "prim_kiln"
+   },
+   {
+    "desc": "Find an Ember Core in the Kiln",
+    "type": "collect",
+    "target": "ember_core"
+   },
+   {
+    "desc": "Find a Stone Heart in the Bedrock",
+    "type": "collect",
+    "target": "stone_heart"
+   },
+   {
+    "desc": "Show the Magister what the fire and the stone were made of",
+    "type": "talk",
+    "target": "npc_magister"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 2460
+   },
+   "coins": 3280
+  },
+  "completion": "Warm, both of them. Orrin had thought the stone would be cold.",
+  "then": "q_world_made_2"
+ },
+ "q_world_made_2": {
+  "name": "The Sea and the Sky",
+  "source": "npc",
+  "giver": "npc_magister",
+  "level": 90,
+  "summary": "Further in, the sea and the sky: a Tide Pearl from the Deeps and a Gale Plume from the Firmament.",
+  "prereq": [
+   "q_world_made_1"
+  ],
+  "stages": [
+   {
+    "desc": "Find a Tide Pearl in the Deeps",
+    "type": "collect",
+    "target": "tide_pearl"
+   },
+   {
+    "desc": "Find a Gale Plume in the Firmament",
+    "type": "collect",
+    "target": "gale_plume"
+   },
+   {
+    "desc": "Show the Magister the sea and the sky",
+    "type": "talk",
+    "target": "npc_magister"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 2700
+   },
+   "coins": 3600
+  },
+  "completion": "Orrin laid the four at the edge of the old circle, and its lines brightened under them.",
+  "then": "q_world_made_3"
+ },
+ "q_world_made_3": {
+  "name": "The Storm and the Whole",
+  "source": "npc",
+  "giver": "npc_magister",
+  "level": 97,
+  "summary": "The fifth is the storm, and past the storm is whatever holds the five together, at the Conflux.",
+  "prereq": [
+   "q_world_made_2"
+  ],
+  "stages": [
+   {
+    "desc": "Find Storm Glass in the Tempest",
+    "type": "collect",
+    "target": "storm_glass"
+   },
+   {
+    "desc": "Put down the Quintessence at the Conflux",
+    "type": "kill",
+    "target": "quintessence"
+   },
+   {
+    "desc": "Bring the Heart of the Conflux to the Magister's circle",
+    "type": "collect",
+    "target": "conflux_heart"
+   },
+   {
+    "desc": "Show the Magister",
+    "type": "talk",
+    "target": "npc_magister"
+   }
+  ],
+  "rewards": {
+   "xp": {
+    "Hitpoints": 2910
+   },
+   "coins": 15000,
+   "choices": [
+    {
+     "style": "melee",
+     "label": "Blade work",
+     "xp": {
+      "Attack": 3880,
+      "Strength": 3880
+     }
+    },
+    {
+     "style": "ranged",
+     "label": "Bow work",
+     "xp": {
+      "Ranged": 7760
+     }
+    },
+    {
+     "style": "magic",
+     "label": "Staff work",
+     "xp": {
+      "Magic": 7760
+     }
+    }
+   ]
+  },
+  "completion": "The circle in the Great Hall's floor took the light out of the heart and kept it, and every line in it came up gold, and stayed.",
+  "sets_flag": "ORRIN_CIRCLE_LIT"
  }
 }

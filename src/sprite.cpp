@@ -62,6 +62,11 @@ bool SpriteLibrary::Load(const string& json_path) {
         d.rows     = o.value("rows", 4);
         d.anchor_y = o.value("anchor_y", 54.0f);
         d.scale    = o.value("scale", 1.0f);
+        // A rig that can be recoloured says what it is made of beside its sheets.
+        if (!dir.empty()) {
+            auto table = std::make_shared<DyeTable>();
+            if (table->Load(dir + "palette.json")) d.dyes = table;
+        }
 
         if (o.contains("clips")) {
             for (auto c = o["clips"].begin(); c != o["clips"].end(); ++c) {
@@ -296,6 +301,10 @@ bool Sprite::DrawLayers(SDL_Renderer* r, TextureCache& cache,
                 tex = cache.Get(path);
             }
         }
+        // Their own hair, skin and clothes, on the layers those are drawn on.
+        if (!tex && def->dyes && style.looks.Any() &&
+            (layer.slot == LayerSlot::Body || layer.slot == LayerSlot::Head))
+            tex = cache.GetDyed(layer.sheet, *def->dyes, style.looks);
         if (!tex) tex = cache.Get(layer.sheet);
         if (!tex) continue;
 
@@ -393,6 +402,10 @@ void Sprite::Draw(SDL_Renderer* r, TextureCache& cache, const Camera& cam,
     const SDL_FRect dst = cam.ToScreenRect(world);
 
     if (blend == SDL_BLENDMODE_BLEND && grow == 1.0f && DrawLayers(r, cache, dst, shown, row, tint, fx)) return;
+    // The composed sheet, in their own colours when they have them: a halo or
+    // a flat-coloured copy is drawn from it as well as the plain figure.
+    if (def->dyes && style.looks.Any())
+        if (SDL_Texture* own = cache.GetDyed(clip->sheet, *def->dyes, style.looks)) tex = own;
 
     SDL_SetTextureBlendMode(tex, blend);
     SDL_SetTextureColorMod(tex, tint.r, tint.g, tint.b);
@@ -431,6 +444,8 @@ void Sprite::DrawAt(SDL_Renderer* r, TextureCache& cache,
     // a sword in every hand whatever the character fights with.
     if (DrawLayers(r, cache, dst, shown, row, tint)) return;
 
+    if (def->dyes && style.looks.Any())
+        if (SDL_Texture* own = cache.GetDyed(clip->sheet, *def->dyes, style.looks)) tex = own;
     SDL_SetTextureColorMod(tex, tint.r, tint.g, tint.b);
     SDL_SetTextureAlphaMod(tex, tint.a);
     SDL_RenderTexture(r, tex, &src, &dst);

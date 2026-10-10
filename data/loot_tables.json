@@ -3960,6 +3960,10 @@
       {
         "item": "nothing",
         "weight": 30
+      },
+      {
+        "item": "abyssal_horn",
+        "weight": 39
       }
     ]
   },
@@ -4669,6 +4673,10 @@
       {
         "item": "nothing",
         "weight": 24
+      },
+      {
+        "item": "pyre_gland",
+        "weight": 43
       }
     ]
   },

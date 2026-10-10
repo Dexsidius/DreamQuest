@@ -19,6 +19,12 @@
 //  there while the first is being played. What is in hand or done is always
 //  listed, wherever it belongs.
 //
+//  The questlines (data/chapters.json "threads") are headed the same way in
+//  the side quests' tab, after what goes alongside the parts: the Guild's
+//  Charter, Orla's Scale and Reed and the rest, each its quests in order. A
+//  thread lists what is done and in hand, and only the next of what is not:
+//  the step after this one, and not the whole road.
+//
 //  Worked out here rather than in the screen, so the self-test can ask it.
 // =============================================================================
 
@@ -28,10 +34,20 @@ struct QuestChapter {
     vector<string> quests, side;     // its own, in order; and those alongside it
 };
 
+// One of the questlines: a chain of side quests, each handing on to the next.
+struct QuestThread {
+    string id, title, sub;           // "charter", "The Guild's Charter", "Guild Master Orlend"
+    vector<string> quests;           // in order
+};
+
 class QuestChapters {
 public:
     bool Load(const string& path);
     const vector<QuestChapter>& All() const { return chapters; }
+    const vector<QuestThread>& Threads() const { return threads; }
+    // Which questline a quest is of (its index in Threads), and where in it;
+    // -1 for none.
+    int ThreadOf(const string& quest_id, int* place = nullptr) const;
     // Which part a quest is of (its index in All), whether it is alongside the
     // part rather than one of its own, and where in the part it comes; -1 for
     // a quest of no part.
@@ -41,6 +57,8 @@ private:
     struct Where { int chapter = -1; bool side = false; int place = 0; };
     vector<QuestChapter> chapters;
     unordered_map<string, Where> where;
+    vector<QuestThread> threads;
+    unordered_map<string, std::pair<int, int>> thread_of;     // quest -> (thread, place)
 };
 
 namespace Journal {
@@ -75,5 +93,8 @@ struct Page {
 Page Build(const QuestLog& log, const QuestChapters& chapters, int tab);
 // Whether a part of the story has begun: one of its own quests taken.
 bool Begun(const QuestLog& log, const QuestChapter& chapter);
+// The quest a questline goes on with: the first of it not yet taken, or
+// empty when every one has been.
+string NextOf(const QuestLog& log, const QuestThread& thread);
 
 }   // namespace Journal

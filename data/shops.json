@@ -996,6 +996,27 @@
     {
      "item": "scroll_enchant_vampiric",
      "stock": 1
+    },
+    {
+     "item": "scroll_enchant_affliction",
+     "stock": 1,
+     "after": [
+      "q_dream_collector_2"
+     ]
+    },
+    {
+     "item": "scroll_enchant_ferocity",
+     "stock": 1,
+     "after": [
+      "q_dream_collector_2"
+     ]
+    },
+    {
+     "item": "scroll_enchant_brand_frost",
+     "stock": 1,
+     "after": [
+      "q_dream_collector_2"
+     ]
     }
    ]
   },

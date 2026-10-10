@@ -426,7 +426,12 @@ void QuestLog::Notify(const QuestEvent& e, const Inventory& inv) {
         // "lizardman", for the contracts) and, as its second word, which one:
         // a stage can name either.
         const bool named = st.type == ObjectiveType::Kill && !e.secondary.empty() && st.target == e.secondary;
-        if (st.type != e.type || (st.target != e.target && !named)) continue;
+        // Or which kind it was, of a family that shares a target.
+        const bool kind = st.type == ObjectiveType::Kill && !e.kind.empty() && st.target == e.kind;
+        // A stage ending in '*' takes any whose id begins with the rest.
+        const bool any_of = st.target.size() > 1 && st.target.back() == '*' &&
+                            e.target.compare(0, st.target.size() - 1, st.target, 0, st.target.size() - 1) == 0;
+        if (st.type != e.type || (st.target != e.target && !named && !kind && !any_of)) continue;
         if (!st.map_id.empty() && st.map_id != e.map_id) continue;
         if (st.type == ObjectiveType::Deliver && st.deliver_to != e.secondary) continue;
 
@@ -438,8 +443,14 @@ void QuestLog::Notify(const QuestEvent& e, const Inventory& inv) {
     BeginFollowUps();
 }
 
-void QuestLog::RefreshFlagObjectives(const std::function<bool(const string&)>& has, const Inventory& inv) {
+void QuestLog::RefreshFlagObjectives(const std::function<bool(const string&)>& flagged, const Inventory& inv) {
     if (relay) return;
+    // "done:<quest>" is that quest finished: the Guild's Charter asks for a
+    // word that may have been earned long before the commission was taken.
+    const auto has = [&](const string& f) {
+        if (f.rfind("done:", 0) == 0) return Status(f.substr(5)) == QuestStatus::Complete;
+        return flagged(f);
+    };
     vector<string> active;
     for (const auto& kv : progress)
         if (kv.second.status == QuestStatus::Active) active.push_back(kv.first);

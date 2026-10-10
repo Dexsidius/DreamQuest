@@ -128,8 +128,10 @@ public:
     // is the one standing in the world, their journal is a real one, and their
     // seat has a camera, because someone here is looking through it. The seat
     // number comes from net::Server::ReserveSeat. `character` is a kept
-    // Player::ToJson, or null for someone new.
-    void AddLocal(uint8_t seat_no, const string& name, const string& look, QuestLog* journal, const json& character);
+    // Player::ToJson, or null for someone new -- who comes in the colours
+    // chosen for them, `looks`.
+    void AddLocal(uint8_t seat_no, const string& name, const string& look, QuestLog* journal, const json& character,
+                  const Looks& looks = Looks());
     void RemoveLocal(uint8_t seat_no);
     void FeedLocal(uint8_t seat_no, const PlayerInput& hands);
     bool IsLocal(uint8_t seat_no) const;
@@ -148,6 +150,7 @@ public:
 private:
     struct Seat {
         string   name, look;
+        Looks    looks;                     // a new local seat's colours
         World*   where = nullptr;           // null: waiting in the lobby
         uint32_t next_seq = 1, last_applied = 0;
         std::deque<std::pair<uint32_t, net::InputStep>> queue;

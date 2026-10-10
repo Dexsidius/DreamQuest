@@ -6277,6 +6277,12 @@ import blender_act1_props  # noqa: E402
 
 PROPS.update(blender_act1_props.PROPS)
 
+# And the questlines' -- the Guild's survey cairn, the Spirewatch's cairn on
+# the heath, and Old Harl's traps on the glacier.
+import blender_quest_props  # noqa: E402
+
+PROPS.update(blender_quest_props.PROPS)
+
 
 def main():
     only = None

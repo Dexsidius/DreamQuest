@@ -244,6 +244,10 @@ struct TileGroup {
 
 static const json& EnemyData();   // data/enemies.json; see ShownOf
 
+class MapBuilder;
+// The questlines' things, put on each map as it is written: see PlaceQuestThings.
+static void PlaceQuestThings(MapBuilder& m);
+
 class MapBuilder {
 public:
     MapBuilder(const string& id, const string& display, int w, int h)
@@ -918,6 +922,7 @@ public:
 
     void Write(const string& dir) {
         SettlePosts();
+        PlaceQuestThings(*this);
         PlaceChimneys();
         json root;
         root["name"] = display;
@@ -2143,6 +2148,274 @@ static void PlaceCurios(MapBuilder& m) {
         o["item_qty"]     = 1;
         o["starts_quest"] = c.quest;
         o["title"]        = c.title;
+    }
+}
+
+// =============================================================================
+//  The questlines' things (README, "Questlines")
+//
+//  What the Guild's Charter and the questlines out of it ask a player to find,
+//  read or touch, put on the map they belong to as it is written (see Write):
+//  the Guild's survey cairns, three a commission; the lizardfolk's painted
+//  hide and the shrine its road ends at; the cult's jars and drums; the
+//  Spirewatch's cairn and its captain's sword; Old Harl's traps and his pack;
+//  the herald's standard and the verses in the Brimstone Palace.
+//
+//  Like a curio, each stands beside the nth post of a monster kind -- or the
+//  way in from another map ("portal:<map>") -- on the nearest ground a player
+//  can stand on. A thing with a quest is there only while that quest is being
+//  done, and is each character's own to use (MapObject::own); one without is
+//  part of the place.
+// =============================================================================
+
+// The Great Hall's floor circle: off the runner, at the head of the room to
+// the west of it, below the council's table, where the user placed it. The
+// quest needs one; the same distance east (448 + 162) is its other side.
+static constexpr int kHallCircleX = 448 - 162;
+static constexpr int kHallCircleY = 316;
+
+struct QuestThing {
+    const char* map;
+    const char* id;
+    const char* type;        // search (taken from, once), sign (read)
+    const char* sprite;
+    const char* title;
+    const char* text;
+    const char* item;        // what a search gives, or ""
+    const char* quest;       // there only while this is being done, or "" for always
+    const char* near;        // a monster kind, or "portal:<map>"
+    int nth, x, y;           // which of them, and the step from it
+    int solid;               // a collision box this wide at its foot, or 0
+};
+
+static const char* const kSurveyTitle = "Set the Guild's survey mark";
+static const char* const kSurveyText  = "The Guild's pennant goes up on the cairn. One more piece of the map.";
+
+static const QuestThing kQuestThings[] = {
+    // --- the Guild's Charter: three survey marks a commission -----------------
+    {"overworld",        "survey_iron_1",       "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_iron",       "lizardman",        1, 84, 36, 0},
+    {"overworld",        "survey_iron_2",       "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_iron",       "lizardman",        6, -84, 40, 0},
+    {"overworld",        "survey_iron_3",       "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_iron",       "lizardman",       11, 80, -40, 0},
+    {"brackenwood",      "survey_steel_1",      "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_steel",      "mossback_bear",    1, 84, 36, 0},
+    {"brackenwood",      "survey_steel_2",      "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_steel",      "mossback_bear",    6, -84, 40, 0},
+    {"brackenwood",      "survey_steel_3",      "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_steel",      "mossback_bear",   11, 80, -40, 0},
+    {"bayou",            "survey_azuryte_1",    "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_azuryte",    "mire_croaker",     1, 84, 36, 0},
+    {"bayou",            "survey_azuryte_2",    "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_azuryte",    "rot_shambler",    10, -84, 40, 0},
+    {"bayou",            "survey_azuryte_3",    "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_azuryte",    "fen_gator",        4, 80, -40, 0},
+    {"crypt_1",          "survey_damascus_1",   "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_damascus",   "grave_ghoul",      2, 60, 30, 0},
+    {"crypt_2",          "survey_damascus_2",   "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_damascus",   "bone_knight",      1, 60, 30, 0},
+    {"crypt_2",          "survey_damascus_3",   "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_damascus",   "tomb_shade",       4, -60, 30, 0},
+    {"plateau_ascent",   "survey_orichalcum_1", "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_orichalcum", "dragon_earth",     9, 96, 40, 0},
+    {"plateau_flats",    "survey_orichalcum_2", "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_orichalcum", "dragon_air",       7, 96, 40, 0},
+    {"plateau_terraces", "survey_orichalcum_3", "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_orichalcum", "dragon_water",     8, 96, 40, 0},
+    {"hex_drowns",       "survey_diamond_1",    "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_diamond",    "hex_cultist",      6, 84, 36, 0},
+    {"hex_strand",       "survey_diamond_2",    "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_diamond",    "shellback_snapper", 5, 84, 36, 0},
+    {"hex_fens",         "survey_diamond_3",    "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_diamond",    "hex_zealot",       6, 84, 36, 0},
+    {"frost_barrows",    "survey_platinum_1",   "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_platinum",   "draugr",           5, 84, 36, 0},
+    {"frost_mere",       "survey_platinum_2",   "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_platinum",   "ice_troll",        3, 84, 36, 0},
+    {"frost_glacier",    "survey_platinum_3",   "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_platinum",   "frostback_troll",  7, 84, 36, 0},
+    {"ashen_path",       "survey_demonite_1",   "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_demonite",   "revenant",         1, 84, 36, 0},
+    {"palace_foyer",     "survey_demonite_2",   "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_demonite",   "bone_knight",      2, 60, 30, 0},
+    {"palace_chambers",  "survey_demonite_3",   "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_demonite",   "bone_knight",      0, 60, 30, 0},
+    {"prim_kiln",        "survey_dracon_1",     "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_dracon",     "ember_conjure",    8, 84, 36, 0},
+    {"prim_bedrock",     "survey_dracon_2",     "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_dracon",     "stone_conjure",   11, 84, 36, 0},
+    {"prim_deeps",       "survey_dracon_3",     "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_dracon",     "tide_conjure",    12, 84, 36, 0},
+    {"prim_firmament",   "survey_enchanted_1",  "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_enchanted",  "gale_conjure",     4, 84, 36, 0},
+    {"prim_tempest",     "survey_enchanted_2",  "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_enchanted",  "storm_conjure",    9, 84, 36, 0},
+    {"prim_conflux",     "survey_enchanted_3",  "search", "assets/props/guild_cairn.png", kSurveyTitle, kSurveyText, "", "q_charter_enchanted",  "inferno_conjure",  2, 84, 36, 0},
+
+    // --- Scale and Reed: the chief's hide, and where its road ends -------------
+    {"overworld", "painted_hide_chief", "search", "assets/props/pelt_rack.png", "Take the painted hide",
+     "A hide on a frame, daubed with the lizardfolk's marks. Orla will want this.", "painted_hide", "q_scale_and_reed",
+     "lizardman_chief", 0, 72, -34, 0},
+    {"bayou", "shrine_reed_road", "sign", "assets/props/lizard_totem.png", "The sunk shrine",
+     "A lizardfolk shrine, half under the water: a totem of bound reeds, and round its foot a ring of reed dolls, "
+     "each with a thorn through it.\n\nThe marks painted down the totem are the marks on the chief's hide, and here "
+     "they stop. This is where the road ends.", "", "", "lizardman", 0, 96, 30, 24},
+
+    // --- Black Water: the cult's jars and its drums -----------------------------
+    {"hex_drowns", "cult_jar_drowns", "search", "assets/props/candle_shrine.png", "Look over the jars",
+     "Jars with lights in them, and round every neck the same cord knot as the poppet's.", "", "q_black_water_1",
+     "hex_cultist", 2, 72, 34, 0},
+    {"hex_fens", "cult_drum_1", "search", "assets/props/hex_drum.png", "Break the drum",
+     "A boot through the drumhead. The beat stops on that side of the fen.", "", "q_black_water_2",
+     "hex_zealot", 1, 72, 34, 0},
+    {"hex_fens", "cult_drum_2", "search", "assets/props/hex_drum.png", "Break the drum",
+     "The second drum goes quiet. Somewhere off in the fen somebody starts shouting.", "", "q_black_water_2",
+     "hex_zealot", 7, -72, 34, 0},
+    {"hex_fens", "cult_drum_3", "search", "assets/props/hex_drum.png", "Break the drum",
+     "The last drum splits. For the first time in years the Fens are only frogs.", "", "q_black_water_2",
+     "hex_zealot", 12, 72, -34, 0},
+
+    // --- The Spirewatch's Own: the cairn, and the captain's sword ----------------
+    {"frost_barrows", "spirewatch_cairn", "sign", "assets/props/spirewatch_cairn.png", "The Spirewatch's cairn",
+     "A long cairn under the snow, and at its head a slab with eleven names cut down it in a careful hand. Under the "
+     "last, a twelfth line was begun and never finished.\n\nRound the mound the snow is trodden by feet that did not "
+     "come from anywhere.", "", "", "draugr", 2, 120, 50, 64},
+    {"frost_mere", "spirewatch_sword_mere", "search", "assets/icons/spirewatch_sword.png", "Pull the sword from the ice",
+     "A sword frozen upright in the ice, its hilt bound in a rag of the Spirewatch's blue. It comes free with a crack.",
+     "spirewatch_sword", "q_spirewatch_2", "portal:frost_cabin", 0, 90, 70, 0},
+
+    // --- The Fortieth Winter: Harl's line, and his pack ----------------------------
+    {"frost_glacier", "harl_trap_1", "search", "assets/props/harl_trap.png", "Look at the trap",
+     "Sprung, and empty. The tag on the chain says HARL in burnt letters.", "", "q_fortieth_winter",
+     "frostback_troll", 2, 64, 30, 0},
+    {"frost_glacier", "harl_trap_2", "search", "assets/props/harl_trap.png", "Look at the trap",
+     "Torn half off its plate by something with hands. A troll's, by the size of the marks.", "", "q_fortieth_winter",
+     "frostback_troll", 6, -64, 30, 0},
+    {"frost_glacier", "harl_trap_3", "search", "assets/props/harl_trap.png", "Look at the trap",
+     "Pulled up, stake and all, and thrown. The tag still says HARL.", "", "q_fortieth_winter",
+     "frostback_troll", 10, 64, -30, 0},
+    {"frost_glacier", "harl_trap_4", "search", "assets/props/harl_trap.png", "Look at the trap",
+     "The last of the line, still set, pointed at the Howe. His tracks go on toward the door.", "", "q_fortieth_winter",
+     "frostback_troll", 13, -64, -30, 0},
+    {"frost_howe_hall", "harl_pack_howe", "search", "assets/icons/harls_knife.png", "Harl's pack",
+     "His pack, and his knife beside it, at the foot of the eldest's seat. One more page inside.", "harls_knife",
+     "q_fortieth_winter", "undead_warlord", 0, 64, 34, 0},
+
+    // --- The Song Nobody Finishes: the herald, the balcony, the guest list -------------
+    {"ashen_path", "herald_standard_ashen", "search", "assets/props/palace_banner.png", "The herald's standard",
+     "A herald's standard in the ash by the moat, its banner burned to the pole. Under it, a horn on a chain.",
+     "herald_horn", "q_song_1", "revenant", 2, 72, 34, 0},
+    {"palace_foyer", "verse_foyer", "sign", "assets/props/runestone.png", "Words cut into the balcony stone",
+     "Cut into the stone by a hand that was a guest and not a servant, small, where the King would not look:\n\n"
+     "He feasts us at dusk and he feasts us at dawn,\nand the feast is the guests, and that's all.", "", "",
+     "bone_knight", 0, 72, 34, 24},
+    {"palace_dining", "guest_list_dining", "sign", "assets/props/lectern.png", "The guest list",
+     "A guest list on a stand at the head of the long table, written in scorch marks. Every name on it has been "
+     "crossed out but the last, which is a space.\n\nAs you read, something burns itself into the space.", "", "",
+     "demon", 0, 72, 34, 24},
+};
+
+static void PlaceQuestThings(MapBuilder& m) {
+    for (const QuestThing& q : kQuestThings) {
+        if (m.Id() != q.map) continue;
+        int x = q.x, y = q.y;
+        const string near = q.near;
+        bool found = false;
+        if (near.rfind("portal:", 0) == 0) {
+            int seen = 0;
+            for (const auto& p : m.dq["portals"]) {
+                if (p.value("target", string()) != near.substr(7) || seen++ != q.nth) continue;
+                x = p["rect"][0].get<int>() - m.ox + p["rect"][2].get<int>() / 2 + q.x;
+                y = p["rect"][1].get<int>() + p["rect"][3].get<int>() / 2 + q.y;
+                found = true;
+                break;
+            }
+        } else {
+            int seen = 0;
+            for (const auto& e : m.dq["enemies"]) {
+                if (e.value("night", false) || e.contains("route")) continue;
+                bool kind = e.value("type", string()) == near;
+                if (e.contains("pool"))
+                    for (const auto& p : e["pool"]) kind |= p.get<string>() == near;
+                if (!kind || seen++ != q.nth) continue;
+                x = e["x"].get<int>() - m.ox + q.x;
+                y = e["y"].get<int>() + q.y;
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            std::fprintf(stderr, "genmaps: %s has no %s #%d for %s\n", q.map, q.near, q.nth, q.id);
+            std::exit(1);
+        }
+        // Out from there in widening rings to the first open ground -- and,
+        // for something solid, ground with room round it.
+        const auto open_at = [&](int px, int py) {
+            if (!m.Clear(px, py)) return false;
+            if (q.solid > 0) return m.Clear(px - q.solid / 2, py) && m.Clear(px + q.solid / 2, py) && m.Clear(px, py + 20);
+            return true;
+        };
+        int px = x, py = y;
+        bool open = open_at(px, py);
+        for (int r = 8; !open && r <= 240; r += 8)
+            for (int a = 0; a < 24 && !open; ++a) {
+                const float t = a * 6.2831853f / 24.0f;
+                px = x + static_cast<int>(lroundf(cosf(t) * r));
+                py = y + static_cast<int>(lroundf(sinf(t) * r));
+                open = open_at(px, py);
+            }
+        if (!open) {
+            std::fprintf(stderr, "genmaps: nowhere to put %s in %s\n", q.id, q.map);
+            std::exit(1);
+        }
+        json& o = m.Object(q.id, q.type, px, py);
+        o["sprite"] = q.sprite;
+        o["title"]  = q.title;
+        o["text"]   = q.text;
+        if (q.item[0]) o["item"] = q.item;
+        // Read or used for a quest, or there only for one: each character's own.
+        if (q.quest[0]) o["needs_quest"] = q.quest;
+        o["own"] = true;
+        if (q.solid > 0) m.Collision(px - q.solid / 2, py - 10, q.solid, 10);
+    }
+
+    // --- what a questline leaves behind, where it is told to ---------------------------
+    // Things that were already there, which a questline now asks to be read:
+    // each character reads their own (see TestCoopOwn's rule).
+    for (auto& o : m.dq["objects"]) {
+        const string oid = o.value("id", string());
+        if (oid == "sign_stronghold_rift" || oid == "journal_harl") o["own"] = true;
+    }
+    if (m.Id() == "frost_cabin") {
+        // Harl's journal goes on a page, and starts The Fortieth Winter: see the
+        // trapline above. And once Hale has given it over, Harl's own chest by
+        // the bed is the player's to keep things in.
+        for (auto& o : m.dq["objects"]) {
+            if (o.value("id", string()) == "journal_harl") {
+                o["text"] = o["text"].get<string>() +
+                            "\n\n(A last page, in a hurry:)\n\nTrap four is at the Howe door. Something has been "
+                            "taking from it that does not eat. Going to look. Back by";
+                o["starts_quest"] = "q_fortieth_winter";
+            }
+        }
+        for (auto& o : m.dq["objects"]) {
+            if (o.value("id", string()) != "chest_trapper") continue;
+            const int cx = o["x"].get<int>() - m.ox, cy = o["y"].get<int>();
+            // In the corner past his trapper's chest, clear of the waystone.
+            json& s = m.Object("storage_harl", "storage", cx + 16, cy + 44);
+            s["sprite"]   = "assets/props/travel_chest.png";
+            s["title"]    = "Harl's chest";
+            s["capacity"] = 40;
+            s["when"]     = {{"flags", json::array({"HARL_CABIN_YOURS"})}};
+            m.Collision(cx + 16 - 14, cy + 44 - 10, 28, 10);
+            break;
+        }
+    }
+    if (m.Id() == "town_havenbrook") {
+        // The Spirewatch's captain's sword over the door, where Vask can see it
+        // from his chair (The Captain's Sword).
+        for (const auto& n : m.dq["npcs"]) {
+            if (n.value("id", string()) != "npc_vask_porch") continue;
+            json& s = m.Object("spirewatch_sword_hung", "decor", n["x"].get<int>() - m.ox + 30, n["y"].get<int>() - 6);
+            s["sprite"] = "assets/icons/spirewatch_sword.png";
+            s["lift"]   = 34;
+            s["when"]   = {{"flags", json::array({"SPIREWATCH_SWORD_HUNG"})}};
+            break;
+        }
+    }
+    if (m.Id() == "fernhollow_college") {
+        // The Great Hall's floor circle, lit for good once the Magister has the
+        // five and the heart (The Storm and the Whole): laid over it, sorted at
+        // its top edge so whoever stands in it is drawn over it (a floor
+        // piece's spot is its middle, and the circle runs 48 each way).
+        json& s = m.Object("spell_circle_lit", "decor", kHallCircleX, kHallCircleY - 48);
+        s["sprite"] = "assets/props/spell_circle_lit.png";
+        s["lift"]   = -96;
+        s["when"]   = {{"flags", json::array({"ORRIN_CIRCLE_LIT"})}};
+    }
+    if (m.Id() == "mossvale_cottage") {
+        // The Guild's map, copied fair, once the Charter is done.
+        // On the clear wall between the bookshelf and the chest.
+        json& s = m.Object("charter_map", "sign", 336, 112);
+        s["sprite"] = "assets/props/town_map.png";
+        s["title"]  = "The Guild's map";
+        s["text"]   = "The Guild's map of the Hollowmarch, copied fair, the Frostreach and the Hexmire and the burnt "
+                      "road and the rift all on it, and not a 'here be' left anywhere.\n\nIn the corner, in Orlend's "
+                      "hand: Charted for the Guild, a commission at a time.";
+        s["when"]   = {{"flags", json::array({"CHARTER_COMPLETE"})}};
+        m.Collision(336 - 24, 102, 48, 10);
     }
 }
 
@@ -9647,7 +9920,8 @@ static void BuildCollege() {
             m.Prop("props", art, x, y);
             if (cw > 0) m.Collision(x - cw / 2, y - ch, cw, ch);
         };
-        m.Overlay("props", "spell_circle", dx, 13 * CELL + 16);
+        // The circle in the floor, off the runner to the west (kHallCircleX).
+        m.Overlay("props", "spell_circle", kHallCircleX, kHallCircleY);
 
         // The table, and the six chairs: three behind it facing the room, three
         // before it with their backs to the door -- all six turned to the table.

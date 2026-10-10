@@ -93,8 +93,11 @@ Signs at the foot of the screen say how to do each new thing as it comes up.
 First you choose who you are, one of four: the Lucid Knight (heavy melee), the
 Shade Ranger (agile, ranged and melee), the Dreamweaver (ranged magic) or the
 Lantern Warden (tank and support: a mace, and a lit lantern that guards like a
-shield; its skill tree heals and wards those near it). You choose your weapon
-and armour from a chest partway through.
+shield; its skill tree heals and wards those near it). Then their colours:
+hair, skin and clothes, each a row of swatches, the first of them the
+calling's own (I or LB shows them in their kit, G or Y picks at random, [ and ]
+or the right stick turn them round). You choose your weapon and armour from a
+chest partway through.
 
 When it is over Havenbrook is asleep, all of it, until the story wakes it: its
 shops and trades will keep. Its gates are open and the rest of the world is
@@ -150,6 +153,22 @@ page shows the beast, says where it lairs and what it does, and is taken once.
 The arrow leads to its lair, but it counts wherever it falls, and the Guild
 pays the moment it does. Levels in red are still past you; L (RT on a pad) on
 the board shows only what is within ten levels of you.
+
+THE GUILD'S CHARTER, AND THE QUESTLINES
+
+Once the ledger is open, ask Orlend about the Guild's charter. The Guild's map
+stops at "here be" past the Spire, the Bayou and the burnt road, and he gives
+the rest out a commission at a time: set three of the Guild's survey cairns
+where the map runs out (the arrow finds the nearest), finish the first quest
+of whoever lives there, and come back. Each earns a Guild seal, an amulet in a
+tier's metal, from Iron at 15 to Enchanted at 95.
+
+The people the commissions send you to have questlines of their own, each
+handing you on to the next part of the world: Orla in the Westwold, the
+Collector in the Reverie, Hulda in the dwarves' mine, Battlemaster Ysolde at
+the College, Oona, Elder Vask, Old Harl's journal in his cabin on the Glass
+Mere, Wren the Bard at the inn, and Magister Orrin. The journal gives each its
+own heading under Side quests, showing the step you are on and the one after.
 
 
 CONTROLS

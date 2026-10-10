@@ -4931,6 +4931,76 @@ fights:
   since the Knight and the Warden both fight in melee -- and any of them can be
   taken.
 
+### Their colours
+
+After the calling and before the slot, a screen of its own asks the colour of
+their **hair**, their **skin** and their **clothes**. The figure stands on the
+character panel's stage, drawn the way the world will draw it, and each part
+is a row of swatches -- sixteen for the hair, thirteen for the skin, seventeen
+for the clothes, natural ones first and a few a dream would allow after. The
+first swatch in every row is the calling's own colour, marked with a turned-down
+corner, and is what a part left alone stays.
+
+| | Keys | Pad |
+| --- | --- | --- |
+| Part | Up / Down | d-pad, stick |
+| Colour | Left / Right | d-pad, stick |
+| Turn the figure (eight ways) | `[` `]` | right stick left / right |
+| As they are / in their kit | I | LB |
+| Any colours | G | Y |
+| On (to the slot, or the world) | Enter | A |
+| Back to the callings | Esc | B |
+
+They set out in the prologue with nothing, so "as they are" -- no armour, no
+weapon -- is how they are first seen; their kit hides more of the tunic and,
+under a helm, most of the hair.
+
+**Who is asked:** a new game (before the slot), a new world to host (before
+the door opens), a friend arriving in someone's world for the first time (Enter
+on Play Together's **Character** row), and Player Two the first time they sit
+down -- the pause menu's row, Start on a second pad and the carry to a
+multiplayer slot all go through it, and it seats them when it is done. Anyone
+who has played before comes as they were kept.
+
+**How it is drawn.** Nothing is repainted. The character art is cel-shaded:
+every material is rendered in exactly three flat colours -- shade, mid and
+light -- from its base colour by the ramp in `tools/blender_character.py`. So
+a pixel in one of the hair's three colours is hair, and becomes the same band
+of the new colour, which is what Blender would have rendered had the hair been
+that colour; the one-pixel outline beside it was drawn as 0.42 of the mean of
+what it borders, and moves by 0.42 of their mean change. The clothes are the
+tunic with its trim (and the Dreamweaver's scarf) following it channel by
+channel, as far from it as they were drawn, so a red tunic has a darker red
+trim; the Lantern Warden's brass trim and amber mantle stay what they are.
+
+- `tools/character_palettes.py` writes `assets/characters/<look>/palette.json`
+  for the four playable characters: the base colour of every material they
+  are drawn in, the ramp, the outline, and what each part recolours. It reads
+  the numbers out of `blender_character.py` itself (with `ast`, so Blender is
+  not needed) and `make_character.ps1` runs it, through Blender's own Python,
+  after every render. A colour changed in the script and not here would have
+  the game recognise none of it.
+- `entity/looks.*`: `Looks` (the three colours, `-1` for the calling's own),
+  the swatches, and `DyeTable`, which reads a palette and recolours an RGBA
+  image. A render lands a step or two from the exact band, so every colour
+  within two steps of a band is that band, to the nearest.
+- `TextureCache::GetDyed` makes the recoloured sheet the first time it is
+  drawn and keeps it, the least lately drawn let go past 48 MB.
+  `Sprite::DrawLayers` asks for it for the body and head layers when
+  `LayerStyle::looks` has anything in it; armour, weapons and the shadow are
+  drawn as ever.
+- Kept as `"looks": {"hair": "#e8cc78", ...}` in the character's save, the
+  calling's own left out. Friends are told in the `Outfit` (protocol 26), and
+  the host takes a friend's from their sheet.
+
+`--looks e8cc78,-,c4302e` gives a scratch character hair, skin and clothes
+(`-` for the calling's own); `--screen looks:player_lantern` opens the screen.
+`selftest --only looks` checks the palettes still match the art (most of every
+body and head sheet is one of the rig's colours, and hair, skin and clothes are
+all found), that recolouring to a rig's own colours changes nothing past a
+render's rounding, that new colours move every pixel of all three parts and the
+outline with them, and that the colours survive a save, an `Outfit` and a sheet.
+
 ### Affinities
 
 Each calling favours one way of fighting, and says so on the card at character
@@ -5076,7 +5146,10 @@ game reads:
 
 There is **one rig in four sets of clothes**: a `LOOKS` table of palette
 overrides plus two shape switches -- how far the hair locks stretch from their
-roots, and whether the character wears the scarf or a rolled collar.
+roots, and whether the character wears the scarf or a rolled collar. A player
+recolours their own hair, skin and clothes on top of that (see
+[Their colours](#their-colours)), by the `palette.json` the script's colours are
+written to after every render.
 
 | Character | Looks like |
 | --- | --- |
@@ -7224,6 +7297,97 @@ How it is built:
 
 To look at one: `--scratch warden --level 45 --map bayou --at 496 1440 --bag
 poppet_idol`, then E at the table.
+
+### The Guild's Charter
+
+Act II leaves a player at about 42 and the Death Talisman asks for 70, and the
+Plateau, the Hexmire, the Frostreach and the Primordium had no quest leading
+into them at all. The Guild's Charter is the guild hall's answer, and the
+questlines below are the people's.
+
+Once the ledger is open, Guild Master Orlend has a second page: the Guild's
+map, drawn the year before the Spirewatch fell, with nothing past the Spire,
+the Bayou and the burnt road but "here be". He gives it out a commission at a
+time, and each has three stages:
+
+1. **Set the Guild's survey marks** -- three cairns with the Guild's red
+   pennant (`guild_cairn`), where the map runs out. They stand only while the
+   commission is out, each character sets their own, and the waypoint goes to
+   the nearest not yet set (a stage target ending in `*`: `survey_iron_*`).
+2. **Earn the local's word**: finish the first quest of the person who lives
+   there. A `done:<quest>` flag stage, so a quest finished long before the
+   commission was taken counts.
+3. **Report to Orlend**, who inks the region onto the map and gives the seal.
+
+| Seal | Level | Commission | Marks | Word |
+| --- | --- | --- | --- | --- |
+| Iron | 15 | The Mire Road | the Lizardmen's Camp | Orla: *Scale and Reed* |
+| Steel | 22 | The Old Growth | the Brackenwood | Hale: *The Den Mother* |
+| Azuryte | 32 | The Far Bank | the Bayou | Ilse: *The Singers in the Bayou* |
+| Damascus | 40 | Scratching under Hollowrest | Hollowrest Crypt | Brask: *Shut the Crypt* |
+| Orichalcum | 50 | The Pale Ascent | the Plateau | Ysolde: *The First Two Breaths* |
+| Diamond | 57 | Black Water | the Hexmire | Oona: *Black Water* |
+| Platinum | 62 | Beyond the Spire | the Frostreach | Vask: *The Spirewatch's Own* |
+| Demonite | 72 | His Hall | the burnt road's end, the Palace | Wren: *The Song Nobody Finishes* |
+| Dracon | 80 | The Rift | the Primordium's near side | Orrin: *What the World Was Made Of* |
+| Enchanted | 95 | The Last Blank | the Primordium's heart | Orrin: *The Storm and the Whole* |
+
+**The seals are amulets**, the Guild Amulet's face in each tier's metal, and
+modest ones: every way of fighting gets a little (`0.07` of the tier's weapon
+power to Attack, Strength, Ranged and Magic, `0.05` to Defence), so a
+crafted amulet for one's own style still beats the seal of its tier. The last
+commission hangs the Guild's map, copied fair, on the wall of the house at
+Mossvale.
+
+### Questlines
+
+Each is a chain of side quests, every one handed to the next, every one ending
+where the next band of the world begins. In the journal each has its own
+heading in the side quests' tab, before the favours: what is done and in hand,
+and only the next step of what is not (`data/chapters.json` `"threads"`). As
+with every side quest, nothing is gated by level: each step says what it is
+advised for.
+
+| Questline | From | Levels | Where it goes | It ends by |
+| --- | --- | --- | --- | --- |
+| **Scale and Reed** | Orla the Tanner, the Westwold | 14-24 | the Lizardmen's Camp, the chief's painted hide, the sunk shrine at the Bayou's mouth | sending you to Warden Ilse, whose Bayou quest it leads into |
+| **Things with a Dream Still in Them** | the Collector, the Reverie | 27-47 | the Deep Reverie's Sleepwalkers, then the Sleepless | opening a third case of his stock |
+| **Hotter Than Coal** | Hulda Anvilhand, the Delving of Stonebrow (after Garrow's horns) | 56-83 | Pyre Dragons' glands, Abyssal Demons' horns, an Ember Core from the Kiln | Hulda's hammer to Halda in Havenbrook; diamond, demonite and dracon bars on the way |
+| **The Five Breaths** | Battlemaster Ysolde, with Lector Maud | 56-68 | one Plateau dragon of each element, in the order the Plateau climbs, then the rift | handing you to Magister Orrin |
+| **Black Water** | Oona (after *Five Knots*) | 57-65 | the Hexmire: the cult's jars, a Shellback Elder, three drums, the High Priest | Oona burning the cord her grandmother's knot began |
+| **The Spirewatch's Own** | Elder Vask (after Hoarfang) | 62-66 | the Spirewatch's cairn in the Draugr Barrows, then the captain's sword in the Glass Mere | the sword over Vask's door, and his word about the twelfth key (the Rime Key) |
+| **The Fortieth Winter** | Old Harl's journal, in his cabin | 70 | Harl's trapline on the glacier, the Howe, the Abominable Snowman | Harl's knife to Hale -- and Harl's cabin is yours: his chest by the bed keeps your things |
+| **The Song Nobody Finishes** | Wren the Bard | 74-82 | the herald by the moat, the foyer's verse, the guest list, the Cinder King | Wren singing it through at the inn (and the patrons having opinions) |
+| **What the World Was Made Of** | Magister Orrin (after the Five Breaths) | 82-97 | the Primordium: an Ember Core, a Stone Heart, a Tide Pearl, a Gale Plume, Storm Glass, the Quintessence | the circle in the Great Hall lit gold for good |
+
+Older quests got one more line each to point onward: Sorrel to Hale, Hale to
+Harl, Ilse to the reed dolls, Brask to the College, Garrow to Hulda, Oona to
+the knots, Orlend to the charter, Vask to the eleven.
+
+**What the engine gained for them:**
+
+- **A kill says its own kind** (`QuestEvent::kind`, and on the wire
+  `Delta::Quest::kind`, protocol 26). A family shares a kill target -- every
+  dragon is "dragon", every draugr and warlord "draugr" -- so a stage could
+  ask for any dragon but not a Basalt one. Now it can name either.
+  `secondary` stays a boss's alone, because a boon is given for it.
+- **A stage target ending in `*`** takes any thing whose id begins with the
+  rest: three survey marks, four of Harl's traps, three drums. The waypoint
+  points at the nearest the character has not used yet.
+- **`done:<quest>`** in a flag stage waits on that quest being finished.
+- **The things are placed by genmaps** (`PlaceQuestThings`, on each map as it is
+  written): beside the nth post of a monster kind, or a way in from another
+  map, on the nearest open ground, like the curios. A thing with a quest is
+  there only while it is being done, and is each character's own.
+- New props in `tools/blender_quest_props.py` (the Guild's cairn, the
+  Spirewatch's cairn, Harl's trap); the seals' and the finds' icons, and the
+  lit circle, recoloured from the game's own by `tools/make_quest_icons.py`.
+  The data is in `data/quests.json`, `dialogue.json` and `items.json` like
+  every other quest's.
+
+`selftest --only questlines` checks the threads and the Charter's chain, that
+every mark, find, giver and item is in the game, the `*`, `done:` and kind
+matching, the kind crossing the wire, and the journal's headings.
 
 ---
 

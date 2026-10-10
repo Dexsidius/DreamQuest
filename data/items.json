@@ -4431,5 +4431,232 @@
    "chance": 0.22
   },
   "keep": true
+ },
+ "guild_seal_iron": {
+  "name": "Iron Seal of the Guild",
+  "desc": "The Guild of Havenbrook's seal, struck in iron and hung on a cord: given for charting the Mire road. It does a little for whoever wears it, whatever they fight with.",
+  "slot": "amulet",
+  "value": 60,
+  "bonus": {
+   "attack": 1,
+   "strength": 1,
+   "ranged": 1,
+   "magic": 1,
+   "defence": 1
+  },
+  "tags": [
+   "guild"
+  ],
+  "icon": "assets/icons/guild_seal_iron.png"
+ },
+ "guild_seal_steel": {
+  "name": "Steel Seal of the Guild",
+  "desc": "The Guild of Havenbrook's seal, struck in steel and hung on a cord: given for charting the Old Growth. It does a little for whoever wears it, whatever they fight with.",
+  "slot": "amulet",
+  "value": 120,
+  "bonus": {
+   "attack": 2,
+   "strength": 2,
+   "ranged": 2,
+   "magic": 2,
+   "defence": 2
+  },
+  "tags": [
+   "guild"
+  ],
+  "icon": "assets/icons/guild_seal_steel.png"
+ },
+ "guild_seal_azuryte": {
+  "name": "Azuryte Seal of the Guild",
+  "desc": "The Guild of Havenbrook's seal, struck in azuryte and hung on a cord: given for charting the Bayou. It does a little for whoever wears it, whatever they fight with.",
+  "slot": "amulet",
+  "value": 180,
+  "bonus": {
+   "attack": 4,
+   "strength": 4,
+   "ranged": 4,
+   "magic": 4,
+   "defence": 2
+  },
+  "tags": [
+   "guild"
+  ],
+  "icon": "assets/icons/guild_seal_azuryte.png"
+ },
+ "guild_seal_damascus": {
+  "name": "Damascus Seal of the Guild",
+  "desc": "The Guild of Havenbrook's seal, struck in damascus and hung on a cord: given for charting the crypt under Hollowrest. It does a little for whoever wears it, whatever they fight with.",
+  "slot": "amulet",
+  "value": 240,
+  "bonus": {
+   "attack": 4,
+   "strength": 4,
+   "ranged": 4,
+   "magic": 4,
+   "defence": 3
+  },
+  "tags": [
+   "guild"
+  ],
+  "icon": "assets/icons/guild_seal_damascus.png"
+ },
+ "guild_seal_orichalcum": {
+  "name": "Orichalcum Seal of the Guild",
+  "desc": "The Guild of Havenbrook's seal, struck in orichalcum and hung on a cord: given for charting Purgatory's Plateau. It does a little for whoever wears it, whatever they fight with.",
+  "slot": "amulet",
+  "value": 300,
+  "bonus": {
+   "attack": 5,
+   "strength": 5,
+   "ranged": 5,
+   "magic": 5,
+   "defence": 4
+  },
+  "tags": [
+   "guild"
+  ],
+  "icon": "assets/icons/guild_seal_orichalcum.png"
+ },
+ "guild_seal_diamond": {
+  "name": "Diamond Seal of the Guild",
+  "desc": "The Guild of Havenbrook's seal, struck in diamond and hung on a cord: given for charting the Hexmire. It does a little for whoever wears it, whatever they fight with.",
+  "slot": "amulet",
+  "value": 360,
+  "bonus": {
+   "attack": 6,
+   "strength": 6,
+   "ranged": 6,
+   "magic": 6,
+   "defence": 5
+  },
+  "tags": [
+   "guild"
+  ],
+  "icon": "assets/icons/guild_seal_diamond.png"
+ },
+ "guild_seal_platinum": {
+  "name": "Platinum Seal of the Guild",
+  "desc": "The Guild of Havenbrook's seal, struck in platinum and hung on a cord: given for charting the Frostreach. It does a little for whoever wears it, whatever they fight with.",
+  "slot": "amulet",
+  "value": 420,
+  "bonus": {
+   "attack": 7,
+   "strength": 7,
+   "ranged": 7,
+   "magic": 7,
+   "defence": 5
+  },
+  "tags": [
+   "guild"
+  ],
+  "icon": "assets/icons/guild_seal_platinum.png"
+ },
+ "guild_seal_demonite": {
+  "name": "Demonite Seal of the Guild",
+  "desc": "The Guild of Havenbrook's seal, struck in demonite and hung on a cord: given for charting the Brimstone Palace. It does a little for whoever wears it, whatever they fight with.",
+  "slot": "amulet",
+  "value": 480,
+  "bonus": {
+   "attack": 9,
+   "strength": 9,
+   "ranged": 9,
+   "magic": 9,
+   "defence": 6
+  },
+  "tags": [
+   "guild"
+  ],
+  "icon": "assets/icons/guild_seal_demonite.png"
+ },
+ "guild_seal_dracon": {
+  "name": "Dracon Seal of the Guild",
+  "desc": "The Guild of Havenbrook's seal, struck in dracon and hung on a cord: given for charting the Primordium's near side. It does a little for whoever wears it, whatever they fight with.",
+  "slot": "amulet",
+  "value": 540,
+  "bonus": {
+   "attack": 10,
+   "strength": 10,
+   "ranged": 10,
+   "magic": 10,
+   "defence": 7
+  },
+  "tags": [
+   "guild"
+  ],
+  "icon": "assets/icons/guild_seal_dracon.png"
+ },
+ "guild_seal_enchanted": {
+  "name": "Enchanted Seal of the Guild",
+  "desc": "The Guild of Havenbrook's seal, struck in enchanted and hung on a cord: given for charting the Primordium's heart. It does a little for whoever wears it, whatever they fight with.",
+  "slot": "amulet",
+  "value": 600,
+  "bonus": {
+   "attack": 11,
+   "strength": 11,
+   "ranged": 11,
+   "magic": 11,
+   "defence": 8
+  },
+  "tags": [
+   "guild"
+  ],
+  "icon": "assets/icons/guild_seal_enchanted.png"
+ },
+ "painted_hide": {
+  "name": "Painted Hide",
+  "desc": "A lizardman chief's hide, daubed with his people's marks in red and ochre. The marks all go one way.",
+  "value": 0,
+  "keep": true,
+  "icon": "assets/icons/painted_hide.png"
+ },
+ "pyre_gland": {
+  "tags": [
+   "trophy"
+  ],
+  "name": "Pyre Gland",
+  "desc": "The sac behind a Pyre Dragon's jaw that its fire comes up out of. It is hot through the glove.",
+  "stack": true,
+  "value": 420,
+  "icon": "assets/icons/pyre_gland.png"
+ },
+ "abyssal_horn": {
+  "tags": [
+   "trophy"
+  ],
+  "name": "Abyssal Horn",
+  "desc": "Off an Abyssal Demon: ridged, black through and through, and heavier than horn should be. It burns without any light.",
+  "stack": true,
+  "value": 680,
+  "icon": "assets/icons/abyssal_horn.png"
+ },
+ "herald_horn": {
+  "tags": [
+   "trophy"
+  ],
+  "name": "The Herald's Horn",
+  "desc": "A brass horn on a chain, out of the ash by the Brimstone Palace's moat. The mouthpiece is still warm.",
+  "value": 900,
+  "icon": "assets/icons/herald_horn.png"
+ },
+ "spirewatch_sword": {
+  "name": "The Watch-Captain's Sword",
+  "desc": "A plain sword, its hilt bound in a rag of the Spirewatch's blue. Old Harl froze it upright in the Glass Mere to keep it from the barrows. Elder Vask should have it.",
+  "value": 0,
+  "keep": true,
+  "icon": "assets/icons/spirewatch_sword.png"
+ },
+ "harls_knife": {
+  "name": "Harl's Knife",
+  "desc": "A trapper's knife with a notch cut in the handle for every winter on the Mere. There are forty. Hale the Trapper should have it.",
+  "value": 0,
+  "keep": true,
+  "icon": "assets/icons/harls_knife.png"
+ },
+ "hulda_hammer": {
+  "name": "Hulda's Hammer",
+  "desc": "Hulda Anvilhand's forge hammer, carried through the Primordium's fire. Halda in Havenbrook is to have it, and a message.",
+  "value": 0,
+  "keep": true,
+  "icon": "assets/icons/hulda_hammer.png"
  }
 }

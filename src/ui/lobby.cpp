@@ -286,6 +286,7 @@ void Game::EnterAsGuest(const net::Enter& enter) {
             PushToast("Welcome back, " + settings.player_name + ".", Palette::Xp);
         } else {
             world->player.Init(ctx, pending_character);
+            world->player.looks = pending_looks;
             const vector<string> kit = Player::StartingKit(pending_character);
             world->player.inventory.Add("coins", 25);
             for (const string& id : kit) world->player.inventory.Add(id, 1);
@@ -416,6 +417,11 @@ void Game::BackToMultiplayer() {
     cursor = session.Active() ? ROW_SAY : ROW_HOST;
 }
 
+void Game::BackToLookRow() {
+    SetState(GameState::Multiplayer);
+    cursor = ROW_LOOK;
+}
+
 // Hosting the game being played. The door changing is the realm changing:
 // Player Two sits out, and is added again from the pause menu.
 void Game::OpenTheDoor() {
@@ -499,6 +505,8 @@ void Game::UpdateMultiplayer() {
     if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
         switch (cursor) {
             case ROW_LOOK:
+                // Their colours, for arriving in a friend's world.
+                if (!session.Active() && !has_session) OpenLooks(LooksFor::Guest, pending_character);
                 break;
             case ROW_PASS:
                 if (session.Active()) mp_error = "The password is fixed while you are connected.";
@@ -607,7 +615,8 @@ void Game::DrawMultiplayer() {
                                                    : "What friends see you as. Up to sixteen characters."; break;
             case ROW_LOOK: help = has_session ? "The character you are playing."
                                 : session.Active() ? "Fixed while you are connected."
-                                : "Left and right: who you arrive as in a friend's world. Hosting, you are whoever your own game says.";
+                                : "Left and right: who you arrive as in a friend's world, " + input.PromptFor(Action::Confirm) +
+                                  ": their colours. Hosting, you are whoever your own game says.";
                            break;
             case ROW_PASS: help = "Hosting: a word friends must give at the door. Joining: the word the host "
                                   "gave you. Leave it empty and the tailnet is the door.";

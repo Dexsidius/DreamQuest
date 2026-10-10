@@ -3011,11 +3011,20 @@ static void TestCoopFixes(const Databases& db) {
         string wrong, stray;
         std::set<string> found;
         int own = 0, shared = 0;
+        // A target ending in '*' is any of a set by the start of its id: the
+        // Guild's survey marks, Harl's traps, the cult's drums.
+        const auto target_of = [&](const string& oid) {
+            if (targets.count(oid)) return oid;
+            for (const string& t : targets)
+                if (t.size() > 1 && t.back() == '*' && oid.compare(0, t.size() - 1, t, 0, t.size() - 1) == 0) return t;
+            return string();
+        };
         for (const char* id : kMaps) {
             Map m;
             if (!m.Load(string("maps/") + id + ".mx")) continue;
             for (const MapObject& o : m.Objects()) {
-                if (targets.count(o.id)) found.insert(o.id);
+                const string target = target_of(o.id);
+                if (!target.empty()) found.insert(target);
                 const bool once = o.type == "chest" || o.type == "search" || o.type == "lever" ||
                                   o.type == "note" || o.type == "sign";
                 if (!once) {
@@ -3025,7 +3034,7 @@ static void TestCoopFixes(const Databases& db) {
                 bool keep = false;
                 if (!o.loot_table.empty())
                     for (const string& k : keeps) keep |= loot.ChanceOf(o.loot_table, k) > 0.0f;
-                const bool should = targets.count(o.id) > 0 || !o.loot_item.empty() || !o.needs_quest.empty() ||
+                const bool should = !target.empty() || !o.loot_item.empty() || !o.needs_quest.empty() ||
                                     !o.needs_slain.empty() || keep;
                 if (o.own != should) wrong += " " + string(id) + ":" + o.id + (should ? "(should be)" : "(should not be)");
                 (o.own ? own : shared) += 1;
@@ -10030,6 +10039,347 @@ static void TestJournalSections(const Databases& db) {
     Check(tallied && side_titles.size() >= 4, "every heading has something under it, and its tally is of what is under it");
 }
 
+
+// A character's colours: their hair, skin and clothes, recoloured through the
+// rig's palette (entity/looks.h), kept in the save and told to friends in the
+// Outfit. Run with --only looks.
+static void TestLooks(const Databases& db) {
+    Section("looks: the colour of their hair, their skin and their clothes");
+
+    // --- the looks themselves --------------------------------------------------------
+    Looks none;
+    Looks some;
+    some.part[LOOK_HAIR] = 0xe8cc78;
+    some.part[LOOK_CLOTHES] = 0xc4302e;
+    Check(!none.Any() && some.Any() && none.Key() != some.Key(), "the calling's own colours are no looks at all, and two looks have two keys");
+    Check(Looks::FromJson(some.ToJson()) == some && some.ToJson().size() == 2,
+          "looks come back from the save as they went in, the calling's own left out of it");
+    Check(Looks::FromJson(json{{"hair", "#zz00zz"}, {"skin", 99999999}, {"clothes", "c4302e"}}).part[LOOK_CLOTHES] == 0xc4302e &&
+              Looks::FromJson(json{{"hair", "#zz00zz"}, {"skin", 99999999}}) == Looks(),
+          "a colour that is not one is read as the calling's own");
+    bool swatches = true;
+    for (int part = 0; part < LOOK_PARTS; ++part) {
+        std::set<string> names;
+        std::set<uint32_t> colours;
+        const vector<LookSwatch>& all = LookSwatches(part);
+        for (const LookSwatch& w : all) { names.insert(w.name); colours.insert(w.rgb & 0xFFFFFFu); }
+        swatches &= all.size() >= 10 && names.size() == all.size() && colours.size() == all.size();
+        for (int i = 0; i <= static_cast<int>(all.size()); ++i) {
+            Looks l;
+            SetLookSwatch(l, part, i);
+            swatches &= LookSwatchIndex(l, part) == i && (i == 0) == l.Own(part);
+        }
+    }
+    Check(swatches, "every part offers ten colours or more, each its own name and colour, and steps through them and back to the calling's own");
+
+    // --- each playable rig ---------------------------------------------------------
+    const char* rigs[] = {"player_hero", "player_warden", "player_wayfarer", "player_lantern"};
+    const char* clips[] = {"idle", "walk", "run", "attack", "cast", "hurt"};
+    Looks bold;
+    bold.part[LOOK_HAIR] = 0x4a62b0;
+    bold.part[LOOK_SKIN] = 0xb8c8e8;
+    bold.part[LOOK_CLOTHES] = 0x6e9a44;
+    const auto load = [](const string& path) -> SDL_Surface* {
+        SDL_Surface* raw = IMG_Load(path.c_str());
+        if (!raw) return nullptr;
+        SDL_Surface* s = SDL_ConvertSurface(raw, SDL_PIXELFORMAT_RGBA32);
+        SDL_DestroySurface(raw);
+        return s;
+    };
+    for (const char* id : rigs) {
+        const SpriteDef* def = db.sprites.Get(id);
+        const bool has = def && def->dyes && def->dyes->Loaded();
+        Check(has, string(id) + " has a palette to be recoloured by (assets/characters/" + id + "/palette.json)");
+        if (!has) continue;
+        const DyeTable& table = *def->dyes;
+        int opaque = 0, known = 0, parts[LOOK_PARTS] = {0, 0, 0};
+        int worst_own = 0, part_pixels = 0, part_changed = 0, outline_changed = 0, sheets = 0;
+        Looks own;
+        for (int part = 0; part < LOOK_PARTS; ++part) own.part[part] = static_cast<int32_t>(table.Own(part));
+        for (const char* name : clips) {
+            const AnimClip* clip = def->Find(name);
+            if (!clip) continue;
+            for (const AnimLayer& layer : clip->layers) {
+                if (layer.slot != LayerSlot::Body && layer.slot != LayerSlot::Head) continue;
+                SDL_Surface* plain = load(layer.sheet);
+                if (!plain) continue;
+                ++sheets;
+                int o = 0, k = 0, pp[LOOK_PARTS];
+                table.Count(plain, o, k, pp);
+                opaque += o;
+                known += k;
+                for (int part = 0; part < LOOK_PARTS; ++part) parts[part] += pp[part];
+                // Their own colours, chosen: what is there already, to within
+                // the step a render rounds by.
+                if (SDL_Surface* same = SDL_DuplicateSurface(plain)) {
+                    table.Apply(same, own);
+                    const Uint8* a = static_cast<const Uint8*>(plain->pixels);
+                    const Uint8* b = static_cast<const Uint8*>(same->pixels);
+                    for (int i = 0; i < plain->h * plain->pitch; ++i)
+                        worst_own = std::max(worst_own, std::abs(static_cast<int>(a[i]) - static_cast<int>(b[i])));
+                    SDL_DestroySurface(same);
+                }
+                // Colours a long way from theirs: every pixel of the three parts
+                // changes, and the outline beside them with it.
+                if (SDL_Surface* dyed = SDL_DuplicateSurface(plain)) {
+                    table.Apply(dyed, bold);
+                    // Pixel by pixel: one of a part's colours before is a
+                    // different colour after; one that was outline before and
+                    // changed is the outline following.
+                    const Uint8* a = static_cast<const Uint8*>(plain->pixels);
+                    const Uint8* b = static_cast<const Uint8*>(dyed->pixels);
+                    for (int y = 0; y < plain->h; ++y)
+                        for (int x = 0; x < plain->w; ++x) {
+                            const Uint8* pa = a + y * plain->pitch + x * 4;
+                            const Uint8* pb = b + y * plain->pitch + x * 4;
+                            if (pa[3] != 255) continue;
+                            const bool moved = pa[0] != pb[0] || pa[1] != pb[1] || pa[2] != pb[2];
+                            const int part = table.PartOf(pa[0], pa[1], pa[2]);
+                            if (part >= 0) { ++part_pixels; part_changed += moved ? 1 : 0; }
+                            else if (part == -2 && moved) ++outline_changed;
+                        }
+                    SDL_DestroySurface(dyed);
+                }
+                SDL_DestroySurface(plain);
+            }
+        }
+        const string pct = std::to_string(opaque ? known * 100 / opaque : 0) + "%";
+        Check(sheets >= 8, string(id) + ": the body and head layers of its clips are read (" + std::to_string(sheets) + ")");
+        // The rest is the outline: about a third of a figure this size.
+        Check(opaque > 0 && known * 100 >= opaque * 58,
+              string(id) + ": most of the body and head are the palette's colours (" + pct + "), so the palette still matches the art");
+        Check(parts[LOOK_HAIR] > 0 && parts[LOOK_SKIN] > 0 && parts[LOOK_CLOTHES] > 0,
+              string(id) + ": hair, skin and clothes are all found in it (" + std::to_string(parts[LOOK_HAIR]) + ", " +
+                  std::to_string(parts[LOOK_SKIN]) + ", " + std::to_string(parts[LOOK_CLOTHES]) + " pixels)");
+        Check(worst_own <= 3, string(id) + ": recoloured to its own colours it is drawn as it was, to within a render's rounding (worst " +
+                                  std::to_string(worst_own) + ")");
+        Check(part_pixels > 0 && part_changed == part_pixels,
+              string(id) + ": recoloured, every pixel of its hair, skin and clothes leaves the old colours (" +
+                  std::to_string(part_changed) + " of " + std::to_string(part_pixels) + ")");
+        Check(outline_changed > 0, string(id) + ": and the outline beside them moves with them (" + std::to_string(outline_changed) + ")");
+    }
+
+    // --- kept, and told -----------------------------------------------------------------
+    Player p;
+    p.looks = some;
+    const json saved = p.ToJson();
+    Check(saved.contains("looks") && Looks::FromJson(saved["looks"]) == some, "a character's colours are in their save");
+    net::Outfit out;
+    out.seat = 2;
+    out.look = "player_lantern";
+    out.worn.assign(SLOT_COUNT, string());
+    out.looks[LOOK_HAIR] = 0xe8cc78;
+    out.looks[LOOK_SKIN] = 0;
+    net::Outfit back;
+    Check(net::Decode(net::Encode(out), back) && back.looks[LOOK_HAIR] == 0xe8cc78 && back.looks[LOOK_SKIN] == 0 &&
+              back.looks[LOOK_CLOTHES] == -1,
+          "an Outfit carries the colours, black included, and the calling's own as its own");
+    GameContext ctx;
+    ctx.sprites = &db.sprites;
+    ctx.items = &db.items;
+    Player friend_seen;
+    friend_seen.Init(ctx, "player_hero");
+    coop::Wear(friend_seen, back, ctx);
+    Check(friend_seen.sprite_id == "player_lantern" && friend_seen.looks.part[LOOK_HAIR] == 0xe8cc78 &&
+              friend_seen.looks.part[LOOK_SKIN] == 0 && friend_seen.looks.Own(LOOK_CLOTHES) &&
+              friend_seen.BuildLayerStyle(&db.items).looks == friend_seen.looks,
+          "a friend is seen in their colours, and drawn in them");
+    Player guest;
+    guest.Init(ctx, "player_hero");
+    guest.ApplySheet(json{{"looks", some.ToJson()}}, ctx);
+    Check(guest.looks == some, "and the host takes them from the friend's sheet");
+}
+
+
+// The Guild's Charter and the questlines out of it (README, "Questlines"): the
+// data hangs together, the quest log reads a stage ending in '*', a "done:"
+// flag and a kill's own kind, and the journal heads each questline with only
+// its next step showing. Run with --only questlines.
+static void TestQuestlines(const Databases& db) {
+    Section("questlines: the Guild's Charter, and the threads out of it");
+    QuestChapters chapters;
+    Check(chapters.Load("data/chapters.json"), "data/chapters.json loads, its threads with it");
+    const QuestLog& defs = db.quests;
+
+    // Every map's objects and people, by id.
+    std::map<string, json> objects;
+    std::set<string> people;
+    for (const auto& entry : std::filesystem::directory_iterator("maps")) {
+        if (entry.path().extension() != ".mx") continue;
+        std::ifstream in(entry.path());
+        json m;
+        try { in >> m; } catch (const std::exception&) { continue; }
+        const json dq = m.value("dreamquest", json::object());
+        for (const json& o : dq.value("objects", json::array())) objects[o.value("id", string())] = o;
+        for (const json& n : dq.value("npcs", json::array())) people.insert(n.value("id", string()));
+    }
+
+    // --- the threads -----------------------------------------------------------------
+    string missing, twice;
+    std::set<string> seen;
+    for (const QuestThread& t : chapters.Threads())
+        for (const string& id : t.quests) {
+            if (!defs.Definition(id)) missing += " " + id;
+            if (!seen.insert(id).second || chapters.Of(id) >= 0) twice += " " + id;
+        }
+    Check(chapters.Threads().size() == 10 && missing.empty(), "ten questlines, and every quest in them is one" + missing);
+    Check(twice.empty(), "and none is in two of them, or in a part of the story as well" + twice);
+
+    // --- the Charter ---------------------------------------------------------------------
+    const char* tiers[] = {"iron", "steel", "azuryte", "damascus", "orichalcum", "diamond", "platinum", "demonite",
+                           "dracon", "enchanted"};
+    string prev = "q_guild_ledger", broken;
+    int last_level = 0, last_power = 0;
+    for (const char* t : tiers) {
+        const string id = string("q_charter_") + t;
+        const QuestDef* d = defs.Definition(id);
+        if (!d || d->stages.size() != 3) { broken += " " + id; continue; }
+        if (d->prerequisites != vector<string>{prev} || d->giver != "npc_guildmaster") broken += " chain:" + id;
+        prev = id;
+        if (d->recommended_level <= last_level) broken += " level:" + id;
+        last_level = d->recommended_level;
+        // Three survey marks for it, each a character's own, there only while it is out.
+        int marks = 0;
+        for (const auto& kv : objects) {
+            if (kv.first.rfind(string("survey_") + t + "_", 0) != 0) continue;
+            ++marks;
+            if (kv.second.value("needs_quest", string()) != id || !kv.second.value("own", false)) broken += " mark:" + kv.first;
+        }
+        if (marks != 3 || d->stages[0].target != string("survey_") + t + "_*" || d->stages[0].count != 3)
+            broken += " marks:" + id;
+        // A word that is a quest's, from somebody who stands somewhere.
+        const QuestStage& word = d->stages[1];
+        if (word.type != ObjectiveType::Flag || word.target.rfind("done:", 0) != 0 || !defs.Definition(word.target.substr(5)) ||
+            !people.count(word.where))
+            broken += " word:" + id;
+        // And the seal: an amulet, each stronger than the last.
+        const string seal = string("guild_seal_") + t;
+        const ItemDef* s = db.items.Get(seal);
+        bool paid = false;
+        for (const auto& it : d->rewards.items) paid |= it.first == seal;
+        const int power = s ? s->attack_bonus + s->strength_bonus + s->ranged_bonus + s->magic_bonus + s->defence_bonus : 0;
+        if (!s || s->slot != SLOT_AMULET || !paid || power < last_power) broken += " seal:" + seal;
+        last_power = power;
+    }
+    Check(broken.empty(), "the Charter: ten commissions in a chain from the ledger, each three survey marks, a word that is "
+                          "somebody's quest, and a seal stronger than the last" + broken);
+
+    // --- what the questlines ask for is there --------------------------------------------
+    string lost;
+    for (const QuestThread& t : chapters.Threads())
+        for (const string& id : t.quests) {
+            const QuestDef* d = defs.Definition(id);
+            if (!d) continue;
+            if (!people.count(d->giver) && !objects.count(d->giver)) lost += " giver:" + d->giver;
+            for (const QuestStage& st : d->stages) {
+                if (st.type == ObjectiveType::Talk && !people.count(st.target)) lost += " talk:" + st.target;
+                if ((st.type == ObjectiveType::Deliver || st.type == ObjectiveType::Collect) && !db.items.Get(st.target))
+                    lost += " item:" + st.target;
+                if (st.type == ObjectiveType::Deliver && !people.count(st.deliver_to)) lost += " to:" + st.deliver_to;
+                if (st.type != ObjectiveType::Interact) continue;
+                int n = 0;
+                if (!st.target.empty() && st.target.back() == '*') {
+                    const string pre = st.target.substr(0, st.target.size() - 1);
+                    for (const auto& kv : objects) n += kv.first.rfind(pre, 0) == 0 ? 1 : 0;
+                    if (n < st.count) lost += " " + id + ":" + st.target;
+                } else if (!objects.count(st.target)) {
+                    lost += " " + id + ":" + st.target;
+                }
+            }
+            for (const auto& it : d->rewards.items) if (!db.items.Get(it.first)) lost += " reward:" + it.first;
+            for (const QuestRewardChoice& c : d->rewards.choices)
+                for (const auto& it : c.items) if (!db.items.Get(it.first)) lost += " choice:" + it.first;
+        }
+    Check(lost.empty(), "every giver stands somewhere, and everything the questlines ask to be found, read, brought or "
+                        "paid in is in the game" + lost);
+    Check(objects.count("journal_harl") && objects["journal_harl"].value("starts_quest", string()) == "q_fortieth_winter",
+          "Old Harl's journal starts The Fortieth Winter");
+    Check(objects.count("storage_harl") && objects.count("spirewatch_sword_hung") && objects.count("spell_circle_lit") &&
+              objects.count("charter_map"),
+          "and what the questlines leave behind is placed: Harl's chest, the captain's sword over Vask's door, the lit "
+          "circle, the Guild's map");
+
+    // --- the quest log: '*', "done:", and a kill's kind -------------------------------------
+    QuestLog log;
+    log.LoadDefinitions("data/quests.json");
+    Inventory bag(&db.items, 28);
+    const auto touch = [&](const string& id) {
+        QuestEvent e;
+        e.type = ObjectiveType::Interact;
+        e.target = id;
+        log.Notify(e, bag);
+    };
+    log.Start("q_charter_iron");
+    touch("survey_steel_1");
+    Check(log.Stage("q_charter_iron") == 0 && log.Counter("q_charter_iron") == 0, "another commission's mark does not count");
+    touch("survey_iron_3");
+    touch("survey_iron_1");
+    touch("survey_iron_2");
+    Check(log.Stage("q_charter_iron") == 1, "three of the commission's marks, in any order, set them");
+    const auto none = [](const string&) { return false; };
+    log.RefreshFlagObjectives(none, bag);
+    Check(log.Stage("q_charter_iron") == 1, "and its word waits on Orla's quest");
+    json was = log.ToJson();
+    was["q_scale_and_reed"] = json{{"status", 2}, {"stage", 0}, {"counter", 0}, {"completed_day", 0}, {"completions", 1}};
+    log.FromJson(was);
+    log.RefreshFlagObjectives(none, bag);
+    Check(log.Stage("q_charter_iron") == 2, "Orla's quest finished -- however long before -- is her word given");
+
+    log.Start("q_breaths_1");
+    QuestEvent kill;
+    kill.type = ObjectiveType::Kill;
+    kill.target = "dragon";
+    kill.kind = "dragon_fire";
+    log.Notify(kill, bag);
+    Check(log.Stage("q_breaths_1") == 0, "a Pyre Dragon is not the Basalt Dragon the first breath asks for");
+    kill.kind = "dragon_earth";
+    log.Notify(kill, bag);
+    Check(log.Stage("q_breaths_1") == 1, "and a Basalt Dragon is");
+    log.Start("q_spirewatch_1");
+    json skip = log.ToJson();
+    skip["q_spirewatch_1"]["stage"] = 2;
+    log.FromJson(skip);
+    kill.target = "draugr";
+    kill.kind = "undead_warlord";
+    kill.map_id = "frost_barrows";      // the stage counts them in the Barrows
+    log.Notify(kill, bag);
+    Check(log.Counter("q_spirewatch_1") == 1, "a stage asking for a family still takes any of it: a warlord is a draugr");
+
+    net::Delta delta;
+    net::Delta::Quest told;
+    told.type = static_cast<uint8_t>(ObjectiveType::Kill);
+    told.target = "dragon";
+    told.kind = "dragon_lightning";
+    delta.quests.push_back(told);
+    net::Delta back;
+    Check(net::Decode(net::Encode(delta), back) && back.quests.size() == 1 && back.quests[0].kind == "dragon_lightning",
+          "a kill told to a friend says its kind");
+
+    // --- the journal: a heading for each, and only the next step of each --------------------
+    const auto heading_of = [](const Journal::Page& pg, const string& id) {
+        for (const Journal::Row& r : pg.rows)
+            if (r.id == id) return pg.sections[static_cast<size_t>(r.section)].title;
+        return string();
+    };
+    QuestLog fresh;
+    fresh.LoadDefinitions("data/quests.json");
+    const Journal::Page first = Journal::Build(fresh, chapters, Journal::SIDE);
+    Check(heading_of(first, "q_charter_iron") == "The Guild's Charter" && heading_of(first, "q_charter_steel").empty() &&
+              heading_of(first, "q_reed_road").empty(),
+          "a questline not taken up shows its first step under its own heading, and nothing past it");
+    fresh.Start("q_breaths_1");
+    const Journal::Page going = Journal::Build(fresh, chapters, Journal::SIDE);
+    Check(heading_of(going, "q_breaths_1") == "The Five Breaths" && heading_of(going, "q_breaths_2") == "The Five Breaths" &&
+              heading_of(going, "q_breaths_3").empty(),
+          "taken up, it shows the step in hand and the one after, and not the road beyond");
+    int charter = -1, favours = -1;
+    for (size_t i = 0; i < going.sections.size(); ++i) {
+        if (going.sections[i].title == "The Guild's Charter") charter = static_cast<int>(i);
+        if (going.sections[i].title == "Favours") favours = static_cast<int>(i);
+    }
+    Check(charter >= 0 && favours > charter, "the questlines come before the favours, the Charter first");
+}
+
 int main(int argc, char** argv) {
     // Unbuffered (Windows has no line buffering), so a crash does not take what
     // was printed before it with it.
@@ -10083,6 +10433,8 @@ int main(int argc, char** argv) {
         if (only == "life")        TestLifeAbout(db);
         if (only == "steer")       TestRadialMovement(db);
         if (only == "journal")     TestJournalSections(db);
+        if (only == "looks")       TestLooks(db);
+        if (only == "questlines")  TestQuestlines(db);
         printf("\n%d checks, %d failures\n", g_checks, g_failures);
         return g_failures;
     }
@@ -15379,14 +15731,19 @@ int main(int argc, char** argv) {
     // --- quests and dialogue: nothing early, dailies, and the dream --------------------------------
     Section("quests and dialogue open when they should");
     {
-        // Every NPC's opening node, from the maps.
-        std::map<string, string> npc_root;
+        // Every NPC's opening nodes, from the maps: their own, and the ones a
+        // state of theirs opens with instead -- Elder Vask on his porch has no
+        // conversation but what the story's states give him.
+        std::map<string, vector<string>> npc_root;
         for (const char* id : kMaps) {
             Map m;
             if (!m.Load(string("maps/") + id + ".mx")) continue;
-            for (const auto& n : m.Npcs()) if (!n.dialogue.empty()) npc_root[n.id] = n.dialogue;
+            for (const auto& n : m.Npcs()) {
+                if (!n.dialogue.empty()) npc_root[n.id].push_back(n.dialogue);
+                for (const auto& st : n.states) if (!st.dialogue.empty()) npc_root[n.id].push_back(st.dialogue);
+            }
         }
-        // Nodes reachable from each NPC's root.
+        // Nodes reachable from each NPC's roots.
         std::map<string, std::set<string>> reach;
         {
             std::ifstream in("data/dialogue.json");
@@ -15394,7 +15751,7 @@ int main(int argc, char** argv) {
             in >> root;
             for (const auto& kv : npc_root) {
                 std::set<string>& seen = reach[kv.first];
-                vector<string> todo = {kv.second};
+                vector<string> todo = kv.second;
                 while (!todo.empty()) {
                     const string nid = todo.back();
                     todo.pop_back();
@@ -28610,6 +28967,8 @@ int main(int argc, char** argv) {
     TestLifeAbout(db);
     TestRadialMovement(db);
     TestJournalSections(db);
+    TestLooks(db);
+    TestQuestlines(db);
     TestBalanceFixes(db);
     TestLateSpells(db);
     TestLateTreeRows(db);

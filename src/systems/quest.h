@@ -36,7 +36,13 @@ enum class QuestSource { Board, Npc, Note };
 struct QuestStage {
     string        description;
     ObjectiveType type = ObjectiveType::Talk;
-    string        target;      // npc id / enemy type / item id / map id
+    // npc id / enemy type / item id / map id. A kill names a family
+    // ("dragon"), a kind ("dragon_earth") or a boss ("den_mother"). Ending in
+    // '*', any of a set of things whose ids begin so -- "survey_iron_*", count
+    // 3: three of the Guild's survey marks, whichever three. A Flag stage's
+    // "done:<quest>" waits on that quest being finished, as a flag set by its
+    // end would, but holds for one finished before the stage was ever reached.
+    string        target;
     string        deliver_to;  // NPC for Deliver objectives
     string        map_id;      // optional location restriction for kill events
     int           count = 1;
@@ -148,6 +154,11 @@ struct QuestEvent {
     ObjectiveType type = ObjectiveType::Kill;
     string target;
     string secondary;         // NPC for Deliver
+    // A kill's own kind -- "dragon_earth" where its target is the family
+    // "dragon" -- so a stage can ask for one kind of a family: a Basalt Dragon
+    // and not any dragon. Not `secondary`, which is a boss's, and a boss's
+    // boon is given for it.
+    string kind;
     int    amount = 1;
     string map_id;            // area in which the event happened
     // When set, only this quest hears it: a line said for one quest, an order

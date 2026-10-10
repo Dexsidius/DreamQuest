@@ -1,4 +1,5 @@
 #include "texturecache.h"
+#include "entity/looks.h"
 
 SDL_Texture* TextureCache::Get(const string& path) {
     auto it = textures.find(path);
@@ -128,10 +129,62 @@ SDL_Color TextureCache::AverageColor(const string& path) {
     return out;
 }
 
+// About forty of the player's sheets, at the half megabyte a layer sheet is:
+// four players' worth of what is on screen at once, and more besides.
+static constexpr size_t kDyedBudget = 48u * 1024u * 1024u;
+
+SDL_Texture* TextureCache::GetDyed(const string& path, const DyeTable& dyes, const Looks& looks) {
+    if (!looks.Any() || !dyes.Loaded()) return Get(path);
+    const string key = path + "|" + looks.Key();
+    auto it = dyed.find(key);
+    if (it != dyed.end()) {
+        it->second.used = ++dye_clock;
+        return it->second.tex;
+    }
+
+    SDL_Texture* tex = nullptr;
+    size_t bytes = 0;
+    if (SDL_Surface* loaded = IMG_Load(path.c_str())) {
+        if (SDL_Surface* s = SDL_ConvertSurface(loaded, SDL_PIXELFORMAT_RGBA32)) {
+            dyes.Apply(s, looks);
+            tex = SDL_CreateTextureFromSurface(renderer, s);
+            bytes = static_cast<size_t>(s->w) * s->h * 4;
+            SDL_DestroySurface(s);
+        }
+        SDL_DestroySurface(loaded);
+    }
+    // The art as drawn rather than nothing.
+    if (!tex) return Get(path);
+    SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_NEAREST);
+    SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+    dyed[key] = {tex, bytes, ++dye_clock};
+    dyed_bytes += bytes;
+
+    // Over the budget, the least lately drawn go -- never the one just made.
+    while (dyed_bytes > kDyedBudget && dyed.size() > 1) {
+        auto oldest = dyed.end();
+        for (auto d = dyed.begin(); d != dyed.end(); ++d)
+            if (d->first != key && (oldest == dyed.end() || d->second.used < oldest->second.used)) oldest = d;
+        if (oldest == dyed.end()) break;
+        SDL_DestroyTexture(oldest->second.tex);
+        dyed_bytes -= std::min(dyed_bytes, oldest->second.bytes);
+        dyed.erase(oldest);
+    }
+    return tex;
+}
+
+void TextureCache::ForgetDyed() {
+    for (auto& kv : dyed)
+        if (kv.second.tex) SDL_DestroyTexture(kv.second.tex);
+    dyed.clear();
+    dyed_bytes = 0;
+}
+
 void TextureCache::Clear() {
     for (auto& kv : textures)
         if (kv.second) SDL_DestroyTexture(kv.second);
     textures.clear();
+    ForgetDyed();
     warned.clear();
     opaque.clear();
     opaque_cells.clear();

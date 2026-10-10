@@ -84,6 +84,7 @@ void Game::UpdateMainMenu() {
             // Resume the most recently written slot, on whichever shelf.
             if (any) LoadGame(newest);
         } else if (choice == "New Game") {
+            pending_looks = Looks();
             SetState(GameState::CharacterSelect);
         } else if (choice == "Load Game") {
             SetState(GameState::LoadMenu);
@@ -159,18 +160,12 @@ void Game::UpdateCharacterSelect() {
     if (input.MenuRight()) cursor = (cursor + 1) % kCharacterCount;
     MoveCursor(cursor, kCharacterCount);
 
+    // Then their colours, before the slot -- or, for a world to host, before
+    // it begins (see UpdateCharacterLooks).
     if (input.Pressed(Action::Confirm) || input.Pressed(Action::Interact)) {
         pending_character = kCharacterIds[std::clamp(cursor, 0, kCharacterCount - 1)];
-        if (hosting_new) {
-            // A new world to host, in the empty slot already chosen for it:
-            // the door opens as it begins.
-            hosting_new = false;
-            NewGame(pending_character, pending_slot);
-            if (has_session && !StartHosting(mp_port)) PushToast(mp_error, kSlotBad);
-            return;
-        }
-        slot_purpose = SLOT_NEW;
-        SetState(GameState::SlotSelect);
+        OpenLooks(hosting_new ? LooksFor::HostNew : LooksFor::NewGame, pending_character);
+        return;
     }
     if (input.Pressed(Action::Back) || input.Pressed(Action::Pause)) {
         if (hosting_new) ChooseWorldToHost();          // back to the worlds to host
@@ -329,7 +324,7 @@ void Game::CarryTo(SlotRef slot) {
             OpenTheDoor();
             break;
         case Together::PlayerTwo:
-            JoinSplit();
+            if (!JoinSplit() && state == GameState::CharacterLooks) break;
             ServeSeat(0);
             SetState(GameState::Play);
             break;
@@ -400,6 +395,7 @@ void Game::UpdateSlotSelect() {
                 } else {
                     pending_slot = slot;
                     hosting_new = true;
+                    pending_looks = Looks();
                     SetState(GameState::CharacterSelect);
                 }
                 break;
@@ -409,7 +405,7 @@ void Game::UpdateSlotSelect() {
     }
     if (input.Pressed(Action::Back) || input.Pressed(Action::Pause)) {
         switch (slot_purpose) {
-            case SLOT_NEW:  SetState(GameState::CharacterSelect); break;
+            case SLOT_NEW:  SetState(GameState::CharacterLooks); break;
             case SLOT_SAVE: SetState(GameState::Paused); break;
             case SLOT_HOST: BackToMultiplayer(); break;
             case SLOT_CARRY:
@@ -1168,7 +1164,10 @@ void Game::UpdatePaused() {
                 // controller for them to sit down with. Without one, JoinSplit
                 // says so.
                 if (!split_active && Input::ConnectedPads() > 0 && !PlayTogetherHere(Together::PlayerTwo)) break;
-                if (split_active) LeaveSplit(); else JoinSplit();
+                // Someone new is asked their colours first, on a screen of
+                // its own that seats them when it is done.
+                if (split_active) LeaveSplit();
+                else if (!JoinSplit() && state == GameState::CharacterLooks) break;
                 ServeSeat(0);
                 SetState(GameState::Play);
                 break;

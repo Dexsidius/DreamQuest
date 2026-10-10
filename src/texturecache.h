@@ -1,6 +1,9 @@
 #pragma once
 #include "headers.h"
 
+class DyeTable;
+struct Looks;
+
 // Path -> SDL_Texture, so the thousands of tile instances in a map share one
 // texture per distinct image. Owns everything it hands out.
 class TextureCache {
@@ -29,9 +32,28 @@ public:
     // out once per image and kept.
     SDL_Color AverageColor(const string& path);
 
+    // The same image in a character's own colours -- their hair, skin and
+    // clothes (see entity/looks.h) -- made from the file the first time it is
+    // asked for and kept, a few dozen at most: the least lately drawn are let
+    // go once they pass a budget, and made again if they are wanted. The plain
+    // image when the looks change nothing.
+    SDL_Texture* GetDyed(const string& path, const DyeTable& dyes, const Looks& looks);
+    // Lets every recoloured image go: the screen that chooses the colours
+    // makes a new set at every step.
+    void ForgetDyed();
+
     void Clear();
 
 private:
+    struct Dyed {
+        SDL_Texture* tex = nullptr;
+        size_t bytes = 0;
+        uint64_t used = 0;
+    };
+    unordered_map<string, Dyed> dyed;
+    size_t dyed_bytes = 0;
+    uint64_t dye_clock = 0;
+
     SDL_Renderer* renderer;
     unordered_map<string, SDL_Texture*> textures;
     unordered_map<string, SDL_FRect> opaque;

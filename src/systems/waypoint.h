@@ -58,7 +58,7 @@ struct Waypoint {
 
 class WaypointIndex {
 public:
-    struct Spot   { string map; float x = 0, y = 0; string label; };
+    struct Spot   { string map; float x = 0, y = 0; string label; string id; };
     struct Exit   { float x = 0, y = 0; string to, label; };
     struct Post   { vector<string> types; float x = 0, y = 0; };
     // `station` is what a workbench object works as -- "anvil", "loom" -- so a

@@ -5,29 +5,72 @@
    "id": "prologue",
    "title": "Prologue",
    "sub": "The Town That Wouldn't Wake",
-   "quests": ["q_pro_meet_mayor", "q_pro_wake_sleeper", "q_pro_experiment", "q_pro_arm", "q_pro_escape",
-              "q_pro_first_blood"],
+   "quests": [
+    "q_pro_meet_mayor",
+    "q_pro_wake_sleeper",
+    "q_pro_experiment",
+    "q_pro_arm",
+    "q_pro_escape",
+    "q_pro_first_blood"
+   ],
    "side": []
   },
   {
    "id": "act1",
    "title": "Act I",
    "sub": "Learning the Rules",
-   "quests": ["q_pro_anyone_awake", "q_act1_vask", "q_act1_break_hold", "q_act1_bells", "q_act1_gather",
-              "q_act1_forge", "q_act1_save_halda", "q_act1_bess", "q_act1_save_bess", "q_act1_hides",
-              "q_act1_save_tanner", "q_act1_clothier", "q_act1_save_clothier", "q_act1_finale", "q_act1_neighbors"],
-   "side": ["q_act1_tut_wood", "q_act1_tut_fish", "q_act1_tut_mine", "q_act1_supper",
-            "q_chime_posy", "q_chime_tobin", "q_chime_ivo", "q_chime_marrow", "q_chime_wenna",
-            "q_chime_perrin", "q_chime_pip", "q_chime_bram", "q_chime_hester", "q_chime_hollis"]
+   "quests": [
+    "q_pro_anyone_awake",
+    "q_act1_vask",
+    "q_act1_break_hold",
+    "q_act1_bells",
+    "q_act1_gather",
+    "q_act1_forge",
+    "q_act1_save_halda",
+    "q_act1_bess",
+    "q_act1_save_bess",
+    "q_act1_hides",
+    "q_act1_save_tanner",
+    "q_act1_clothier",
+    "q_act1_save_clothier",
+    "q_act1_finale",
+    "q_act1_neighbors"
+   ],
+   "side": [
+    "q_act1_tut_wood",
+    "q_act1_tut_fish",
+    "q_act1_tut_mine",
+    "q_act1_supper",
+    "q_chime_posy",
+    "q_chime_tobin",
+    "q_chime_ivo",
+    "q_chime_marrow",
+    "q_chime_wenna",
+    "q_chime_perrin",
+    "q_chime_pip",
+    "q_chime_bram",
+    "q_chime_hester",
+    "q_chime_hollis"
+   ]
   },
   {
    "id": "act2",
    "title": "Act II",
    "sub": "WWDD",
-   "quests": ["q_guild_ledger", "q_act2_torn_pages", "q_act2_wake_neighbors", "q_act2_college",
-              "q_act2_wake_college", "q_act2_death_talisman", "q_act2_hoarfang", "q_act2_ashen_path",
-              "q_act2_tell_headmaster"],
-   "side": ["q_act2_mossvale_house"]
+   "quests": [
+    "q_guild_ledger",
+    "q_act2_torn_pages",
+    "q_act2_wake_neighbors",
+    "q_act2_college",
+    "q_act2_wake_college",
+    "q_act2_death_talisman",
+    "q_act2_hoarfang",
+    "q_act2_ashen_path",
+    "q_act2_tell_headmaster"
+   ],
+   "side": [
+    "q_act2_mossvale_house"
+   ]
   },
   {
    "id": "act3",
@@ -35,6 +78,109 @@
    "sub": "Attack on the Reverie",
    "quests": [],
    "side": []
+  }
+ ],
+ "threads": [
+  {
+   "id": "charter",
+   "title": "The Guild's Charter",
+   "sub": "Guild Master Orlend",
+   "quests": [
+    "q_charter_iron",
+    "q_charter_steel",
+    "q_charter_azuryte",
+    "q_charter_damascus",
+    "q_charter_orichalcum",
+    "q_charter_diamond",
+    "q_charter_platinum",
+    "q_charter_demonite",
+    "q_charter_dracon",
+    "q_charter_enchanted"
+   ]
+  },
+  {
+   "id": "scale_and_reed",
+   "title": "Scale and Reed",
+   "sub": "Orla the Tanner",
+   "quests": [
+    "q_scale_and_reed",
+    "q_reed_road"
+   ]
+  },
+  {
+   "id": "dream_collector",
+   "title": "Things with a Dream Still in Them",
+   "sub": "The Collector",
+   "quests": [
+    "q_dream_collector_1",
+    "q_dream_collector_2"
+   ]
+  },
+  {
+   "id": "coal",
+   "title": "Hotter Than Coal",
+   "sub": "Hulda Anvilhand",
+   "quests": [
+    "q_coal_1",
+    "q_coal_2",
+    "q_coal_3"
+   ]
+  },
+  {
+   "id": "breaths",
+   "title": "The Five Breaths",
+   "sub": "Battlemaster Ysolde",
+   "quests": [
+    "q_breaths_1",
+    "q_breaths_2",
+    "q_breaths_3"
+   ]
+  },
+  {
+   "id": "black_water",
+   "title": "Black Water",
+   "sub": "Oona the Herbalist",
+   "quests": [
+    "q_black_water_1",
+    "q_black_water_2",
+    "q_black_water_3"
+   ]
+  },
+  {
+   "id": "spirewatch",
+   "title": "The Spirewatch's Own",
+   "sub": "Elder Vask",
+   "quests": [
+    "q_spirewatch_1",
+    "q_spirewatch_2"
+   ]
+  },
+  {
+   "id": "fortieth_winter",
+   "title": "The Fortieth Winter",
+   "sub": "Old Harl",
+   "quests": [
+    "q_fortieth_winter"
+   ]
+  },
+  {
+   "id": "song",
+   "title": "The Song Nobody Finishes",
+   "sub": "Wren the Bard",
+   "quests": [
+    "q_song_1",
+    "q_song_2"
+   ]
+  },
+  {
+   "id": "world",
+   "title": "What the World Was Made Of",
+   "sub": "Magister Orrin",
+   "quests": [
+    "q_world_made_1",
+    "q_world_made_2",
+    "q_world_made_3"
+   ]
   }
  ]
 }

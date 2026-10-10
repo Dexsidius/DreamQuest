@@ -137,9 +137,12 @@ vector<WaypointIndex::Spot> WaypointIndex::SpotsFor(const QuestStage& stage, int
             // poppet on a witch's table": whichever is nearest). A stage whose
             // target happens rather than stands somewhere says where it happens.
             const string& at = stage.where.empty() ? stage.target : stage.where;
+            // "survey_iron_*": any of a set, by the start of its id.
+            const bool any_of = at.size() > 1 && at.back() == '*';
             for (const auto& kv : areas)
                 for (const Thing& t : kv.second.things)
-                    if (t.id == at || t.kind == at) out.push_back({kv.first, t.x, t.y, t.title});
+                    if (t.id == at || t.kind == at || (any_of && t.id.compare(0, at.size() - 1, at, 0, at.size() - 1) == 0))
+                        out.push_back({kv.first, t.x, t.y, t.title, t.id});
             break;
         }
         case ObjectiveType::Reach:
@@ -251,7 +254,12 @@ Waypoint WaypointIndex::Resolve(const QuestLog& log, const string& quest_id, con
     }
 
     const int holding = stage.type == ObjectiveType::Deliver ? world.player.inventory.Count(stage.target) : 0;
-    const vector<Spot> spots = SpotsFor(stage, holding, enemies, loot, items);
+    vector<Spot> spots = SpotsFor(stage, holding, enemies, loot, items);
+    // Any of a set: not one this character has already been to.
+    if (stage.type == ObjectiveType::Interact && stage.target.size() > 1 && stage.target.back() == '*')
+        spots.erase(std::remove_if(spots.begin(), spots.end(),
+                                   [&](const Spot& s) { return !s.id.empty() && (world.UsedOwn(s.id) || world.Flagged(s.id)); }),
+                    spots.end());
     if (spots.empty()) {
         // A beast with a lair but no post the index keeps -- one that only
         // roams it, out on some days and not others (route posts are left out

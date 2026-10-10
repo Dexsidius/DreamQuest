@@ -95,3 +95,15 @@ foreach ($look in $Look) {
 
 Push-Location $root
 try { & (Join-Path $PSScriptRoot "make_sprites_json.ps1") } finally { Pop-Location }
+
+# And the palettes the game recolours hair, skin and clothes by, read from the
+# same script's colours: a colour changed there and not here would leave the
+# game recognising none of it (see tools/character_palettes.py). Blender's own
+# Python runs it, so nothing else needs installing.
+$prev = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+try {
+    & $Blender --background --factory-startup --python (Join-Path $PSScriptRoot "character_palettes.py") |
+        Where-Object { $_ -match "^wrote |Error|Traceback" } | Write-Host
+} finally { $ErrorActionPreference = $prev }
+if ($LASTEXITCODE -ne 0) { throw "Writing the palettes failed ($LASTEXITCODE)." }

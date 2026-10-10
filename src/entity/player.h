@@ -34,7 +34,9 @@ public:
     LayerStyle BuildLayerStyle(const ItemDatabase* db) const;
     // How a character looks holding what they set out with, for a preview that
     // is not a character yet: the character-select screen's cards.
-    static LayerStyle KitStyle(const string& character_id, const ItemDatabase* db);
+    // In `looks`, when given: the screen that chooses them shows the figure
+    // in what it sets out in as well as without.
+    static LayerStyle KitStyle(const string& character_id, const ItemDatabase* db, const Looks& looks = Looks());
     // Called by the world when a swing connects, so the player banks XP for it.
     // `worth` is the monster's own multiplier (`xp_mult` in enemies.json),
     // which was read from the file and then by nothing.
@@ -547,6 +549,10 @@ public:
 
     InteractTarget interact;
     string sprite_id = kDefaultCharacter;
+    // The colour of their hair, skin and clothes, where they are not the
+    // calling's own: chosen before the first step, kept with the character,
+    // and told to friends in the Outfit (entity/looks.h).
+    Looks looks;
     float  move_speed = 78.0f;
 
     // --- sprinting ------------------------------------------------------------

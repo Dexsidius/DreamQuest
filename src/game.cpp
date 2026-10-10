@@ -102,6 +102,19 @@ int Game::Start(int argc, char** argv) {
             never_save = true;
         } else if (arg == "--level" && more) {
             launch_level = std::clamp(SDL_atoi(argv[++i]), 1, 99);
+        } else if (arg == "--looks" && more) {
+            // Hair, skin and clothes, in that order, as hex; "-" for their own.
+            const string list = argv[++i];
+            size_t from = 0;
+            for (int part = 0; part < LOOK_PARTS && from <= list.size(); ++part) {
+                const size_t comma = list.find(',', from);
+                string one = list.substr(from, comma == string::npos ? string::npos : comma - from);
+                if (!one.empty() && one[0] == '#') one.erase(0, 1);
+                if (one.size() == 6 && one.find_first_not_of("0123456789abcdefABCDEF") == string::npos)
+                    pending_looks.part[part] = static_cast<int32_t>(std::stoul(one, nullptr, 16));
+                if (comma == string::npos) break;
+                from = comma + 1;
+            }
         } else if (arg == "--skills" && more) {
             // With --scratch: these skills at these levels, "Foraging:50,Fishing:20",
             // for looking at what a level opens -- a catch, a cast -- without
@@ -533,6 +546,8 @@ int Game::Start(int argc, char** argv) {
                     OpenBoard(arg, title, pinned);
                 }
                 else if (what == "character") SetState(GameState::CharacterSelect);
+                // "looks", or "looks:player_lantern" for that calling's.
+                else if (what == "looks")     OpenLooks(LooksFor::NewGame, arg.empty() ? pending_character : arg);
                 else if (what == "load")      { SetState(GameState::LoadMenu);
                                                 if (arg == "multi") slot_tab = SaveKind::Multi; }
                 else if (what == "save")      { slot_purpose = SLOT_SAVE; SetState(GameState::SlotSelect);
@@ -550,7 +565,7 @@ int Game::Start(int argc, char** argv) {
     }
     input_two.SetDevices(false, -1, true);
     LayoutViews();
-    if (launch_p2 && has_session) JoinSplit(true);
+    if (launch_p2 && has_session) JoinSplit(true, false);
     if (launch_host && !has_session) {
         // The door opens on a world, and which one is asked first -- the
         // multiplayer list, the way Host a world asks it from the title.
@@ -564,7 +579,8 @@ int Game::Start(int argc, char** argv) {
         if (!has_session) OpenMultiplayer();
     }
     // The front end's screens, for looking at without a game running:
-    // "load" (":multi" on the multiplayer shelf), "host", "together".
+    // "load" (":multi" on the multiplayer shelf), "host", "together",
+    // "character", and "looks" (":player_lantern" for that calling's).
     if (!has_session && !launch_screen.empty()) {
         const size_t colon = launch_screen.find(':');
         const string what = launch_screen.substr(0, colon);
@@ -572,6 +588,11 @@ int Game::Start(int argc, char** argv) {
         if (what == "load") {
             SetState(GameState::LoadMenu);
             if (arg == "multi") slot_tab = SaveKind::Multi;
+        } else if (what == "character") {
+            SetState(GameState::CharacterSelect);
+        } else if (what == "looks") {
+            if (sprites.Has(arg)) pending_character = arg;
+            OpenLooks(LooksFor::NewGame, pending_character);
         } else if (what == "host") {
             OpenMultiplayer();
             ChooseWorldToHost();
@@ -657,6 +678,8 @@ void Game::NewGame(const string& character, SlotRef slot) {
     world->SetDream({});
     world->player = Player();
     world->player.Init(ctx, character);
+    // In the colours chosen for them on the looks screen.
+    world->player.looks = pending_looks;
 
     // A new character plays the prologue: found on the road at the end of a
     // night with nothing to their name. A scratch character for looking at
@@ -862,6 +885,10 @@ void Game::SetState(GameState s) {
         // The figure faces you as the panel opens, however it was left turned;
         // the cursor stays on the piece it was last on.
         if (s == GameState::CharacterPanel) sheet_facing = FACE_DOWN;
+        // The looks screen makes a recoloured set of sheets at every step;
+        // only the colours kept are wanted after it, and those are made again
+        // as they are drawn.
+        if (state == GameState::CharacterLooks) textures->ForgetDyed();
         if (s == GameState::Travel) {
             // On the tab the stone being touched is under.
             const WaystoneDef* here = WaystoneById(travel_from);
@@ -1099,6 +1126,7 @@ void Game::Update(float dt) {
     switch (state) {
         case GameState::MainMenu:        UpdateMainMenu(); break;
         case GameState::CharacterSelect: UpdateCharacterSelect(); break;
+        case GameState::CharacterLooks:  UpdateCharacterLooks(); break;
         case GameState::SlotSelect:      UpdateSlotSelect(); break;
         case GameState::LoadMenu:        UpdateLoadMenu(); break;
         case GameState::Options:         UpdateOptions(); break;
@@ -1971,6 +1999,11 @@ void Game::RunAudit() {
         const Screen screens[] = {
             {"main menu",      GameState::MainMenu,        [&] { has_session = false; }},
             {"character",      GameState::CharacterSelect, [] {}},
+            // The longest names the screen can show: the Lantern Warden's
+            // own, and the widest swatch names in each part.
+            {"looks",          GameState::CharacterLooks,  [&] { looks_for = LooksFor::NewGame; looks_character = "player_lantern";
+                                                                 looks_edit = Looks(); SetLookSwatch(looks_edit, LOOK_HAIR, 6);
+                                                                 SetLookSwatch(looks_edit, LOOK_SKIN, 1); looks_gear = true; }},
             {"load",           GameState::LoadMenu,        [] {}},
             {"options",        GameState::Options,         [] {}},
             {"controls",       GameState::Controls,        [&] { controls_cursor = 6; }},
@@ -2103,6 +2136,7 @@ void Game::RunAudit() {
             int steps = 1;
             const string name = sc.name;
             if (name == "inventory")      { target = &inventory_cursor; steps = p.inventory.SlotCount(); }
+            else if (name == "looks")     { target = &looks_row; steps = LOOK_PARTS; }
             else if (name == "skills")    { target = &cursor_row; steps = SKILL_COUNT; }
             else if (name == "skill categories") { target = &skill_card; steps = CATEGORY_COUNT; }
             else if (name == "menu")      { target = &hub_cursor; steps = 6; }
@@ -2266,6 +2300,7 @@ void Game::Render() {
     switch (state) {
         case GameState::MainMenu:        DrawMainMenu(); break;
         case GameState::CharacterSelect: DrawCharacterSelect(); break;
+        case GameState::CharacterLooks:  DrawCharacterLooks(); break;
         case GameState::SlotSelect:      DrawSlotSelect(); break;
         case GameState::LoadMenu:        DrawLoadMenu(); break;
         case GameState::Options:         DrawOptions(); break;

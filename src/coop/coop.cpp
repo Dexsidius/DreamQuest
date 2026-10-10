@@ -65,16 +65,19 @@ net::PlayerState StateOf(const Player& p, uint8_t seat) {
     return s;
 }
 
+static_assert(LOOK_PARTS == 3, "net::Outfit::looks holds a colour for each part of a look");
+
 net::Outfit OutfitOf(const Player& p, uint8_t seat) {
     net::Outfit o;
     o.seat = seat;
     o.look = p.sprite_id;
     for (int slot = 0; slot < SLOT_COUNT; ++slot) o.worn.push_back(p.equipment.InSlot(slot));
+    for (int part = 0; part < LOOK_PARTS; ++part) o.looks[part] = p.looks.part[part];
     return o;
 }
 
 static bool SameOutfit(const net::Outfit& a, const net::Outfit& b) {
-    return a.look == b.look && a.worn == b.worn;
+    return a.look == b.look && a.worn == b.worn && std::equal(a.looks, a.looks + LOOK_PARTS, b.looks);
 }
 
 void Wear(Player& p, const net::Outfit& outfit, const GameContext& ctx) {
@@ -90,6 +93,8 @@ void Wear(Player& p, const net::Outfit& outfit, const GameContext& ctx) {
         p.x = x; p.y = y;
         p.local = local; p.puppet = puppet; p.seat = seat; p.name = name;
     }
+    for (int part = 0; part < LOOK_PARTS; ++part)
+        p.looks.part[part] = outfit.looks[part] >= 0 ? (outfit.looks[part] & 0xFFFFFF) : -1;
     p.equipment.Clear();
     for (size_t slot = 0; slot < outfit.worn.size() && slot < static_cast<size_t>(SLOT_COUNT); ++slot) {
         const string& id = outfit.worn[slot];
@@ -333,10 +338,12 @@ size_t Host::Queued(uint8_t seat) const {
     return it == seats.end() ? 0 : it->second.queue.size();
 }
 
-void Host::AddLocal(uint8_t seat_no, const string& name, const string& look, QuestLog* journal, const json& character) {
+void Host::AddLocal(uint8_t seat_no, const string& name, const string& look, QuestLog* journal, const json& character,
+                    const Looks& looks) {
     Seat s;
     s.name = name;
     s.look = look;
+    s.looks = looks;
     s.local = true;
     s.journal = journal;
     s.character = character;
@@ -639,6 +646,7 @@ void Host::Arrive(uint8_t seat_no, Seat& s, net::Server& server, World& home, co
             // it. It was put in the bag and then put on as well, without
             // coming out of the bag: a second kit, free, and five pieces of it
             // now that the warden and the wayfarer set out in a whole set.
+            g->looks = s.looks;
             const vector<string> kit = Player::StartingKit(g->sprite_id);
             for (const string& id : kit) g->inventory.Add(id, 1);
             string why;
@@ -1115,7 +1123,7 @@ void Host::Gather(uint8_t seat_no, Seat& s) {
     for (const QuestEvent& e : state.journal.relayed) {
         net::Delta::Quest q;
         q.type = static_cast<uint8_t>(e.type);
-        q.target = e.target; q.secondary = e.secondary; q.map = e.map_id; q.amount = e.amount;
+        q.target = e.target; q.secondary = e.secondary; q.map = e.map_id; q.amount = e.amount; q.kind = e.kind;
         s.tell.quests.push_back(std::move(q));
     }
     state.journal.relayed.clear();
@@ -1629,7 +1637,7 @@ void Guest::OnDelta(const net::Delta& d, World& world, const GameContext& ctx, u
         for (const net::Delta::Quest& q : d.quests) {
             QuestEvent e;
             e.type = static_cast<ObjectiveType>(q.type);
-            e.target = q.target; e.secondary = q.secondary; e.map_id = q.map; e.amount = q.amount;
+            e.target = q.target; e.secondary = q.secondary; e.map_id = q.map; e.amount = q.amount; e.kind = q.kind;
             ctx.quests->Notify(e, me.inventory);
             // A boss went down where they were. Their character is here, so
             // what it leaves them is rolled and kept here, and goes back to

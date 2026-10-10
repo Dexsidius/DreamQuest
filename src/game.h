@@ -27,6 +27,7 @@
 enum class GameState {
     MainMenu,
     CharacterSelect,
+    CharacterLooks,    // their hair, skin and clothes: between the calling and the first step
     SlotSelect,        // used for both starting and saving
     LoadMenu,
     Options,
@@ -140,6 +141,7 @@ private:
     // --- per-state input -----------------------------------------------------
     void UpdateMainMenu();
     void UpdateCharacterSelect();
+    void UpdateCharacterLooks();
     void UpdateSlotSelect();
     void UpdateLoadMenu();
     void UpdateOptions();
@@ -177,6 +179,7 @@ private:
     // --- per-state drawing ---------------------------------------------------
     void DrawMainMenu();
     void DrawCharacterSelect();
+    void DrawCharacterLooks();
     void DrawSlotSelect();
     void DrawLoadMenu();
     void DrawOptions();
@@ -487,6 +490,28 @@ private:
     void SaveOnTheWayOut();
 
     string pending_character = "player_hero";
+    // The colours the character about to be made is given: chosen on the
+    // looks screen, after the calling and before the slot (or the door, or
+    // the friend's world). Player Two's are their own.
+    Looks pending_looks;
+    Looks p2_looks;
+
+    // The looks screen: who it is choosing for, which decides where Continue
+    // and Back go; the colours being tried; the part the cursor is on; which
+    // of eight ways the figure is turned; and whether it is shown in what it
+    // sets out in or as it is.
+    enum class LooksFor { NewGame, HostNew, Guest, PlayerTwo };
+    LooksFor looks_for = LooksFor::NewGame;
+    string looks_character = "player_hero";
+    Looks  looks_edit;
+    int    looks_row = 0;
+    int    looks_turn = 0;
+    bool   looks_gear = false;
+    void OpenLooks(LooksFor why, const string& character);
+    // Player Two sitting down without a controller (--p2), as JoinSplit was asked.
+    bool   looks_p2_padless = false;
+    // Back to Play Together's Character row.
+    void BackToLookRow();
 
     // The playable characters, shared between the select screen's update and
     // its draw so the two can never disagree about what is on offer.
@@ -599,6 +624,8 @@ private:
     void     ApplyBindings();
     int      launch_level = 0;          // --level N: a scratch character starts with its path's skill here
     string   launch_skills;             // --skills Foraging:50,Fishing:20: and these skills at these levels
+    // --looks e8cc78,-,c4302e: a scratch character's hair, skin and clothes,
+    // "-" for the calling's own (and what the looks screen opens on).
     float    launch_charge = 0.0f;     // --charge F: how full the lightning's battery starts
     float    launch_hour = -1.0f;       // --hour H: and at this time of day, for looking at the night or a dream
     string   launch_finish;             // --finish a,b: these taken and done, rewards and all
@@ -650,7 +677,10 @@ private:
     SDL_Texture* view_texture[2] = {nullptr, nullptr};
     void ServeSeat(int seat);
     net::Server& RealmServer();
-    bool JoinSplit(bool without_a_controller = false);
+    // Someone new is asked their colours first (the looks screen, which calls
+    // this again with ask_looks false); someone who has sat here before comes
+    // as they were kept.
+    bool JoinSplit(bool without_a_controller = false, bool ask_looks = true);
     void LeaveSplit();
     void SavePlayerTwo();
     string PlayerTwoPath() const;

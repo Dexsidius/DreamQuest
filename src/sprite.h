@@ -3,6 +3,7 @@
 #include "texturecache.h"
 #include "camera.h"
 #include "systems/shaders.h"
+#include "entity/looks.h"
 
 // Animated 4-direction sprites -- and 8, for the clips the player goes about in.
 //
@@ -96,6 +97,10 @@ struct LayerStyle {
     string offhand_model;
     // Worn pieces, in the order they should be drawn.
     vector<Attachment> attachments;
+    // The colours of their hair, skin and clothes, where they are not the
+    // calling's own: the body and head layers are drawn recoloured to them
+    // (SpriteDef::dyes says what those layers are made of).
+    Looks looks;
 };
 
 struct AnimClip {
@@ -143,6 +148,10 @@ struct SpriteDef {
     int   rows = 4;            // facings in the sheet; 1 means non-directional
     float anchor_y = 54.0f;    // where the feet sit inside the frame
     float scale = 1.0f;
+    // What the rig's body and head are drawn in, for drawing them in other
+    // colours: its palette.json, when it has one (the four playable
+    // characters). Shared, because the library hands out copies.
+    std::shared_ptr<const DyeTable> dyes;
 
     const AnimClip* Find(const string& clip) const;
     // The sheet that draws `model` ("bow_wood", "sword_iron") in hand over a

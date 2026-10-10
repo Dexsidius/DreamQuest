@@ -628,6 +628,8 @@ void Enemy::OnKilled(World& world, const GameContext& ctx) {
         // the contracts' sake, so the target cannot say; and this is what goes
         // down the wire to a friend's machine, where their character is.
         if (def->is_boss) e.secondary = def->id;
+        // And which kind, of a family: a Basalt Dragon, of the dragons.
+        e.kind = def->id;
         // To everyone who is here, not only whoever struck the blow: a fight
         // shared is a kill shared. The world hands it round once the frame's
         // acting-as is over.

@@ -1,0 +1,95 @@
+{
+ "_comment": "Written by tools/character_palettes.py from tools/blender_character.py. Do not edit.",
+ "ramp": {
+  "bands": [
+   0.64,
+   0.86,
+   1.0
+  ],
+  "tint": [
+   0.36,
+   0.33,
+   0.52
+  ],
+  "tint_amount": [
+   0.22,
+   0.06,
+   0.0
+  ]
+ },
+ "outline": {
+  "strength": 0.42,
+  "toward": [
+   22,
+   12,
+   26
+  ]
+ },
+ "flat": [
+  "eye"
+ ],
+ "materials": {
+  "skin": [
+   0.97,
+   0.8,
+   0.66
+  ],
+  "hair": [
+   0.58,
+   0.31,
+   0.17
+  ],
+  "tunic": [
+   0.88,
+   0.85,
+   0.76
+  ],
+  "trim": [
+   0.66,
+   0.74,
+   0.6
+  ],
+  "belt": [
+   0.44,
+   0.3,
+   0.2
+  ],
+  "gold": [
+   0.93,
+   0.74,
+   0.32
+  ],
+  "trouser": [
+   0.55,
+   0.46,
+   0.37
+  ],
+  "boot": [
+   0.4,
+   0.28,
+   0.2
+  ],
+  "scarf": [
+   0.84,
+   0.24,
+   0.21
+  ],
+  "eye": [
+   0.13,
+   0.11,
+   0.18
+  ]
+ },
+ "dye": {
+  "hair": [
+   "hair"
+  ],
+  "skin": [
+   "skin"
+  ],
+  "clothes": [
+   "tunic",
+   "trim"
+  ]
+ }
+}

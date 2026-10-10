@@ -207,6 +207,9 @@ $sizes = @{
     # lizardmen's cave (bear_den's size and doorway) and the cauldron gone cold.
     thread_net = 64; pit_rune = 48; rubble_throne = 96; hoarfang_trophy = 64; lizard_cave = 144
     cauldron_cold = 48
+    # The questlines (tools/blender_quest_props.py): the Guild's survey cairn,
+    # the Spirewatch's cairn and Old Harl's traps.
+    guild_cairn = 56; spirewatch_cairn = 104; harl_trap = 40
 }
 
 # Pieces the game colours itself, as two pictures laid one on the other: the

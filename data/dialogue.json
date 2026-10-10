@@ -238,6 +238,286 @@
   "text": "The guild takes contracts, not applicants. If you want work, the board outside is where work lives.",
   "options": [
    {
+    "text": "The charted part is marked, and Orla the Tanner vouches for it.",
+    "next": "charter_iron_done",
+    "if": {
+     "quest": "q_charter_iron",
+     "state": "active",
+     "stage": 2
+    },
+    "action": {
+     "advance": "npc_guildmaster"
+    }
+   },
+   {
+    "text": "About the Guild's charter.",
+    "next": "charter_iron_offer",
+    "if": {
+     "quest": "q_charter_iron",
+     "state": "available"
+    }
+   },
+   {
+    "text": "About the commission.",
+    "next": "charter_iron_waiting",
+    "if": {
+     "quest": "q_charter_iron",
+     "state": "active"
+    }
+   },
+   {
+    "text": "The charted part is marked, and Hale the Trapper vouches for it.",
+    "next": "charter_steel_done",
+    "if": {
+     "quest": "q_charter_steel",
+     "state": "active",
+     "stage": 2
+    },
+    "action": {
+     "advance": "npc_guildmaster"
+    }
+   },
+   {
+    "text": "About the Guild's charter.",
+    "next": "charter_steel_offer",
+    "if": {
+     "quest": "q_charter_steel",
+     "state": "available"
+    }
+   },
+   {
+    "text": "About the commission.",
+    "next": "charter_steel_waiting",
+    "if": {
+     "quest": "q_charter_steel",
+     "state": "active"
+    }
+   },
+   {
+    "text": "The charted part is marked, and Warden Ilse vouches for it.",
+    "next": "charter_azuryte_done",
+    "if": {
+     "quest": "q_charter_azuryte",
+     "state": "active",
+     "stage": 2
+    },
+    "action": {
+     "advance": "npc_guildmaster"
+    }
+   },
+   {
+    "text": "About the Guild's charter.",
+    "next": "charter_azuryte_offer",
+    "if": {
+     "quest": "q_charter_azuryte",
+     "state": "available"
+    }
+   },
+   {
+    "text": "About the commission.",
+    "next": "charter_azuryte_waiting",
+    "if": {
+     "quest": "q_charter_azuryte",
+     "state": "active"
+    }
+   },
+   {
+    "text": "The charted part is marked, and Watchman Brask vouches for it.",
+    "next": "charter_damascus_done",
+    "if": {
+     "quest": "q_charter_damascus",
+     "state": "active",
+     "stage": 2
+    },
+    "action": {
+     "advance": "npc_guildmaster"
+    }
+   },
+   {
+    "text": "About the Guild's charter.",
+    "next": "charter_damascus_offer",
+    "if": {
+     "quest": "q_charter_damascus",
+     "state": "available"
+    }
+   },
+   {
+    "text": "About the commission.",
+    "next": "charter_damascus_waiting",
+    "if": {
+     "quest": "q_charter_damascus",
+     "state": "active"
+    }
+   },
+   {
+    "text": "The charted part is marked, and Battlemaster Ysolde vouches for it.",
+    "next": "charter_orichalcum_done",
+    "if": {
+     "quest": "q_charter_orichalcum",
+     "state": "active",
+     "stage": 2
+    },
+    "action": {
+     "advance": "npc_guildmaster"
+    }
+   },
+   {
+    "text": "About the Guild's charter.",
+    "next": "charter_orichalcum_offer",
+    "if": {
+     "quest": "q_charter_orichalcum",
+     "state": "available"
+    }
+   },
+   {
+    "text": "About the commission.",
+    "next": "charter_orichalcum_waiting",
+    "if": {
+     "quest": "q_charter_orichalcum",
+     "state": "active"
+    }
+   },
+   {
+    "text": "The charted part is marked, and Oona the Herbalist vouches for it.",
+    "next": "charter_diamond_done",
+    "if": {
+     "quest": "q_charter_diamond",
+     "state": "active",
+     "stage": 2
+    },
+    "action": {
+     "advance": "npc_guildmaster"
+    }
+   },
+   {
+    "text": "About the Guild's charter.",
+    "next": "charter_diamond_offer",
+    "if": {
+     "quest": "q_charter_diamond",
+     "state": "available"
+    }
+   },
+   {
+    "text": "About the commission.",
+    "next": "charter_diamond_waiting",
+    "if": {
+     "quest": "q_charter_diamond",
+     "state": "active"
+    }
+   },
+   {
+    "text": "The charted part is marked, and Elder Vask vouches for it.",
+    "next": "charter_platinum_done",
+    "if": {
+     "quest": "q_charter_platinum",
+     "state": "active",
+     "stage": 2
+    },
+    "action": {
+     "advance": "npc_guildmaster"
+    }
+   },
+   {
+    "text": "About the Guild's charter.",
+    "next": "charter_platinum_offer",
+    "if": {
+     "quest": "q_charter_platinum",
+     "state": "available"
+    }
+   },
+   {
+    "text": "About the commission.",
+    "next": "charter_platinum_waiting",
+    "if": {
+     "quest": "q_charter_platinum",
+     "state": "active"
+    }
+   },
+   {
+    "text": "The charted part is marked, and Wren the Bard vouches for it.",
+    "next": "charter_demonite_done",
+    "if": {
+     "quest": "q_charter_demonite",
+     "state": "active",
+     "stage": 2
+    },
+    "action": {
+     "advance": "npc_guildmaster"
+    }
+   },
+   {
+    "text": "About the Guild's charter.",
+    "next": "charter_demonite_offer",
+    "if": {
+     "quest": "q_charter_demonite",
+     "state": "available"
+    }
+   },
+   {
+    "text": "About the commission.",
+    "next": "charter_demonite_waiting",
+    "if": {
+     "quest": "q_charter_demonite",
+     "state": "active"
+    }
+   },
+   {
+    "text": "The charted part is marked, and Magister Orrin vouches for it.",
+    "next": "charter_dracon_done",
+    "if": {
+     "quest": "q_charter_dracon",
+     "state": "active",
+     "stage": 2
+    },
+    "action": {
+     "advance": "npc_guildmaster"
+    }
+   },
+   {
+    "text": "About the Guild's charter.",
+    "next": "charter_dracon_offer",
+    "if": {
+     "quest": "q_charter_dracon",
+     "state": "available"
+    }
+   },
+   {
+    "text": "About the commission.",
+    "next": "charter_dracon_waiting",
+    "if": {
+     "quest": "q_charter_dracon",
+     "state": "active"
+    }
+   },
+   {
+    "text": "The charted part is marked, and Magister Orrin vouches for it.",
+    "next": "charter_enchanted_done",
+    "if": {
+     "quest": "q_charter_enchanted",
+     "state": "active",
+     "stage": 2
+    },
+    "action": {
+     "advance": "npc_guildmaster"
+    }
+   },
+   {
+    "text": "About the Guild's charter.",
+    "next": "charter_enchanted_offer",
+    "if": {
+     "quest": "q_charter_enchanted",
+     "state": "available"
+    }
+   },
+   {
+    "text": "About the commission.",
+    "next": "charter_enchanted_waiting",
+    "if": {
+     "quest": "q_charter_enchanted",
+     "state": "active"
+    }
+   },
+   {
     "text": "The letter. Lord Ashcroft is dead, properly.",
     "next": "orlend_letter_done",
     "if": {
@@ -399,6 +679,19 @@
   "speaker": "Smith Halda",
   "text": "Mind the sparks. The shelf is thin until the ore comes in, but I pay fair for metal -- ore, bars, anything you have hammered into shape.",
   "options": [
+   {
+    "text": "Hulda sent her hammer, and a message.",
+    "next": "halda_hammer_done",
+    "if": {
+     "quest": "q_coal_3",
+     "state": "active",
+     "stage": 1,
+     "has_item": "hulda_hammer"
+    },
+    "action": {
+     "take": "hulda_hammer"
+    }
+   },
    {
     "text": "What do you need?",
     "next": "smith_needs",
@@ -1076,6 +1369,74 @@
   "text": "Mind the pots. Everything on that shelf is either a cure or a poison, and the labels fell off in the damp.",
   "options": [
    {
+    "text": "I've found where the cult ties its knots.",
+    "next": "oona_black_done1",
+    "if": {
+     "quest": "q_black_water_1",
+     "state": "active",
+     "stage": 2
+    },
+    "action": {
+     "advance": "npc_oona"
+    }
+   },
+   {
+    "text": "The drums are quiet.",
+    "next": "oona_black_done2",
+    "if": {
+     "quest": "q_black_water_2",
+     "state": "active",
+     "stage": 2
+    },
+    "action": {
+     "advance": "npc_oona"
+    }
+   },
+   {
+    "text": "The High Priest is dead. Here is his cord.",
+    "next": "oona_black_done3",
+    "if": {
+     "quest": "q_black_water_3",
+     "state": "active",
+     "stage": 1
+    },
+    "action": {
+     "advance": "npc_oona"
+    }
+   },
+   {
+    "text": "The poppet's knots. Who ties those?",
+    "next": "oona_black_offer",
+    "if": {
+     "quest": "q_black_water_1",
+     "state": "available"
+    }
+   },
+   {
+    "text": "About the cult.",
+    "next": "oona_black_waiting1",
+    "if": {
+     "quest": "q_black_water_1",
+     "state": "active"
+    }
+   },
+   {
+    "text": "About the drums.",
+    "next": "oona_black_waiting2",
+    "if": {
+     "quest": "q_black_water_2",
+     "state": "active"
+    }
+   },
+   {
+    "text": "About the High Priest.",
+    "next": "oona_black_waiting3",
+    "if": {
+     "quest": "q_black_water_3",
+     "state": "active"
+    }
+   },
+   {
     "text": "Can I help with anything?",
     "next": "oona_offer",
     "if": {
@@ -1702,6 +2063,84 @@
   "speaker": "Magister Orrin",
   "text": "Mind the circle. It is older than the floor it is cut into, and it does not care for boots.\n\nThe college is fuller than it has been in my lifetime -- a court, a practice hall, a lecture room -- but the books remember when it was more, and the circle remembers further back than the books.",
   "options": [
+   {
+    "text": "The fire and the stone.",
+    "next": "orrin_world_done1",
+    "if": {
+     "quest": "q_world_made_1",
+     "state": "active",
+     "stage": 3
+    },
+    "action": {
+     "advance": "npc_magister"
+    }
+   },
+   {
+    "text": "The sea and the sky.",
+    "next": "orrin_world_done2",
+    "if": {
+     "quest": "q_world_made_2",
+     "state": "active",
+     "stage": 2
+    },
+    "action": {
+     "advance": "npc_magister"
+    }
+   },
+   {
+    "text": "The storm, and the heart of the whole.",
+    "next": "orrin_world_done3",
+    "if": {
+     "quest": "q_world_made_3",
+     "state": "active",
+     "stage": 3,
+     "has_item": "conflux_heart"
+    },
+    "action": {
+     "advance": "npc_magister"
+    }
+   },
+   {
+    "text": "What is past the rift?",
+    "next": "orrin_world_offer",
+    "if": {
+     "quest": "q_world_made_1",
+     "state": "available"
+    }
+   },
+   {
+    "text": "This coal does not go out.",
+    "next": "orrin_cinders",
+    "if": {
+     "quest": "q_world_made_1",
+     "state": "not_started",
+     "has_item": "heart_of_cinders"
+    }
+   },
+   {
+    "text": "About the rift.",
+    "next": "orrin_world_waiting1",
+    "if": {
+     "quest": "q_world_made_1",
+     "state": "active"
+    }
+   },
+   {
+    "text": "About the sea and the sky.",
+    "next": "orrin_world_waiting2",
+    "if": {
+     "quest": "q_world_made_2",
+     "state": "active"
+    }
+   },
+   {
+    "text": "About the storm.",
+    "next": "orrin_world_waiting3",
+    "if": {
+     "quest": "q_world_made_3",
+     "state": "active"
+    }
+   },
    {
     "text": "Could you teach me the old magic?",
     "next": "magister_teach",
@@ -2389,6 +2828,54 @@
   "speaker": "The Collector",
   "text": "Shards, gems, things with a dream still in them. I buy what others will not look at, and I sell what others cannot find.",
   "options": [
+   {
+    "text": "They were Sleepwalkers. Six of them.",
+    "next": "collector_dream_done1",
+    "if": {
+     "quest": "q_dream_collector_1",
+     "state": "active",
+     "stage": 2
+    },
+    "action": {
+     "advance": "npc_collector"
+    }
+   },
+   {
+    "text": "The Sleepless is gone.",
+    "next": "collector_dream_done2",
+    "if": {
+     "quest": "q_dream_collector_2",
+     "state": "active",
+     "stage": 1
+    },
+    "action": {
+     "advance": "npc_collector"
+    }
+   },
+   {
+    "text": "What goes in the next cases?",
+    "next": "collector_dream_offer",
+    "if": {
+     "quest": "q_dream_collector_1",
+     "state": "available"
+    }
+   },
+   {
+    "text": "About the Sleepwalkers.",
+    "next": "collector_dream_waiting1",
+    "if": {
+     "quest": "q_dream_collector_1",
+     "state": "active"
+    }
+   },
+   {
+    "text": "About the Sleepless.",
+    "next": "collector_dream_waiting2",
+    "if": {
+     "quest": "q_dream_collector_2",
+     "state": "active"
+    }
+   },
    {
     "text": "Show me the curios.",
     "next": "end",
@@ -3113,6 +3600,59 @@
   "text": "An old man in a rocking chair, a blanket over his knees and a stick across them. The chair goes on rocking. He does not look up when you come in.",
   "options": [
    {
+    "text": "I found the cairn. Eleven names, and eleven at rest.",
+    "next": "vask_watch_done1",
+    "if": {
+     "quest": "q_spirewatch_1",
+     "state": "active",
+     "stage": 3
+    },
+    "action": {
+     "advance": "npc_vask_porch"
+    }
+   },
+   {
+    "text": "The captain's sword.",
+    "next": "vask_watch_done2",
+    "if": {
+     "quest": "q_spirewatch_2",
+     "state": "active",
+     "stage": 2,
+     "has_item": "spirewatch_sword"
+    },
+    "action": {
+     "take": "spirewatch_sword",
+     "advance": "npc_vask_porch"
+    }
+   },
+   {
+    "text": "The rest of the Spirewatch. Where are they?",
+    "next": "vask_watch_offer",
+    "if": {
+     "quest": "q_spirewatch_1",
+     "state": "available",
+     "after": [
+      "q_ice_spire_dragon"
+     ]
+    }
+   },
+   {
+    "text": "About the eleven.",
+    "next": "vask_watch_waiting1",
+    "if": {
+     "quest": "q_spirewatch_1",
+     "state": "active"
+    }
+   },
+   {
+    "text": "About the captain's sword.",
+    "next": "vask_watch_waiting2",
+    "if": {
+     "quest": "q_spirewatch_2",
+     "state": "active"
+    }
+   },
+   {
     "text": "The Rime Key. What kept it is dead.",
     "next": "elder_key_done",
     "if": {
@@ -3290,7 +3830,7 @@
  },
  "elder_after": {
   "speaker": "Elder Vask",
-  "text": "\"Spirewatch.\" He almost smiles. \"There are two of us now. Sit down sometime and I will tell you the other ten names.\"",
+  "text": "\"Spirewatch.\" He almost smiles. \"There are two of us now. Sit down sometime and I will tell you the other ten names.\"\n\n\"There were eleven others. Ask me about them when you can stand on the Frostreach.\"",
   "options": [
    {
     "text": "I will.",
@@ -3535,6 +4075,58 @@
   "text": "Hides go in stinking and come out worth wearing. Put it on the rail and I will tell you what it is worth.",
   "options": [
    {
+    "text": "Five lizard scales.",
+    "next": "orla_scale_got",
+    "if": {
+     "quest": "q_scale_and_reed",
+     "state": "active",
+     "stage": 0,
+     "has_item": "lizard_scale",
+     "qty": 5
+    },
+    "action": {
+     "take": "lizard_scale",
+     "take_qty": 5
+    }
+   },
+   {
+    "text": "The chief's painted hide.",
+    "next": "orla_scale_done",
+    "if": {
+     "quest": "q_scale_and_reed",
+     "state": "active",
+     "stage": 3,
+     "has_item": "painted_hide"
+    },
+    "action": {
+     "take": "painted_hide"
+    }
+   },
+   {
+    "text": "You buy lizard scale?",
+    "next": "orla_scale_offer",
+    "if": {
+     "quest": "q_scale_and_reed",
+     "state": "available"
+    }
+   },
+   {
+    "text": "About the lizard scale.",
+    "next": "orla_scale_waiting",
+    "if": {
+     "quest": "q_scale_and_reed",
+     "state": "active"
+    }
+   },
+   {
+    "text": "About the hide's road.",
+    "next": "orla_road_waiting",
+    "if": {
+     "quest": "q_reed_road",
+     "state": "active"
+    }
+   },
+   {
     "text": "What do you buy?",
     "next": "orla_buys"
    },
@@ -3717,6 +4309,20 @@
   "speaker": "Hale the Trapper",
   "text": "Walk soft and keep downwind. They hear better than you and they smell better than both of us.",
   "options": [
+   {
+    "text": "Harl's knife. He went into the Howe.",
+    "next": "hale_harl_done",
+    "if": {
+     "quest": "q_fortieth_winter",
+     "state": "active",
+     "stage": 5,
+     "has_item": "harls_knife"
+    },
+    "action": {
+     "take": "harls_knife",
+     "advance": "npc_hale"
+    }
+   },
    {
     "text": "The circlet. The wolves have backed off.",
     "next": "hale_circlet_done",
@@ -4103,6 +4709,18 @@
   "speaker": "Warden Ilse",
   "text": "Welcome to Fernhollow. It is a gate, a pond and eleven people, and I am the one who is awake.",
   "options": [
+   {
+    "text": "Orla sent me: the lizardfolk's marks are a road into the Bayou.",
+    "next": "ilse_road_done",
+    "if": {
+     "quest": "q_reed_road",
+     "state": "active",
+     "stage": 2
+    },
+    "action": {
+     "advance": "npc_ilse"
+    }
+   },
    {
     "text": "Anything I can do for the gate?",
     "next": "ilse_hags_offer",
@@ -4711,6 +5329,50 @@
   "text": "Walk where you like. Nothing thrown in this room touches anybody: that is the first working any of them learns, and the only one I insist on.",
   "options": [
    {
+    "text": "There is a rift in the Stronghold.",
+    "next": "ysolde_breaths_done",
+    "if": {
+     "quest": "q_breaths_3",
+     "state": "active",
+     "stage": 2
+    },
+    "action": {
+     "advance": "npc_college_instructor"
+    }
+   },
+   {
+    "text": "What do your adepts practise on?",
+    "next": "ysolde_breaths_offer",
+    "if": {
+     "quest": "q_breaths_1",
+     "state": "available"
+    }
+   },
+   {
+    "text": "About the dragons.",
+    "next": "ysolde_breaths_waiting1",
+    "if": {
+     "quest": "q_breaths_1",
+     "state": "active"
+    }
+   },
+   {
+    "text": "About the dragons.",
+    "next": "ysolde_breaths_waiting2",
+    "if": {
+     "quest": "q_breaths_2",
+     "state": "active"
+    }
+   },
+   {
+    "text": "About the storm.",
+    "next": "ysolde_breaths_waiting3",
+    "if": {
+     "quest": "q_breaths_3",
+     "state": "active"
+    }
+   },
+   {
     "text": "Why straw?",
     "next": "college_instructor_straw"
    },
@@ -4796,6 +5458,30 @@
   "speaker": "Lector Maud",
   "text": "-- and so each of the four is afraid of exactly one of the others, and is feared by exactly one. You are late. Sit anywhere.",
   "options": [
+   {
+    "text": "The earth and the fire: I've seen them breathe.",
+    "next": "lector_breaths_1",
+    "if": {
+     "quest": "q_breaths_1",
+     "state": "active",
+     "stage": 2
+    },
+    "action": {
+     "advance": "npc_college_lector"
+    }
+   },
+   {
+    "text": "The water and the air.",
+    "next": "lector_breaths_2",
+    "if": {
+     "quest": "q_breaths_2",
+     "state": "active",
+     "stage": 2
+    },
+    "action": {
+     "advance": "npc_college_lector"
+    }
+   },
    {
     "text": "Say it again, slowly?",
     "next": "college_lector_cycle"
@@ -4959,7 +5645,7 @@
  },
  "brask_crypt_done": {
   "speaker": "Watchman Brask",
-  "text": "Brask listens, as if it could be heard from here, and nods.\n\n\"I will take your word, and the guild's purse will take mine. Here. And these -- the herbalist says they are for cuts. I say they are for courage.\"",
+  "text": "Brask listens, as if it could be heard from here, and nods.\n\n\"I will take your word, and the guild's purse will take mine. Here. And these -- the herbalist says they are for cuts. I say they are for courage.\"\n\n\"Nobody is asking you to go to the bottom. The College might, mind. They ask odd things.\"",
   "options": [
    {
     "text": "Walk safe.",
@@ -5063,7 +5749,7 @@
  },
  "sorrel_pelts_done": {
   "speaker": "Sorrel",
-  "text": "Sorrel lays them over one arm and they cover it from shoulder to wrist. \"That is a winter of Ivo complaining about the size. Here -- and the focus draughts, for the next thing you go looking for that you should not.\"",
+  "text": "Sorrel lays them over one arm and they cover it from shoulder to wrist. \"That is a winter of Ivo complaining about the size. Here -- and the focus draughts, for the next thing you go looking for that you should not.\"\n\n\"If you want more of that kind of work, Hale the Trapper out in the Brackenwood has bears, and nobody to help with them.\"",
   "options": [
    {
     "text": "Thank you.",
@@ -5110,7 +5796,7 @@
  },
  "ilse_hags_done": {
   "speaker": "Warden Ilse",
-  "text": "\"Four.\" Ilse says it the way somebody else might say *finally*. \"The ferryman will be glad, and louder about it than I am. Take this. And the bitters -- they taste like the Bayou, which is the point of them.\"",
+  "text": "\"Four.\" Ilse says it the way somebody else might say *finally*. \"The ferryman will be glad, and louder about it than I am. Take this. And the bitters -- they taste like the Bayou, which is the point of them.\"\n\n\"Deeper in, the lizardfolk hang reed dolls on posts where their matriarch has passed. Leave them alone. I mean it.\"",
   "options": [
    {
     "text": "Quiet post.",
@@ -5157,7 +5843,7 @@
  },
  "garrow_horns_done": {
   "speaker": "Garrow the Smith",
-  "text": "Garrow weighs the horns one by one, sniffs one, and grins. \"If this works you have made me the only smith this side of the Hollowmarch who can work platinum. If it does not, you have made me a smith with four horns. Either way, take the bars. I will not be needing the old stock.\"",
+  "text": "Garrow weighs the horns one by one, sniffs one, and grins. \"If this works you have made me the only smith this side of the Hollowmarch who can work platinum. If it does not, you have made me a smith with four horns. Either way, take the bars. I will not be needing the old stock.\"\n\nFrom the other forge, Hulda Anvilhand says, loudly, that it is a trick.",
   "options": [
    {
     "text": "Farewell.",
@@ -5204,7 +5890,7 @@
  },
  "hale_den_done": {
   "speaker": "Hale the Trapper",
-  "text": "Hale is quiet a long time. \"He was a good dog.\" Then, brisker: \"Here. Coin, and a draught to keep your eye steady -- I was saving it for the day I went in myself, and now I will not have to.\"",
+  "text": "Hale is quiet a long time. \"He was a good dog.\" Then, brisker: \"Here. Coin, and a draught to keep your eye steady -- I was saving it for the day I went in myself, and now I will not have to.\"\n\n\"Old Harl will want to hear it -- Harl, up on the Frostreach. He comes down through here every spring with his white furs and drinks my tea. Not this spring.\"",
   "options": [
    {
     "text": "He was.",
@@ -5476,6 +6162,61 @@
   "text": "A song? I know the one about the Warchief under Emberfell, the one about the Wight, and the one about Bess's eel pie, which is the only one anybody asks for twice.",
   "options": [
    {
+    "text": "Two verses: the herald's and the balcony's.",
+    "next": "bard_song_1",
+    "if": {
+     "quest": "q_song_1",
+     "state": "active",
+     "stage": 2
+    },
+    "action": {
+     "advance": "npc_bard"
+    }
+   },
+   {
+    "text": "The King is dead. Here is the end of it.",
+    "next": "bard_song_done",
+    "if": {
+     "quest": "q_song_2",
+     "state": "active",
+     "stage": 2
+    },
+    "action": {
+     "advance": "npc_bard"
+    }
+   },
+   {
+    "text": "Sing me one I have not heard.",
+    "next": "bard_song_offer",
+    "if": {
+     "quest": "q_song_1",
+     "state": "available"
+    }
+   },
+   {
+    "text": "About the song.",
+    "next": "bard_song_waiting1",
+    "if": {
+     "quest": "q_song_1",
+     "state": "active"
+    }
+   },
+   {
+    "text": "About the last verse.",
+    "next": "bard_song_waiting2",
+    "if": {
+     "quest": "q_song_2",
+     "state": "active"
+    }
+   },
+   {
+    "text": "Sing the Cinder King's song.",
+    "next": "bard_song_again",
+    "if": {
+     "flag": "WREN_SONG_SUNG"
+    }
+   },
+   {
     "text": "Sing the one about the pie.",
     "next": "bard_pie"
    },
@@ -5500,6 +6241,13 @@
   "text": "Mind your back, full tray. If you're eating, tell Bess; if you're drinking, tell me; if you're singing, tell Wren and he'll stop.",
   "options": [
    {
+    "text": "That song of Wren's.",
+    "next": "lark_song",
+    "if": {
+     "flag": "WREN_SONG_SUNG"
+    }
+   },
+   {
     "text": "Just looking.",
     "next": "end"
    }
@@ -5509,6 +6257,13 @@
   "speaker": "Gammer Holt",
   "text": "Sixty years in this chair -- well, this table. The chair's newer. The whole street's newer. I remember when the inn was the only building in Havenbrook with an upstairs, and we were proud of it.",
   "options": [
+   {
+    "text": "That song of Wren's.",
+    "next": "gammer_song",
+    "if": {
+     "flag": "WREN_SONG_SUNG"
+    }
+   },
    {
     "text": "And now?",
     "next": "gammer_now"
@@ -5533,6 +6288,13 @@
   "speaker": "Fen the Drover",
   "text": "Brought forty head up from the south road, lost two to wolves and one to a farmer who swears it was always his. I'm drinking to the forty. I'll drink to the three tomorrow.",
   "options": [
+   {
+    "text": "That song of Wren's.",
+    "next": "drover_song",
+    "if": {
+     "flag": "WREN_SONG_SUNG"
+    }
+   },
    {
     "text": "Good luck with the three.",
     "next": "end"
@@ -5720,6 +6482,94 @@
   "speaker": "Hulda Anvilhand",
   "text": "The forge is hot and the anvil's free. Use them. Don't use my hammer, don't touch my tongs, and don't tell me how your Havenbrook smith does it -- I've met Halda, and she does it wrong.",
   "options": [
+   {
+    "text": "Two pyre glands.",
+    "next": "hulda_coal_done1",
+    "if": {
+     "quest": "q_coal_1",
+     "state": "active",
+     "stage": 0,
+     "has_item": "pyre_gland",
+     "qty": 2
+    },
+    "action": {
+     "take": "pyre_gland",
+     "take_qty": 2
+    }
+   },
+   {
+    "text": "Two abyssal horns.",
+    "next": "hulda_coal_done2",
+    "if": {
+     "quest": "q_coal_2",
+     "state": "active",
+     "stage": 0,
+     "has_item": "abyssal_horn",
+     "qty": 2
+    },
+    "action": {
+     "take": "abyssal_horn",
+     "take_qty": 2
+    }
+   },
+   {
+    "text": "An Ember Core, out of the Kiln.",
+    "next": "hulda_coal_core",
+    "if": {
+     "quest": "q_coal_3",
+     "state": "active",
+     "stage": 0,
+     "has_item": "ember_core",
+     "no_flag": "own:hulda_hammer_given"
+    },
+    "action": {
+     "take": "ember_core",
+     "give": "hulda_hammer",
+     "set_flag": "own:hulda_hammer_given"
+    }
+   },
+   {
+    "text": "Garrow says demon horn works platinum.",
+    "next": "hulda_coal_offer",
+    "if": {
+     "quest": "q_coal_1",
+     "state": "available"
+    }
+   },
+   {
+    "text": "About the pyre glands.",
+    "next": "hulda_coal_waiting1",
+    "if": {
+     "quest": "q_coal_1",
+     "state": "active"
+    }
+   },
+   {
+    "text": "About the abyssal horns.",
+    "next": "hulda_coal_waiting2",
+    "if": {
+     "quest": "q_coal_2",
+     "state": "active"
+    }
+   },
+   {
+    "text": "About the Ember Core.",
+    "next": "hulda_coal_waiting3",
+    "if": {
+     "quest": "q_coal_3",
+     "state": "active",
+     "stage": 0
+    }
+   },
+   {
+    "text": "About Halda.",
+    "next": "hulda_coal_waiting4",
+    "if": {
+     "quest": "q_coal_3",
+     "state": "active",
+     "stage": 1
+    }
+   },
    {
     "text": "What's wrong with how Halda does it?",
     "next": "hulda_halda"
@@ -5986,7 +6836,7 @@
  },
  "oona_poppet_after": {
   "speaker": "Oona the Herbalist",
-  "text": "Burn the thread when you are done with it. And if you find another doll hung in the reeds, leave it hanging. One full poppet is luck. Two is a habit, and they hanged people for habits.",
+  "text": "Burn the thread when you are done with it. And if you find another doll hung in the reeds, leave it hanging. One full poppet is luck. Two is a habit, and they hanged people for habits.\n\n\"The knots, though. Ask me about the knots.\"",
   "options": [
    {
     "text": "I will leave it.",
@@ -6354,7 +7204,7 @@
  },
  "guildmaster_bounties_about": {
   "speaker": "Guild Master Orlend",
-  "text": "\"The board by my desk. One page a beast; close it wherever the thing falls, and the Guild pays that day. Red ink is past you yet.\"\n\nHe does not look up. \"And read the page. The page is the part that keeps you alive.\"",
+  "text": "\"The board by my desk. One page a beast; close it wherever the thing falls, and the Guild pays that day. Red ink is past you yet.\"\n\nHe does not look up. \"And read the page. The page is the part that keeps you alive.\"\n\n\"And when you are tired of beasts, ask me about the Guild's charter. The map wants finishing.\"",
   "options": [
    {
     "text": "Understood.",
@@ -6462,6 +7312,56 @@
   "text": "(Elder Vask rocks easily in his chair. He tips his head at you, and says nothing.)",
   "options": [
    {
+    "text": "I found the cairn. Eleven names, and eleven at rest.",
+    "next": "vask_watch_done1",
+    "if": {
+     "quest": "q_spirewatch_1",
+     "state": "active",
+     "stage": 3
+    },
+    "action": {
+     "advance": "npc_vask_porch"
+    }
+   },
+   {
+    "text": "The captain's sword.",
+    "next": "vask_watch_done2",
+    "if": {
+     "quest": "q_spirewatch_2",
+     "state": "active",
+     "stage": 2,
+     "has_item": "spirewatch_sword"
+    },
+    "action": {
+     "take": "spirewatch_sword",
+     "advance": "npc_vask_porch"
+    }
+   },
+   {
+    "text": "The rest of the Spirewatch. Where are they?",
+    "next": "vask_watch_offer",
+    "if": {
+     "quest": "q_spirewatch_1",
+     "state": "available"
+    }
+   },
+   {
+    "text": "About the eleven.",
+    "next": "vask_watch_waiting1",
+    "if": {
+     "quest": "q_spirewatch_1",
+     "state": "active"
+    }
+   },
+   {
+    "text": "About the captain's sword.",
+    "next": "vask_watch_waiting2",
+    "if": {
+     "quest": "q_spirewatch_2",
+     "state": "active"
+    }
+   },
+   {
     "text": "The Rime Key. What kept it is dead.",
     "next": "elder_key_done",
     "if": {
@@ -6489,6 +7389,1107 @@
    },
    {
     "text": "Leave him to it.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_iron_offer": {
+  "speaker": "Guild Master Orlend",
+  "text": "\"The Guild's map was drawn the year before the Spirewatch fell. Past the Spire, the Bayou and the burnt road it says nothing but 'here be', and that is a guild that has stopped going anywhere.\"\n\n\"So: a charter. A commission at a time, a region at a time. Set the Guild's survey marks where the map runs out, and bring me the word of somebody who lives there that you are worth the ink. For each, the Guild's seal, in a metal that says how far you got.\"\n\n\"The first is near. The Lizardmen's Camp, out in the Mire west of the river. Three marks, and Orla the Tanner's word -- she is in the Westwold, and she has been asking for somebody to go out there.\"",
+  "options": [
+   {
+    "text": "Give me the commission.",
+    "next": "charter_accept",
+    "action": {
+     "start_quest": "q_charter_iron"
+    }
+   },
+   {
+    "text": "Not yet.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_iron_waiting": {
+  "speaker": "Guild Master Orlend",
+  "text": "\"Three survey marks at the Lizardmen's Camp in the Mire, and Orla the Tanner's word. The waypoint knows where the marks go, which is more than the map did.\"",
+  "options": [
+   {
+    "text": "I'll see to it.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_iron_done": {
+  "speaker": "Guild Master Orlend",
+  "text": "Orlend unrolls the Guild's map across the desk and inks it in from your notes, one careful line at a time. Then he takes a seal off the rack behind him and puts it in your hand.\n\n\"Iron. Wear it or don't. The Guild will know either way.\"",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_steel_offer": {
+  "speaker": "Guild Master Orlend",
+  "text": "\"Iron, then. The next is the Old Growth past the Brackenwood -- the bears are half again the size up there, and the map stops at the first of them. Three marks, and Hale the Trapper's word. Hale has a bear problem. Most people near Hale do.\"",
+  "options": [
+   {
+    "text": "Give me the commission.",
+    "next": "charter_accept",
+    "action": {
+     "start_quest": "q_charter_steel"
+    }
+   },
+   {
+    "text": "Not yet.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_steel_waiting": {
+  "speaker": "Guild Master Orlend",
+  "text": "\"Three survey marks in the Brackenwood's Old Growth, and Hale the Trapper's word. The waypoint knows where the marks go, which is more than the map did.\"",
+  "options": [
+   {
+    "text": "I'll see to it.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_steel_done": {
+  "speaker": "Guild Master Orlend",
+  "text": "Orlend unrolls the Guild's map across the desk and inks it in from your notes, one careful line at a time. Then he takes a seal off the rack behind him and puts it in your hand.\n\n\"Steel. Wear it or don't. The Guild will know either way.\"",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_azuryte_offer": {
+  "speaker": "Guild Master Orlend",
+  "text": "\"The far bank. The ferry goes into the Bayou and the map does not. Three marks, and Warden Ilse's word: Fernhollow's gate, and the ferry comes in under her eye.\"",
+  "options": [
+   {
+    "text": "Give me the commission.",
+    "next": "charter_accept",
+    "action": {
+     "start_quest": "q_charter_azuryte"
+    }
+   },
+   {
+    "text": "Not yet.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_azuryte_waiting": {
+  "speaker": "Guild Master Orlend",
+  "text": "\"Three survey marks in the Bayou, and Warden Ilse's word. The waypoint knows where the marks go, which is more than the map did.\"",
+  "options": [
+   {
+    "text": "I'll see to it.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_azuryte_done": {
+  "speaker": "Guild Master Orlend",
+  "text": "Orlend unrolls the Guild's map across the desk and inks it in from your notes, one careful line at a time. Then he takes a seal off the rack behind him and puts it in your hand.\n\n\"Azuryte. Wear it or don't. The Guild will know either way.\"",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_damascus_offer": {
+  "speaker": "Guild Master Orlend",
+  "text": "\"Under Hollowrest. Somebody cut the bars off the crypt, and the Guild's map of it is one line that says 'do not'. Three marks in the Vaults and the Ossuary, and Watchman Brask's word: he hears it scratching on his round.\"",
+  "options": [
+   {
+    "text": "Give me the commission.",
+    "next": "charter_accept",
+    "action": {
+     "start_quest": "q_charter_damascus"
+    }
+   },
+   {
+    "text": "Not yet.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_damascus_waiting": {
+  "speaker": "Guild Master Orlend",
+  "text": "\"Three survey marks in Hollowrest Crypt's Vaults and Ossuary, and Watchman Brask's word. The waypoint knows where the marks go, which is more than the map did.\"",
+  "options": [
+   {
+    "text": "I'll see to it.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_damascus_done": {
+  "speaker": "Guild Master Orlend",
+  "text": "Orlend unrolls the Guild's map across the desk and inks it in from your notes, one careful line at a time. Then he takes a seal off the rack behind him and puts it in your hand.\n\n\"Damascus. Wear it or don't. The Guild will know either way.\"",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_orichalcum_offer": {
+  "speaker": "Guild Master Orlend",
+  "text": "\"Purgatory's Plateau, up the Pale Ascent past the burnt road, where the dragons are. Three marks -- the Ascent, the Flats and the Terraces -- and the word of Battlemaster Ysolde at the College. She wants a report on those dragons and will not get one from anybody else.\"",
+  "options": [
+   {
+    "text": "Give me the commission.",
+    "next": "charter_accept",
+    "action": {
+     "start_quest": "q_charter_orichalcum"
+    }
+   },
+   {
+    "text": "Not yet.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_orichalcum_waiting": {
+  "speaker": "Guild Master Orlend",
+  "text": "\"Three survey marks on the Pale Ascent, the Scoured Flats and the Brine Terraces, and Battlemaster Ysolde's word. The waypoint knows where the marks go, which is more than the map did.\"",
+  "options": [
+   {
+    "text": "I'll see to it.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_orichalcum_done": {
+  "speaker": "Guild Master Orlend",
+  "text": "Orlend unrolls the Guild's map across the desk and inks it in from your notes, one careful line at a time. Then he takes a seal off the rack behind him and puts it in your hand.\n\n\"Orichalcum. Wear it or don't. The Guild will know either way.\"",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_diamond_offer": {
+  "speaker": "Guild Master Orlend",
+  "text": "\"The Hexmire, north of the Bayou. A cult, drums at night, and turtle-folk at war with it. Nobody has ever come back with a map of it. Three marks -- the Drowns, the Strand and the Fens -- and Oona the Herbalist's word. She knows what the cult's knots are. Ask her.\"",
+  "options": [
+   {
+    "text": "Give me the commission.",
+    "next": "charter_accept",
+    "action": {
+     "start_quest": "q_charter_diamond"
+    }
+   },
+   {
+    "text": "Not yet.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_diamond_waiting": {
+  "speaker": "Guild Master Orlend",
+  "text": "\"Three survey marks in the Drowns, on the Strand and in the Candle Fens, and Oona the Herbalist's word. The waypoint knows where the marks go, which is more than the map did.\"",
+  "options": [
+   {
+    "text": "I'll see to it.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_diamond_done": {
+  "speaker": "Guild Master Orlend",
+  "text": "Orlend unrolls the Guild's map across the desk and inks it in from your notes, one careful line at a time. Then he takes a seal off the rack behind him and puts it in your hand.\n\n\"Diamond. Wear it or don't. The Guild will know either way.\"",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_platinum_offer": {
+  "speaker": "Guild Master Orlend",
+  "text": "\"Beyond the Spire: the Frostreach. Barrows, a frozen mere with a trapper's cabin on it, a glacier, and a hall the dead keep. Three marks -- the Barrows, the Mere and the Glacier -- and Elder Vask's word. He was the Spirewatch. Whatever he asks of you up there, do it.\"",
+  "options": [
+   {
+    "text": "Give me the commission.",
+    "next": "charter_accept",
+    "action": {
+     "start_quest": "q_charter_platinum"
+    }
+   },
+   {
+    "text": "Not yet.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_platinum_waiting": {
+  "speaker": "Guild Master Orlend",
+  "text": "\"Three survey marks in the Draugr Barrows, on the Glass Mere and on the Rimefall Glacier, and Elder Vask's word. The waypoint knows where the marks go, which is more than the map did.\"",
+  "options": [
+   {
+    "text": "I'll see to it.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_platinum_done": {
+  "speaker": "Guild Master Orlend",
+  "text": "Orlend unrolls the Guild's map across the desk and inks it in from your notes, one careful line at a time. Then he takes a seal off the rack behind him and puts it in your hand.\n\n\"Platinum. Wear it or don't. The Guild will know either way.\"",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_demonite_offer": {
+  "speaker": "Guild Master Orlend",
+  "text": "\"His hall. The far end of the burnt road, over the moat, into the Brimstone Palace. The Guild's map has a drawing of a door on it and nothing behind the door. Three marks -- the road's end, the foyer and the Chambers -- and Wren's word. Yes, the bard. He has a song about the place and no ending for it.\"",
+  "options": [
+   {
+    "text": "Give me the commission.",
+    "next": "charter_accept",
+    "action": {
+     "start_quest": "q_charter_demonite"
+    }
+   },
+   {
+    "text": "Not yet.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_demonite_waiting": {
+  "speaker": "Guild Master Orlend",
+  "text": "\"Three survey marks at the burnt road's end, in the Brimstone Palace's foyer and its Chambers Wing, and Wren the Bard's word. The waypoint knows where the marks go, which is more than the map did.\"",
+  "options": [
+   {
+    "text": "I'll see to it.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_demonite_done": {
+  "speaker": "Guild Master Orlend",
+  "text": "Orlend unrolls the Guild's map across the desk and inks it in from your notes, one careful line at a time. Then he takes a seal off the rack behind him and puts it in your hand.\n\n\"Demonite. Wear it or don't. The Guild will know either way.\"",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_dracon_offer": {
+  "speaker": "Guild Master Orlend",
+  "text": "\"The rift in the Stronghold, and what is through it. The Magister calls it the Primordium and will not stop calling it that. Three marks -- the Kiln, the Bedrock and the Deeps -- and Magister Orrin's word. He wants things from in there I would not carry in my pocket.\"",
+  "options": [
+   {
+    "text": "Give me the commission.",
+    "next": "charter_accept",
+    "action": {
+     "start_quest": "q_charter_dracon"
+    }
+   },
+   {
+    "text": "Not yet.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_dracon_waiting": {
+  "speaker": "Guild Master Orlend",
+  "text": "\"Three survey marks in the Kiln, the Bedrock and the Deeps, and Magister Orrin's word. The waypoint knows where the marks go, which is more than the map did.\"",
+  "options": [
+   {
+    "text": "I'll see to it.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_dracon_done": {
+  "speaker": "Guild Master Orlend",
+  "text": "Orlend unrolls the Guild's map across the desk and inks it in from your notes, one careful line at a time. Then he takes a seal off the rack behind him and puts it in your hand.\n\n\"Dracon. Wear it or don't. The Guild will know either way.\"",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_enchanted_offer": {
+  "speaker": "Guild Master Orlend",
+  "text": "\"The last of it. The Firmament, the Tempest, and whatever is at the middle of the Primordium where the five meet. Three marks, and the Magister's word that the middle is quiet. Then there is no 'here be' left on the Guild's map, and I will have it copied fair.\"",
+  "options": [
+   {
+    "text": "Give me the commission.",
+    "next": "charter_accept",
+    "action": {
+     "start_quest": "q_charter_enchanted"
+    }
+   },
+   {
+    "text": "Not yet.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_enchanted_waiting": {
+  "speaker": "Guild Master Orlend",
+  "text": "\"Three survey marks in the Firmament, the Tempest and the Conflux, and Magister Orrin's word. The waypoint knows where the marks go, which is more than the map did.\"",
+  "options": [
+   {
+    "text": "I'll see to it.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_enchanted_done": {
+  "speaker": "Guild Master Orlend",
+  "text": "Orlend inks the last of it in and sits back, and for a while neither of you says anything. There is no 'here be' anywhere on the map.\n\n\"I will have it copied fair,\" he says at last, \"and the first copy goes to whoever earned it. Your house at Mossvale has a wall.\" He puts the last seal in your hand. \"Enchanted. There is no metal after that, and no map either.\"",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "charter_accept": {
+  "speaker": "Guild Master Orlend",
+  "text": "Orlend hands over a bundle of pennants and a mallet. \"The marks go where the waypoint says. Do not let anyone tell you a cairn is not a map.\"",
+  "options": [
+   {
+    "text": "I'll set them.",
+    "next": "end"
+   }
+  ]
+ },
+ "orla_scale_offer": {
+  "speaker": "Orla the Tanner",
+  "text": "\"Buy it? I would kill for it. Lizard scale cuts into the best second set a ranger can wear -- light, and it turns a blade -- and nobody brings it, because the lizardfolk have gone strange. They have started hanging reed dolls on posts along the Mire, and the trappers turn back at the first one.\"\n\n\"Five scales off the camp's lizardmen, to start. And if you get as far as their chief: he keeps a hide painted with their marks beside his hut. I want to see it.\"",
+  "options": [
+   {
+    "text": "Five scales, and a look at the chief's hide.",
+    "next": "orla_scale_accept",
+    "action": {
+     "start_quest": "q_scale_and_reed"
+    }
+   },
+   {
+    "text": "Not today.",
+    "next": "end"
+   }
+  ]
+ },
+ "orla_scale_accept": {
+  "speaker": "Orla the Tanner",
+  "text": "\"The camp is in the Mire, west over the river from the Hollowmarch road. They throw their spears from the reeds. Do not stand in the reeds.\"",
+  "options": [
+   {
+    "text": "I won't.",
+    "next": "end"
+   }
+  ]
+ },
+ "orla_scale_got": {
+  "speaker": "Orla the Tanner",
+  "text": "Orla counts them onto the rail, rubs one between finger and thumb, and nods. \"Good scale. Now the hide. The chief keeps it by his hut, and he keeps his hut.\"",
+  "options": [
+   {
+    "text": "I'll fetch it.",
+    "next": "end"
+   }
+  ]
+ },
+ "orla_scale_waiting": {
+  "speaker": "Orla the Tanner",
+  "text": "\"Five scales, then the chief's painted hide. The lizardfolk will not hand over either.\"",
+  "options": [
+   {
+    "text": "Right.",
+    "next": "end"
+   }
+  ]
+ },
+ "orla_scale_done": {
+  "speaker": "Orla the Tanner",
+  "text": "Orla spreads the hide across her frame and is quiet for a long time. \"That is not a hunting map. Look -- the marks go one way. West. That is a road, and it ends in water.\"\n\n\"The Bayou. Follow it to where it ends; they have built something there. Then go and tell Warden Ilse at Fernhollow. The ferry keeps bringing her people out of that water who cannot say their own names.\"\n\nShe turns back to the frame. \"And take the jerkin. I cut it from the scale you brought.\"",
+  "options": [
+   {
+    "text": "I'll follow the road.",
+    "next": "end"
+   }
+  ]
+ },
+ "orla_road_waiting": {
+  "speaker": "Orla the Tanner",
+  "text": "\"West, to where the marks stop in the Bayou. Then Ilse, at Fernhollow.\"",
+  "options": [
+   {
+    "text": "Right.",
+    "next": "end"
+   }
+  ]
+ },
+ "ilse_road_done": {
+  "speaker": "Warden Ilse",
+  "text": "Ilse hears the whole of it without a word, then looks out at the pond. \"A road to the water. And the ones who come up the ferry humming -- they come from where that road ends.\"\n\n\"I have been asking for somebody to go and look. You have just looked.\" She very nearly smiles. \"Ask me what I need done about it.\"",
+  "options": [
+   {
+    "text": "What do you need done?",
+    "next": "ilse_hags_offer",
+    "if": {
+     "quest": "q_hags_of_the_bayou",
+     "state": "available"
+    }
+   },
+   {
+    "text": "Later.",
+    "next": "end"
+   }
+  ]
+ },
+ "collector_dream_offer": {
+  "speaker": "The Collector",
+  "text": "\"The better cases are open, and you have earned a look at them. What goes in the next ones comes from further down than you have been: things that still remember being dreamt.\"\n\n\"There is a ladder down from here, into the Deep Reverie. The ones that walk there in their sleep -- Sleepwalkers, the dreamers call them -- carry something of whoever is dreaming them. Put six of them to rest, and tell me what they were.\"",
+  "options": [
+   {
+    "text": "Six Sleepwalkers.",
+    "next": "collector_dream_accept",
+    "action": {
+     "start_quest": "q_dream_collector_1"
+    }
+   },
+   {
+    "text": "Not tonight.",
+    "next": "end"
+   }
+  ]
+ },
+ "collector_dream_accept": {
+  "speaker": "The Collector",
+  "text": "\"Mind the ladder. It goes down further than it should.\"",
+  "options": [
+   {
+    "text": "Farewell.",
+    "next": "end"
+   }
+  ]
+ },
+ "collector_dream_waiting1": {
+  "speaker": "The Collector",
+  "text": "\"Six Sleepwalkers, in the Deep Reverie.\"",
+  "options": [
+   {
+    "text": "Farewell.",
+    "next": "end"
+   }
+  ]
+ },
+ "collector_dream_done1": {
+  "speaker": "The Collector",
+  "text": "The Collector listens with the eyes shut. \"Yes. Those were ours -- Havenbrook's, I mean, dreaming. And at the bottom of the Deep Reverie there is something that is not dreaming anybody at all, because it never sleeps.\"",
+  "options": [
+   {
+    "text": "The Sleepless.",
+    "next": "end"
+   }
+  ]
+ },
+ "collector_dream_waiting2": {
+  "speaker": "The Collector",
+  "text": "\"The Sleepless. Down at the bottom of the second depth, and awake, which down there is a kind of fury.\"",
+  "options": [
+   {
+    "text": "Farewell.",
+    "next": "end"
+   }
+  ]
+ },
+ "collector_dream_done2": {
+  "speaker": "The Collector",
+  "text": "\"Gone? Then something down there has stopped holding its eyes open.\" The Collector lifts the cloth off a case you have not seen before. \"These, then. They came up out of the dark with nobody's name on them. Take your time.\"",
+  "options": [
+   {
+    "text": "Show me the case.",
+    "next": "end",
+    "action": {
+     "shop": "reverie_curios"
+    }
+   },
+   {
+    "text": "Farewell.",
+    "next": "end"
+   }
+  ]
+ },
+ "hulda_coal_offer": {
+  "speaker": "Hulda Anvilhand",
+  "text": "\"Demon horn. Garrow is very proud of it. Platinum takes a hammer now, and Garrow thinks that makes him a smith.\"\n\n\"Bring me what a dragon breathes with and I will show him what a forge is for. The red ones on the Plateau -- Pyre Dragons. There is a sac behind the jaw that the fire comes up out of. Two.\"",
+  "options": [
+   {
+    "text": "Two pyre glands.",
+    "next": "hulda_coal_accept",
+    "action": {
+     "start_quest": "q_coal_1"
+    }
+   },
+   {
+    "text": "Another time.",
+    "next": "end"
+   }
+  ]
+ },
+ "hulda_coal_accept": {
+  "speaker": "Hulda Anvilhand",
+  "text": "\"Cut it out whole. A burst one is just a smell.\"",
+  "options": [
+   {
+    "text": "Whole.",
+    "next": "end"
+   }
+  ]
+ },
+ "hulda_coal_waiting1": {
+  "speaker": "Hulda Anvilhand",
+  "text": "\"Two pyre glands. The red dragons, on the Pale Ascent and the Flats.\"",
+  "options": [
+   {
+    "text": "Right.",
+    "next": "end"
+   }
+  ]
+ },
+ "hulda_coal_done1": {
+  "speaker": "Hulda Anvilhand",
+  "text": "Hulda splits the first gland over the coals and the forge goes from orange to white in a breath. She works a diamond ingot flat in four blows and holds it up toward Garrow, who pretends not to look.\n\n\"Take these. And come back: there is a darker fire than that, and I want it. Abyssal Demons, at the far end of the burnt road. Their horn burns black. Two.\"",
+  "options": [
+   {
+    "text": "Two abyssal horns.",
+    "next": "end"
+   }
+  ]
+ },
+ "hulda_coal_waiting2": {
+  "speaker": "Hulda Anvilhand",
+  "text": "\"Abyssal Demons, at the burnt road's end and in that palace. Two horns.\"",
+  "options": [
+   {
+    "text": "Right.",
+    "next": "end"
+   }
+  ]
+ },
+ "hulda_coal_done2": {
+  "speaker": "Hulda Anvilhand",
+  "text": "The abyssal horn burns without any light at all, and the metal in it goes dark red and soft as wax. \"Demonite. Now we are smiths.\"\n\n\"One more. The Magister at Fernhollow says there is a place where fire was before there was anything to burn. Bring me a coal from it -- an Ember Core, out of the Kiln, through the rift in the Stronghold.\"",
+  "options": [
+   {
+    "text": "An Ember Core.",
+    "next": "end"
+   }
+  ]
+ },
+ "hulda_coal_waiting3": {
+  "speaker": "Hulda Anvilhand",
+  "text": "\"An Ember Core, out of the Kiln.\"",
+  "options": [
+   {
+    "text": "Right.",
+    "next": "end"
+   }
+  ]
+ },
+ "hulda_coal_core": {
+  "speaker": "Hulda Anvilhand",
+  "text": "Hulda turns the core over in her tongs and, for once, says nothing at all. Then she takes the hammer off her belt and puts it in your hands.\n\n\"Dracon wants a hammer that has been in that fire. This one has. Take it to Halda in Havenbrook, and tell her I said she does it wrong.\"",
+  "options": [
+   {
+    "text": "I'll tell her.",
+    "next": "end"
+   }
+  ]
+ },
+ "hulda_coal_waiting4": {
+  "speaker": "Hulda Anvilhand",
+  "text": "\"Halda. Havenbrook. Tell her what I said.\"",
+  "options": [
+   {
+    "text": "Right.",
+    "next": "end"
+   }
+  ]
+ },
+ "halda_hammer_done": {
+  "speaker": "Smith Halda",
+  "text": "Halda weighs Hulda's hammer, turns it over, and looks at the face of it for a long time. \"She said I do it wrong.\"\n\n\"She is right about the hammer.\" She hangs it on the wall over her own anvil, thinks better of that, and hands you two bars from the back of the forge instead. \"Tell her I said thank you. Then tell her I said nothing.\"",
+  "options": [
+   {
+    "text": "I'll tell her nothing.",
+    "next": "end"
+   }
+  ]
+ },
+ "ysolde_breaths_offer": {
+  "speaker": "Battlemaster Ysolde",
+  "text": "\"Straw, mostly. Straw does not breathe fire.\"\n\n\"The College used to send its adepts up Purgatory's Plateau to learn the elements off the things that breathe them -- the stone's breath and the fire's, the sea's and the wind's and the storm's. Fifty years ago it stopped sending them, and nobody wrote down why. I would like a report. Yours will do.\"\n\n\"The earth and the fire first: a Basalt Dragon and a Pyre Dragon, both on the Pale Ascent. Then tell the Lector what they did. She has a lecture that needs it.\"",
+  "options": [
+   {
+    "text": "The earth and the fire.",
+    "next": "ysolde_breaths_accept",
+    "action": {
+     "start_quest": "q_breaths_1"
+    }
+   },
+   {
+    "text": "Not yet.",
+    "next": "end"
+   }
+  ]
+ },
+ "ysolde_breaths_accept": {
+  "speaker": "Battlemaster Ysolde",
+  "text": "\"Mind the breath, not the teeth. The teeth are the easy part.\"",
+  "options": [
+   {
+    "text": "I'll watch.",
+    "next": "end"
+   }
+  ]
+ },
+ "ysolde_breaths_waiting1": {
+  "speaker": "Battlemaster Ysolde",
+  "text": "\"A Basalt Dragon and a Pyre Dragon, on the Ascent. Then the Lector.\"",
+  "options": [
+   {
+    "text": "Right.",
+    "next": "end"
+   }
+  ]
+ },
+ "ysolde_breaths_waiting2": {
+  "speaker": "Battlemaster Ysolde",
+  "text": "\"A Brine Dragon on the Terraces, and a Gale Dragon on the Flats or the Terraces. Then the Lector.\"",
+  "options": [
+   {
+    "text": "Right.",
+    "next": "end"
+   }
+  ]
+ },
+ "ysolde_breaths_waiting3": {
+  "speaker": "Battlemaster Ysolde",
+  "text": "\"A Storm Dragon, round the Stronghold at the top. And there is something in the Stronghold itself the old adepts wrote about -- a rift. Go and read what is scratched beside it.\"",
+  "options": [
+   {
+    "text": "Right.",
+    "next": "end"
+   }
+  ]
+ },
+ "ysolde_breaths_done": {
+  "speaker": "Battlemaster Ysolde",
+  "text": "Ysolde hears about the rift with her arms folded. \"That is why they stopped. Not the dragons. The adepts went up to learn the five breaths and came back down wanting to know where breath comes from.\"\n\n\"Magister Orrin will want this. He will pretend he does not.\" She looks along the rack. \"The College pays its debts. Which would you rather?\"",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "lector_breaths_1": {
+  "speaker": "Lector Maud",
+  "text": "Lector Maud writes while you talk and does not look up until you stop. \"The stone breath smothers, and the fire one scorches stone. As the circle says -- and now as somebody has seen.\" She underlines something twice. \"Water and air next. The Battlemaster will tell you where.\"",
+  "options": [
+   {
+    "text": "I'll go.",
+    "next": "end"
+   }
+  ]
+ },
+ "lector_breaths_2": {
+  "speaker": "Lector Maud",
+  "text": "\"The water douses the fire, and the air disperses the water.\" The Lector's chalk squeaks. \"Four of four. The circle is closed.\" She looks up. \"And then there is the fifth, which is not in my circle at all. Ask the Battlemaster about the storm. She will pretend she does not know.\"",
+  "options": [
+   {
+    "text": "I'll ask.",
+    "next": "end"
+   }
+  ]
+ },
+ "oona_black_offer": {
+  "speaker": "Oona the Herbalist",
+  "text": "Oona turns the opened poppet over and puts a fingernail under one of its knots. \"Lizardfolk tie reeds. This is a cord knot, and I have seen it once before, on a jar a woman carried out of the swamp north of the Bayou with a light still in it.\"\n\n\"The drums you hear up there at night are the same hands. Go and see who is tying them. Start at the Drowns: the cult keeps its jars there, and its jars are where its knots are.\"",
+  "options": [
+   {
+    "text": "I'll go and see.",
+    "next": "oona_black_accept",
+    "action": {
+     "start_quest": "q_black_water_1"
+    }
+   },
+   {
+    "text": "Not yet.",
+    "next": "end"
+   }
+  ]
+ },
+ "oona_black_accept": {
+  "speaker": "Oona the Herbalist",
+  "text": "\"Do not drink anything they leave lying about. Do not open the jars.\"",
+  "options": [
+   {
+    "text": "I won't.",
+    "next": "end"
+   }
+  ]
+ },
+ "oona_black_waiting1": {
+  "speaker": "Oona the Herbalist",
+  "text": "\"The Cypress Drowns. Six of the cult, and wherever they keep the jars.\"",
+  "options": [
+   {
+    "text": "Right.",
+    "next": "end"
+   }
+  ]
+ },
+ "oona_black_done1": {
+  "speaker": "Oona the Herbalist",
+  "text": "\"The same knot.\" Oona lays the two side by side. \"So it is them.\"\n\n\"The Shellbacks on the Strand are at war with the cult and take its cord off its dead -- and the cult beats three drums in the Candle Fens to call whatever it calls. Stop the drums.\"",
+  "options": [
+   {
+    "text": "I'll stop them.",
+    "next": "end"
+   }
+  ]
+ },
+ "oona_black_waiting2": {
+  "speaker": "Oona the Herbalist",
+  "text": "\"A Shellback Elder on the Strand, and the three drums in the Candle Fens.\"",
+  "options": [
+   {
+    "text": "Right.",
+    "next": "end"
+   }
+  ]
+ },
+ "oona_black_done2": {
+  "speaker": "Oona the Herbalist",
+  "text": "\"Quiet up there last night, for the first time in years. The ferrymen noticed.\" Oona does not smile. \"Now the one they answer to. The High Priest, in the Sanctum behind their temple. When he is gone, bring me his cord and I will burn it.\"",
+  "options": [
+   {
+    "text": "I will.",
+    "next": "end"
+   }
+  ]
+ },
+ "oona_black_waiting3": {
+  "speaker": "Oona the Herbalist",
+  "text": "\"The High Priest. The temple's Sanctum.\"",
+  "options": [
+   {
+    "text": "Right.",
+    "next": "end"
+   }
+  ]
+ },
+ "oona_black_done3": {
+  "speaker": "Oona the Herbalist",
+  "text": "Oona puts the High Priest's cord in the fire and watches it burn to the end. \"My mother's mother tied the first of those. She was sorry after. It took this long to finish being sorry.\"\n\nShe takes a jar of her own down from the shelf -- an honest one, with a herb in it -- and sets it beside you. \"Thank you.\"",
+  "options": [
+   {
+    "text": "Goodbye.",
+    "next": "end"
+   }
+  ]
+ },
+ "vask_watch_offer": {
+  "speaker": "Elder Vask",
+  "text": "Vask stops rocking. \"Twelve of the Spirewatch went up. I came down. The other eleven were carried west into the Frostreach and laid in the old mounds with their swords, which is the mountain's way.\"\n\n\"The mounds do not keep their dead any more. I hear it from the trappers, the few that still go. I would like to know which of mine are walking -- and I would like them to stop.\"",
+  "options": [
+   {
+    "text": "I'll find them.",
+    "next": "vask_watch_accept",
+    "action": {
+     "start_quest": "q_spirewatch_1"
+    }
+   },
+   {
+    "text": "Not yet.",
+    "next": "end"
+   }
+  ]
+ },
+ "vask_watch_accept": {
+  "speaker": "Elder Vask",
+  "text": "\"West from the summit, past the climbers' camp. Their cairn has their names on it. You will know it.\"",
+  "options": [
+   {
+    "text": "I'll know it.",
+    "next": "end"
+   }
+  ]
+ },
+ "vask_watch_waiting1": {
+  "speaker": "Elder Vask",
+  "text": "\"The Barrows, in the Frostreach. Their cairn, and then -- rest them.\"",
+  "options": [
+   {
+    "text": "Right.",
+    "next": "end"
+   }
+  ]
+ },
+ "vask_watch_done1": {
+  "speaker": "Elder Vask",
+  "text": "Vask is quiet a long time. \"Eleven names.\" He says them, one by one, and you would not have known the last was missing if he had not stopped.\n\n\"The captain's is not on the stone, because her sword was not in the mound. Harl would know. He keeps the cabin on the Mere -- or kept it. Read what he wrote.\"",
+  "options": [
+   {
+    "text": "I'll read it.",
+    "next": "end"
+   }
+  ]
+ },
+ "vask_watch_waiting2": {
+  "speaker": "Elder Vask",
+  "text": "\"Harl's cabin, on the Glass Mere. Read his journal. Then find her sword.\"",
+  "options": [
+   {
+    "text": "Right.",
+    "next": "end"
+   }
+  ]
+ },
+ "vask_watch_done2": {
+  "speaker": "Elder Vask",
+  "text": "Vask takes the sword across his knees and says nothing for long enough that the chair stops creaking. Then he gets up -- slowly, all of him -- and hangs it over the door, where he can see it from the chair.\n\n\"There. Now the twelve of us are home.\" He sits back down. \"One more thing. There were twelve keys to the Spire's door, and one never came back down. If you ever find a key of ice, it is ours.\"",
+  "options": [
+   {
+    "text": "I'll remember.",
+    "next": "end"
+   }
+  ]
+ },
+ "hale_harl_done": {
+  "speaker": "Hale the Trapper",
+  "text": "Hale turns the knife over, finds the notches in the handle, and sits down on the stump without seeming to decide to. \"Thirty years we trapped together, before he went up on the ice and I came down into the trees. Forty winters on the Mere.\"\n\n\"He would have hated going in a barrow. Good that he didn't.\" Hale puts the knife away inside the coat. \"The cabin's yours. He'd say so, and he'd say it rudely. There's a chest in it he never let me look in. That's yours too.\"",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "bard_song_offer": {
+  "speaker": "Wren the Bard",
+  "text": "\"I have the one about the Warchief, the one about the Wight, and the one about Bess's eel pie. There is a fourth. It starts on the burnt road and it stops at a drawbridge, because nobody who crossed it came back to sing the rest.\"\n\n\"The herald went first, they say -- down the road with the King's word, and into the moat. Whatever is left of him is where the song starts. Find me the verses.\"",
+  "options": [
+   {
+    "text": "I'll find them.",
+    "next": "bard_song_accept",
+    "action": {
+     "start_quest": "q_song_1"
+    }
+   },
+   {
+    "text": "Another time.",
+    "next": "end"
+   }
+  ]
+ },
+ "bard_song_accept": {
+  "speaker": "Wren the Bard",
+  "text": "\"Bring them back exactly. A verse changed is a different song.\"",
+  "options": [
+   {
+    "text": "Exactly.",
+    "next": "end"
+   }
+  ]
+ },
+ "bard_song_waiting1": {
+  "speaker": "Wren the Bard",
+  "text": "\"The herald, by the moat at the end of the burnt road. And something cut into the palace's own stone, if anybody ever got that far.\"",
+  "options": [
+   {
+    "text": "Right.",
+    "next": "end"
+   }
+  ]
+ },
+ "bard_song_1": {
+  "speaker": "Wren the Bard",
+  "text": "Wren has the first two by heart before you finish telling them, lips moving. \"The horn in the moat. The feast that is the guests.\" He looks at you. \"That is not an ending. That is a door. The King's table, and his guest list -- and then the King.\"",
+  "options": [
+   {
+    "text": "And then the King.",
+    "next": "end"
+   }
+  ]
+ },
+ "bard_song_waiting2": {
+  "speaker": "Wren the Bard",
+  "text": "\"The guest list in his Dining Hall. Then the King himself.\"",
+  "options": [
+   {
+    "text": "Right.",
+    "next": "end"
+   }
+  ]
+ },
+ "bard_song_done": {
+  "speaker": "Wren the Bard",
+  "text": "Wren climbs onto the table, and for once the room turns round to listen.\n\nThe herald rode the burnt road down\nwith the Cinder King's word in his horn,\nand the moat drank the horn and the herald both\nand the road forgot he was born.\n\nThe balcony's stone has a line cut in\nby a hand that was guest and not thrall:\nhe feasts us at dusk and he feasts us at dawn,\nand the feast is the guests, and that's all.\n\nThe list on the stand had a space left bare\nthat a name burned into when read,\nand the one with the name that the fire wrote in\nis the one who came back instead.\n\nSo pour for the road and the moat and the horn,\nand pour for the King in his hall:\nthe fire's gone out of the Brimstone throne,\nand somebody walked through it all.",
+  "options": [
+   {
+    "text": "That's the end of it.",
+    "next": "end"
+   }
+  ]
+ },
+ "bard_song_again": {
+  "speaker": "Wren the Bard",
+  "text": "Wren climbs onto the table, and for once the room turns round to listen.\n\nThe herald rode the burnt road down\nwith the Cinder King's word in his horn,\nand the moat drank the horn and the herald both\nand the road forgot he was born.\n\nThe balcony's stone has a line cut in\nby a hand that was guest and not thrall:\nhe feasts us at dusk and he feasts us at dawn,\nand the feast is the guests, and that's all.\n\nThe list on the stand had a space left bare\nthat a name burned into when read,\nand the one with the name that the fire wrote in\nis the one who came back instead.\n\nSo pour for the road and the moat and the horn,\nand pour for the King in his hall:\nthe fire's gone out of the Brimstone throne,\nand somebody walked through it all.",
+  "options": [
+   {
+    "text": "Thank you.",
+    "next": "end"
+   }
+  ]
+ },
+ "gammer_song": {
+  "speaker": "Gammer Holt",
+  "text": "\"Sixty years in this chair and I have never heard the room go quiet for Wren. It went quiet for that one. I will not tell him.\"",
+  "options": [
+   {
+    "text": "Ha.",
+    "next": "end"
+   }
+  ]
+ },
+ "lark_song": {
+  "speaker": "Lark",
+  "text": "\"Since Wren sang that one, nobody tips for the eel pie song. He doesn't mind. He minds a bit.\"",
+  "options": [
+   {
+    "text": "Ha.",
+    "next": "end"
+   }
+  ]
+ },
+ "drover_song": {
+  "speaker": "Fen the Drover",
+  "text": "\"I'm drinking to the herald. I'll drink to the King tomorrow, and I'll drink to you after, if you're buying.\"",
+  "options": [
+   {
+    "text": "Ha.",
+    "next": "end"
+   }
+  ]
+ },
+ "orrin_world_offer": {
+  "speaker": "Magister Orrin",
+  "text": "\"The elements are what the land lends you. I have taught that for forty years and never once asked who lent them to the land.\"\n\n\"Ysolde tells me there is a hole at the top of the Plateau that answers. Go through it. Bring me back what the fire was made of, and the stone -- not a shard, not a spark: the thing at the heart of it. I want to hold it.\"",
+  "options": [
+   {
+    "text": "The fire and the stone.",
+    "next": "orrin_world_accept",
+    "action": {
+     "start_quest": "q_world_made_1"
+    }
+   },
+   {
+    "text": "Not yet.",
+    "next": "end"
+   }
+  ]
+ },
+ "orrin_world_accept": {
+  "speaker": "Magister Orrin",
+  "text": "\"Seventy before you so much as look in, the sign says. Believe the sign.\"",
+  "options": [
+   {
+    "text": "I'll believe it.",
+    "next": "end"
+   }
+  ]
+ },
+ "orrin_world_waiting1": {
+  "speaker": "Magister Orrin",
+  "text": "\"An Ember Core and a Stone Heart, from the Kiln and the Bedrock.\"",
+  "options": [
+   {
+    "text": "Right.",
+    "next": "end"
+   }
+  ]
+ },
+ "orrin_world_done1": {
+  "speaker": "Magister Orrin",
+  "text": "Orrin holds the ember core in one hand and the stone heart in the other and does not speak for a while. \"Warm. Both of them. I thought the stone would be cold.\"\n\n\"The sea and the sky next. They are further in.\"",
+  "options": [
+   {
+    "text": "Further in.",
+    "next": "end"
+   }
+  ]
+ },
+ "orrin_world_waiting2": {
+  "speaker": "Magister Orrin",
+  "text": "\"A Tide Pearl from the Deeps, and a Gale Plume from the Firmament.\"",
+  "options": [
+   {
+    "text": "Right.",
+    "next": "end"
+   }
+  ]
+ },
+ "orrin_world_done2": {
+  "speaker": "Magister Orrin",
+  "text": "\"Four.\" He lays them out at the edge of the old circle, and its lines brighten under them, very slightly. \"It remembers.\"\n\n\"The fifth is the storm. And past the storm, whatever holds the five of them together.\"",
+  "options": [
+   {
+    "text": "The storm, and the whole.",
+    "next": "end"
+   }
+  ]
+ },
+ "orrin_world_waiting3": {
+  "speaker": "Magister Orrin",
+  "text": "\"Storm Glass, from the Tempest. And whatever is at the Conflux.\"",
+  "options": [
+   {
+    "text": "Right.",
+    "next": "end"
+   }
+  ]
+ },
+ "orrin_world_done3": {
+  "speaker": "Magister Orrin",
+  "text": "You set the Heart of the Conflux down in the middle of the circle and step back, and the circle takes the light out of it and keeps it: every line cut in the floor comes up gold, and stays.\n\nOrrin sits down on the floor, which the College has never seen him do. \"Forty years,\" he says. \"Who lent it. Well.\" He looks up. \"Keep the heart. The circle has what it wanted.\"",
+  "options": [
+   {
+    "text": "Thank you, Magister.",
+    "next": "end"
+   }
+  ]
+ },
+ "orrin_cinders": {
+  "speaker": "Magister Orrin",
+  "text": "Orrin looks at the coal on its chain and does not touch it. \"That was lit before there was anything to burn. There is a place like that -- through the rift in the Stronghold. When the Battlemaster's report is in, ask me about it.\"",
+  "options": [
+   {
+    "text": "I will.",
     "next": "end"
    }
   ]

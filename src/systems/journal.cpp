@@ -4,6 +4,8 @@
 bool QuestChapters::Load(const string& path) {
     chapters.clear();
     where.clear();
+    threads.clear();
+    thread_of.clear();
     std::ifstream in(path);
     if (!in) {
         SDL_Log("QuestChapters: cannot open '%s'", path.c_str());
@@ -31,7 +33,26 @@ bool QuestChapters::Load(const string& path) {
         for (size_t i = 0; i < ch.side.size(); ++i) where[ch.side[i]] = {index, true, static_cast<int>(i)};
         chapters.push_back(std::move(ch));
     }
+    if (root.contains("threads") && root["threads"].is_array())
+        for (const json& t : root["threads"]) {
+            QuestThread th;
+            th.id = t.value("id", string(""));
+            th.title = t.value("title", th.id);
+            th.sub = t.value("sub", string(""));
+            if (t.contains("quests"))
+                for (const json& q : t["quests"]) th.quests.push_back(q.get<string>());
+            const int index = static_cast<int>(threads.size());
+            for (size_t i = 0; i < th.quests.size(); ++i) thread_of[th.quests[i]] = {index, static_cast<int>(i)};
+            threads.push_back(std::move(th));
+        }
     return true;
+}
+
+int QuestChapters::ThreadOf(const string& quest_id, int* place) const {
+    const auto it = thread_of.find(quest_id);
+    if (it == thread_of.end()) return -1;
+    if (place) *place = it->second.second;
+    return it->second.first;
 }
 
 int QuestChapters::Of(const string& quest_id, bool* side, int* place) const {
@@ -54,6 +75,12 @@ bool Begun(const QuestLog& log, const QuestChapter& chapter) {
     return false;
 }
 
+string NextOf(const QuestLog& log, const QuestThread& thread) {
+    for (const string& id : thread.quests)
+        if (log.Status(id) == QuestStatus::NotStarted) return id;
+    return "";
+}
+
 Page Build(const QuestLog& log, const QuestChapters& chapters, int tab) {
     // The headings this tab can have, in the order they come: in the Story tab
     // each part and then the tales; elsewhere what goes alongside each part,
@@ -65,6 +92,11 @@ Page Build(const QuestLog& log, const QuestChapters& chapters, int tab) {
         if (tab == STORY) headings.push_back({c.title, c.sub});
         else              headings.push_back({"Alongside " + c.title, c.sub});
     }
+    // Then the questlines, in the order the file has them.
+    const int threads = static_cast<int>(chapters.Threads().size());
+    for (const QuestThread& t : chapters.Threads()) headings.push_back({t.title, t.sub});
+    vector<string> next_of;
+    for (const QuestThread& t : chapters.Threads()) next_of.push_back(NextOf(log, t));
     enum Kind { TALES = 0, TRADES, FAVOURS, LEDGER, BOARDS, KINDS };
     const int kind_at = static_cast<int>(headings.size());
     headings.push_back({"Tales of the Hollowmarch", ""});
@@ -92,10 +124,17 @@ Page Build(const QuestLog& log, const QuestChapters& chapters, int tab) {
         int place = 0;
         const int part = chapters.Of(id, &side, &place);
         if (state == AHEAD && part >= 0 && part < parts && !begun[static_cast<size_t>(part)]) return;
+        int step = 0;
+        const int thread = part < 0 ? chapters.ThreadOf(id, &step) : -1;
+        // Of a questline not yet taken up, only the step it goes on with.
+        if (state == AHEAD && thread >= 0 && thread < threads && next_of[static_cast<size_t>(thread)] != id) return;
         if (part >= 0 && part < parts) {
             l.row.section = part;
             // A part's own before what goes alongside it, in its order.
             l.key0 = side ? 1000 + place : place;
+        } else if (thread >= 0 && thread < threads) {
+            l.row.section = parts + thread;
+            l.key0 = step;
         } else {
             const int kind = tab == STORY       ? TALES
                            : tab == TUTORIALS   ? TRADES

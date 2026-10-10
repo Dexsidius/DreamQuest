@@ -2676,6 +2676,10 @@
                                             "w":  48,
                                             "h":  48
                                         },
+                   "props/guild_cairn":  {
+                                             "w":  56,
+                                             "h":  56
+                                         },
                    "props/guild_house":  {
                                              "w":  288,
                                              "h":  288
@@ -2712,6 +2716,10 @@
                                                     "w":  20,
                                                     "h":  18
                                                 },
+                   "props/harl_trap":  {
+                                           "w":  40,
+                                           "h":  40
+                                       },
                    "props/hay_rick":  {
                                           "w":  56,
                                           "h":  56
@@ -3336,10 +3344,18 @@
                                               "w":  96,
                                               "h":  96
                                           },
+                   "props/spell_circle_lit":  {
+                                                  "w":  96,
+                                                  "h":  96
+                                              },
                    "props/spinning_wheel":  {
                                                 "w":  56,
                                                 "h":  56
                                             },
+                   "props/spirewatch_cairn":  {
+                                                  "w":  104,
+                                                  "h":  104
+                                              },
                    "props/spring_basin":  {
                                               "w":  112,
                                               "h":  112
