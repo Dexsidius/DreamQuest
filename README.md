@@ -47,6 +47,23 @@ The first run shows Windows' "protected your PC" screen, because the program is
 not signed: *More info*, then *Run anyway*, once. To update, unpack the newer
 zip anywhere, over the old folder or not; the saves are not in it.
 
+### Shipping it
+
+The game is published on itch.io as *Solace/Reverie: Quest into the
+Dreamscape*. Everything for that page lives in `docs/itch/`:
+
+- [`PAGE.md`](docs/itch/PAGE.md) — every field of itch's form in the order it
+  asks, as copy to paste: tagline, description, tags, metadata, the AI
+  disclosure, the theme, and the launch devlog.
+- [`PUBLISH.md`](docs/itch/PUBLISH.md) — the process: build and check the zip,
+  make the pictures, create the page, push later versions with butler.
+- `cover.png`, `banner.png`, `background.png` and `screenshots/` — all made
+  from the repository: `tools/blender_cover.py` and `tools/make_cover.py` for
+  the art, `tools/itch_shots.py` for the screenshots, which runs the game once
+  per scene in a stage folder of its own.
+
+`package.cmd` will not make a zip unless the full self-test passes.
+
 ### Building it yourself, on Windows
 
 The game is plain C++20 on SDL3, built with the MSYS2 UCRT64 toolchain. Step by

@@ -1,7 +1,46 @@
 #include "game.h"
 #include <filesystem>
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <cstdio>
+#endif
+
 namespace fs = std::filesystem;
+
+#ifdef _WIN32
+// The game is a windowed program (build.ps1 links it -mwindows), so a
+// double-click opens no console behind it. Started from a terminal, its log
+// and the command-line modes (--audit, --shot) should still print there: when
+// nobody handed it an output of its own -- a pipe or a file -- it borrows the
+// console it was started from.
+static void BorrowConsole() {
+    const HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (out != nullptr && out != INVALID_HANDLE_VALUE) return;
+    if (!AttachConsole(ATTACH_PARENT_PROCESS)) return;
+    FILE* ignored = nullptr;
+    ignored = freopen("CONOUT$", "w", stdout);
+    ignored = freopen("CONOUT$", "w", stderr);
+    (void)ignored;
+}
+
+// SDL's own Windows logger attaches to the parent's console and writes there,
+// past any file or pipe the output was sent to -- in a windowed program the
+// log went nowhere a caller could read. So the log goes through the C
+// library's stderr instead, which is that file or pipe if there is one and
+// the borrowed console if not.
+static void SDLCALL LogToStderr(void* userdata, int category, SDL_LogPriority priority, const char* message) {
+    (void)userdata; (void)category; (void)priority;
+    std::fprintf(stderr, "%s\n", message);
+    std::fflush(stderr);
+}
+#endif
 
 // The game loads data/ and assets/ by relative path, which only works when it
 // is started from the project root. Double-clicked from Explorer the working
@@ -39,6 +78,10 @@ static bool FindGameRoot() {
 }
 
 int main(int argc, char* args[]) {
+#ifdef _WIN32
+    BorrowConsole();
+    SDL_SetLogOutputFunction(LogToStderr, nullptr);
+#endif
     if (!FindGameRoot()) {
         // Nothing has been initialised yet, so this is the only way to say so
         // to someone who started the game by clicking on it.

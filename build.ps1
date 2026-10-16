@@ -190,8 +190,14 @@ if ($Test) {
 $objects = Compile-Set $gameSources
 $objects += $resources
 
+# A windowed program, so a double-click opens no console behind the game;
+# started from a terminal it borrows that one (BorrowConsole in main.cpp). A
+# -Debug build keeps a console of its own. The server and the self-test stay
+# console programs: printing is what they are for.
+$subsystem = @()
+if (-not $Debug) { $subsystem += '-mwindows' }
 Write-Host "  LD  bin/DreamQuest.exe"
-& g++ $objects -o bin\DreamQuest.exe @libs
+& g++ $objects -o bin\DreamQuest.exe @subsystem @libs
 if ($LASTEXITCODE -ne 0) { throw "Link failed." }
 
 # --- runtime DLLs -------------------------------------------------------------

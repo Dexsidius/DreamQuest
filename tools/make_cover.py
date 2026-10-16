@@ -25,6 +25,8 @@ writes
     art/logo.png               the logo at one pixel per logo pixel; the main
                                menu scales it up by a whole number
     docs/itch/cover.png        itch.io's cover image, 630x500, logo and all
+    docs/itch/banner.png       the page's banner, 960x240, logo on the night sky
+    docs/itch/background.png   the page's background, the painting dimmed
 then run tools/make_titleart.ps1 for the window and .exe icons.
 """
 
@@ -39,6 +41,8 @@ RENDER = os.path.join(ROOT, "assets", "_render", "cover_foreground.png")
 OUT_PAINTING = os.path.join(ROOT, "art", "dreamquest_cover.png")
 OUT_LOGO = os.path.join(ROOT, "art", "logo.png")
 OUT_ITCH = os.path.join(ROOT, "docs", "itch", "cover.png")
+OUT_BANNER = os.path.join(ROOT, "docs", "itch", "banner.png")
+OUT_BACKGROUND = os.path.join(ROOT, "docs", "itch", "background.png")
 
 W, H = 480, 270                  # the painting, in its own pixels
 SUPERSAMPLE = 4                  # as blender_cover.py rendered it
@@ -467,9 +471,21 @@ def main():
     crop.paste(big, ((crop.width - big.width) // 2, 10), big)
     os.makedirs(os.path.dirname(OUT_ITCH), exist_ok=True)
     crop.save(OUT_ITCH)
+
+    # The page's banner, 960x240 -- itch's default page width -- a band of
+    # sky across the moon's crown with the logo on it; and its background, the
+    # painting dimmed so the page's column reads over it.
+    band = paint.crop((0, 0, W, 120)).resize((W * 2, 240), Image.NEAREST)
+    band.paste(big, ((band.width - big.width) // 2, 16), big)     # above the pommel, which is at 104
+    band.save(OUT_BANNER)
+    dim = Image.blend(paint, Image.new("RGB", paint.size, (8, 6, 22)), 0.55)
+    dim.resize((W * 4, H * 4), Image.NEAREST).save(OUT_BACKGROUND)
+
     print("painting %dx%d -> %s" % (W * 4, H * 4, OUT_PAINTING))
     print("logo %dx%d -> %s" % (mark.width, mark.height, OUT_LOGO))
     print("itch cover %dx%d -> %s" % (crop.width, crop.height, OUT_ITCH))
+    print("itch banner %dx%d -> %s" % (band.width, band.height, OUT_BANNER))
+    print("itch background %dx%d -> %s" % (W * 4, H * 4, OUT_BACKGROUND))
 
 
 if __name__ == "__main__":

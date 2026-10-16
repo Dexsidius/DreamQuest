@@ -1,8 +1,12 @@
 # DreamQuest - makes a zip that anyone can unpack and play. No compiler, no
 # MSYS2, no PowerShell policy to change: unpack, double-click DreamQuest.exe.
 #
-#   .\package.ps1               build, then package into dist\
-#   .\package.ps1 -SkipBuild    package what bin\ already holds
+#   .\package.ps1               build, run the self-test, then package into dist\
+#   .\package.ps1 -SkipBuild    package what bin\ already holds (still tested)
+#   .\package.ps1 -SkipTests    for a quick look at the zip; never for a release
+#
+# Nothing ships untested: a self-test failure stops it before anything is
+# staged. The full run takes a while; its output goes to dist\selftest.log.
 #
 # What goes in the zip is exactly what a fresh clone has plus the built exe:
 # the exe, every runtime DLL build.ps1 put beside it, and every file under
@@ -16,6 +20,7 @@
 
 param(
     [switch]$SkipBuild,
+    [switch]$SkipTests,
     [string]$Msys = "C:\msys64\ucrt64"
 )
 
@@ -27,6 +32,35 @@ if (-not $SkipBuild) {
     if ($LASTEXITCODE -ne 0 -and $null -ne $LASTEXITCODE) { throw "The build failed; nothing packaged." }
 }
 if (-not (Test-Path "bin\DreamQuest.exe")) { throw "bin\DreamQuest.exe is missing. Run .\build.ps1 first." }
+
+# --- nothing ships untested -------------------------------------------------------
+# The self-test against the very objects the exe was linked from: selftest.cpp
+# compiled at -O0 (it is thirty thousand lines, and at -O1 the compiler has run
+# out of memory on the machine this is made on), everything it tests at the
+# release's own -O2, out of obj\. Not build.ps1 -Test, which compiles all of it
+# again at -O1.
+if ($SkipTests) {
+    Write-Warning "-SkipTests: this zip is untested. Do not upload it."
+} else {
+    Write-Host "Self-test ..." -ForegroundColor Cyan
+    $env:PATH = "$Msys\bin;$env:PATH"
+    New-Item -ItemType Directory -Force -Path obj\tmp, dist | Out-Null
+    $env:TEMP = (Resolve-Path obj\tmp).Path      # cc1plus's scratch, off a full system drive
+    $exclude = @('src_main.o', 'src_game.o', 'src_ui_screens.o', 'src_ui_lobby.o', 'src_ui_splitscreen.o')
+    $testObjects = Get-ChildItem obj -Filter 'src_*.o' -File |
+        Where-Object { ($exclude -notcontains $_.Name) -and ($_.Name -notlike 'src_ui_screen_*.o') } |
+        ForEach-Object { "obj\" + $_.Name }
+    & g++ -std=c++20 -Isrc -O0 -c tools\selftest.cpp -o obj\tmp\selftest_o0.o
+    if ($LASTEXITCODE -ne 0) { throw "The self-test did not compile; nothing packaged." }
+    & g++ obj\tmp\selftest_o0.o @testObjects -o bin\selftest.exe -lSDL3 -lSDL3_image -lSDL3_ttf -l:libenet.a -lws2_32 -lwinmm
+    if ($LASTEXITCODE -ne 0) { throw "The self-test did not link; nothing packaged." }
+    # Through cmd, so its stderr is a file and not a stream of PowerShell errors.
+    & cmd /c "bin\selftest.exe > dist\selftest.log 2>&1"
+    $failures = $LASTEXITCODE
+    $summary = Get-Content dist\selftest.log | Select-String -Pattern '^\d+ checks, \d+ failures' | Select-Object -Last 1
+    if ($failures -ne 0) { throw "Self-test: $summary -- nothing packaged. See dist\selftest.log." }
+    Write-Host "Self-test: $summary" -ForegroundColor Green
+}
 
 # --- what ships -----------------------------------------------------------------
 # git knows what is ours: it respects .gitignore, so the excluded folders never

@@ -120,7 +120,7 @@ if [ $SKIP_BUILD -eq 0 ]; then
         ICON="$OBJ/appicon.o"
     fi
     echo "  LD  $OUT/DreamQuest.exe"
-    $CXX $(objs $GAME_SRC) $ICON -o "$OUT/DreamQuest.exe" $LIBDIRS $LIBS
+    $CXX $(objs $GAME_SRC) $ICON -mwindows -o "$OUT/DreamQuest.exe" $LIBDIRS $LIBS   # windowed, as build.ps1 links it
     echo "  LD  $OUT/DreamQuestServer.exe"
     $CXX $(objs tools/server_main.cpp $SERVER_SRC) $ICON -o "$OUT/DreamQuestServer.exe" $LIBDIRS $LIBS
 
