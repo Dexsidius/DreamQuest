@@ -27,7 +27,8 @@ was a game with no pictures in it. Everything has since been replaced.
 | Ground decals -- tufts, flowers, pebbles, cracks | `tools/make_decals.ps1` |
 | The hand-drawn item icons | `tools/make_icons.ps1` from `tools/icons.txt` |
 | The minimap bezel and the HUD fittings | `tools/make_ui.ps1` |
-| The title painting, the window icon and the .exe icon | `art/`, see the README |
+| The title painting (`art/dreamquest_cover.png`), the Solace/Reverie logo (`art/logo.png`) and itch.io's cover (`docs/itch/cover.png`) | `tools/blender_cover.py` models and renders the sword, cairn and ruins; `tools/make_cover.py` paints the sky, moon, clouds, spires and floating isles in pixel art, brings the render down to the painting's 480x270, and draws the logo from glyphs of its own (no font file) |
+| The window icon and the .exe icon | `tools/make_titleart.ps1`, a square off the painting's hilt and moon |
 
 Rebuilding the modelled art needs [Blender](https://www.blender.org) 5.2; the
 tiles, decals, icons and HUD are pure PowerShell and need nothing at all.

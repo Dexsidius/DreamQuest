@@ -126,6 +126,38 @@ if ($Test -or $Tools) {
     if ($LASTEXITCODE -ne 0) { throw "Could not build selftest." }
 }
 
+# The .exe's own icon and its manifest. Explorer never runs the program, so the
+# window icon set at startup does nothing for the file or a shortcut to it: the
+# picture has to be compiled in as a resource. The manifest (tools/app.manifest)
+# makes UTF-8 the program's code page, so saves under a profile folder with an
+# accent in its name open; the server takes it too. Skipped, with a warning,
+# where windres is missing -- MSYS2's binutils always has it.
+$resources = @()
+$rc = 'tools\appicon.rc'
+$ico = 'art\dreamquest.ico'
+$manifest = 'tools\app.manifest'
+if ((Test-Path $rc) -and (Test-Path $ico) -and (Get-Command windres -ErrorAction SilentlyContinue)) {
+    # Windows will not start a program whose manifest is not strict XML ("side-
+    # by-side configuration is incorrect"), so a bad one stops the build here
+    # rather than the game on someone's machine.
+    try { [xml](Get-Content $manifest -Raw -Encoding UTF8) | Out-Null }
+    catch { throw "tools\app.manifest is not valid XML, and the exe would not start: $($_.Exception.Message)" }
+    $res = 'obj\appicon.o'
+    if (-not (Test-Path obj)) { New-Item -ItemType Directory -Force -Path obj | Out-Null }
+    $stale = (-not (Test-Path $res)) -or
+             ((Get-Item $rc).LastWriteTimeUtc       -gt (Get-Item $res).LastWriteTimeUtc) -or
+             ((Get-Item $ico).LastWriteTimeUtc      -gt (Get-Item $res).LastWriteTimeUtc) -or
+             ((Get-Item $manifest).LastWriteTimeUtc -gt (Get-Item $res).LastWriteTimeUtc)
+    if ($stale) {
+        Write-Host "  RC  $rc"
+        & windres $rc -O coff -o $res
+        if ($LASTEXITCODE -ne 0) { throw "Could not compile the icon resource." }
+    }
+    $resources += $res
+} else {
+    Write-Warning "windres not found: no icon on the exe, and saves under a profile folder with an accent in its name will not open."
+}
+
 if ($Server) {
     # The headless server: the same world and the same door, with no window.
     # It links what the self-test links -- everything but the Game class.
@@ -134,7 +166,7 @@ if ($Server) {
         ((Split-Path $_ -Leaf) -notlike 'screen_*.cpp')
     }
     Write-Host "  CC  tools/server_main.cpp"
-    & g++ @flags -O2 tools\server_main.cpp @serverSources -o bin\DreamQuestServer.exe @libs
+    & g++ @flags -O2 tools\server_main.cpp @serverSources @resources -o bin\DreamQuestServer.exe @libs
     if ($LASTEXITCODE -ne 0) { throw "Could not build the server." }
     Write-Host "Built bin\DreamQuestServer.exe" -ForegroundColor Green
 }
@@ -156,25 +188,7 @@ if ($Test) {
 
 # --- game ---------------------------------------------------------------------
 $objects = Compile-Set $gameSources
-
-# The .exe's own icon. Explorer never runs the program, so the window icon set
-# at startup does nothing for the file or a shortcut to it: the picture has to
-# be compiled in as a resource. Skipped where windres is missing rather than
-# failing the build, since it costs nothing but the icon.
-$rc = 'tools\appicon.rc'
-$ico = 'art\dreamquest.ico'
-if ((Test-Path $rc) -and (Test-Path $ico) -and (Get-Command windres -ErrorAction SilentlyContinue)) {
-    $res = 'obj\appicon.o'
-    $stale = (-not (Test-Path $res)) -or
-             ((Get-Item $rc).LastWriteTimeUtc  -gt (Get-Item $res).LastWriteTimeUtc) -or
-             ((Get-Item $ico).LastWriteTimeUtc -gt (Get-Item $res).LastWriteTimeUtc)
-    if ($stale) {
-        Write-Host "  RC  $rc"
-        & windres $rc -O coff -o $res
-        if ($LASTEXITCODE -ne 0) { throw "Could not compile the icon resource." }
-    }
-    $objects += $res
-}
+$objects += $resources
 
 Write-Host "  LD  bin/DreamQuest.exe"
 & g++ $objects -o bin\DreamQuest.exe @libs

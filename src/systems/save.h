@@ -15,6 +15,32 @@ struct GameContext;
 
 static constexpr int SAVE_SLOTS = 3;
 
+// -----------------------------------------------------------------------------
+//  Where the player's own files live.
+//
+//  The game's files -- data/, assets/, maps/ -- stay beside the exe; the
+//  player's -- saves/ and settings.json -- go in the folder Windows keeps for
+//  each user's programs (%APPDATA%\Dexsidius\DreamQuest), so an install the
+//  itch.io app removes, or a newer zip unpacked somewhere else, does not take
+//  anybody's characters with it. A portable.txt beside the exe keeps them
+//  beside the exe instead, for a game carried on a USB stick; so does a
+//  scratch game (--scratch, --audit), so that the screenshot sandboxes never
+//  read or write the player's real settings.
+//
+//  Choose runs once at startup, after the game has found its own folder. The
+//  first time there is nothing in the user folder, it copies over whatever
+//  saves/ and settings.json the game's folder already had, and leaves a note
+//  in the old saves/ saying where they went; the originals stay as they were.
+//  Until Choose runs -- the self-test never runs it -- everything is where it
+//  always was.
+// -----------------------------------------------------------------------------
+namespace UserFiles {
+    // `app` is the folder's name; only the self-test passes another.
+    void          Choose(bool portable = false, const char* app = "DreamQuest");
+    const string& Root();                    // "" (the game's own folder) or a path ending in a separator
+    string        Path(const string& rel);   // Root() + rel
+}
+
 // Two shelves of slots: the games played alone, and the worlds played
 // together -- hosted for friends, or with Player Two at this screen. Each has
 // SAVE_SLOTS of its own, in a folder of its own (saves/ and saves/multiplayer/),
@@ -101,7 +127,7 @@ public:
     static string FormatPlaytime(float seconds);
 };
 
-// Persisted between runs in settings.json, next to the executable.
+// Persisted between runs in settings.json, in the user folder (UserFiles).
 struct Settings {
     int   input_mode = 0;        // 0 auto, 1 keyboard/mouse, 2 controller
     float zoom = 2.0f;
@@ -145,6 +171,7 @@ struct Settings {
     // The art style: 0 Classic, 1 Cozy (Shaders::Options::style).
     int    art_style = 1;
 
-    bool Load(const string& path = "settings.json");
-    bool Save(const string& path = "settings.json") const;
+    // An empty path is settings.json in the user folder.
+    bool Load(const string& path = "");
+    bool Save(const string& path = "") const;
 };

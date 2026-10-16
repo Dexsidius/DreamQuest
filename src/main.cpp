@@ -43,9 +43,9 @@ int main(int argc, char* args[]) {
         // Nothing has been initialised yet, so this is the only way to say so
         // to someone who started the game by clicking on it.
         SDL_ShowSimpleMessageBox(
-            SDL_MESSAGEBOX_ERROR, "DreamQuest",
+            SDL_MESSAGEBOX_ERROR, TitleScreen::kGameName,
             "Could not find the game's data files.\n\n"
-            "DreamQuest looks for data/ and assets/ beside the executable or "
+            "The game looks for data/ and assets/ beside the executable or "
             "one directory above it. Both are part of the repository, so a "
             "clone has them; if this is a copy of bin/ on its own, bring the "
             "rest of the folder with it.", nullptr);

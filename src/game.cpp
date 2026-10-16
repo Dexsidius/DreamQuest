@@ -210,6 +210,9 @@ int Game::Start(int argc, char** argv) {
         return 0;
     }
 
+    // Saves and settings in the user's own folder, a scratch game's beside it.
+    UserFiles::Choose(never_save);
+    characters_dir = SaveSystem::Directory() + "/characters";
     settings.Load();
     // A name to be known by, without being asked for one: whoever is logged in
     // to the machine. It can be changed on the Play Together screen.
@@ -226,7 +229,7 @@ int Game::Start(int argc, char** argv) {
     const SDL_WindowFlags flags =
         static_cast<SDL_WindowFlags>(SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
 
-    window = SDL_CreateWindow("DreamQuest", screen_w, screen_h, flags);
+    window = SDL_CreateWindow(TitleScreen::kGameName, screen_w, screen_h, flags);
     if (!window) {
         SDL_Log("DreamQuest: could not create window: %s", SDL_GetError());
         return 0;

@@ -111,7 +111,8 @@ if [ $SKIP_BUILD -eq 0 ]; then
     done | xargs -r -P "$JOBS" -n 2 sh -c 'echo "  CC  $0"; '"$CXX $FLAGS"' -c "$0" -o "$1"'
     objs() { for s in "$@"; do printf '%s ' "$OBJ/$(echo "$s" | tr / _ | sed 's/\.cpp$/.o/')"; done; }
 
-    # The exe's own icon, as build.ps1 compiles it in.
+    # The exe's own icon and its manifest (UTF-8 paths), as build.ps1 compiles
+    # them in; the server takes the same, for the manifest.
     ICON=""
     if [ -f tools/appicon.rc ] && [ -f art/dreamquest.ico ]; then
         echo "  RC  tools/appicon.rc"
@@ -121,7 +122,7 @@ if [ $SKIP_BUILD -eq 0 ]; then
     echo "  LD  $OUT/DreamQuest.exe"
     $CXX $(objs $GAME_SRC) $ICON -o "$OUT/DreamQuest.exe" $LIBDIRS $LIBS
     echo "  LD  $OUT/DreamQuestServer.exe"
-    $CXX $(objs tools/server_main.cpp $SERVER_SRC) -o "$OUT/DreamQuestServer.exe" $LIBDIRS $LIBS
+    $CXX $(objs tools/server_main.cpp $SERVER_SRC) $ICON -o "$OUT/DreamQuestServer.exe" $LIBDIRS $LIBS
 
     # The DLLs, found by walking what each binary imports, as build.ps1 does:
     # whatever is found among the SDL builds is shipped, and whatever is not
@@ -147,7 +148,7 @@ fi
 FILES=$(git ls-files assets art maps data)
 [ "$(printf '%s\n' "$FILES" | wc -l)" -ge 100 ] || { echo "git ls-files returned too little; is this a clone of the repository?"; exit 1; }
 VERSION=$(git describe --tags --always 2>/dev/null || date +%Y%m%d)
-NAME="DreamQuest-win64-$VERSION"
+NAME="SolaceReverie-win64-$VERSION"
 STAGE="dist/$NAME"
 ZIP="dist/$NAME.zip"
 

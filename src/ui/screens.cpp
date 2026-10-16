@@ -101,12 +101,25 @@ void Game::UpdateMainMenu() {
 void Game::DrawMainMenu() {
     const float cx = ui.ViewWidth() / 2.0f;
 
-    // Shadowed, and higher up than it used to sit: the title stands on the
-    // painting now rather than on a flat colour, and the moon is behind it.
-    ui.TextShadowed("DREAMQUEST", cx, ui.ViewHeight() * 0.09f, TextSize::Title,
-                    Palette::Highlight, Align::Center);
-    ui.TextShadowed("An adventure in the Hollowmarch", cx, ui.ViewHeight() * 0.09f + 52.0f,
-                    TextSize::Body, {214, 200, 176, 255}, Align::Center);
+    // The logo over the moon: art/logo.png (tools/make_cover.py), at a whole
+    // number of screen pixels per logo pixel so its letters land square --
+    // about three fifths of the width. The name as text if the file is gone.
+    SDL_Texture* logo = textures ? textures->Get(TitleScreen::kLogoPath) : nullptr;
+    if (logo) {
+        SDL_SetTextureScaleMode(logo, SDL_SCALEMODE_NEAREST);
+        float lw = 0.0f, lh = 0.0f;
+        SDL_GetTextureSize(logo, &lw, &lh);
+        const float px = UiScale();     // screen pixels per view unit
+        const float k = std::max(1.0f, floorf(ui.ViewWidth() * px * 0.58f / std::max(1.0f, lw)));
+        const float w = lw * k / px, h = lh * k / px;
+        const SDL_FRect at{floorf(cx - w / 2.0f), floorf(ui.ViewHeight() * 0.05f), w, h};
+        SDL_RenderTexture(renderer, logo, nullptr, &at);
+    } else {
+        ui.TextShadowed("SOLACE/REVERIE", cx, ui.ViewHeight() * 0.09f, TextSize::Title,
+                        Palette::Highlight, Align::Center);
+        ui.TextShadowed("Quest into the Dreamscape", cx, ui.ViewHeight() * 0.09f + 52.0f,
+                        TextSize::Body, {214, 200, 176, 255}, Align::Center);
+    }
 
     SlotRef newest;
     const bool any = NewestSave(ShelfLocked(), newest);

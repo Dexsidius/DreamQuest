@@ -29,6 +29,7 @@
 #include "../src/systems/projectile.h"
 #include "../src/systems/spell.h"
 #include "../src/systems/talents.h"
+#include "../src/systems/save.h"
 #include "../src/coop/coop.h"
 
 #include <csignal>
@@ -105,8 +106,9 @@ static void LoadWorld(const string& path, World& world) {
 
 int main(int argc, char* argv[]) {
     uint16_t port = net::DEFAULT_PORT;
-    string name = "The Hollowmarch", password, start_map = "town_havenbrook", world_path = "saves/server_world.json";
-    string kept_dir = "saves/characters/kept";   // friends' characters as last seen, and where they stood
+    // The world and the friends' characters go in the user folder, as the
+    // game's saves do (UserFiles), unless --world or --kept says otherwise.
+    string name = "The Hollowmarch", password, start_map = "town_havenbrook", world_path, kept_dir;
     bool bring_your_own = true;
     float run_for = 0.0f;           // --for <seconds>: stop by itself, for a smoke test
     for (int i = 1; i < argc; ++i) {
@@ -131,6 +133,10 @@ int main(int argc, char* argv[]) {
         printf("Could not find data/ and maps/ beside the executable or one directory up.\n");
         return 1;
     }
+    UserFiles::Choose();
+    if (world_path.empty()) world_path = SaveSystem::Directory() + "/server_world.json";
+    if (kept_dir.empty())   kept_dir   = SaveSystem::Directory() + "/characters/kept";   // friends' characters as last seen
+    printf("saves: %s\n", SaveSystem::Directory().c_str());
 
     // Everything the game loads, except what is only ever drawn.
     SpriteLibrary sprites;

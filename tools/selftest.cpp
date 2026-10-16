@@ -10191,6 +10191,62 @@ static void TestLooks(const Databases& db) {
 }
 
 
+// Saves and settings live in the user's profile folder, not beside the exe,
+// so an itch.io install that is removed takes nobody's characters with it
+// (2026-10-15). The first run copies the game folder's saves across and leaves
+// a note; it never overwrites; portable.txt keeps everything beside the game.
+// It runs under an app name of its own, so it never touches the real folder.
+// Run with --only userfiles.
+static void TestUserFiles(const Databases& db) {
+    (void)db;
+    Section("user files: saves and settings in the profile folder");
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    const fs::path home = fs::current_path();
+    const fs::path game = fs::temp_directory_path() / "dq_userfiles_test";
+    fs::remove_all(game, ec);
+    fs::create_directories(game / "saves" / "multiplayer", ec);
+    const auto write = [](const fs::path& p, const string& text) { std::ofstream(p, std::ios::trunc) << text; };
+    const auto read = [](const string& p) { std::ifstream in(p); return string(std::istreambuf_iterator<char>(in), {}); };
+    write(game / "saves" / "slot1.json", "old one");
+    write(game / "saves" / "multiplayer" / "slot2.json", "old two");
+    write(game / "settings.json", "{\"zoom\": 3.0}");
+    fs::current_path(game, ec);
+
+    UserFiles::Choose(false, "DreamQuest-selftest");
+    const string root = UserFiles::Root();
+    Check(!root.empty() && root.back() == '/' && root.find("DreamQuest-selftest") != string::npos,
+          "the user folder is the profile's, under its own name: " + root);
+    Check(SaveSystem::Directory() == root + "saves", "and the saves are read and written there");
+    Check(read(root + "saves/slot1.json") == "old one" && read(root + "saves/multiplayer/slot2.json") == "old two",
+          "the game folder's saves came across, the multiplayer shelf with them");
+    Check(read(root + "settings.json") == "{\"zoom\": 3.0}", "and so did the settings");
+    Check(UserFiles::Path("settings.json") == root + "settings.json", "which Settings now reads and writes");
+    Check(fs::exists("saves/WHERE-SAVES-WENT.txt") && read("saves/slot1.json") == "old one",
+          "the originals are left as they were, with a note saying where they went");
+
+    // Run again with something new beside the game: the profile's copy wins.
+    write(game / "saves" / "slot1.json", "newer here");
+    UserFiles::Choose(false, "DreamQuest-selftest");
+    Check(read(root + "saves/slot1.json") == "old one", "a second run never copies over what the profile has");
+
+    // portable.txt: everything stays where it always was.
+    write(game / "portable.txt", "");
+    UserFiles::Choose(false, "DreamQuest-selftest");
+    Check(UserFiles::Root().empty() && SaveSystem::Directory() == "saves" &&
+          UserFiles::Path("settings.json") == "settings.json",
+          "portable.txt keeps saves and settings beside the game");
+    fs::remove(game / "portable.txt", ec);
+    UserFiles::Choose(true, "DreamQuest-selftest");
+    Check(UserFiles::Root().empty(), "and so does a scratch game");
+
+    fs::current_path(home, ec);
+    fs::remove_all(fs::path(root), ec);
+    fs::remove_all(game, ec);
+    UserFiles::Choose(true);     // back to the game's own folder for every test after this one
+}
+
+
 // Every doorway walked through can be walked into. A dreamt copy of a room
 // seals the waking room's doorways with collision, and the dream Mayor's Hall
 // opened its own way out in the same doorway: the doors "groaned open" after
@@ -10467,6 +10523,7 @@ int main(int argc, char** argv) {
         if (only == "looks")       TestLooks(db);
         if (only == "questlines")  TestQuestlines(db);
         if (only == "doors")       TestWalkInDoors(db);
+        if (only == "userfiles")   TestUserFiles(db);
         printf("\n%d checks, %d failures\n", g_checks, g_failures);
         return g_failures;
     }
@@ -29002,6 +29059,7 @@ int main(int argc, char** argv) {
     TestLooks(db);
     TestQuestlines(db);
     TestWalkInDoors(db);
+    TestUserFiles(db);
     TestBalanceFixes(db);
     TestLateSpells(db);
     TestLateTreeRows(db);

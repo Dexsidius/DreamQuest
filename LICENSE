@@ -1,6 +1,40 @@
-MIT License
-
+Solace/Reverie: Quest into the Dreamscape (developed as DreamQuest)
 Copyright (c) 2026 Dexsidius
+
+The game is two kinds of work under two licences: its code under the MIT
+License, and the game itself -- its art, music, maps, story and writing --
+under Creative Commons Attribution-NonCommercial-ShareAlike 4.0.
+
+
+THE GAME'S CONTENT -- CC BY-NC-SA 4.0
+
+These are licensed under the Creative Commons Attribution-NonCommercial-
+ShareAlike 4.0 International licence,
+https://creativecommons.org/licenses/by-nc-sa/4.0/ :
+
+- The art: every image under assets/ and art/, and the tools in tools/ that
+  model, draw, paint, cut or render it (the blender_*.py scripts, the make_*
+  scripts, character_palettes.py, tilecut.cpp and icons.txt).
+- The music and sound effects, as composed in src/systems/audio.cpp.
+- The maps under maps/, and the places tools/genmaps.cpp lays out.
+- The story, quests, dialogue, items and every other piece of writing under
+  data/, and tools/make_story.py, which writes the story's.
+
+In short: you may share it and make things from it, as long as you credit
+Dexsidius and link the licence, never for money, and share what you make
+under the same licence. Selling it, or anything made from it, needs written
+permission from Dexsidius. The licence's own text is what counts; that
+summary is not a substitute for it.
+
+Where one file holds both kinds of work -- audio.cpp's synthesiser is code,
+its tunes are content -- each part keeps its own licence.
+
+
+THE CODE -- MIT
+
+Everything else in this repository that is DreamQuest's own -- the engine
+under src/, and the build, packaging and test scripts -- is under the MIT
+License:
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20,12 +54,11 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
----
 
-This licence covers the source code in this repository only.
+OTHER PEOPLE'S WORK
 
-The artwork the game loads at runtime is CraftPix free content and is NOT
-distributed here. It is governed by the CraftPix file licence:
-https://craftpix.net/file-licenses/
-
-Run tools/import_assets.ps1 to rebuild assets/ from your own downloads.
+Files by other people keep their own licences. src/json.hpp is JSON for
+Modern C++ (MIT, Niels Lohmann, with parts under other licences; see
+tools/licenses/JSON-for-Modern-CPP.txt). tools/licenses/ also keeps ENet's
+licence. The packaged game lists every library it ships, with its licence and
+where its source is, in THIRD-PARTY-NOTICES.txt.

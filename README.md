@@ -1,5 +1,10 @@
 # DreamQuest
 
+Released as **Solace/Reverie: Quest into the Dreamscape**. DreamQuest is its
+working name, and stays the name of the repository, the exe and the folder
+its saves go in; the window, the title screen's logo, `PLAY.txt` and the zip
+carry the released one.
+
 A top-down adventure RPG in C++ and SDL3, in the Dragon Quest Monsters mould:
 a scrolling overworld with several biomes, a village you can walk into and out
 of, houses and a guild hall you can enter, mountain mines and a barrow to raid,
@@ -25,12 +30,22 @@ it into a zip in `dist\` -- the exe, the eighteen runtime libraries it needs,
 and every data, map and art file the repository tracks, about 20 MB. Send the
 zip. **Unpack it anywhere and double-click `DreamQuest.exe`.** The game finds
 its data beside the exe, so it runs from a Desktop folder, a USB stick or a
-network share, and writes its saves and settings next to itself. `PLAY.txt`
-inside the zip says the same and lists the controls.
+network share. Its saves and settings go in the player's profile,
+`%APPDATA%\Dexsidius\DreamQuest\` (`UserFiles` in `src/systems/save.cpp`), so
+a folder deleted, moved or replaced -- or an itch.io install removed -- takes
+nobody's characters with it. The first run copies across whatever an older
+version left in `saves\` and `settings.json` beside the exe, and leaves a note
+there; an empty `portable.txt` beside the exe keeps everything beside it
+instead, and a scratch game (`--scratch`, `--audit`) always does, so the
+screenshot sandboxes never touch the real folder. The exe's manifest
+(`tools/app.manifest`) makes UTF-8 its code page, so a profile whose folder
+name has an accent in it opens like any other. `PLAY.txt` inside the zip says
+all this and lists the controls; `LICENSE.txt`, `THIRD-PARTY-NOTICES.txt` and
+`licenses\` beside it say whose work is in the folder.
 
 The first run shows Windows' "protected your PC" screen, because the program is
 not signed: *More info*, then *Run anyway*, once. To update, unpack the newer
-zip over the old folder; saves are not in the zip, so they are kept.
+zip anywhere, over the old folder or not; the saves are not in it.
 
 ### Building it yourself, on Windows
 
@@ -11083,11 +11098,19 @@ About 8,600 lines of C++, excluding the vendored `nlohmann/json`.
 
 ## Credits
 
-- Art: [CraftPix](https://craftpix.net) free asset packs — see
-  [docs/ASSETS.md](docs/ASSETS.md)
+- Art: the game's own, made by the tools in `tools/` — see
+  [docs/ASSETS.md](docs/ASSETS.md). The optional CraftPix equipment icon packs
+  stay under CraftPix's licence and are never committed or shipped.
 - JSON: [nlohmann/json](https://github.com/nlohmann/json) (MIT)
+- Networking: [ENet](http://enet.bespin.org/) (MIT)
 - Base template: [Dexsidius/SDL3-Project-Template](https://github.com/Dexsidius/SDL3-Project-Template)
 - Map format: [TheSardonicals/LevelEdit-Plus](https://github.com/TheSardonicals/LevelEdit-Plus)
 
-Code is MIT ([LICENSE](LICENSE)). The art is not covered by that licence and is
-not distributed here.
+Two licences ([LICENSE](LICENSE)): the game's content — its art, the tools that
+model and draw it, the music, the maps, the story and all its writing — is
+[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/), and the
+code is MIT. The packaged game carries `LICENSE.txt`, every bundled library's
+licence under `licenses\`, and `THIRD-PARTY-NOTICES.txt`, which says which
+library is which and where each one's source is; `package.ps1` writes them from
+MSYS2's own package records, and `tools/licenses/` keeps the two it cannot
+(ENet's and JSON for Modern C++'s).

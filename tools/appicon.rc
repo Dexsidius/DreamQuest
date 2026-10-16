@@ -6,3 +6,14 @@
    .png come out of tools/make_titleart.ps1. Lowest id wins in Explorer, so the
    application icon is 1. */
 1 ICON "art/dreamquest.ico"
+
+/* And the manifest (resource type 24, id 1 for an exe), for both exes. It
+   replaces the default one MinGW links in, so it repeats that one's two parts
+   (run as the user who started it; the Windows versions it is written for)
+   and adds a third: UTF-8 as the program's code page. Saves live under the
+   user's profile (UserFiles in save.cpp), and a profile folder can have any
+   letter in its name; without this a narrow path with an accent in it fails
+   to open. The manifest itself carries no comment: Windows refuses to start
+   a program whose manifest is not strict XML, and an XML comment may not
+   contain two hyphens in a row -- a comment there once stopped the exe. */
+1 24 "tools/app.manifest"

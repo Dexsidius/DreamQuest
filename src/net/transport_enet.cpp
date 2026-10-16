@@ -56,7 +56,7 @@ public:
         host = enet_host_create(bind, static_cast<size_t>(std::max(1, max_peers)), CHANNEL_COUNT, 0, 0);
         if (!host) {
             why = listening ? "could not listen on UDP port " + std::to_string(bind->port) +
-                              " (is another DreamQuest already hosting?)"
+                              " (is the game already hosting in another window?)"
                             : "could not open a socket";
             return false;
         }

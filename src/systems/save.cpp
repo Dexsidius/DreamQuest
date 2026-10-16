@@ -22,6 +22,71 @@ static string& SaveDir() {
     return dir;
 }
 
+// --- UserFiles ---------------------------------------------------------------
+
+static string& UserRoot() {
+    static string root;
+    return root;
+}
+
+const string& UserFiles::Root() { return UserRoot(); }
+string UserFiles::Path(const string& rel) { return UserRoot() + rel; }
+
+void UserFiles::Choose(bool portable, const char* app) {
+    UserRoot().clear();
+    SaveDir() = "saves";
+    std::error_code ec;
+    if (portable || fs::exists("portable.txt", ec)) {
+        SDL_Log("DreamQuest: saves and settings stay beside the game (%s)",
+                portable ? "a scratch game" : "portable.txt");
+        return;
+    }
+    char* pref = SDL_GetPrefPath("Dexsidius", app);
+    if (!pref) {
+        SDL_Log("DreamQuest: no folder for saves in the user's profile (%s); they stay beside the game",
+                SDL_GetError());
+        return;
+    }
+    // '/' between the parts, like every other path the game builds; Windows
+    // takes either. UTF-8 throughout -- the exe's manifest sets that code page,
+    // so a user name with an accent in it still opens.
+    string root = fs::path(pref).generic_string();
+    SDL_free(pref);
+    if (root.empty() || root.back() != '/') root += '/';
+
+    // The first time, bring over what the game's folder already had. Only when
+    // the user folder has no saves at all: a merge would have to choose
+    // between two slot 1s. Nothing is overwritten and the originals stay put.
+    const fs::path here_saves = "saves", there_saves = root + "saves";
+    if (fs::is_directory(here_saves, ec) && !fs::exists(there_saves, ec)) {
+        ec.clear();
+        fs::copy(here_saves, there_saves, fs::copy_options::recursive, ec);
+        if (ec) {
+            // Half a copy would be taken for the real thing next time.
+            SDL_Log("DreamQuest: could not copy the saves to %s (%s); they stay beside the game",
+                    there_saves.generic_string().c_str(), ec.message().c_str());
+            std::error_code ignored;
+            fs::remove_all(there_saves, ignored);
+            return;
+        }
+        std::ofstream note(here_saves / "WHERE-SAVES-WENT.txt", std::ios::trunc);
+        note << "These saves were copied to\n\n    " << there_saves.generic_string()
+             << "\n\nwhich is where the game keeps them now, so they survive the game\n"
+                "folder being moved, replaced or uninstalled. The copies here are left\n"
+                "as they were and nothing reads them any more.\n\n"
+                "To keep saves beside the game instead -- on a USB stick, say -- put an\n"
+                "empty file called portable.txt next to DreamQuest.exe.\n";
+        SDL_Log("DreamQuest: saves copied to %s", there_saves.generic_string().c_str());
+    }
+    ec.clear();
+    if (fs::exists("settings.json", ec) && !fs::exists(root + "settings.json", ec)) {
+        ec.clear();
+        fs::copy_file("settings.json", root + "settings.json", ec);   // a failure only loses the options
+    }
+    UserRoot() = root;
+    SaveDir() = root + "saves";
+}
+
 void SaveSystem::SetDirectory(const string& dir) { SaveDir() = dir.empty() ? string("saves") : dir; }
 const string& SaveSystem::Directory() { return SaveDir(); }
 
@@ -367,7 +432,8 @@ bool SaveSystem::Load(SlotRef slot, World& world, QuestLog& quests,
 
 // --- Settings ----------------------------------------------------------------
 
-bool Settings::Load(const string& path) {
+bool Settings::Load(const string& where) {
+    const string path = where.empty() ? UserFiles::Path("settings.json") : where;
     std::ifstream in(path);
     if (!in) return false;
 
@@ -411,7 +477,8 @@ bool Settings::Load(const string& path) {
     return true;
 }
 
-bool Settings::Save(const string& path) const {
+bool Settings::Save(const string& where) const {
+    const string path = where.empty() ? UserFiles::Path("settings.json") : where;
     std::ofstream out(path, std::ios::trunc);
     if (!out) return false;
 

@@ -6,7 +6,9 @@
 #
 # What goes in the zip is exactly what a fresh clone has plus the built exe:
 # the exe, every runtime DLL build.ps1 put beside it, and every file under
-# assets\, art\, maps\ and data\ that git tracks. The things git does not
+# assets\, art\, maps\ and data\ that git tracks -- with LICENSE.txt, and every
+# library's licence under licenses\ and THIRD-PARTY-NOTICES.txt (see "whose
+# work it is" below), which the libraries ask for. The things git does not
 # track are not shipped on purpose -- the raw art packs that are not ours to
 # pass on, the armour icon packs, Blender's render scratch, and this machine's
 # saves and settings. The game finds its data beside the exe (see
@@ -36,7 +38,8 @@ if (-not $files -or $files.Count -lt 100) { throw "git ls-files returned too lit
 
 $version = (& git describe --tags --always 2>$null)
 if (-not $version) { $version = Get-Date -Format "yyyyMMdd" }
-$name  = "DreamQuest-win64-$version"
+# The zip carries the game's name; the exe inside keeps the working name.
+$name  = "SolaceReverie-win64-$version"
 $stage = Join-Path "dist" $name
 $zip   = Join-Path "dist" "$name.zip"
 
@@ -63,10 +66,10 @@ foreach ($rel in $files) {
 
 # The note that answers the questions a friend will have before playing.
 $play = @"
-DREAMQUEST  ($version)
-==========
+SOLACE/REVERIE: QUEST INTO THE DREAMSCAPE  ($version)
+=========================================
 
-To play:  double-click DreamQuest.exe. That is all.
+To play:  double-click DreamQuest.exe (the game's working name). That is all.
 
     Windows may say "Windows protected your PC" the first time, because the
     program is not signed. Click "More info", then "Run anyway". That is a
@@ -76,11 +79,19 @@ To play:  double-click DreamQuest.exe. That is all.
     the folders beside DreamQuest.exe, so move or copy the whole folder, not
     the exe on its own.
 
-Your saves and settings are written next to the exe, in saves\ and
-settings.json. They are not in the zip, so unpacking a newer version over this
-folder keeps them. There are three single-player and three multiplayer slots;
-each keeps a backup, the game saves itself every two minutes and when the
-window is closed, and the load screen can delete a slot.
+Your saves and settings are kept in your Windows profile, not in this folder:
+
+    %APPDATA%\Dexsidius\DreamQuest\      (paste that into Explorer's address bar)
+
+so a newer version unpacked anywhere, or this folder deleted, leaves them be.
+The first time this version runs it copies over any saves\ and settings.json
+an older version left beside the exe, and leaves a note in that old saves\
+saying where they went. To keep everything beside the exe instead -- on a USB
+stick, say -- put an empty file called portable.txt next to DreamQuest.exe.
+
+There are three single-player and three multiplayer slots; each keeps a
+backup, the game saves itself every two minutes and when the window is
+closed, and the load screen can delete a slot.
 
 
 THE PROLOGUE
@@ -363,12 +374,154 @@ Showers come over the land now and then and pass, fog lies at dawn, and small
 animals about the place run from you; none of it touches the game.
 The full manual is README.md in the source repository:
 https://github.com/Dexsidius/DreamQuest
+LICENSE.txt says whose the game is; THIRD-PARTY-NOTICES.txt and licenses\
+credit the libraries it runs on.
 "@
 Set-Content -Path (Join-Path $stage "PLAY.txt") -Value $play -Encoding utf8
+
+# --- whose work it is -------------------------------------------------------------
+# The game's own art, music, maps and writing are CC BY-NC-SA 4.0 and its
+# code is MIT: LICENSE says both, and goes in as LICENSE.txt. Everything else
+# beside the exe is other people's work under their own licences, most of which
+# ask that their notice travel with the program -- and the LGPL ones (GLib,
+# gettext's libintl, libiconv, graphite2) also that it says where their source
+# is and that their DLLs may be swapped. MSYS2 installs each package's licence
+# files under share\licenses and pacman knows which package every DLL came
+# from, so this follows whatever build.ps1 copied and cannot drift out of step
+# with it. ENet (linked in statically) and JSON for Modern C++ (compiled in)
+# install no licence file of their own; theirs are kept in tools\licenses.
+Copy-Item "LICENSE" (Join-Path $stage "LICENSE.txt")
+$msysRoot = Split-Path $Msys -Parent
+$pacman   = Join-Path $msysRoot "usr\bin\pacman.exe"
+if (-not (Test-Path $pacman)) { throw "pacman.exe is not at $pacman; the libraries' licences are read from MSYS2's package database." }
+$licences = Join-Path $stage "licenses"
+New-Item -ItemType Directory -Force -Path $licences | Out-Null
+
+function Get-Owner([string]$file) {
+    $owner = & $pacman -Qqo (($Msys -replace '\\', '/') + "/" + $file)
+    if ($LASTEXITCODE -ne 0 -or -not $owner) { throw "pacman does not know which package $file came from, so its licence cannot be shipped." }
+    return "$owner".Trim()
+}
+
+$shipped = [ordered]@{}
+foreach ($dll in ($dlls | Sort-Object Name)) {
+    $pkg = Get-Owner "bin/$($dll.Name)"
+    if (-not $shipped.Contains($pkg)) { $shipped[$pkg] = @() }
+    $shipped[$pkg] += $dll.Name
+}
+$shipped[(Get-Owner "lib/libenet.a")] = @("Linked into DreamQuest.exe and DreamQuestServer.exe")
+
+$entries = @()
+foreach ($pkg in $shipped.Keys) {
+    $e = [ordered]@{ Name = ($pkg -replace '^mingw-w64-ucrt-x86_64-', ''); Ships = $shipped[$pkg]; Files = @() }
+    foreach ($line in (& $pacman -Qi $pkg)) {
+        if ($line -match '^Version\s*:\s*(.+)$')          { $e.Version = $Matches[1].Trim() }
+        if ($line -match '^URL\s*:\s*(.+)$')              { $e.Url     = $Matches[1].Trim() }
+        if ($line -match '^Licenses\s*:\s*(.+)$')         { $e.Licence = ($Matches[1].Trim() -replace 'spdx:', '') -replace '\s{2,}', '; ' }
+        if ($line -match '^Build Date\s*:.*\b(20\d\d)\b') { $e.Year    = $Matches[1] }
+    }
+    # The source package it was built from. gettext-runtime is one half of
+    # mingw-w64-gettext, so the name alone is not enough; pacman's record has it.
+    $desc = @(Get-Content (Join-Path $msysRoot "var\lib\pacman\local\$pkg-$($e.Version)\desc"))
+    $at   = [array]::IndexOf($desc, '%BASE%')
+    $base = if ($at -ge 0) { $desc[$at + 1] } else { $pkg -replace '-ucrt-x86_64', '' }
+    $e.Source = "https://repo.msys2.org/mingw/sources/$base-$($e.Version).src.tar.zst"
+    # Its licence files, under MSYS2's own folder names.
+    foreach ($f in (& $pacman -Qlq $pkg)) {
+        if ($f -notmatch '/share/licenses/(.+[^/])$') { continue }
+        $rel  = $Matches[1] -replace '/', '\'
+        $dest = Join-Path $licences $rel
+        New-Item -ItemType Directory -Force -Path (Split-Path $dest -Parent) | Out-Null
+        Copy-Item (Join-Path $msysRoot ($f.TrimStart('/') -replace '/', '\')) $dest
+        $e.Files += "licenses\$rel"
+    }
+    if ($e.Name -eq "enet") {
+        New-Item -ItemType Directory -Force -Path (Join-Path $licences "enet") | Out-Null
+        Copy-Item "tools\licenses\ENet.txt" (Join-Path $licences "enet\LICENSE.txt")
+        $e.Files += "licenses\enet\LICENSE.txt"
+    }
+    if ($e.Files.Count -eq 0) { throw "$pkg installs no licence file, and tools\licenses keeps none for it." }
+    $entries += [pscustomobject]$e
+}
+
+# JSON for Modern C++ is src\json.hpp itself; its notice must name the version in it.
+$jsonVersion = [regex]::Match(((Get-Content "src\json.hpp" -TotalCount 8) -join "`n"), 'version (\S+)').Groups[1].Value
+$jsonNotice  = Get-Content "tools\licenses\JSON-for-Modern-CPP.txt" -TotalCount 1
+if (-not $jsonVersion -or $jsonNotice -notmatch [regex]::Escape($jsonVersion)) {
+    throw "src\json.hpp is version '$jsonVersion' but tools\licenses\JSON-for-Modern-CPP.txt is not; bring the notice up to date."
+}
+New-Item -ItemType Directory -Force -Path (Join-Path $licences "json") | Out-Null
+Copy-Item "tools\licenses\JSON-for-Modern-CPP.txt" (Join-Path $licences "json\LICENSE.txt")
+Copy-Item "tools\licenses\Apache-2.0.txt"          (Join-Path $licences "json\Apache-2.0.txt")
+
+$listed = @()
+foreach ($e in $entries) {
+    $listed += "  " + ($e.Ships -join ", ")
+    $listed += "      $($e.Name) $($e.Version) -- $($e.Licence) -- $($e.Url)"
+    $listed += "      " + ($e.Files -join ", ")
+    $listed += ""
+}
+$listed += "  Compiled into DreamQuest.exe and DreamQuestServer.exe"
+$listed += "      JSON for Modern C++ $jsonVersion -- MIT (with parts under MIT, CC0-1.0 and Apache-2.0) -- https://github.com/nlohmann/json"
+$listed += "      licenses\json\LICENSE.txt, licenses\json\Apache-2.0.txt"
+
+$freetype = $entries | Where-Object { $_.Name -eq "freetype" } | Select-Object -First 1
+$credit = @()
+if ($freetype) {
+    $credit += ""
+    $credit += ""
+    $credit += "FREETYPE"
+    $credit += ""
+    $credit += "  Portions of this software are copyright (c) $($freetype.Year) The FreeType Project"
+    $credit += "  (https://freetype.org). All rights reserved. FreeType is used under the"
+    $credit += "  FreeType License (licenses\freetype\FTL.TXT), not the GPL."
+}
+$lgpl = @($entries | Where-Object { $_.Licence -match 'LGPL' } | ForEach-Object { $_.Name })
+$lgplText = if ($lgpl.Count -gt 1) { ($lgpl[0..($lgpl.Count - 2)] -join ", ") + " and " + $lgpl[-1] } else { $lgpl -join "" }
+$sources = @($entries | ForEach-Object { "      " + $_.Source })
+
+$notices = @"
+SOLACE/REVERIE -- WHOSE WORK IS IN THIS FOLDER
+
+The game's art, music, maps, story and writing are Dexsidius's, shared
+under Creative Commons BY-NC-SA 4.0: credit, never for money, and the same
+licence on anything made from them. Its source code is under the MIT licence.
+LICENSE.txt has both.
+
+Everything else here is other people's work, shipped under their own
+licences, each of them in full under licenses\. With thanks to all of them.
+
+
+THE LIBRARIES
+
+$($listed -join "`r`n")
+$($credit -join "`r`n")
+
+
+THE LGPL LIBRARIES
+
+  These are under the GNU Lesser General Public License, whose text is in
+  each one's folder under licenses\:
+
+      $lgplText
+
+  Each is a separate DLL that the game links to dynamically. You are free
+  to replace any of them with your own build of the same library, and to
+  reverse-engineer the game as far as you need to debug such a replacement.
+
+
+SOURCE CODE
+
+  Every library above, exactly as it was built for this package:
+$($sources -join "`r`n")
+
+  The game's own (developed as DreamQuest): https://github.com/Dexsidius/DreamQuest
+"@
+Set-Content -Path (Join-Path $stage "THIRD-PARTY-NOTICES.txt") -Value $notices -Encoding utf8
 
 # --- the zip ----------------------------------------------------------------------
 if (Test-Path $zip) { Remove-Item -Force $zip }
 Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $zip -CompressionLevel Optimal
 $size = [math]::Round((Get-Item $zip).Length / 1MB, 1)
-Write-Host ("Packaged {0} data files and {1} libraries into {2} ({3} MB)" -f $copied, $dlls.Count, $zip, $size) -ForegroundColor Green
+Write-Host ("Packaged {0} data files and {1} libraries, with {2} libraries' licences, into {3} ({4} MB)" -f $copied, $dlls.Count, ($entries.Count + 1), $zip, $size) -ForegroundColor Green
 Write-Host "Send the zip. Unpack anywhere, double-click DreamQuest.exe."

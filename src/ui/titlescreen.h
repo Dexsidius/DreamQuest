@@ -7,15 +7,15 @@
 //  The title backdrop: the game's cover painting behind the front-end menus,
 //  with a night sky moving over it.
 //
-//  The painting is the one piece of art in the repository rather than under
-//  assets/ -- it is the game's own, not CraftPix content -- so the menus have
-//  something to stand on in a fresh checkout, before any pack is imported.
+//  The painting and the logo live in art/ rather than assets/, beside the
+//  icons made from them, and are committed like the rest of the game's art.
 //
 //  It is drawn straight from the source file, cropped to whatever shape the
 //  window is and scaled to fill it, so there is no pre-rendered background at
-//  some guessed resolution to keep in step with the window. The crop is biased
-//  upward: the composition is a sword under a crescent moon, and a centred
-//  16:9 band off a square canvas cuts the top off the moon.
+//  some guessed resolution to keep in step with the window. The painting is
+//  16:9 (tools/blender_cover.py and tools/make_cover.py make it, and the logo
+//  the main menu draws over it); a squarer window takes a band off it, biased
+//  upward, because the composition is a sword under a crescent moon.
 //
 //  Over the top of it: stars that breathe, a few four-pointed sparkles in the
 //  painting's own style, and the occasional meteor. They are laid out away from
@@ -25,7 +25,11 @@
 
 namespace TitleScreen {
     inline constexpr const char* kArtPath  = "art/dreamquest_cover.png";
+    inline constexpr const char* kLogoPath = "art/logo.png";
     inline constexpr const char* kIconPath = "art/app_icon.png";
+    // What the window and the title screen call the game. The files, the
+    // folders and the exe keep the working name, DreamQuest.
+    inline constexpr const char* kGameName = "Solace/Reverie: Quest into the Dreamscape";
 }
 
 class TitleBackdrop {

@@ -1,7 +1,7 @@
 # =============================================================================
 #  DreamQuest - application icon
 #
-#  The title painting, art/dreamquest_cover.png, is the game's own art rather
+#  The title painting, art/dreamquest_cover.png (tools/make_cover.py), is the game's own art rather
 #  than CraftPix content, so unlike everything under assets/ it lives in the
 #  repository: the main menu draws it straight from there, cropped to whatever
 #  shape the window happens to be, and needs no pre-scaled copy.
@@ -25,8 +25,8 @@ param(
     [string]$Source = "art\dreamquest_cover.png",
     # The square taken for the icon, as a fraction of the painting's width, and
     # how far down it starts as a fraction of its height.
-    [double]$IconCrop = 0.52,
-    [double]$IconTop  = 0.05
+    [double]$IconCrop = 0.30,
+    [double]$IconTop  = 0.148
 )
 
 $ErrorActionPreference = "Stop"
